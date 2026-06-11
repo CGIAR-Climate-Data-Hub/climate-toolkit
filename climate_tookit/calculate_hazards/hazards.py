@@ -164,6 +164,21 @@ HAZARD_EVAL_SPECS = {
 
 HAZARD_PRINT_ORDER = ['precipitation', 'temperature', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0']
 
+COMPARISON_METRIC_SPECS = [
+    ('total_precipitation_mm', 'total_mm', 'Total Precipitation', 'mm'),
+    ('mean_temperature_c', 'mean_tavg', 'TAVG', 'deg C'),
+    ('min_tmin_c', 'min_tmin', 'Min Tmin', 'deg C'),
+    ('max_tmax_c', 'max_tmax', 'Max Tmax', 'deg C'),
+    ('NTx35', 'NTx35', 'NTx35', 'days'),
+    ('NTx40', 'NTx40', 'NTx40', 'days'),
+    ('NDD', 'NDD', 'NDD', 'days'),
+    ('NDWS', 'NDWS', 'NDWS', 'days'),
+    ('NDWL0', 'NDWL0', 'NDWL0', 'days'),
+    ('number_of_dry_spells', 'dry_spell_count', 'Dry Spells', 'spells'),
+    ('max_dry_spell_length_days', 'dry_spell_max', 'Max Dry Spell Length', 'days'),
+    ('mean_dry_spell_length_days', 'dry_spell_mean', 'Mean Dry Spell Length', 'days'),
+]
+
 def _merge_threshold_groups(base: Dict[str, Dict[str, Tuple]], override: Dict[str, Dict[str, Tuple]]) -> Dict[str, Dict[str, Tuple]]:
     merged = deepcopy(base)
     for metric, bands in (override or {}).items():
@@ -184,6 +199,9 @@ def load_custom_thresholds_file(path: Optional[str]) -> Optional[Dict[str, Dict[
     if not isinstance(data, dict):
         raise ValueError("Threshold override file must contain a JSON object keyed by metric name.")
     return data
+
+def _percent_change(diff: float, baseline: float) -> float:
+    return (diff / abs(baseline) * 100.0) if baseline != 0 else 0.0
 
 # Climate data helpers
 def get_climate_data_for_season(
@@ -499,6 +517,64 @@ def compute_ltm_baseline(
         'baseline_method': 'long_term_mean',
         'per_season':      ltm_blocks,
     }
+
+def _comparison_value_from_stats(stats: Dict[str, Any], stat_key: str) -> Optional[float]:
+    if stat_key in stats:
+        return stats.get(stat_key)
+    ds = stats.get('dry_spell_statistics') or {}
+    return ds.get(stat_key)
+
+def build_actual_vs_ltm_comparisons(
+    assessments: List[Dict[str, Any]],
+    baseline_ltm: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    ltm_by_season = {
+        blk.get('season_number', 1): blk
+        for blk in (baseline_ltm.get('per_season') or [])
+    }
+    out: List[Dict[str, Any]] = []
+    for assessment in assessments:
+        season_info = assessment.get('season_info', {})
+        sn = season_info.get('season_number', 1) or 1
+        ltm_block = ltm_by_season.get(sn)
+        if not ltm_block:
+            continue
+        actual_stats = assessment.get('season_statistics', {})
+        baseline_stats = ltm_block.get('season_statistics', {})
+        metric_rows: Dict[str, Any] = {}
+        for stat_key, metric_id, label, unit in COMPARISON_METRIC_SPECS:
+            actual = _comparison_value_from_stats(actual_stats, stat_key)
+            baseline = _comparison_value_from_stats(baseline_stats, stat_key)
+            if actual is None or baseline is None:
+                continue
+            delta = round(actual - baseline, 2)
+            pct = round(_percent_change(actual - baseline, baseline), 2)
+            metric_rows[metric_id] = {
+                'label': label,
+                'unit': unit,
+                'actual': round(actual, 2),
+                'baseline_ltm': round(baseline, 2),
+                'delta': delta,
+                'pct': pct,
+            }
+        hazard_status_comparison: Dict[str, Any] = {}
+        for result_key in HAZARD_PRINT_ORDER:
+            actual_h = (assessment.get('hazard_evaluation') or {}).get(result_key)
+            baseline_h = (ltm_block.get('hazard_evaluation') or {}).get(result_key)
+            if not actual_h or not baseline_h:
+                continue
+            hazard_status_comparison[result_key] = {
+                'actual_status': actual_h.get('status'),
+                'baseline_ltm_status': baseline_h.get('status'),
+            }
+        out.append({
+            'year': season_info.get('year'),
+            'season_number': sn,
+            'total_seasons_per_year': season_info.get('total_seasons_per_year', 1),
+            'metrics': metric_rows,
+            'hazard_status_comparison': hazard_status_comparison,
+        })
+    return out
 # Main hazard calculation
 def calculate_hazards(
     crop_name:         str,
@@ -645,9 +721,11 @@ def calculate_hazards(
     # Single season -> flat dict; multiple -> wrapped list with Baseline LTM
     if len(assessments) == 1:
         return assessments[0]
+    baseline_ltm = compute_ltm_baseline(assessments, crop_name, thresholds)
     return {
-        'assessments':  assessments,
-        'baseline_ltm': compute_ltm_baseline(assessments, crop_name, thresholds),
+        'assessments': assessments,
+        'baseline_ltm': baseline_ltm,
+        'baseline_ltm_comparisons': build_actual_vs_ltm_comparisons(assessments, baseline_ltm),
     }
 
 # Pretty printer
@@ -745,6 +823,48 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
                 )
     print(f"\n{'='*70}\n")
 
+def _print_actual_vs_ltm_comparisons(comparisons: List[Dict[str, Any]]) -> None:
+    if not comparisons:
+        return
+    print(f"\n{'='*70}")
+    print("  ACTUAL YEAR vs BASELINE LTM")
+    print(f"{'='*70}")
+    for cmp_block in comparisons:
+        year = cmp_block.get('year')
+        sn = cmp_block.get('season_number')
+        total = cmp_block.get('total_seasons_per_year', 1)
+        label = f"Year {year} - Season {sn} of {total}" if total and total > 1 else f"Year {year}"
+        print(f"\n  {label}")
+        print(f"  {'─'*66}")
+        rows = []
+        for metric in cmp_block.get('metrics', {}).values():
+            rows.append({
+                'Metric': metric['label'],
+                'actual': metric['actual'],
+                'baseline_ltm': metric['baseline_ltm'],
+                'Δ': metric['delta'],
+                'Δ%': f"{metric['pct']:+.2f}%",
+                'unit': metric['unit'],
+            })
+        if rows:
+            for line in pd.DataFrame(rows).to_string(index=False).splitlines():
+                print(f"  {line}")
+        hazard_cmp = cmp_block.get('hazard_status_comparison') or {}
+        if hazard_cmp:
+            print(f"\n  Hazard status shifts")
+            print(f"  {'─'*66}")
+            for result_key in HAZARD_PRINT_ORDER:
+                if result_key not in hazard_cmp:
+                    continue
+                spec = _get_hazard_spec_by_result_key(result_key)
+                row = hazard_cmp[result_key]
+                print(
+                    f"  {spec['label']:<25} "
+                    f"{str(row['actual_status']).replace('_', ' '):<22} -> "
+                    f"{str(row['baseline_ltm_status']).replace('_', ' ')}"
+                )
+    print(f"\n{'='*70}\n")
+
 def print_hazard_results(result: Dict[str, Any]) -> None:
     # Multi-season wrapper, label each block as "Year YYYY – Season X of Y" when available
     if 'assessments' in result:
@@ -765,6 +885,8 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
             print_hazard_results(a)
         if result.get('baseline_ltm'):
             _print_ltm_block(result['baseline_ltm'])
+        if result.get('baseline_ltm_comparisons'):
+            _print_actual_vs_ltm_comparisons(result['baseline_ltm_comparisons'])
         return
 
     if 'error' in result:
