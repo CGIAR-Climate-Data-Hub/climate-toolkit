@@ -255,6 +255,59 @@ class NexGddpXeePocTests(unittest.TestCase):
             self.assertEqual(pd.Timestamp("2041-03-01"), frame["date"].min())
             self.assertEqual(pd.Timestamp("2041-05-31"), frame["date"].max())
 
+    def test_download_variables_reuses_covering_chunk_cache_for_subwindow(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            covering = nex_gddp_xee.DownloadData(
+                variables=[ClimateVariable.precipitation],
+                location_coord=(-1.286, 36.817),
+                date_from_utc=date(1992, 1, 1),
+                date_to_utc=date(1992, 12, 30),
+                settings=Settings.load(),
+                source=ClimateDataset.nex_gddp,
+                model="MRI-ESM2-0",
+                scenario="historical",
+                cache_dir=tmpdir,
+                verbose=False,
+            )
+            covering_frame = pd.DataFrame(
+                {
+                    "date": pd.date_range("1992-01-01", "1992-12-30", freq="D"),
+                    "pr": range(365),
+                }
+            )
+            covering_manifest = covering._build_manifest(
+                covering_frame,
+                date(1992, 1, 1),
+                date(1992, 12, 30),
+                "1.1",
+            )
+            data_path, manifest_path = covering._cache_paths(date(1992, 1, 1), date(1992, 12, 30))
+            covering._write_chunk_cache(covering_frame, covering_manifest, data_path, manifest_path)
+
+            seasonal = nex_gddp_xee.DownloadData(
+                variables=[ClimateVariable.precipitation],
+                location_coord=(-1.286, 36.817),
+                date_from_utc=date(1992, 1, 1),
+                date_to_utc=date(1992, 6, 30),
+                settings=Settings.load(),
+                source=ClimateDataset.nex_gddp,
+                model="MRI-ESM2-0",
+                scenario="historical",
+                cache_dir=tmpdir,
+                verbose=False,
+            )
+
+            with mock.patch.object(
+                seasonal,
+                "_fetch_chunk_with_resilience",
+                side_effect=AssertionError("should not fetch when covering cache exists"),
+            ):
+                frame = seasonal.download_variables()
+
+            self.assertEqual(182, len(frame))
+            self.assertEqual(pd.Timestamp("1992-01-01"), frame["date"].min())
+            self.assertEqual(pd.Timestamp("1992-06-30"), frame["date"].max())
+
 
 if __name__ == "__main__":
     unittest.main()

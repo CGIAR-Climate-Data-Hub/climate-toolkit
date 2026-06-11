@@ -203,6 +203,8 @@ def get_climate_data(
     start_date  : str,
     end_date    : str,
     force_source: Optional[str] = None,
+    model       : Optional[str] = None,
+    scenario    : Optional[str] = None,
 ) -> pd.DataFrame:
     """
     Fetch standardised daily climate data (date, tmax, tmin, precip).
@@ -211,7 +213,7 @@ def get_climate_data(
     """
     date_from = date.fromisoformat(start_date)
     date_to   = date.fromisoformat(end_date)
-    df = _fetch_raw(lat, lon, date_from, date_to, force_source)
+    df = _fetch_raw(lat, lon, date_from, date_to, force_source, model=model, scenario=scenario)
     if df is None or df.empty:
         raise RuntimeError("All data sources exhausted.")
     result           = pd.DataFrame()
@@ -221,10 +223,19 @@ def get_climate_data(
     result['precip'] = df.get('precipitation')
     return result
 
-def _fetch_raw(lat, lon, date_from, date_to, force_source) -> Optional[pd.DataFrame]:
+def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=None) -> Optional[pd.DataFrame]:
     coord = (lat, lon)
     if force_source == 'chirps+chirts':
         return _merge_chirps_chirts(coord, date_from, date_to)
+    if force_source == 'nex_gddp':
+        return preprocess_data(
+            source=force_source,
+            location_coord=coord,
+            date_from=date_from,
+            date_to=date_to,
+            model=model,
+            scenario=scenario,
+        )
     if force_source:
         return preprocess_data(source=force_source, location_coord=coord,
                                date_from=date_from, date_to=date_to)
@@ -514,18 +525,35 @@ def compute_annual_stats(df: pd.DataFrame, year: int) -> Tuple[float, Dict[str, 
     return round(annual_rain, 1), humid_info
 
 # 1.5-year window fetcher
-def fetch_full_year_plus_cessation(lat, lon, year, source="auto", extra_months=6):
+def fetch_full_year_plus_cessation(
+    lat,
+    lon,
+    year,
+    source="auto",
+    extra_months=6,
+    model=None,
+    scenario=None,
+):
     force      = None if source == "auto" else source
     start_date = f"{year}-01-01"
     end_date   = f"{year + 1}-06-30"
     print(f"  Fetching {start_date} to {end_date} ...")
-    df = get_climate_data(lat, lon, start_date, end_date, force_source=force)
+    df = get_climate_data(
+        lat,
+        lon,
+        start_date,
+        end_date,
+        force_source=force,
+        model=model,
+        scenario=scenario,
+    )
     df = add_et0(df, lat)
     return df.sort_values('date').reset_index(drop=True)
 
 # Multi-year orchestrator — automatic detection
 def fetch_and_analyze_years(
-    lat, lon, start_year, end_year, extra_months=6, source="auto"
+    lat, lon, start_year, end_year, extra_months=6, source="auto",
+    model=None, scenario=None,
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
     Returns
@@ -540,7 +568,8 @@ def fetch_and_analyze_years(
         print(f"\nAnalyzing ref year {ref_year}")
         try:
             df_window = fetch_full_year_plus_cessation(
-                lat, lon, ref_year, source=source, extra_months=extra_months
+                lat, lon, ref_year, source=source, extra_months=extra_months,
+                model=model, scenario=scenario,
             )
             if df_window is None or df_window.empty:
                 print(f"  Retrieved 0 days for {ref_year}")
@@ -599,6 +628,8 @@ def fetch_and_analyze_years_fixed(
     start_year   : int,
     end_year     : int,
     source       : str = "auto",
+    model        : Optional[str] = None,
+    scenario     : Optional[str] = None,
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
     Apply fixed season windows to every year.
@@ -638,7 +669,15 @@ def fetch_and_analyze_years_fixed(
         print(f"  Fetching {fetch_start} to {fetch_end} ...")
 
         try:
-            df = get_climate_data(lat, lon, fetch_start, fetch_end, force_source=force)
+            df = get_climate_data(
+                lat,
+                lon,
+                fetch_start,
+                fetch_end,
+                force_source=force,
+                model=model,
+                scenario=scenario,
+            )
             df = add_et0(df, lat)
             print(f"  Retrieved {len(df)} days")
         except Exception as exc:

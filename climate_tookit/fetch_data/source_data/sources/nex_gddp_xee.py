@@ -600,6 +600,55 @@ class DownloadData(models.DataDownloadBase):
             return None, None
         return frame, manifest
 
+    def _load_valid_covering_cached_chunk(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[pd.DataFrame | None, dict[str, object] | None]:
+        if self.refresh_cache:
+            return None, None
+
+        base_dir = self._cache_base_dir()
+        if not base_dir.exists():
+            return None, None
+
+        candidates: list[tuple[date, date, Path]] = []
+        for manifest_path in base_dir.glob("*.manifest.json"):
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            if not manifest.get("integrity", {}).get("complete", False):
+                continue
+            try:
+                cached_start = date.fromisoformat(manifest["start_date"])
+                cached_end = date.fromisoformat(manifest["end_date"])
+            except (KeyError, ValueError):
+                continue
+            if cached_start <= start_date and cached_end >= end_date:
+                candidates.append((cached_start, cached_end, manifest_path))
+
+        if not candidates:
+            return None, None
+
+        candidates.sort(key=lambda item: ((item[1] - item[0]).days, item[0], item[1]))
+        cached_start, cached_end, _ = candidates[0]
+        frame, manifest = self._load_valid_cached_chunk(cached_start, cached_end)
+        if frame is None or manifest is None:
+            return None, None
+
+        sliced = self._slice_frame_to_dates(frame, start_date, end_date)
+        integrity = self._integrity_summary(sliced, start_date, end_date)
+        if not integrity["complete"]:
+            return None, None
+        return sliced, {
+            "selected_version": manifest.get("selected_version"),
+            "derived_from_covering_cache": True,
+            "integrity": integrity,
+            "covering_start_date": cached_start.isoformat(),
+            "covering_end_date": cached_end.isoformat(),
+        }
+
     def _load_valid_cached_annual_cover(
         self,
         start_date: date,
@@ -724,6 +773,14 @@ class DownloadData(models.DataDownloadBase):
             self._log_progress(f"Cache hit for {start_date}..{end_date}.")
             return cached_frame, cached_manifest
 
+        covering_frame, covering_manifest = self._load_valid_covering_cached_chunk(start_date, end_date)
+        if covering_frame is not None and covering_manifest is not None:
+            self._log_progress(
+                f"Cache slice hit for {start_date}..{end_date} from covering cache "
+                f"{covering_manifest['covering_start_date']}..{covering_manifest['covering_end_date']}."
+            )
+            return covering_frame, covering_manifest
+
         annual_frame, annual_manifest = self._load_valid_cached_annual_cover(start_date, end_date)
         if annual_frame is not None and annual_manifest is not None:
             self._log_progress(
@@ -779,6 +836,20 @@ class DownloadData(models.DataDownloadBase):
                 if version:
                     selected_versions.append(version)
                 frames.append(cached_frame)
+                continue
+            covering_frame, covering_manifest = self._load_valid_covering_cached_chunk(
+                chunk_start,
+                chunk_end,
+            )
+            if covering_frame is not None and covering_manifest is not None:
+                self._log_progress(
+                    f"Cache slice hit for {chunk_start}..{chunk_end} from covering cache "
+                    f"{covering_manifest['covering_start_date']}..{covering_manifest['covering_end_date']}."
+                )
+                version = covering_manifest.get("selected_version")
+                if version:
+                    selected_versions.append(version)
+                frames.append(covering_frame)
                 continue
             annual_frame, annual_manifest = self._load_valid_cached_annual_cover(
                 chunk_start,
