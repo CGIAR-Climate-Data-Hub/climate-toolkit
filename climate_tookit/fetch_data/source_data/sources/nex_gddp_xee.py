@@ -552,6 +552,22 @@ class DownloadData(models.DataDownloadBase):
             frame["date"] = pd.to_datetime(frame["date"]).dt.tz_localize(None)
         return frame
 
+    def _slice_frame_to_dates(
+        self,
+        frame: pd.DataFrame,
+        start_date: date,
+        end_date: date,
+    ) -> pd.DataFrame:
+        if frame.empty or "date" not in frame.columns:
+            return frame.copy()
+        out = frame.copy()
+        out["date"] = pd.to_datetime(out["date"]).dt.tz_localize(None)
+        mask = (
+            (out["date"] >= pd.Timestamp(start_date))
+            & (out["date"] <= pd.Timestamp(end_date))
+        )
+        return out.loc[mask].sort_values("date").reset_index(drop=True)
+
     def _load_valid_cached_chunk(
         self,
         start_date: date,
@@ -583,6 +599,51 @@ class DownloadData(models.DataDownloadBase):
             self._log_progress(f"Cache integrity failed for {start_date}..{end_date}; refetching.")
             return None, None
         return frame, manifest
+
+    def _load_valid_cached_annual_cover(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[pd.DataFrame | None, dict[str, object] | None]:
+        if self.refresh_cache:
+            return None, None
+
+        annual_frames = []
+        annual_manifests = []
+        for year in range(start_date.year, end_date.year + 1):
+            year_start = date(year, 1, 1)
+            year_end = date(year, 12, 31)
+            frame, manifest = self._load_valid_cached_chunk(year_start, year_end)
+            if frame is None or manifest is None:
+                return None, None
+            annual_frames.append(frame)
+            annual_manifests.append(manifest)
+
+        combined = pd.concat(annual_frames, ignore_index=True)
+        combined = (
+            combined.drop_duplicates(subset=["date"], keep="last")
+            .sort_values("date")
+            .reset_index(drop=True)
+        )
+        sliced = self._slice_frame_to_dates(combined, start_date, end_date)
+        integrity = self._integrity_summary(sliced, start_date, end_date)
+        if not integrity["complete"]:
+            return None, None
+
+        versions = sorted(
+            {
+                manifest.get("selected_version")
+                for manifest in annual_manifests
+                if manifest.get("selected_version")
+            },
+            key=_version_sort_key,
+        )
+        return sliced, {
+            "selected_version": ",".join(versions) if versions else None,
+            "derived_from_annual_cache": True,
+            "integrity": integrity,
+            "source_years": [year for year in range(start_date.year, end_date.year + 1)],
+        }
 
     def _normalize_units(self, frame: pd.DataFrame) -> pd.DataFrame:
         if "pr" in frame.columns:
@@ -663,6 +724,14 @@ class DownloadData(models.DataDownloadBase):
             self._log_progress(f"Cache hit for {start_date}..{end_date}.")
             return cached_frame, cached_manifest
 
+        annual_frame, annual_manifest = self._load_valid_cached_annual_cover(start_date, end_date)
+        if annual_frame is not None and annual_manifest is not None:
+            self._log_progress(
+                f"Cache slice hit for {start_date}..{end_date} from annual cache years "
+                f"{annual_manifest['source_years']}."
+            )
+            return annual_frame, annual_manifest
+
         started = time.perf_counter()
         frame, selected_version = self._fetch_chunk_with_resilience(
             ee_module,
@@ -710,6 +779,20 @@ class DownloadData(models.DataDownloadBase):
                 if version:
                     selected_versions.append(version)
                 frames.append(cached_frame)
+                continue
+            annual_frame, annual_manifest = self._load_valid_cached_annual_cover(
+                chunk_start,
+                chunk_end,
+            )
+            if annual_frame is not None and annual_manifest is not None:
+                self._log_progress(
+                    f"Cache slice hit for {chunk_start}..{chunk_end} from annual cache years "
+                    f"{annual_manifest['source_years']}."
+                )
+                version = annual_manifest.get("selected_version")
+                if version:
+                    selected_versions.append(version)
+                frames.append(annual_frame)
                 continue
             pending_fetch_chunks.append((index, chunk_start, chunk_end))
 

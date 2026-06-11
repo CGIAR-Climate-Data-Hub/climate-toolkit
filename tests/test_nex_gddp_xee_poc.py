@@ -202,6 +202,59 @@ class NexGddpXeePocTests(unittest.TestCase):
             self.assertIsNone(loaded_frame)
             self.assertIsNone(loaded_manifest)
 
+    def test_download_variables_reuses_annual_cache_for_subwindow(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            annual = nex_gddp_xee.DownloadData(
+                variables=[ClimateVariable.precipitation],
+                location_coord=(-1.286, 36.817),
+                date_from_utc=date(2041, 1, 1),
+                date_to_utc=date(2041, 12, 31),
+                settings=Settings.load(),
+                source=ClimateDataset.nex_gddp,
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+                cache_dir=tmpdir,
+                verbose=False,
+            )
+            annual_frame = pd.DataFrame(
+                {
+                    "date": pd.date_range("2041-01-01", "2041-12-31", freq="D"),
+                    "pr": range(365),
+                }
+            )
+            annual_manifest = annual._build_manifest(
+                annual_frame,
+                date(2041, 1, 1),
+                date(2041, 12, 31),
+                "1.1",
+            )
+            data_path, manifest_path = annual._cache_paths(date(2041, 1, 1), date(2041, 12, 31))
+            annual._write_chunk_cache(annual_frame, annual_manifest, data_path, manifest_path)
+
+            seasonal = nex_gddp_xee.DownloadData(
+                variables=[ClimateVariable.precipitation],
+                location_coord=(-1.286, 36.817),
+                date_from_utc=date(2041, 3, 1),
+                date_to_utc=date(2041, 5, 31),
+                settings=Settings.load(),
+                source=ClimateDataset.nex_gddp,
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+                cache_dir=tmpdir,
+                verbose=False,
+            )
+
+            with mock.patch.object(
+                seasonal,
+                "_fetch_chunk_with_resilience",
+                side_effect=AssertionError("should not fetch when annual cache covers window"),
+            ):
+                frame = seasonal.download_variables()
+
+            self.assertEqual(92, len(frame))
+            self.assertEqual(pd.Timestamp("2041-03-01"), frame["date"].min())
+            self.assertEqual(pd.Timestamp("2041-05-31"), frame["date"].max())
+
 
 if __name__ == "__main__":
     unittest.main()
