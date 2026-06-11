@@ -54,7 +54,7 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
         orig_preprocess = eh.preprocess_data
         orig_evaluate = eh._evaluate
         eh.preprocess_data = lambda **kwargs: calls.append(kwargs) or None
-        eh._evaluate = lambda crop, lat, lon, window, model, scenario, soilcp, soilsat: {
+        eh._evaluate = lambda crop, lat, lon, window, model, scenario, thresholds, soilcp, soilsat: {
             "season_info": {**window, "length_days": 121},
             "season_statistics": {
                 "total_precipitation_mm": 600.0,
@@ -89,7 +89,7 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
 
     def test_calculate_ensemble_warns_for_year_crossing_fixed_window(self):
         orig_evaluate = eh._evaluate
-        eh._evaluate = lambda crop, lat, lon, window, model, scenario, soilcp, soilsat: {
+        eh._evaluate = lambda crop, lat, lon, window, model, scenario, thresholds, soilcp, soilsat: {
             "season_info": {**window, "length_days": 121},
             "season_statistics": {
                 "total_precipitation_mm": 600.0,
@@ -141,6 +141,7 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
                 },
                 model="ACCESS-CM2",
                 scenario="ssp245",
+                thresholds=eh.resolve_thresholds("Maize"),
             )
         finally:
             eh._fetch = orig_fetch
@@ -170,7 +171,7 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
             }
         ]
 
-        def fake_evaluate(crop, lat, lon, window, model, scenario, soilcp, soilsat):
+        def fake_evaluate(crop, lat, lon, window, model, scenario, thresholds, soilcp, soilsat):
             precip = 600.0 if scenario == "ssp245" else 300.0
             status = "no_stress" if scenario == "ssp245" else "severe_stress_low"
             return {

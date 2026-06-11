@@ -13,6 +13,7 @@ Dependencies: pandas, season_analysis.seasons module
 
 import sys
 import os
+from copy import deepcopy
 from datetime import date, datetime
 from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
@@ -74,6 +75,115 @@ CROP_THRESHOLDS = {
         'TAVG':         {'no_stress': (20, 30),     'moderate_stress_low': (10, 20),     'moderate_stress_up': (30, 36),    'severe_stress_low': (None, 10),    'severe_stress_up': (36, None)},
     },
 }
+
+# Generic hazard-index thresholds from Adaptation Atlas hazard definitions wiki.
+ATLAS_HAZARD_INDEX_THRESHOLDS = {
+    'NDD': {
+        'no_stress': (None, 15),
+        'moderate_stress': (15, 20),
+        'severe_stress': (20, 25),
+        'extreme_stress': (25, None),
+    },
+    'NTx35': {
+        'no_stress': (None, 10),
+        'moderate_stress': (10, 20),
+        'severe_stress': (20, 25),
+        'extreme_stress': (25, None),
+    },
+    'NTx40': {
+        'no_stress': (None, 1),
+        'moderate_stress': (1, 5),
+        'severe_stress': (5, 10),
+        'extreme_stress': (10, None),
+    },
+    'NDWS': {
+        'no_stress': (None, 15),
+        'moderate_stress': (15, 20),
+        'severe_stress': (20, 25),
+        'extreme_stress': (25, None),
+    },
+    'NDWL0': {
+        'no_stress': (None, 2),
+        'moderate_stress': (2, 5),
+        'severe_stress': (5, 8),
+        'extreme_stress': (8, None),
+    },
+}
+
+HAZARD_EVAL_SPECS = {
+    'Total Precip': {
+        'result_key': 'precipitation',
+        'stat_key': 'total_precipitation_mm',
+        'value_key': 'value_mm',
+        'label': 'Precipitation',
+        'unit': 'mm',
+    },
+    'TAVG': {
+        'result_key': 'temperature',
+        'stat_key': 'mean_temperature_c',
+        'value_key': 'value_c',
+        'label': 'Temperature',
+        'unit': 'degC',
+    },
+    'NDD': {
+        'result_key': 'NDD',
+        'stat_key': 'NDD',
+        'value_key': 'value_days',
+        'label': 'NDD',
+        'unit': 'days',
+    },
+    'NTx35': {
+        'result_key': 'NTx35',
+        'stat_key': 'NTx35',
+        'value_key': 'value_days',
+        'label': 'NTx35',
+        'unit': 'days',
+    },
+    'NTx40': {
+        'result_key': 'NTx40',
+        'stat_key': 'NTx40',
+        'value_key': 'value_days',
+        'label': 'NTx40',
+        'unit': 'days',
+    },
+    'NDWS': {
+        'result_key': 'NDWS',
+        'stat_key': 'NDWS',
+        'value_key': 'value_days',
+        'label': 'NDWS',
+        'unit': 'days',
+    },
+    'NDWL0': {
+        'result_key': 'NDWL0',
+        'stat_key': 'NDWL0',
+        'value_key': 'value_days',
+        'label': 'NDWL0',
+        'unit': 'days',
+    },
+}
+
+HAZARD_PRINT_ORDER = ['precipitation', 'temperature', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0']
+
+def _merge_threshold_groups(base: Dict[str, Dict[str, Tuple]], override: Dict[str, Dict[str, Tuple]]) -> Dict[str, Dict[str, Tuple]]:
+    merged = deepcopy(base)
+    for metric, bands in (override or {}).items():
+        merged[metric] = deepcopy(bands)
+    return merged
+
+def resolve_thresholds(crop_name: str, custom_thresholds: Optional[Dict[str, Dict[str, Tuple]]] = None) -> Dict[str, Dict[str, Tuple]]:
+    thresholds = _merge_threshold_groups(CROP_THRESHOLDS[crop_name], ATLAS_HAZARD_INDEX_THRESHOLDS)
+    if custom_thresholds:
+        thresholds = _merge_threshold_groups(thresholds, custom_thresholds)
+    return thresholds
+
+def load_custom_thresholds_file(path: Optional[str]) -> Optional[Dict[str, Dict[str, Tuple]]]:
+    if not path:
+        return None
+    with open(path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise ValueError("Threshold override file must contain a JSON object keyed by metric name.")
+    return data
 
 # Climate data helpers
 def get_climate_data_for_season(
@@ -257,9 +367,9 @@ def calculate_season_statistics(
         # Canonical hazard labels: Max Tmax and Min Tmin
         stats['max_tmax_c']         = float(tmax.max())
         stats['min_tmin_c']         = float(tmin.min())
-        # NTx35 / NTx40: number of days with Tmax above 35C / 40C (heat-stress days)
-        stats['NTx35']              = int((tmax > 35).sum())
-        stats['NTx40']              = int((tmax > 40).sum())
+        # Adaptation Atlas counts threshold exceedance inclusively (>= threshold).
+        stats['NTx35']              = int((tmax >= 35).sum())
+        stats['NTx40']              = int((tmax >= 40).sum())
 
     # Soil-water hazard counts derived from a running soil water balance (Adaptation Atlas method), NOT a naive daily precip - ET0 comparison.
     #   NDWS  = days the crop cannot meet half its evaporative demand (ERATIO < 0.5)
@@ -281,6 +391,24 @@ def evaluate_threshold(value: float, thresholds: Dict[str, Tuple]) -> str:
         if lower is not None and upper is not None and lower <= value <= upper:
             return level
     return 'unknown'
+
+def evaluate_hazard_metrics(
+    stats: Dict[str, Any],
+    thresholds: Dict[str, Dict[str, Tuple]],
+) -> Dict[str, Any]:
+    hazard_eval: Dict[str, Any] = {}
+    for metric_key, spec in HAZARD_EVAL_SPECS.items():
+        if metric_key not in thresholds:
+            continue
+        stat_key = spec['stat_key']
+        if stat_key not in stats:
+            continue
+        value = stats[stat_key]
+        hazard_eval[spec['result_key']] = {
+            spec['value_key']: round(value, 2) if isinstance(value, (int, float)) else value,
+            'status': evaluate_threshold(value, thresholds[metric_key]),
+        }
+    return hazard_eval
 
 # Long-Term Mean (Baseline) aggregation
 _LTM_SCALAR_KEYS = (
@@ -353,19 +481,7 @@ def compute_ltm_baseline(
                    if a['season_info'].get('length_days') is not None]
         total   = max((a['season_info'].get('total_seasons_per_year', 1) for a in bucket), default=1)
 
-        hazard_eval: Dict[str, Any] = {}
-        if 'Total Precip' in thresholds and 'total_precipitation_mm' in agg:
-            pv = agg['total_precipitation_mm']
-            hazard_eval['precipitation'] = {
-                'value_mm': pv,
-                'status':   evaluate_threshold(pv, thresholds['Total Precip']),
-            }
-        if 'TAVG' in thresholds and 'mean_temperature_c' in agg:
-            tv = agg['mean_temperature_c']
-            hazard_eval['temperature'] = {
-                'value_c': tv,
-                'status':  evaluate_threshold(tv, thresholds['TAVG']),
-            }
+        hazard_eval = evaluate_hazard_metrics(agg, thresholds)
 
         ltm_blocks.append({
             'season_number':          sn,
@@ -407,7 +523,7 @@ def calculate_hazards(
             'error':           f'Unknown crop: {crop_name}. Available: {", ".join(CROP_THRESHOLDS.keys())}',
             'available_crops': list(CROP_THRESHOLDS.keys()),
         }
-    thresholds = custom_thresholds or CROP_THRESHOLDS[crop_normalized]
+    thresholds = resolve_thresholds(crop_normalized, custom_thresholds)
 
     # Branch A: explicit --season-start / --season-end
     if season_start and season_end:
@@ -518,20 +634,7 @@ def calculate_hazards(
     assessments = []
     for entry in all_results:
         stats      = calculate_season_statistics(entry['df'], soilcp=soilcp, soilsat=soilsat)
-        hazard_eval: Dict[str, Any] = {}
-
-        if 'Total Precip' in thresholds and 'total_precipitation_mm' in stats:
-            pv = stats['total_precipitation_mm']
-            hazard_eval['precipitation'] = {
-                'value_mm': round(pv, 2),
-                'status':   evaluate_threshold(pv, thresholds['Total Precip']),
-            }
-        if 'TAVG' in thresholds and 'mean_temperature_c' in stats:
-            tv = stats['mean_temperature_c']
-            hazard_eval['temperature'] = {
-                'value_c': round(tv, 2),
-                'status':  evaluate_threshold(tv, thresholds['TAVG']),
-            }
+        hazard_eval = evaluate_hazard_metrics(stats, thresholds)
         assessments.append({
             'crop':              crop_name,
             'location':          {'latitude': lat, 'longitude': lon},
@@ -552,6 +655,12 @@ def _fmt_date(d) -> str:
     if isinstance(d, (date, datetime)):
         return d.strftime('%Y-%m-%d')
     return str(d)[:10]
+
+def _get_hazard_spec_by_result_key(result_key: str) -> Optional[Dict[str, str]]:
+    for spec in HAZARD_EVAL_SPECS.values():
+        if spec['result_key'] == result_key:
+            return spec
+    return None
 
 def _print_ltm_block(ltm: Dict[str, Any]) -> None:
     """Pretty-print the Baseline LTM (Long-Term Mean) summary."""
@@ -624,6 +733,16 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
                 tt  = h['temperature']
                 sym = 'OK' if 'no_stress' in tt['status'] else '!!' if 'moderate' in tt['status'] else 'XX'
                 print(f"  {'Temperature':<25} {tt['value_c']:>16.2f} degC [{sym}] {tt['status'].replace('_', ' ').upper()}")
+            for hazard_key in ('NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
+                if hazard_key not in h:
+                    continue
+                spec = _get_hazard_spec_by_result_key(hazard_key)
+                item = h[hazard_key]
+                sym = 'OK' if 'no_stress' in item['status'] else '!!' if 'moderate' in item['status'] else 'XX'
+                print(
+                    f"  {spec['label']:<25} {item['value_days']:>16.2f} {spec['unit']:<4} "
+                    f"[{sym}] {item['status'].replace('_', ' ').upper()}"
+                )
     print(f"\n{'='*70}\n")
 
 def print_hazard_results(result: Dict[str, Any]) -> None:
@@ -748,6 +867,16 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
         t   = hazards['temperature']
         sym = 'OK' if 'no_stress' in t['status'] else '!!' if 'moderate' in t['status'] else 'XX'
         print(f"  {'Temperature':<25} {t['value_c']:>16.2f} degC [{sym}] {t['status'].replace('_', ' ').upper()}")
+    for hazard_key in ('NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
+        if hazard_key not in hazards:
+            continue
+        spec = _get_hazard_spec_by_result_key(hazard_key)
+        item = hazards[hazard_key]
+        sym = 'OK' if 'no_stress' in item['status'] else '!!' if 'moderate' in item['status'] else 'XX'
+        print(
+            f"  {spec['label']:<25} {item['value_days']:>16.2f} {spec['unit']:<4} "
+            f"[{sym}] {item['status'].replace('_', ' ').upper()}"
+        )
 
     print(f"\n{'='*70}\n")
 
@@ -817,6 +946,9 @@ if __name__ == "__main__":
                              f'(water-balance NDWL0; default: {DEFAULT_SOILSAT})')
     parser.add_argument('--format',          choices=['json', 'text'], default='text',
                         help='Output format (default: text)')
+    parser.add_argument('--thresholds-file', type=str, default=None,
+                        help=('Optional JSON file overriding threshold bands by metric name. '
+                              'Metrics omitted from file keep package defaults.'))
     parser.add_argument('--output',          type=str, default=None,
                         help='Save JSON result to this file path')
     args = parser.parse_args()
@@ -827,6 +959,8 @@ if __name__ == "__main__":
 
     lat, lon = map(float, args.location.split(','))
 
+    custom_thresholds = load_custom_thresholds_file(args.thresholds_file)
+
     result = calculate_hazards(
         crop_name=args.crop,
         location_coord=(lat, lon),
@@ -836,6 +970,7 @@ if __name__ == "__main__":
         season_end=args.season_end,
         fixed_season=args.fixed_season,
         source=args.source,
+        custom_thresholds=custom_thresholds,
         gap_days=args.gap_days,
         min_season_days=args.min_season_days,
         soilcp=args.soilcp,

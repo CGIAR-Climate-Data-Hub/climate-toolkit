@@ -27,21 +27,31 @@ import pandas as pd
 try:
     from .hazards import (
         CROP_THRESHOLDS,
+        HAZARD_EVAL_SPECS,
+        HAZARD_PRINT_ORDER,
         evaluate_threshold,
+        evaluate_hazard_metrics,
         calculate_season_statistics,
+        load_custom_thresholds_file,
         add_et0,
         DEFAULT_SOILCP,
         DEFAULT_SOILSAT,
+        resolve_thresholds,
     )
 except ImportError:
     try:
         from climate_tookit.calculate_hazards.hazards import (
             CROP_THRESHOLDS,
+            HAZARD_EVAL_SPECS,
+            HAZARD_PRINT_ORDER,
             evaluate_threshold,
+            evaluate_hazard_metrics,
             calculate_season_statistics,
+            load_custom_thresholds_file,
             add_et0,
             DEFAULT_SOILCP,
             DEFAULT_SOILSAT,
+            resolve_thresholds,
         )
     except ImportError:
         HERE = os.path.dirname(os.path.abspath(__file__))
@@ -49,11 +59,16 @@ except ImportError:
             sys.path.insert(0, HERE)
         from hazards import (
             CROP_THRESHOLDS,
+            HAZARD_EVAL_SPECS,
+            HAZARD_PRINT_ORDER,
             evaluate_threshold,
+            evaluate_hazard_metrics,
             calculate_season_statistics,
+            load_custom_thresholds_file,
             add_et0,
             DEFAULT_SOILCP,
             DEFAULT_SOILSAT,
+            resolve_thresholds,
         )
 
 PREPROCESS_AVAILABLE = False
@@ -247,22 +262,13 @@ def _detect_windows(lat: float, lon: float, sy: int, ey: int,
 
 def _evaluate(crop: str, lat: float, lon: float,
               w: Dict, model: str, scenario: str,
+              thresholds: Dict[str, Dict[str, Tuple]],
               soilcp: float = DEFAULT_SOILCP,
               soilsat: float = DEFAULT_SOILSAT) -> Dict:
     """hazards.py-style assessment for a single window using NEX-GDDP."""
     df    = _fetch(lat, lon, w['start'], w['end'], model, scenario)
     stats = calculate_season_statistics(df, soilcp=soilcp, soilsat=soilsat)
-    th    = CROP_THRESHOLDS.get(crop.capitalize(), {})
-
-    hazards = {}
-    if 'Total Precip' in th and 'total_precipitation_mm' in stats:
-        v = stats['total_precipitation_mm']
-        hazards['precipitation'] = {'value_mm': round(v, 2),
-                                    'status':   evaluate_threshold(v, th['Total Precip'])}
-    if 'TAVG' in th and 'mean_temperature_c' in stats:
-        v = stats['mean_temperature_c']
-        hazards['temperature'] = {'value_c': round(v, 2),
-                                  'status':  evaluate_threshold(v, th['TAVG'])}
+    hazards = evaluate_hazard_metrics(stats, thresholds)
     length = (
         datetime.fromisoformat(w['end'])
         - datetime.fromisoformat(w['start'])
@@ -320,26 +326,13 @@ def _avg_stats(rs: List[Dict]) -> Dict:
         out['dry_spell_statistics'] = ds_out
     return out
 
-def _avg_hazards(crop: str, agg: Dict) -> Dict:
-    th  = CROP_THRESHOLDS.get(crop.capitalize(), {})
-    out = {}
-    if 'Total Precip' in th and 'total_precipitation_mm' in agg:
-        v = agg['total_precipitation_mm']
-        out['precipitation'] = {'value_mm': v,
-                                'status': evaluate_threshold(v, th['Total Precip'])}
-    if 'TAVG' in th and 'mean_temperature_c' in agg:
-        v = agg['mean_temperature_c']
-        out['temperature'] = {'value_c': v,
-                              'status': evaluate_threshold(v, th['TAVG'])}
-    return out
-
 def _aggregate_hazard_statuses(bucket: List[Dict], agg: Dict) -> Dict:
     out: Dict[str, Dict] = {}
-    specs = (
-        ('precipitation', 'value_mm', 'total_precipitation_mm'),
-        ('temperature', 'value_c', 'mean_temperature_c'),
-    )
-    for hazard_key, value_key, agg_key in specs:
+    specs = [spec for spec in HAZARD_EVAL_SPECS.values()]
+    for spec in specs:
+        hazard_key = spec['result_key']
+        value_key = spec['value_key']
+        agg_key = spec['stat_key']
         statuses = []
         for r in bucket:
             hazard = (r.get('hazard_evaluation') or {}).get(hazard_key) or {}
@@ -374,12 +367,14 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
                        start_year: int, end_year: int,
                        models: List[str], scenarios: List[str],
                        fixed_season: Optional[str] = None,
+                       custom_thresholds: Optional[Dict[str, Dict[str, Tuple]]] = None,
                        soilcp: float = DEFAULT_SOILCP,
                        soilsat: float = DEFAULT_SOILSAT) -> Dict:
     mode = 'fixed_season' if fixed_season else 'auto_detect'
     fixed_defs = _parse_fixed(fixed_season) if fixed_season else None
     fixed_w = (_expand_windows(start_year, end_year, fixed_defs)
                if fixed_defs else None)
+    thresholds = resolve_thresholds(crop.capitalize(), custom_thresholds)
 
     print(f"\nNEX-GDDP ensemble: {crop} at ({lat:.4f}, {lon:.4f})  "
           f"{start_year}-{end_year}")
@@ -413,6 +408,7 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
                 tag = f"y{w['year']} s{w['season_number']}/{w['total']} {w['start']}->{w['end']}"
                 try:
                     results.append(_evaluate(crop, lat, lon, w, m, sc,
+                                             thresholds=thresholds,
                                              soilcp=soilcp, soilsat=soilsat))
                     print(f"      {tag}  ✓")
                 except Exception as e:
@@ -531,6 +527,12 @@ def _bucket_key(b: str) -> int:
 def _fmt(v, nd=2):
     """Format a numeric value, or 'n/a' for None — used in per-projection tables."""
     return f"{v:.{nd}f}" if isinstance(v, (int, float)) else "n/a"
+
+def _hazard_spec_by_result_key(result_key: str) -> Optional[Dict[str, str]]:
+    for spec in HAZARD_EVAL_SPECS.values():
+        if spec['result_key'] == result_key:
+            return spec
+    return None
 
 def _print_projection_breakdown(a: Dict) -> None:
     """
@@ -659,16 +661,15 @@ def _print_block(a: Dict, crop: str, lat: float, lon: float,
     print(f"  {'─'*66}")
     print(f"  {'Indicator':<25} {'Value':>18}  Status")
     print(f"  {'─'*25} {'─'*18}  {'─'*20}")
-    if 'precipitation' in h:
-        p = h['precipitation']
-        print(f"  {'Precipitation':<25} {p['value_mm']:>16.2f} mm  "
-              f"[{_sym(p['status'])}] {p['status'].replace('_', ' ').upper()}")
-        print(f"  {'':<25} {'':>18}  distribution: {_fmt_status_counts(p)}")
-    if 'temperature' in h:
-        t_ = h['temperature']
-        print(f"  {'Temperature':<25} {t_['value_c']:>16.2f} degC "
-              f"[{_sym(t_['status'])}] {t_['status'].replace('_', ' ').upper()}")
-        print(f"  {'':<25} {'':>18}  distribution: {_fmt_status_counts(t_)}")
+    for result_key in HAZARD_PRINT_ORDER:
+        if result_key not in h:
+            continue
+        spec = _hazard_spec_by_result_key(result_key)
+        item = h[result_key]
+        value = item.get(spec['value_key'])
+        print(f"  {spec['label']:<25} {value:>16.2f} {spec['unit']:<4} "
+              f"[{_sym(item['status'])}] {item['status'].replace('_', ' ').upper()}")
+        print(f"  {'':<25} {'':>18}  distribution: {_fmt_status_counts(item)}")
     print(f"\n{'='*70}")
 
 def _print_overall_summary(summary: Dict, multi_scenario: bool) -> None:
@@ -701,14 +702,13 @@ def _print_overall_summary(summary: Dict, multi_scenario: bool) -> None:
         ds = s['dry_spell_statistics']
         print(f"  Dry spells    (mean): {ds['number_of_dry_spells']:.2f} per season  "
               f"(max length {ds['max_dry_spell_length_days']:.2f} days)")
-    if 'precipitation' in h:
-        print(f"  Precip status:        [{_sym(h['precipitation']['status'])}] "
-              f"{h['precipitation']['status'].replace('_', ' ').upper()} "
-              f"({_fmt_status_counts(h['precipitation'])})")
-    if 'temperature' in h:
-        print(f"  Temp   status:        [{_sym(h['temperature']['status'])}] "
-              f"{h['temperature']['status'].replace('_', ' ').upper()} "
-              f"({_fmt_status_counts(h['temperature'])})")
+    for result_key in HAZARD_PRINT_ORDER:
+        if result_key not in h:
+            continue
+        spec = _hazard_spec_by_result_key(result_key)
+        print(f"  {spec['label']:<18} status: [{_sym(h[result_key]['status'])}] "
+              f"{h[result_key]['status'].replace('_', ' ').upper()} "
+              f"({_fmt_status_counts(h[result_key])})")
 
 def print_results(r: Dict) -> None:
     if 'error' in r:
@@ -769,6 +769,9 @@ if __name__ == "__main__":
     p.add_argument('--soilsat', type=float, default=DEFAULT_SOILSAT,
                    help=f'Extra soil water from field capacity to saturation, mm '
                         f'(water-balance NDWL0; default: {DEFAULT_SOILSAT})')
+    p.add_argument('--thresholds-file', type=str, default=None,
+                   help=('Optional JSON file overriding threshold bands by metric name. '
+                         'Metrics omitted from file keep package defaults.'))
     p.add_argument('--format',       choices=['json', 'text'], default='text')
     p.add_argument('--output',       type=str, default=None,
                    help='write full result as JSON to this path')
@@ -789,6 +792,7 @@ if __name__ == "__main__":
     sub_models = [s.strip() for s in args.models.split(',') if s.strip()] if args.models else None
     models    = default_ensemble_models_for_location((lat, lon), models=sub_models)
     scenarios = [s.strip() for s in args.scenarios.split(',') if s.strip()]
+    custom_thresholds = load_custom_thresholds_file(args.thresholds_file)
 
     result = calculate_ensemble(
         crop=args.crop,
@@ -796,6 +800,7 @@ if __name__ == "__main__":
         start_year=args.start_year, end_year=args.end_year,
         models=models, scenarios=scenarios,
         fixed_season=args.fixed_season,
+        custom_thresholds=custom_thresholds,
         soilcp=args.soilcp, soilsat=args.soilsat,
     )
 
