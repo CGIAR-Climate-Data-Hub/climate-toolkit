@@ -372,7 +372,7 @@ def detect_onset_cessation(df):
             f"low-rain months={num_low_rain_months}, rainy days={rainy_days}). "
             "No clear onset/cessation."
         )
-    print(f"  ✓ Humidity guard passed: {annual_rain:.0f}mm/yr, "
+    print(f"  ✓ Humidity guard passed: reference-slice rain={annual_rain:.0f} mm, "
           f"low-rain months={num_low_rain_months}, rainy days={rainy_days}")
 
     if annual_rain < 600:

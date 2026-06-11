@@ -49,6 +49,16 @@ def _round(d: Any, n: int = 2) -> Any:
     if isinstance(d, list):  return [_round(v, n) for v in d]
     return round(d, n) if _is_num(d) else d
 
+
+def _percent_change(diff: float, baseline: float) -> float:
+    """
+    Percent change relative to baseline magnitude.
+
+    Using abs(baseline) keeps sign aligned with diff when baseline is negative,
+    e.g. -722 vs -705 -> diff -17.1 -> -2.43% rather than +2.43%.
+    """
+    return (diff / abs(baseline) * 100.0) if baseline != 0 else 0.0
+
 def _annualize(stats: Dict[str, Any], n_years: int) -> Dict[str, Any]:
     """Period totals -> per-year averages. Means/maxes/mins untouched."""
     if n_years <= 0:
@@ -95,7 +105,7 @@ def _diff_block(a: Dict, b: Dict, a_lbl: str, b_lbl: str,
             if not (_is_num(av) and _is_num(bv)):
                 continue
             d = av - bv
-            p = (d / bv * 100.0) if bv != 0 else 0.0
+            p = _percent_change(d, bv)
             cat_out[m] = {a_lbl:    round(av, 2), b_lbl:    round(bv, 2),
                           "diff":   round(d,  2), "pct":    round(p,  2)}
         if cat_out:
@@ -120,7 +130,7 @@ def _diff_raw(focal_raw: List[Dict], baseline_raw: List[Dict],
             if not (_is_num(fv) and _is_num(bv)):
                 continue
             d = fv - bv
-            p = (d / bv * 100.0) if bv != 0 else 0.0
+            p = _percent_change(d, bv)
             per_stat[s] = {"focal":    round(fv, 3), "baseline": round(bv, 3),
                            "diff":     round(d,  3), "pct":      round(p,  2)}
         if per_stat:
@@ -140,7 +150,7 @@ def _diff_annual(focal_ann: Dict[str, Dict], baseline_ann: Dict[str, Dict],
     fr = fi.get("annual_rain_mm")
     if _is_num(fr) and rains:
         b_avg = sum(rains) / len(rains)
-        d, p = fr - b_avg, ((fr - b_avg) / b_avg * 100.0) if b_avg else 0.0
+        d, p = fr - b_avg, _percent_change(fr - b_avg, b_avg)
         out["annual_rain_mm"] = {"focal":    round(float(fr), 1),
                                   "baseline_avg": round(b_avg, 1),
                                   "diff":     round(d, 1),

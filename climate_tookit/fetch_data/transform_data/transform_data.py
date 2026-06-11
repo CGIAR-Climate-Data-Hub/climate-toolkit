@@ -1,13 +1,15 @@
-import sys
 import os
+import sys
 from datetime import date
 import yaml
-
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "source_data"))
-
-from source_data import SourceData
-from sources.utils.models import ClimateVariable, ClimateDataset, SoilVariable
-from sources.utils.settings import Settings
+from ..source_data.source_data import SourceData
+from ..source_data.sources.nex_gddp import AVAILABLE_MODELS, SCENARIO_MAPPING
+from ..source_data.sources.utils.models import (
+    ClimateVariable,
+    ClimateDataset,
+    SoilVariable,
+)
+from ..source_data.sources.utils.settings import Settings
 
 def validate_coordinates(lat, lon):
     """Validate latitude and longitude ranges."""
@@ -33,14 +35,12 @@ def validate_inputs(source, lat, lon, date_from, date_to, model, scenario):
     if date_from and date_to and date_from > date_to:
         errors.append("Start date must be before end date")
     if source == "nex_gddp":
-        valid_models = ['ACCESS-CM2','ACCESS-ESM1-5','CanESM5','CMCC-ESM2','EC-Earth3','EC-Earth3-Veg-LR','GFDL-ESM4','INM-CM4-8',
-                        'INM-CM5-0','KACE-1-0-G','MIROC6','MPI-ESM1-2-LR','MRI-ESM2-0','NorESM2-LM','NorESM2-MM','TaiESM1']
-        valid_scenarios = ["ssp126", "ssp245", "ssp585"]
-        if model and model not in valid_models:
+        valid_scenarios = sorted(SCENARIO_MAPPING.keys())
+        if model and model not in AVAILABLE_MODELS:
             errors.append(
-                f"Invalid model '{model}'. Valid models: {', '.join(valid_models)}"
+                f"Invalid model '{model}'. Valid models: {', '.join(AVAILABLE_MODELS)}"
             )
-        if scenario and scenario not in valid_scenarios:
+        if scenario and scenario not in SCENARIO_MAPPING:
             errors.append(
                 f"Invalid scenario '{scenario}'. Valid scenarios: {', '.join(valid_scenarios)}"
             )
@@ -111,6 +111,9 @@ def transform_data(
     settings=None,
     model=None,
     scenario=None,
+    verbose=True,
+    cache_dir=None,
+    refresh_cache=False,
 ):
     """Download and transform climate data using SourceData + variable mappings."""
 
@@ -141,6 +144,9 @@ def transform_data(
         settings=settings,
         model=model,
         scenario=scenario,
+        verbose=verbose,
+        cache_dir=cache_dir,
+        refresh_cache=refresh_cache,
     )
 
     raw_df = src.download()

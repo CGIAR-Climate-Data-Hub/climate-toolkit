@@ -34,6 +34,10 @@ import pandas as pd
 import json
 import argparse
 from statistics import mean, stdev, median
+from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
+    AVAILABLE_MODELS as NEX_GDDP_MODELS,
+    default_ensemble_models_for_location,
+)
 
 
 @contextlib.contextmanager
@@ -59,18 +63,18 @@ def _quiet_fetch_logs():
         for name, lvl in prev_levels.items():
             logging.getLogger(name).setLevel(lvl)
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, os.path.join(parent_dir, 'fetch_data', 'preprocess_data'))
-sys.path.insert(0, os.path.join(parent_dir, 'fetch_data', 'source_data', 'sources'))
-
 try:
-    from preprocess_data import preprocess_data
-    from utils.models import ClimateVariable
+    from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
+    from ..fetch_data.source_data.sources.utils.models import ClimateVariable
     PREPROCESS_AVAILABLE = True
 except ImportError:
-    PREPROCESS_AVAILABLE = False
-    print("Warning: Preprocessing pipeline not available")
+    try:
+        from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+        from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+        PREPROCESS_AVAILABLE = True
+    except ImportError:
+        PREPROCESS_AVAILABLE = False
+        print("Warning: Preprocessing pipeline not available")
 
 try:
     import matplotlib.pyplot as plt
@@ -91,13 +95,6 @@ PALETTE = {
     'tmin': '#3BB273',
 }
 
-# NEX-GDDP-CMIP6 ensemble — 16 models + canonical SSP scenario labels.
-NEX_GDDP_MODELS: List[str] = [
-    'ACCESS-CM2', 'ACCESS-ESM1-5', 'CanESM5', 'CMCC-ESM2',
-    'EC-Earth3', 'EC-Earth3-Veg-LR', 'GFDL-ESM4', 'INM-CM4-8',
-    'INM-CM5-0', 'KACE-1-0-G', 'MIROC6', 'MPI-ESM1-2-LR',
-    'MRI-ESM2-0', 'NorESM2-LM', 'NorESM2-MM', 'TaiESM1',
-]
 SSP_SCENARIOS: List[str] = ['ssp126', 'ssp245', 'ssp585', 'historical']
 SCENARIO_ALIASES: Dict[str, str] = {
     'SSP1-2.6': 'ssp126', 'SSP2-4.5': 'ssp245', 'SSP5-8.5': 'ssp585',
@@ -817,10 +814,11 @@ def calculate_climatology_ensemble(
     """
     lat, lon = location_coord
     canon = _normalize_scenario(scenario) or scenario
-    active = list(models) if models else list(NEX_GDDP_MODELS)
-    if exclude_models:
-        excl = {m.upper() for m in exclude_models}
-        active = [m for m in active if m.upper() not in excl]
+    active = default_ensemble_models_for_location(
+        location_coord,
+        models=models,
+        exclude_models=exclude_models,
+    )
     if not active:
         return {'error': 'No models selected after filtering.'}
 
@@ -1125,7 +1123,7 @@ def main():
 Examples:
   # Calculate 1991-2020 climatology (current WMO standard)
   # Calculate with JSON output
-  # NEX-GDDP runs the 16-model ensemble (averaged); pick scenario(s) and models
+  # NEX-GDDP runs the documented model ensemble (averaged); pick scenario(s) and models
         """
     )
 
@@ -1334,7 +1332,7 @@ if __name__ == "__main__":
 # Calculate 1991-2020 climatology (current WMO standard)
 # python -m climate_tookit.climatology.long_term_climatology --location="-1.286,36.817" --start-year 1991 --end-year 2020 --source nasa_power
 
-# NEX-GDDP runs the 16-model CMIP6 ensemble (averaged); the 1st picks scenarios, the 2nd also subsets models:
+# NEX-GDDP runs the documented CMIP6 ensemble (averaged); the 1st picks scenarios, the 2nd also subsets models:
 # python -m climate_tookit.climatology.long_term_climatology --location="-1.286,36.817" --start-year 2040 --end-year 2069 --source nex_gddp --scenarios ssp245,ssp585
 # python -m climate_tookit.climatology.long_term_climatology --location="-1.286,36.817" --start-year 2040 --end-year 2069 --source nex_gddp --scenarios ssp585 --models "ACCESS-CM2,EC-Earth3,MRI-ESM2-0"
 

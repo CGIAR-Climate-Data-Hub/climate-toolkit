@@ -23,13 +23,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import season_analysis.seasons as seasons
 from fetch_data.preprocess_data.preprocess_data import preprocess_data
-
-NEX_GDDP_MODELS = [
-    'ACCESS-CM2',  'ACCESS-ESM1-5',    'CanESM5',       'CMCC-ESM2',
-    'EC-Earth3',   'EC-Earth3-Veg-LR', 'GFDL-ESM4',     'INM-CM4-8',
-    'INM-CM5-0',   'KACE-1-0-G',       'MIROC6',        'MPI-ESM1-2-LR',
-    'MRI-ESM2-0',  'NorESM2-LM',       'NorESM2-MM',    'TaiESM1',
-]
+from fetch_data.source_data.sources.nex_gddp import (
+    AVAILABLE_MODELS as NEX_GDDP_MODELS,
+    default_ensemble_models_for_location,
+)
 SSP_SCENARIOS   = ['ssp126', 'ssp245', 'ssp585']
 NEX_GDDP_SOURCE = 'nex_gddp'
 
@@ -649,11 +646,13 @@ def main():
     if invalid:
         print(f"Error: unknown scenario(s) {invalid}. Valid: {SSP_SCENARIOS}"); sys.exit(1)
 
-    models = ([m.strip() for m in args.models.split(',') if m.strip()]
-              if args.models else list(NEX_GDDP_MODELS))
-    if args.exclude_models:
-        excl   = {m.strip().upper() for m in args.exclude_models.split(',') if m.strip()}
-        models = [m for m in models if m.upper() not in excl]
+    sub_models = [m.strip() for m in args.models.split(',') if m.strip()] if args.models else None
+    excl = [m.strip() for m in args.exclude_models.split(',') if m.strip()] if args.exclude_models else None
+    models = default_ensemble_models_for_location(
+        (lat, lon),
+        models=sub_models,
+        exclude_models=excl,
+    )
     if not models:
         print("Error: model list is empty."); sys.exit(1)
 

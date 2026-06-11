@@ -7,19 +7,30 @@ bias correction, and other preprocessing operations.
 Pipeline: Receive Transformed Data → Clean → Quality Control → Analysis-Ready Output
 """
 
-import sys
 import os
 from datetime import date
 import pandas as pd
 import numpy as np
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'transform_data'))
-
-from transform_data import transform_data
-from sources.utils.models import ClimateVariable, ClimateDataset
+from ..transform_data.transform_data import transform_data
 
 
-def clean_climate_data(df: pd.DataFrame) -> pd.DataFrame:
+def _active_group_columns(df: pd.DataFrame, group_columns=None) -> list[str]:
+    return [column for column in (group_columns or []) if column in df.columns]
+
+
+def _replace_outliers(series: pd.Series) -> pd.Series:
+    mean = series.mean()
+    std = series.std()
+    if pd.isna(std) or std == 0:
+        return series
+    outlier_threshold = 3 * std
+    return series.where((series - mean).abs() <= outlier_threshold, mean)
+
+
+def clean_climate_data(
+    df: pd.DataFrame,
+    group_columns=None,
+) -> pd.DataFrame:
     """Clean climate data: handle missing values, outliers, and data quality issues."""
     if df.empty:
         return df
@@ -29,30 +40,43 @@ def clean_climate_data(df: pd.DataFrame) -> pd.DataFrame:
     if 'date' in cleaned_df.columns:
         cleaned_df['date'] = pd.to_datetime(cleaned_df['date'])
 
+    active_group_columns = _active_group_columns(cleaned_df, group_columns)
+    sort_columns = [*active_group_columns, 'date'] if 'date' in cleaned_df.columns else active_group_columns
+    if sort_columns:
+        cleaned_df = cleaned_df.sort_values(sort_columns).reset_index(drop=True)
+
     numeric_columns = cleaned_df.select_dtypes(include=[np.number]).columns
 
-    for col in numeric_columns:
-        if col == 'precipitation':
-            cleaned_df[col] = cleaned_df[col].fillna(0)
-        else:
-            cleaned_df[col] = cleaned_df[col].ffill().bfill()
+    if active_group_columns:
+        grouped = cleaned_df.groupby(active_group_columns, group_keys=False, dropna=False)
+        for col in numeric_columns:
+            if col == 'precipitation':
+                cleaned_df[col] = grouped[col].transform(lambda series: series.fillna(0))
+            else:
+                cleaned_df[col] = grouped[col].transform(lambda series: series.ffill().bfill())
 
-    for col in numeric_columns:
-        if col != 'date':
-            mean = cleaned_df[col].mean()
-            std = cleaned_df[col].std()
-            outlier_threshold = 3 * std
+        for col in numeric_columns:
+            if col != 'date':
+                cleaned_df[col] = grouped[col].transform(_replace_outliers)
+    else:
+        for col in numeric_columns:
+            if col == 'precipitation':
+                cleaned_df[col] = cleaned_df[col].fillna(0)
+            else:
+                cleaned_df[col] = cleaned_df[col].ffill().bfill()
 
-            cleaned_df[col] = np.where(
-                abs(cleaned_df[col] - mean) > outlier_threshold,
-                mean,
-                cleaned_df[col]
-            )
+        for col in numeric_columns:
+            if col != 'date':
+                cleaned_df[col] = _replace_outliers(cleaned_df[col])
 
     return cleaned_df
 
 
-def apply_unit_conversions(df: pd.DataFrame, source: str) -> pd.DataFrame:
+def apply_unit_conversions(
+    df: pd.DataFrame,
+    source: str,
+    verbose: bool = True,
+) -> pd.DataFrame:
     """Apply necessary unit conversions for consistency."""
     if df.empty:
         return df
@@ -65,19 +89,26 @@ def apply_unit_conversions(df: pd.DataFrame, source: str) -> pd.DataFrame:
             if col in converted_df.columns:
                 if converted_df[col].mean() > 200:
                     converted_df[col] = converted_df[col] - 273.15
-                    print(f"Converted {col} from Kelvin to Celsius")
+                    if verbose:
+                        print(f"Converted {col} from Kelvin to Celsius")
 
     if 'precipitation' in converted_df.columns:
         if source in ['agera_5', 'era_5', 'nex_gddp']:
             if converted_df['precipitation'].max() < 1:
                 converted_df['precipitation'] = converted_df['precipitation'] * 1000
-                print("Converted precipitation from meters to millimeters")
+                if verbose:
+                    print("Converted precipitation from meters to millimeters")
         elif source == 'imerg':
             converted_df['precipitation'] = converted_df['precipitation'] * 0.5
-            print("Converted IMERG precipitation from mm/hr to mm/day")
+            if verbose:
+                print("Converted IMERG precipitation from mm/hr to mm/day")
     return converted_df
 
-def quality_control_checks(df: pd.DataFrame) -> pd.DataFrame:
+def quality_control_checks(
+    df: pd.DataFrame,
+    group_columns=None,
+    verbose: bool = True,
+) -> pd.DataFrame:
     """Perform quality control checks and flag suspicious data."""
     if df.empty:
         return df
@@ -89,7 +120,8 @@ def quality_control_checks(df: pd.DataFrame) -> pd.DataFrame:
         if col in qc_df.columns:
             mask = (qc_df[col] < -50) | (qc_df[col] > 60)
             if mask.any():
-                print(f"Warning: {mask.sum()} extreme {col} values detected")
+                if verbose:
+                    print(f"Warning: {mask.sum()} extreme {col} values detected")
                 qc_df.loc[mask, col] = np.nan
 
     if 'precipitation' in qc_df.columns:
@@ -107,10 +139,39 @@ def quality_control_checks(df: pd.DataFrame) -> pd.DataFrame:
         extreme_wind = qc_df['wind_speed'] > 50
         qc_df.loc[extreme_wind, 'wind_speed'] = np.nan
 
-    if 'date' in qc_df.columns:
-        qc_df = qc_df.sort_values('date').reset_index(drop=True)
+    active_group_columns = _active_group_columns(qc_df, group_columns)
+    sort_columns = [*active_group_columns, 'date'] if 'date' in qc_df.columns else active_group_columns
+    if sort_columns:
+        qc_df = qc_df.sort_values(sort_columns).reset_index(drop=True)
 
     return qc_df
+
+
+def preprocess_transformed_data(
+    transformed_df: pd.DataFrame,
+    source: str,
+    group_columns=None,
+    verbose: bool = True,
+) -> pd.DataFrame:
+    if transformed_df.empty:
+        if verbose:
+            print("No data retrieved from source")
+        return pd.DataFrame()
+
+    data_columns = [col for col in transformed_df.columns if col != 'date']
+    if not data_columns:
+        if verbose:
+            print("ERROR: No data columns retrieved")
+        return pd.DataFrame()
+
+    converted_df = apply_unit_conversions(transformed_df, source, verbose=verbose)
+    cleaned_df = clean_climate_data(converted_df, group_columns=group_columns)
+    final_df = quality_control_checks(
+        cleaned_df,
+        group_columns=group_columns,
+        verbose=verbose,
+    ).round(2)
+    return final_df
 
 
 def preprocess_data(
@@ -122,7 +183,10 @@ def preprocess_data(
     settings=None,
     transformed_data=None,
     model=None,
-    scenario=None
+    scenario=None,
+    verbose=True,
+    cache_dir=None,
+    refresh_cache=False,
 ) -> pd.DataFrame:
     """Preprocess climate data into analysis-ready format."""
     if transformed_data is not None:
@@ -136,23 +200,17 @@ def preprocess_data(
             date_to=date_to,
             settings=settings,
             model=model,
-            scenario=scenario
+            scenario=scenario,
+            verbose=verbose,
+            cache_dir=cache_dir,
+            refresh_cache=refresh_cache,
         )
 
-    if transformed_df.empty:
-        print("No data retrieved from source")
-        return pd.DataFrame()
-
-    data_columns = [col for col in transformed_df.columns if col != 'date']
-    if not data_columns:
-        print("ERROR: No data columns retrieved")
-        return pd.DataFrame()
-
-    converted_df = apply_unit_conversions(transformed_df, source)
-    cleaned_df = clean_climate_data(converted_df)
-    final_df = quality_control_checks(cleaned_df).round(2)
-
-    return final_df
+    return preprocess_transformed_data(
+        transformed_df=transformed_df,
+        source=source,
+        verbose=verbose,
+    )
 
 
 def save_output(data, output_path, fmt):
@@ -194,7 +252,7 @@ if __name__ == "__main__":
         date_from=date_from,
         date_to=date_to,
         model=args.model,
-        scenario=args.scenario
+        scenario=args.scenario,
     )
 
     if args.format == "print" or not args.output:

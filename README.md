@@ -90,6 +90,8 @@ This will trigger the configured download process based on the parameters define
 - All configuration values (e.g., API keys) are managed via `.env` using `python-dotenv`.
 - Modular dataset handlers are found in `fetch_data/`, each with `DownloadData` classes.
 - Common utilities like enums and settings are stored in `fetch_data/sources/utils/`.
+- NEX-GDDP real-access R&D note: [analysis/nex_gddp_access_rnd.md](/Users/pstewarda/Documents/rprojects/climate-toolkit/analysis/nex_gddp_access_rnd.md)
+- `nex_gddp` now uses real Earth Engine/Xee retrieval. It requires Earth Engine auth plus `GCP_PROJECT_ID`.
 
 
 ### Solution Architecture

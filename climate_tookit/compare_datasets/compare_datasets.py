@@ -21,23 +21,22 @@ Accumulation vars (precipitation):
 """
 import argparse
 import os
-import sys
 import json
 from datetime import date
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-
-_HERE   = os.path.dirname(os.path.abspath(__file__))
-_PARENT = os.path.dirname(_HERE)
-for _p in (os.path.join(_PARENT, "fetch_data", "preprocess_data"),
-           os.path.join(_PARENT, "fetch_data", "source_data", "sources")):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-from preprocess_data import preprocess_data            
-from utils.models    import ClimateVariable, SoilVariable  
+from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
+from ..fetch_data.source_data.sources.nex_gddp import (
+    AVAILABLE_MODELS,
+    SCENARIO_MAPPING,
+    default_ensemble_models_for_location,
+)
+from ..fetch_data.source_data.sources.utils.models import (
+    ClimateVariable,
+    SoilVariable,
+)
 
 # Variables treated as accumulations (totals, not means / min / max)
 ACCUMULATION_VARS = {"precipitation", "precip", "rain", "rainfall"}
@@ -69,19 +68,6 @@ SOURCE_VARIABLES = {
 VALID_SOURCES = {
     "era_5", "agera_5", "chirps", "chirts", "cmip_6", "imerg",
     "nasa_power", "nex_gddp", "soil_grid", "tamsat", "terraclimate",
-}
-
-# NEX-GDDP registry (used for CLI validation and dispatch)
-AVAILABLE_MODELS = [
-    'ACCESS-CM2', 'ACCESS-ESM1-5', 'CanESM5', 'CMCC-ESM2',
-    'EC-Earth3', 'EC-Earth3-Veg-LR', 'GFDL-ESM4', 'INM-CM4-8',
-    'INM-CM5-0', 'KACE-1-0-G', 'MIROC6', 'MPI-ESM1-2-LR',
-    'MRI-ESM2-0', 'NorESM2-LM', 'NorESM2-MM', 'TaiESM1',
-]
-SCENARIO_MAPPING = {
-    'SSP1-2.6': 'ssp126', 'SSP2-4.5': 'ssp245', 'SSP5-8.5': 'ssp585',
-    'ssp126': 'ssp126',   'ssp245': 'ssp245',   'ssp585': 'ssp585',
-    'historical': 'historical',
 }
 
 DEFAULT_NEX_ENSEMBLE_MODELS = list(AVAILABLE_MODELS)
@@ -507,7 +493,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                 elif nex_model:
                     models = [nex_model]
                 else:
-                    models = DEFAULT_NEX_ENSEMBLE_MODELS
+                    models = default_ensemble_models_for_location((lat, lon))
                 unknown = [m for m in models if m not in AVAILABLE_MODELS]
                 if unknown:
                     raise ValueError(
@@ -669,7 +655,7 @@ def main():
         help=(
             "Single NEX-GDDP-CMIP6 model name (only used when 'nex_gddp' is in\n"
             "--sources). When neither --model nor --models is given, 'nex_gddp'\n"
-            "defaults to the full 16-model ensemble mean.\n"
+            "defaults to the full documented NEX-GDDP model ensemble.\n"
             f"Available: {', '.join(AVAILABLE_MODELS)}"
         ),
     )

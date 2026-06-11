@@ -19,8 +19,8 @@ import xarray as xr
 import requests
 from datetime import date, timedelta
 from typing import Optional
-from sources.utils.models import DataDownloadBase, ClimateVariable
-from sources.utils.settings import Settings
+from .utils.models import DataDownloadBase, ClimateVariable
+from .utils.settings import Settings
 
 logger = logging.getLogger(__name__)
 

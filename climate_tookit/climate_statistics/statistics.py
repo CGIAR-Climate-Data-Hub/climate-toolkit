@@ -23,6 +23,7 @@ import argparse
 import warnings
 from datetime import datetime, date
 from pathlib import Path
+from time import perf_counter
 from typing import Tuple, Dict, List, Any, Optional
 
 import pandas as pd
@@ -30,20 +31,19 @@ import numpy as np
 
 warnings.filterwarnings("ignore")
 
-_current_dir = os.path.dirname(__file__)
-_parent_dir  = os.path.dirname(_current_dir)
-sys.path.append(os.path.join(_parent_dir, 'fetch_data', 'preprocess_data'))
-sys.path.append(os.path.join(_parent_dir, 'season_analysis'))
-
 try:
-    from preprocess_data import preprocess_data
+    from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
     PREPROCESS_AVAILABLE = True
 except ImportError:
-    PREPROCESS_AVAILABLE = False
-    print("Warning: preprocess_data pipeline not available")
+    try:
+        from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+        PREPROCESS_AVAILABLE = True
+    except ImportError:
+        PREPROCESS_AVAILABLE = False
+        print("Warning: preprocess_data pipeline not available")
 
 try:
-    from sources.utils.models import ClimateVariable
+    from ..fetch_data.source_data.sources.utils.models import ClimateVariable
     CLIMATE_VARS = [
         ClimateVariable.precipitation,
         ClimateVariable.max_temperature,
@@ -54,13 +54,25 @@ try:
         ClimateVariable.wind_speed,
     ]
 except (ImportError, AttributeError):
-    CLIMATE_VARS = [
-        'precipitation', 'max_temperature', 'min_temperature',
-        'humidity', 'soil_moisture', 'solar_radiation', 'wind_speed',
-    ]
+    try:
+        from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+        CLIMATE_VARS = [
+            ClimateVariable.precipitation,
+            ClimateVariable.max_temperature,
+            ClimateVariable.min_temperature,
+            ClimateVariable.humidity,
+            ClimateVariable.soil_moisture,
+            ClimateVariable.solar_radiation,
+            ClimateVariable.wind_speed,
+        ]
+    except (ImportError, AttributeError):
+        CLIMATE_VARS = [
+            'precipitation', 'max_temperature', 'min_temperature',
+            'humidity', 'soil_moisture', 'solar_radiation', 'wind_speed',
+        ]
 
 try:
-    from seasons import (
+    from ..season_analysis.seasons import (
         add_et0,
         parse_fixed_seasons,
         detect_onset_cessation,
@@ -70,8 +82,25 @@ try:
     )
     SEASONS_AVAILABLE = True
 except ImportError as exc:
-    SEASONS_AVAILABLE = False
-    print(f"Warning: seasons.py not available -- {exc}")
+    try:
+        from climate_tookit.season_analysis.seasons import (
+            add_et0,
+            parse_fixed_seasons,
+            detect_onset_cessation,
+            reassign_spillover_seasons,
+            remove_duplicate_seasons,
+            check_humid,
+        )
+        SEASONS_AVAILABLE = True
+    except ImportError:
+        SEASONS_AVAILABLE = False
+        print(f"Warning: seasons.py not available -- {exc}")
+
+if 'CLIMATE_VARS' not in globals():
+    CLIMATE_VARS = [
+        'precipitation', 'max_temperature', 'min_temperature',
+        'humidity', 'soil_moisture', 'solar_radiation', 'wind_speed',
+    ]
 
 # Constants
 RENAME_MAP = {
@@ -323,6 +352,16 @@ def _avg(values: List[Any], n: int = 2) -> Optional[float]:
         return None
     return _r(sum(nums) / len(nums), n)
 
+
+def _format_elapsed(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, sec = divmod(int(round(seconds)), 60)
+    if minutes < 60:
+        return f"{minutes}m{sec:02d}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m{sec:02d}s"
+
 def ltm_season_summary(
     season_results: List[Dict[str, Any]],
     fixed_season:   Optional[str] = None,
@@ -573,6 +612,7 @@ def analyze_climate_statistics(
       Step 4 -- Compute raw / overall / per-season statistics
     """
     lat, lon = location_coord
+    run_started = perf_counter()
 
     # Decide fetch window (mirror seasons.py's tail logic)
     fixed_defs: Optional[List[Dict]] = None
@@ -598,17 +638,31 @@ def analyze_climate_statistics(
     else:
         fetch_end = f"{end_year}-12-31"
 
+    run_label = [f"source={source}"]
+    if model:
+        run_label.append(f"model={model}")
+    if scenario:
+        run_label.append(f"scenario={scenario}")
+    if fixed_season:
+        run_label.append(f"fixed_season={fixed_season}")
     print(f"Fetching climate data: {fetch_start} → {fetch_end} | "
-          f"source={source}")
+          f"{' | '.join(run_label)}")
+    fetch_started = perf_counter()
     df = get_climate_data(lat, lon, fetch_start, fetch_end,
                           source, model=model, scenario=scenario)
-    print(f"  Retrieved {len(df)} days, columns={list(df.columns)}")
+    fetch_elapsed = perf_counter() - fetch_started
+    print(f"  Retrieved {len(df)} days in {_format_elapsed(fetch_elapsed)}, "
+          f"columns={list(df.columns)}")
 
     # ET0 + water balance
+    prep_started = perf_counter()
     df = add_et0(df, lat)
     df = calculate_water_balance(df)
+    prep_elapsed = perf_counter() - prep_started
+    print(f"  Derived ET0 + water balance in {_format_elapsed(prep_elapsed)}")
 
     # Season detection (uses full df with tail for year-crossing capture)
+    detect_started = perf_counter()
     if fixed_season:
         seasons_dict, annual_dict = detect_seasons_fixed(
             df, fixed_defs, start_year, end_year
@@ -617,8 +671,11 @@ def analyze_climate_statistics(
         seasons_dict, annual_dict = detect_seasons_auto(
             df, lat, start_year, end_year
         )
+    detect_elapsed = perf_counter() - detect_started
+    print(f"  Season detection completed in {_format_elapsed(detect_elapsed)}")
 
     # Per-season block (computed against the FULL df so year-crossing seasons have access to days beyond Dec 31). Raw and overall stats are computed per season only; no full-period view is produced.
+    reduce_started = perf_counter()
     season_results: List[Dict] = []
     for year in sorted(seasons_dict.keys()):
         for i, season in enumerate(seasons_dict[year], 1):
@@ -650,6 +707,7 @@ def analyze_climate_statistics(
                 stats['eto_sub_seasons'] = sub_results
 
             season_results.append(stats)
+    reduce_elapsed = perf_counter() - reduce_started
     annual_summary = {
         str(y): {
             'annual_rain_mm':  info.get('annual_rain_mm'),
@@ -678,6 +736,12 @@ def analyze_climate_statistics(
         )
         print(f"\n  [WARN] {coverage_warning}")
 
+    total_elapsed = perf_counter() - run_started
+    print(
+        f"  Completed climate statistics in {_format_elapsed(total_elapsed)} "
+        f"(season_rows={len(season_results)}, reduction={_format_elapsed(reduce_elapsed)})"
+    )
+
     return {
         'location':            {'lat': lat, 'lon': lon},
         'period':              {'start_year': start_year, 'end_year': end_year},
@@ -692,6 +756,13 @@ def analyze_climate_statistics(
         'ltm_season_summary':  ltm,
         'coverage_warning':    coverage_warning,
         'annual_summary':      annual_summary,
+        'timing':              {
+            'fetch_seconds': round(fetch_elapsed, 3),
+            'prep_seconds': round(prep_elapsed, 3),
+            'season_detection_seconds': round(detect_elapsed, 3),
+            'season_reduction_seconds': round(reduce_elapsed, 3),
+            'total_seconds': round(total_elapsed, 3),
+        },
         'analysis_date':       datetime.now().isoformat(),
         'methodology':         'preprocess_data + seasons.py detection + water balance',
     }

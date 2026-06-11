@@ -18,42 +18,71 @@ from typing import Dict, List, Tuple, Optional
 
 import pandas as pd
 
-HERE   = os.path.dirname(os.path.abspath(__file__))
-PARENT = os.path.dirname(HERE)
-ROOT   = os.path.dirname(PARENT)
-for p in (HERE, ROOT):
-    if p not in sys.path:
-        sys.path.insert(0, p)
-
-from hazards import (
-    CROP_THRESHOLDS,
-    evaluate_threshold,
-    calculate_season_statistics,
-    add_et0,
-    DEFAULT_SOILCP,
-    DEFAULT_SOILSAT,
-)
-
-sys.path.insert(0, os.path.join(PARENT, 'fetch_data', 'preprocess_data'))
-sys.path.insert(0, os.path.join(PARENT, 'fetch_data', 'source_data', 'sources'))
-from preprocess_data import preprocess_data
-from utils.models      import ClimateVariable
-
-# Optional: only used by auto-detect
 try:
-    from climate_tookit.season_analysis.seasons import fetch_and_analyze_years
+    from .hazards import (
+        CROP_THRESHOLDS,
+        evaluate_threshold,
+        calculate_season_statistics,
+        add_et0,
+        DEFAULT_SOILCP,
+        DEFAULT_SOILSAT,
+    )
+except ImportError:
+    try:
+        from climate_tookit.calculate_hazards.hazards import (
+            CROP_THRESHOLDS,
+            evaluate_threshold,
+            calculate_season_statistics,
+            add_et0,
+            DEFAULT_SOILCP,
+            DEFAULT_SOILSAT,
+        )
+    except ImportError:
+        HERE = os.path.dirname(os.path.abspath(__file__))
+        if HERE not in sys.path:
+            sys.path.insert(0, HERE)
+        from hazards import (
+            CROP_THRESHOLDS,
+            evaluate_threshold,
+            calculate_season_statistics,
+            add_et0,
+            DEFAULT_SOILCP,
+            DEFAULT_SOILSAT,
+        )
+
+PREPROCESS_AVAILABLE = False
+try:
+    from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
+    from ..fetch_data.source_data.sources.utils.models import ClimateVariable
+    from ..fetch_data.source_data.sources.nex_gddp import (
+        AVAILABLE_MODELS as MODELS,
+        default_ensemble_models_for_location,
+    )
+    PREPROCESS_AVAILABLE = True
+except ImportError:
+    try:
+        from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+        from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+        from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
+            AVAILABLE_MODELS as MODELS,
+            default_ensemble_models_for_location,
+        )
+        PREPROCESS_AVAILABLE = True
+    except Exception as e:
+        print(f"✗ NEX-GDDP pipeline not available: {e}")
+
+try:
+    from ..season_analysis.seasons import fetch_and_analyze_years
     HAS_FAY = True
 except Exception as _e:
-    HAS_FAY = False
-    _FAY_ERR = str(_e)
+    try:
+        from climate_tookit.season_analysis.seasons import fetch_and_analyze_years
+        HAS_FAY = True
+    except Exception:
+        HAS_FAY = False
+        _FAY_ERR = str(_e)
 
 SCENARIOS = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
-MODELS = [
-    'ACCESS-CM2', 'ACCESS-ESM1-5', 'CanESM5', 'CMCC-ESM2',
-    'EC-Earth3', 'EC-Earth3-Veg-LR', 'GFDL-ESM4', 'INM-CM4-8',
-    'INM-CM5-0', 'KACE-1-0-G', 'MIROC6', 'MPI-ESM1-2-LR',
-    'MRI-ESM2-0', 'NorESM2-LM', 'NorESM2-MM', 'TaiESM1',
-]
 
 _VARS   = [ClimateVariable.precipitation,
            ClimateVariable.max_temperature,
@@ -570,8 +599,8 @@ if __name__ == "__main__":
     p.add_argument('--fixed-season', type=str, default=None,
                    metavar='MM-DD:MM-DD[,MM-DD:MM-DD]',
                    help="omit for auto-detect; otherwise single, two, or year-crossing windows")
-    p.add_argument('--models',       type=str, default=','.join(MODELS),
-                   help='comma-separated GCMs (default: all 16)')
+    p.add_argument('--models',       type=str, default=None,
+                   help='comma-separated GCMs (default: location-aware ensemble)')
     p.add_argument('--scenarios',    type=str, default=','.join(SCENARIOS),
                    help=f"comma-separated scenarios (default: {','.join(SCENARIOS)})")
     p.add_argument('--soilcp',  type=float, default=DEFAULT_SOILCP,
@@ -597,7 +626,8 @@ if __name__ == "__main__":
         p.error(f"missing required arguments: {', '.join(missing)}")
 
     lat, lon  = map(float, args.location.split(','))
-    models    = [s.strip() for s in args.models.split(',')    if s.strip()]
+    sub_models = [s.strip() for s in args.models.split(',') if s.strip()] if args.models else None
+    models    = default_ensemble_models_for_location((lat, lon), models=sub_models)
     scenarios = [s.strip() for s in args.scenarios.split(',') if s.strip()]
 
     result = calculate_ensemble(

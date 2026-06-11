@@ -27,7 +27,7 @@ import os
 import sys
 import json
 import argparse
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Tuple, Dict, List, Any, Optional
 
@@ -44,16 +44,14 @@ from climate_tookit.climate_statistics.statistics import (
     _is_num,
     _avg,
 )
+from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
+    AVAILABLE_MODELS as NEX_GDDP_MODELS,
+    _validate_period_against_scenario,
+    default_ensemble_models_for_location,
+)
 
 import pandas as pd
 
-# NEX-GDDP CMIP6 ensemble -- 16 models + canonical SSP labels
-NEX_GDDP_MODELS: List[str] = [
-    "ACCESS-CM2", "ACCESS-ESM1-5", "CanESM5", "CMCC-ESM2", "EC-Earth3",
-    "EC-Earth3-Veg-LR", "GFDL-ESM4", "INM-CM4-8", "INM-CM5-0", "KACE-1-0-G",
-    "MIROC6", "MPI-ESM1-2-LR", "MRI-ESM2-0", "NorESM2-LM", "NorESM2-MM",
-    "TaiESM1",
-]
 SSP_SCENARIOS: List[str] = ["ssp126", "ssp245", "ssp585", "historical"]
 SCENARIO_ALIASES: Dict[str, str] = {
     "SSP1-2.6": "ssp126", "SSP2-4.5": "ssp245", "SSP5-8.5": "ssp585",
@@ -264,11 +262,20 @@ def analyze_ensemble_nex_gddp(
         return {'error': (f"scenario '{scenario}' not recognised. "
                           f"Accepted: {sorted(SCENARIO_ALIASES)}")}
     scenario = canon
+    try:
+        _validate_period_against_scenario(
+            scenario,
+            date(start_year, 1, 1),
+            date(end_year, 12, 31),
+        )
+    except ValueError as exc:
+        return {'error': str(exc)}
 
-    active = list(models) if models else list(NEX_GDDP_MODELS)
-    if exclude_models:
-        excl = {m.upper() for m in exclude_models}
-        active = [m for m in active if m.upper() not in excl]
+    active = default_ensemble_models_for_location(
+        location_coord,
+        models=models,
+        exclude_models=exclude_models,
+    )
     if not active:
         return {'error': 'No models selected after filtering.'}
 
@@ -368,14 +375,15 @@ def analyze_ensemble_nex_gddp(
 
 # Display -- mirrors statistics.py's print_pandas with an ensemble preamble
 def _ltm_header_ensemble(result: Dict[str, Any]) -> str:
-    """Pick FUTURE / BASELINE / generic ensemble LTM header by run window."""
+    """Pick FUTURE / BASELINE / generic ensemble LTM header by scenario + run window."""
     end          = (result.get('period') or {}).get('end_year',   0)
     start        = (result.get('period') or {}).get('start_year', 0)
+    scenario     = _normalize_scenario(result.get('scenario', '')) or result.get('scenario')
     baseline_end = BASELINE_DEFAULT_PERIOD[1]
-    if start > baseline_end:
-        return "FUTURE LTM SEASON SUMMARY (NEX-GDDP CMIP6 ensemble)"
-    if end <= baseline_end:
+    if scenario == "historical" and end <= 2014:
         return "BASELINE LTM SEASON SUMMARY (NEX-GDDP CMIP6 ensemble)"
+    if scenario != "historical" and start >= 2015:
+        return "FUTURE LTM SEASON SUMMARY (NEX-GDDP CMIP6 ensemble)"
     return "LTM SEASON SUMMARY (NEX-GDDP CMIP6 ensemble)"
 
 def _print_indented_table(df: pd.DataFrame, indent: str = "    ") -> None:

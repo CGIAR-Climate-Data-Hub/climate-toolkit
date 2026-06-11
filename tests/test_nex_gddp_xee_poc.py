@@ -1,0 +1,207 @@
+from datetime import date
+import tempfile
+from pathlib import Path
+import sys
+import types
+import unittest
+from unittest import mock
+
+import pandas as pd
+
+
+def _install_test_stubs():
+    dotenv = types.ModuleType("dotenv")
+    dotenv.load_dotenv = lambda *args, **kwargs: None
+    sys.modules.setdefault("dotenv", dotenv)
+
+    ee = types.ModuleType("ee")
+    ee.Authenticate = lambda *args, **kwargs: None
+    ee.Initialize = lambda *args, **kwargs: None
+    sys.modules.setdefault("ee", ee)
+
+
+_install_test_stubs()
+
+from climate_tookit.fetch_data.source_data.sources import nex_gddp, nex_gddp_xee
+from climate_tookit.fetch_data.source_data.sources.utils.models import (
+    ClimateDataset,
+    ClimateVariable,
+)
+from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+
+
+class NexGddpXeePocTests(unittest.TestCase):
+    def test_normalize_scenario_accepts_catalog_aliases(self):
+        self.assertEqual(nex_gddp_xee._normalize_scenario("SSP3-7.0"), "ssp370")
+        self.assertEqual(nex_gddp_xee._normalize_scenario("ssp2-4.5"), "ssp245")
+        self.assertEqual(nex_gddp_xee._normalize_scenario(None), "ssp245")
+
+    def test_validate_period_rejects_historical_after_2014(self):
+        with self.assertRaises(ValueError):
+            nex_gddp_xee._validate_period_against_scenario(
+                "historical",
+                date(2014, 1, 1),
+                date(2015, 1, 1),
+            )
+
+    def test_validate_period_rejects_future_before_2015(self):
+        with self.assertRaises(ValueError):
+            nex_gddp_xee._validate_period_against_scenario(
+                "ssp245",
+                date(2014, 12, 31),
+                date(2015, 12, 31),
+            )
+
+    def test_manual_point_grid_is_single_pixel(self):
+        grid = nex_gddp_xee._manual_point_grid(lon=36.817, lat=-1.286, pixel_size_meters=5566)
+        self.assertEqual(grid["crs"], "EPSG:4326")
+        self.assertEqual(grid["shape_2d"], (1, 1))
+        self.assertEqual(len(grid["crs_transform"]), 6)
+
+    def test_africa_coordinate_detection(self):
+        self.assertTrue(nex_gddp_xee._is_africa_coordinate(-1.286, 36.817))
+        self.assertFalse(nex_gddp_xee._is_africa_coordinate(-13.5319, -71.9675))
+
+    def test_horn_of_africa_detection(self):
+        self.assertTrue(nex_gddp_xee._is_horn_of_africa_coordinate(-1.286, 36.817))
+        self.assertFalse(nex_gddp_xee._is_horn_of_africa_coordinate(12.639, -8.002))
+
+    def test_resolve_dataset_version_prefers_1_2(self):
+        class FakeHistogram:
+            def getInfo(self):
+                return {"1.1": 5, "1.2": 7}
+
+        class FakeCollection:
+            def aggregate_histogram(self, *args, **kwargs):
+                return FakeHistogram()
+
+        selected = nex_gddp_xee._resolve_dataset_version(FakeCollection())
+        self.assertEqual(selected, nex_gddp_xee.DEFAULT_DATASET_VERSION)
+
+    def test_resolve_dataset_version_falls_back_to_highest_available(self):
+        class FakeHistogram:
+            def getInfo(self):
+                return {"1.1": 5, "null": 2}
+
+        class FakeCollection:
+            def aggregate_histogram(self, *args, **kwargs):
+                return FakeHistogram()
+
+        selected = nex_gddp_xee._resolve_dataset_version(FakeCollection())
+        self.assertEqual(selected, "1.1")
+
+    def test_coerce_version_filter_value_uses_float_for_numeric_versions(self):
+        self.assertEqual(nex_gddp_xee._coerce_version_filter_value("1.2"), 1.2)
+
+    def test_africa_default_ensemble_excludes_canesm5(self):
+        models = nex_gddp.default_ensemble_models_for_location((-1.286, 36.817))
+        self.assertNotIn("CanESM5", models)
+        self.assertEqual(len(models), len(nex_gddp.AFRICA_DEFAULT_ENSEMBLE_MODELS))
+
+    def test_non_africa_default_ensemble_keeps_canesm5(self):
+        models = nex_gddp.default_ensemble_models_for_location((-13.5319, -71.9675))
+        self.assertIn("CanESM5", models)
+        self.assertEqual(models, nex_gddp.AVAILABLE_MODELS)
+
+    def test_available_models_matches_documented_nex_18_pool(self):
+        self.assertEqual(len(nex_gddp.AVAILABLE_MODELS), 18)
+        self.assertIn("IPSL-CM6A-LR", nex_gddp.AVAILABLE_MODELS)
+        self.assertIn("MPI-ESM1-2-HR", nex_gddp.AVAILABLE_MODELS)
+
+    def test_retryable_error_detection(self):
+        self.assertTrue(nex_gddp_xee._is_retryable_ee_error(RuntimeError("429 Too Many Requests")))
+        self.assertTrue(nex_gddp_xee._is_retryable_ee_error(RuntimeError("Computation timed out")))
+        self.assertFalse(nex_gddp_xee._is_retryable_ee_error(RuntimeError("unsupported scenario")))
+
+    def test_chunk_overflow_error_detection(self):
+        self.assertTrue(nex_gddp_xee._is_chunk_overflow_error(RuntimeError("User memory limit exceeded")))
+        self.assertTrue(nex_gddp_xee._is_chunk_overflow_error(RuntimeError("Collection query aborted after accumulating over 5000 elements")))
+        self.assertFalse(nex_gddp_xee._is_chunk_overflow_error(RuntimeError("permission denied")))
+
+    def test_progress_bar_reaches_full_width(self):
+        self.assertEqual(nex_gddp_xee._progress_bar(5, 5, width=5), "[#####]")
+
+    def test_cache_coord_normalization_treats_equivalent_precision_as_same_fragment(self):
+        a = nex_gddp_xee._safe_coord_fragment(31.111111111111)
+        b = nex_gddp_xee._safe_coord_fragment(31.11111)
+        self.assertEqual(a, b)
+
+    def test_cache_manifest_roundtrip_requires_complete_dates(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            downloader = nex_gddp_xee.DownloadData(
+                variables=[ClimateVariable.precipitation],
+                location_coord=(-1.286, 36.817),
+                date_from_utc=date(2050, 1, 1),
+                date_to_utc=date(2050, 1, 3),
+                settings=Settings.load(),
+                source=ClimateDataset.nex_gddp,
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+                cache_dir=tmpdir,
+                verbose=False,
+            )
+
+            frame = pd.DataFrame(
+                {
+                    "date": pd.date_range("2050-01-01", "2050-01-03", freq="D"),
+                    "pr": [1.0, 2.0, 3.0],
+                }
+            )
+            manifest = downloader._build_manifest(
+                frame,
+                date(2050, 1, 1),
+                date(2050, 1, 3),
+                "1.1",
+            )
+            data_path, manifest_path = downloader._cache_paths(date(2050, 1, 1), date(2050, 1, 3))
+            downloader._write_chunk_cache(frame, manifest, data_path, manifest_path)
+
+            loaded_frame, loaded_manifest = downloader._load_valid_cached_chunk(
+                date(2050, 1, 1),
+                date(2050, 1, 3),
+            )
+            self.assertIsNotNone(loaded_frame)
+            self.assertIsNotNone(loaded_manifest)
+            self.assertEqual(len(loaded_frame), 3)
+            self.assertTrue(loaded_manifest["integrity"]["complete"])
+
+    def test_cache_manifest_rejects_incomplete_chunk(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            downloader = nex_gddp_xee.DownloadData(
+                variables=[ClimateVariable.precipitation],
+                location_coord=(-1.286, 36.817),
+                date_from_utc=date(2050, 1, 1),
+                date_to_utc=date(2050, 1, 3),
+                settings=Settings.load(),
+                source=ClimateDataset.nex_gddp,
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+                cache_dir=tmpdir,
+                verbose=False,
+            )
+
+            frame = pd.DataFrame(
+                {
+                    "date": pd.to_datetime(["2050-01-01", "2050-01-03"]),
+                    "pr": [1.0, 3.0],
+                }
+            )
+            manifest = downloader._build_manifest(
+                frame,
+                date(2050, 1, 1),
+                date(2050, 1, 3),
+                "1.1",
+            )
+            data_path, manifest_path = downloader._cache_paths(date(2050, 1, 1), date(2050, 1, 3))
+            downloader._write_chunk_cache(frame, manifest, data_path, manifest_path)
+
+            loaded_frame, loaded_manifest = downloader._load_valid_cached_chunk(
+                date(2050, 1, 1),
+                date(2050, 1, 3),
+            )
+            self.assertIsNone(loaded_frame)
+            self.assertIsNone(loaded_manifest)
+
+
+if __name__ == "__main__":
+    unittest.main()

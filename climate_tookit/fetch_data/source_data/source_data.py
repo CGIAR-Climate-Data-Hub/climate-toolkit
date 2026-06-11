@@ -3,26 +3,26 @@ Module for applying the DownloadData / SourceData class to download from
 different climate databases.
 """
 
-import sys
-import os
 import argparse
+import sys
 from datetime import datetime, date
-
-sys.path.append(os.path.dirname(__file__))
-
-from sources.gee import DownloadData as DownloadGEE
-from sources.tamsat import DownloadTAMSAT
-from sources.nasa_power import DownloadData as DownloadNASA
-from sources.nex_gddp import DownloadData as DownloadNEXGDDP
-from sources.utils.models import ClimateDataset, ClimateVariable, SoilVariable, Location
-from sources.utils.settings import Settings
+from .sources.gee import DownloadData as DownloadGEE
+from .sources.agera_5 import DownloadData as DownloadAgera5
+from .sources.era_5 import DownloadData as DownloadERA5
+from .sources.tamsat import DownloadTAMSAT
+from .sources.nasa_power import DownloadData as DownloadNASA
+from .sources.nex_gddp import DownloadData as DownloadNEXGDDP
+from .sources.utils.models import ClimateDataset, ClimateVariable, SoilVariable, Location
+from .sources.utils.settings import Settings
 
 
 class SourceData:
     """The main class for retrieving data via a standardised interface."""
 
     def __init__(self, location_coord, variables, source, date_from_utc,
-                 date_to_utc, settings, model=None, scenario=None):
+                 date_to_utc, settings, model=None, scenario=None,
+                 nex_backend=None, verbose=True, cache_dir=None,
+                 refresh_cache=False):
         self.location_coord = location_coord
         self.variables = variables
         self.source = source
@@ -31,6 +31,10 @@ class SourceData:
         self.settings = settings
         self.model = model
         self.scenario = scenario
+        self.nex_backend = nex_backend
+        self.verbose = verbose
+        self.cache_dir = cache_dir
+        self.refresh_cache = refresh_cache
 
         client = None
 
@@ -43,16 +47,35 @@ class SourceData:
                 settings=settings,
                 source=source,
                 model=model,
-                scenario=scenario
+                scenario=scenario,
+                verbose=verbose,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
+            )
+        elif source == ClimateDataset.era_5:
+            client = DownloadERA5(
+                variables=variables,
+                location_coord=location_coord,
+                date_from_utc=date_from_utc,
+                date_to_utc=date_to_utc,
+                settings=settings,
+                source=source
+            )
+        elif source == ClimateDataset.agera_5:
+            client = DownloadAgera5(
+                variables=variables,
+                location_coord=location_coord,
+                date_from_utc=date_from_utc,
+                date_to_utc=date_to_utc,
+                settings=settings,
+                source=source
             )
         elif source in (
-            ClimateDataset.era_5,
             ClimateDataset.terraclimate,
             ClimateDataset.imerg,
             ClimateDataset.chirps,
             ClimateDataset.cmip_6,
             ClimateDataset.chirts,
-            ClimateDataset.agera_5,
             ClimateDataset.soil_grid,
         ):
             client = DownloadGEE(
@@ -110,6 +133,9 @@ def main():
     parser.add_argument('--to', dest='date_to', required=True)
     parser.add_argument('--model', default=None)
     parser.add_argument('--scenario', default=None)
+    parser.add_argument('--quiet', action='store_true')
+    parser.add_argument('--cache-dir', default=None)
+    parser.add_argument('--refresh-cache', action='store_true')
     parser.add_argument('--output', '-o', default=None)
     parser.add_argument(
         '--format',
@@ -156,7 +182,10 @@ def main():
         date_to_utc=date_to,
         settings=settings,
         model=args.model,
-        scenario=args.scenario
+        scenario=args.scenario,
+        verbose=not args.quiet,
+        cache_dir=args.cache_dir,
+        refresh_cache=args.refresh_cache,
     )
 
     climate_data = source_data.download()

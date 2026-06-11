@@ -8,25 +8,22 @@ Stages:
     preprocessed - download + standardise + clean/QC (preprocess_data) [default]
 """
 
-import sys
-import os
 import argparse
+import sys
 from datetime import date
-
-current_dir = os.path.dirname(__file__)
-sys.path.append(os.path.join(current_dir, 'source_data'))
-sys.path.append(os.path.join(current_dir, 'transform_data'))
-sys.path.append(os.path.join(current_dir, 'preprocess_data'))
-
-from source_data.source_data import SourceData
-from transform_data.transform_data import (
+from .source_data.source_data import SourceData
+from .transform_data.transform_data import (
     transform_data,
     validate_inputs,
     default_variables,
 )
-from preprocess_data.preprocess_data import preprocess_data
-from sources.utils.models import ClimateDataset, ClimateVariable, SoilVariable
-from sources.utils.settings import Settings
+from .preprocess_data.preprocess_data import preprocess_data
+from .source_data.sources.utils.models import (
+    ClimateDataset,
+    ClimateVariable,
+    SoilVariable,
+)
+from .source_data.sources.utils.settings import Settings
 
 VALID_STAGES = ("raw", "transformed", "preprocessed")
 
@@ -40,6 +37,9 @@ def fetch_data(
     model=None,
     scenario=None,
     stage="preprocessed",
+    verbose=True,
+    cache_dir=None,
+    refresh_cache=False,
 ):
     """Fetch climate data through the pipeline.
     Parameters
@@ -86,6 +86,9 @@ def fetch_data(
             settings=settings,
             model=model,
             scenario=scenario,
+            verbose=verbose,
+            cache_dir=cache_dir,
+            refresh_cache=refresh_cache,
         )
         return client.download()
 
@@ -99,6 +102,9 @@ def fetch_data(
             settings=settings,
             model=model,
             scenario=scenario,
+            verbose=verbose,
+            cache_dir=cache_dir,
+            refresh_cache=refresh_cache,
         )
     # preprocessed (default)
     return preprocess_data(
@@ -110,6 +116,9 @@ def fetch_data(
         settings=settings,
         model=model,
         scenario=scenario,
+        verbose=verbose,
+        cache_dir=cache_dir,
+        refresh_cache=refresh_cache,
     )
 
 def save_output(data, output_path, fmt):
@@ -146,6 +155,9 @@ def main():
     parser.add_argument("--end", required=True)
     parser.add_argument("--model", default=None)
     parser.add_argument("--scenario", default=None)
+    parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--cache-dir", default=None)
+    parser.add_argument("--refresh-cache", action="store_true")
     parser.add_argument(
         "--stage",
         choices=VALID_STAGES,
@@ -194,6 +206,9 @@ def main():
         model=args.model,
         scenario=args.scenario,
         stage=args.stage,
+        verbose=not args.quiet,
+        cache_dir=args.cache_dir,
+        refresh_cache=args.refresh_cache,
     )
 
     if args.format == "print" or not args.output:
