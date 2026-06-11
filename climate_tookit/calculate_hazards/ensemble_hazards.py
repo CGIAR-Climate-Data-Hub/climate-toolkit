@@ -1,7 +1,13 @@
 """
 Ensemble of hazards.py across NEX-GDDP models x scenarios.
-For each (model, scenario) combination, runs the same hazard assessment that hazards.py produces, but with NEX-GDDP daily data. 
-Results are bucketed by (year, season_number) and averaged. No baseline. No CHIRPS. No CHIRTS.
+For each (model, scenario) combination, runs same hazard assessment that
+hazards.py produces, but with NEX-GDDP daily data.
+
+Scenario boundaries are preserved during aggregation. Within each scenario,
+ensemble means come from projection-level season statistics, while hazard
+statuses are aggregated from projection-level hazard evaluations rather than
+re-derived from climate means.
+
 Modes:
   - default        : auto-detect seasons per (model, scenario) using NEX-GDDP.
   - --fixed-season : single, two, or year-crossing windows applied to each year.
@@ -11,7 +17,7 @@ import os
 import sys
 import json
 import argparse
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, date
 from statistics import mean
 from typing import Dict, List, Tuple, Optional
@@ -275,6 +281,42 @@ def _avg_hazards(crop: str, agg: Dict) -> Dict:
                               'status': evaluate_threshold(v, th['TAVG'])}
     return out
 
+def _aggregate_hazard_statuses(bucket: List[Dict], agg: Dict) -> Dict:
+    out: Dict[str, Dict] = {}
+    specs = (
+        ('precipitation', 'value_mm', 'total_precipitation_mm'),
+        ('temperature', 'value_c', 'mean_temperature_c'),
+    )
+    for hazard_key, value_key, agg_key in specs:
+        statuses = []
+        for r in bucket:
+            hazard = (r.get('hazard_evaluation') or {}).get(hazard_key) or {}
+            status = hazard.get('status')
+            if status:
+                statuses.append(status)
+        if not statuses:
+            continue
+        counts = Counter(statuses)
+        dominant_status, dominant_count = sorted(
+            counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        )[0]
+        n_status = len(statuses)
+        status_counts = dict(sorted(counts.items()))
+        out[hazard_key] = {
+            value_key: agg.get(agg_key),
+            'status': dominant_status if len(status_counts) == 1 else 'mixed',
+            'dominant_status': dominant_status,
+            'dominant_share': round(dominant_count / n_status, 3),
+            'status_counts': status_counts,
+            'status_shares': {
+                status: round(count / n_status, 3)
+                for status, count in status_counts.items()
+            },
+            'n_projections': n_status,
+        }
+    return out
+
 # Driver
 def calculate_ensemble(crop: str, lat: float, lon: float,
                        start_year: int, end_year: int,
@@ -312,14 +354,15 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
     if not results:
         return {'error': 'No projections succeeded.'}
 
-    # Bucket by (year, season_number)
-    buckets: Dict[Tuple[int, int], List[Dict]] = defaultdict(list)
+    # Bucket by (scenario, year, season_number) so SSPs never pool together.
+    buckets: Dict[Tuple[str, int, int], List[Dict]] = defaultdict(list)
     for r in results:
         si = r['season_info']
-        buckets[(si['year'], si['season_number'])].append(r)
+        sc = r['projection']['scenario']
+        buckets[(sc, si['year'], si['season_number'])].append(r)
 
     assessments = []
-    for (y, sn), bucket in sorted(buckets.items()):
+    for (sc, y, sn), bucket in sorted(buckets.items()):
         agg     = _avg_stats(bucket)
         onsets  = sorted(pd.to_datetime(r['season_info']['start']) for r in bucket)
         ends    = sorted(pd.to_datetime(r['season_info']['end'])   for r in bucket)
@@ -345,6 +388,7 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
                 'NDWL0':                  st.get('NDWL0'),
             })
         assessments.append({
+            'scenario':               sc,
             'year':                   y,
             'season_number':          sn,
             'total_seasons_per_year': total,
@@ -356,10 +400,20 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
             },
             'projections':       projections,
             'season_statistics': agg,
-            'hazard_evaluation': _avg_hazards(crop, agg),
+            'hazard_evaluation': _aggregate_hazard_statuses(bucket, agg),
         })
 
-    overall = _avg_stats(results)
+    scenario_ensembles = []
+    for sc in sorted({r['projection']['scenario'] for r in results}):
+        bucket = [r for r in results if r['projection']['scenario'] == sc]
+        agg = _avg_stats(bucket)
+        scenario_ensembles.append({
+            'scenario': sc,
+            'n_projections': len(bucket),
+            'season_statistics': agg,
+            'hazard_evaluation': _aggregate_hazard_statuses(bucket, agg),
+        })
+
     return {
         'crop':              crop,
         'location':          {'latitude': lat, 'longitude': lon},
@@ -372,16 +426,21 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         'scenarios':         scenarios,
         'n_total_projections': len(results),
         'assessments':       assessments,
-        'overall_ensemble': {
-            'n_projections':     len(results),
-            'season_statistics': overall,
-            'hazard_evaluation': _avg_hazards(crop, overall),
-        },
+        'scenario_ensembles': scenario_ensembles,
+        'overall_ensemble':   scenario_ensembles[0] if len(scenario_ensembles) == 1 else None,
     }
 
 # Pretty printer (mirrors hazards.py year/season blocks)
 def _sym(status: str) -> str:
+    if status == 'mixed':
+        return '??'
     return 'OK' if 'no_stress' in status else '!!' if 'moderate' in status else 'XX'
+
+def _fmt_status_counts(block: Dict) -> str:
+    counts = block.get('status_counts') or {}
+    if not counts:
+        return 'n/a'
+    return ', '.join(f"{status}={count}" for status, count in sorted(counts.items()))
 
 def _bucket_key(b: str) -> int:
     try:
@@ -441,9 +500,10 @@ def _print_block(a: Dict, crop: str, lat: float, lon: float,
                  mode: str, n_models: int, n_scenarios: int) -> None:
     y, sn, t = a['year'], a['season_number'], a['total_seasons_per_year']
     label = f"Year {y}  -  Season {sn} of {t}" if t > 1 else f"Year {y}"
+    scenario = a.get('scenario')
 
     print(f"\n{'─'*70}")
-    print(f"  {label}   (ensemble of {a['n_projections']} projections)")
+    print(f"  {label}  [{scenario}]   (ensemble of {a['n_projections']} projections)")
     print(f"\n{'='*70}")
     print(f"  CROP HAZARD ASSESSMENT (ENSEMBLE): {crop.upper()}")
     print(f"{'='*70}")
@@ -515,7 +575,7 @@ def _print_block(a: Dict, crop: str, lat: float, lon: float,
             print(f"  {'NDWL0 (water-logging days)':<32} {s['NDWL0']:>15.2f}  days")
 
     h = a['hazard_evaluation']
-    print(f"\n  Hazard Assessment  (based on ensemble means)")
+    print(f"\n  Hazard Assessment  (aggregated from projection statuses)")
     print(f"  {'─'*66}")
     print(f"  {'Indicator':<25} {'Value':>18}  Status")
     print(f"  {'─'*25} {'─'*18}  {'─'*20}")
@@ -523,11 +583,50 @@ def _print_block(a: Dict, crop: str, lat: float, lon: float,
         p = h['precipitation']
         print(f"  {'Precipitation':<25} {p['value_mm']:>16.2f} mm  "
               f"[{_sym(p['status'])}] {p['status'].replace('_', ' ').upper()}")
+        print(f"  {'':<25} {'':>18}  distribution: {_fmt_status_counts(p)}")
     if 'temperature' in h:
         t_ = h['temperature']
         print(f"  {'Temperature':<25} {t_['value_c']:>16.2f} degC "
               f"[{_sym(t_['status'])}] {t_['status'].replace('_', ' ').upper()}")
+        print(f"  {'':<25} {'':>18}  distribution: {_fmt_status_counts(t_)}")
     print(f"\n{'='*70}")
+
+def _print_overall_summary(summary: Dict, multi_scenario: bool) -> None:
+    scenario = summary.get('scenario')
+    s = summary.get('season_statistics', {})
+    h = summary.get('hazard_evaluation', {})
+    print(f"\n{'─'*70}")
+    if multi_scenario:
+        print(f"  SCENARIO ENSEMBLE  [{scenario}]")
+    else:
+        print("  OVERALL ENSEMBLE")
+    print(f"  n = {summary['n_projections']} projections")
+    print(f"  {'─'*66}")
+    print(f"  Precipitation (mean): {s.get('total_precipitation_mm', 0):.2f} mm per season")
+    print(f"  Temperature   (mean): {s.get('mean_temperature_c', 0):.2f} deg C")
+    if 'max_tmax_c' in s or 'min_tmin_c' in s:
+        print(f"  Max Tmax / Min Tmin : {s.get('max_tmax_c', 0):.2f} / "
+              f"{s.get('min_tmin_c', 0):.2f} deg C")
+    if any(k in s for k in ('NTx35', 'NTx40', 'NDD', 'NDWS', 'NDWL0')):
+        parts = []
+        if 'NTx35' in s: parts.append(f"NTx35={s['NTx35']:.2f}")
+        if 'NTx40' in s: parts.append(f"NTx40={s['NTx40']:.2f}")
+        if 'NDD'   in s: parts.append(f"NDD={s['NDD']:.2f}")
+        if 'NDWS'  in s: parts.append(f"NDWS={s['NDWS']:.2f}")
+        if 'NDWL0' in s: parts.append(f"NDWL0={s['NDWL0']:.2f}")
+        print(f"  Hazard indices      : {'  '.join(parts)}  (mean days per season)")
+    if 'dry_spell_statistics' in s:
+        ds = s['dry_spell_statistics']
+        print(f"  Dry spells    (mean): {ds['number_of_dry_spells']:.2f} per season  "
+              f"(max length {ds['max_dry_spell_length_days']:.2f} days)")
+    if 'precipitation' in h:
+        print(f"  Precip status:        [{_sym(h['precipitation']['status'])}] "
+              f"{h['precipitation']['status'].replace('_', ' ').upper()} "
+              f"({_fmt_status_counts(h['precipitation'])})")
+    if 'temperature' in h:
+        print(f"  Temp   status:        [{_sym(h['temperature']['status'])}] "
+              f"{h['temperature']['status'].replace('_', ' ').upper()} "
+              f"({_fmt_status_counts(h['temperature'])})")
 
 def print_results(r: Dict) -> None:
     if 'error' in r:
@@ -553,35 +652,14 @@ def print_results(r: Dict) -> None:
     for a in r['assessments']:
         _print_block(a, crop, lat, lon, mode, nm, ns)
 
-    o = r['overall_ensemble']
-    s, h = o['season_statistics'], o['hazard_evaluation']
-    print(f"\n{'─'*70}")
-    print(f"  OVERALL ENSEMBLE  (across all year × season × model × scenario)")
-    print(f"  n = {o['n_projections']} projections")
-    print(f"  {'─'*66}")
-    print(f"  Precipitation (mean): {s.get('total_precipitation_mm', 0):.2f} mm per season")
-    print(f"  Temperature   (mean): {s.get('mean_temperature_c', 0):.2f} deg C")
-    if 'max_tmax_c' in s or 'min_tmin_c' in s:
-        print(f"  Max Tmax / Min Tmin : {s.get('max_tmax_c', 0):.2f} / "
-              f"{s.get('min_tmin_c', 0):.2f} deg C")
-    if any(k in s for k in ('NTx35', 'NTx40', 'NDD', 'NDWS', 'NDWL0')):
-        parts = []
-        if 'NTx35' in s: parts.append(f"NTx35={s['NTx35']:.2f}")
-        if 'NTx40' in s: parts.append(f"NTx40={s['NTx40']:.2f}")
-        if 'NDD'   in s: parts.append(f"NDD={s['NDD']:.2f}")
-        if 'NDWS'  in s: parts.append(f"NDWS={s['NDWS']:.2f}")
-        if 'NDWL0' in s: parts.append(f"NDWL0={s['NDWL0']:.2f}")
-        print(f"  Hazard indices      : {'  '.join(parts)}  (mean days per season)")
-    if 'dry_spell_statistics' in s:
-        ds = s['dry_spell_statistics']
-        print(f"  Dry spells    (mean): {ds['number_of_dry_spells']:.2f} per season  "
-              f"(max length {ds['max_dry_spell_length_days']:.2f} days)")
-    if 'precipitation' in h:
-        print(f"  Precip status:        [{_sym(h['precipitation']['status'])}] "
-              f"{h['precipitation']['status'].replace('_', ' ').upper()}")
-    if 'temperature' in h:
-        print(f"  Temp   status:        [{_sym(h['temperature']['status'])}] "
-              f"{h['temperature']['status'].replace('_', ' ').upper()}")
+    summaries = r.get('scenario_ensembles') or []
+    if len(summaries) > 1:
+        print(f"\n{'─'*70}")
+        print("  Scenario boundaries preserved. No cross-scenario pooled ensemble.")
+        for summary in summaries:
+            _print_overall_summary(summary, multi_scenario=True)
+    elif r.get('overall_ensemble'):
+        _print_overall_summary(r['overall_ensemble'], multi_scenario=False)
     print(f"\n{'='*70}\n")
 
 # CLI
