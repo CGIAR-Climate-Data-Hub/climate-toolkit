@@ -141,6 +141,9 @@ def _expand_windows(sy: int, ey: int,
             })
     return out
 
+def _fixed_windows_cross_year(defs: List[Tuple[str, str]]) -> bool:
+    return any(_yearcross(onset, cessation) for onset, cessation in defs)
+
 # NEX-GDDP fetching & per-window assessment
 def _fetch(lat: float, lon: float, start: str, end: str,
            model: str, scenario: str) -> pd.DataFrame:
@@ -335,13 +338,19 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
                        soilcp: float = DEFAULT_SOILCP,
                        soilsat: float = DEFAULT_SOILSAT) -> Dict:
     mode = 'fixed_season' if fixed_season else 'auto_detect'
-    fixed_w = (_expand_windows(start_year, end_year, _parse_fixed(fixed_season))
-               if fixed_season else None)
+    fixed_defs = _parse_fixed(fixed_season) if fixed_season else None
+    fixed_w = (_expand_windows(start_year, end_year, fixed_defs)
+               if fixed_defs else None)
 
     print(f"\nNEX-GDDP ensemble: {crop} at ({lat:.4f}, {lon:.4f})  "
           f"{start_year}-{end_year}")
     print(f"  Mode: {mode}" + (f"  ({fixed_season})" if fixed_season else ""))
     print(f"  Models: {len(models)}   Scenarios: {len(scenarios)}\n")
+    if fixed_defs and _fixed_windows_cross_year(fixed_defs):
+        print(
+            f"  ! Year-crossing fixed window detected. Final requested year {end_year} "
+            f"needs following-year tail data ({end_year + 1}) to complete last season.\n"
+        )
 
     results: List[Dict] = []
     for sc in scenarios:

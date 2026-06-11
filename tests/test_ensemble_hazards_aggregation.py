@@ -1,6 +1,8 @@
 import sys
 import types
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 
 
 def _install_test_stubs():
@@ -46,6 +48,38 @@ import climate_tookit.calculate_hazards.ensemble_hazards as eh
 
 
 class EnsembleHazardsAggregationTests(unittest.TestCase):
+    def test_calculate_ensemble_warns_for_year_crossing_fixed_window(self):
+        orig_evaluate = eh._evaluate
+        eh._evaluate = lambda crop, lat, lon, window, model, scenario, soilcp, soilsat: {
+            "season_info": {**window, "length_days": 121},
+            "season_statistics": {
+                "total_precipitation_mm": 600.0,
+                "mean_temperature_c": 24.0,
+            },
+            "hazard_evaluation": {
+                "precipitation": {"value_mm": 600.0, "status": "no_stress"},
+                "temperature": {"value_c": 24.0, "status": "no_stress"},
+            },
+            "projection": {"model": model, "scenario": scenario},
+        }
+        buf = StringIO()
+        try:
+            with redirect_stdout(buf):
+                eh.calculate_ensemble(
+                    crop="maize",
+                    lat=-13.5319,
+                    lon=-71.9675,
+                    start_year=2041,
+                    end_year=2041,
+                    models=["ACCESS-CM2"],
+                    scenarios=["ssp245"],
+                    fixed_season="12-01:03-31",
+                )
+        finally:
+            eh._evaluate = orig_evaluate
+
+        self.assertIn("needs following-year tail data (2042)", buf.getvalue())
+
     def test_evaluate_uses_inclusive_length_days(self):
         orig_fetch = eh._fetch
         orig_calc = eh.calculate_season_statistics
