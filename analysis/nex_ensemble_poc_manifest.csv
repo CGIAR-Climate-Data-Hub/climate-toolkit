@@ -1,0 +1,5 @@
+date_start,date_end,site_count,rows,seconds,label,cache_hit,cache_path,model,scenario
+2050-01-01,2050-01-07,3,21,1.79,2050-01-01:2050-01-07 | Nairobi..Cusco (3 sites),True,analysis/cache/nex_gddp_many_points/v1/ssp245/MRI-ESM2-0/2050-01-01_2050-01-07_sites3_c0f7d05dac86.parquet,MRI-ESM2-0,ssp245
+2050-01-01,2050-01-07,3,21,0.0,2050-01-01:2050-01-07 | Nairobi..Cusco (3 sites),True,analysis/cache/nex_gddp_many_points/v1/ssp245/ACCESS-CM2/2050-01-01_2050-01-07_sites3_c0f7d05dac86.parquet,ACCESS-CM2,ssp245
+2050-01-01,2050-01-07,3,21,0.0,2050-01-01:2050-01-07 | Nairobi..Cusco (3 sites),True,analysis/cache/nex_gddp_many_points/v1/ssp585/MRI-ESM2-0/2050-01-01_2050-01-07_sites3_c0f7d05dac86.parquet,MRI-ESM2-0,ssp585
+2050-01-01,2050-01-07,3,21,0.0,2050-01-01:2050-01-07 | Nairobi..Cusco (3 sites),True,analysis/cache/nex_gddp_many_points/v1/ssp585/ACCESS-CM2/2050-01-01_2050-01-07_sites3_c0f7d05dac86.parquet,ACCESS-CM2,ssp585

@@ -1,0 +1,16 @@
+date_start,date_end,site_count,rows,seconds,label,cache_hit,cache_path,model,scenario
+2050-01-01,2050-03-31,3,270,2.91,2050-01-01:2050-03-31 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/ACCESS-CM2/2050-01-01_2050-03-31_sites3_c0f7d05dac86.parquet,ACCESS-CM2,ssp245
+2050-04-01,2050-06-29,3,270,2.71,2050-04-01:2050-06-29 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/ACCESS-CM2/2050-04-01_2050-06-29_sites3_c0f7d05dac86.parquet,ACCESS-CM2,ssp245
+2050-06-30,2050-09-27,3,270,2.47,2050-06-30:2050-09-27 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/ACCESS-CM2/2050-06-30_2050-09-27_sites3_c0f7d05dac86.parquet,ACCESS-CM2,ssp245
+2050-09-28,2050-12-26,3,270,2.43,2050-09-28:2050-12-26 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/ACCESS-CM2/2050-09-28_2050-12-26_sites3_c0f7d05dac86.parquet,ACCESS-CM2,ssp245
+2050-12-27,2050-12-31,3,15,2.07,2050-12-27:2050-12-31 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/ACCESS-CM2/2050-12-27_2050-12-31_sites3_c0f7d05dac86.parquet,ACCESS-CM2,ssp245
+2050-01-01,2050-03-31,3,270,4.07,2050-01-01:2050-03-31 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/EC-Earth3/2050-01-01_2050-03-31_sites3_c0f7d05dac86.parquet,EC-Earth3,ssp245
+2050-04-01,2050-06-29,3,270,2.34,2050-04-01:2050-06-29 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/EC-Earth3/2050-04-01_2050-06-29_sites3_c0f7d05dac86.parquet,EC-Earth3,ssp245
+2050-06-30,2050-09-27,3,270,2.34,2050-06-30:2050-09-27 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/EC-Earth3/2050-06-30_2050-09-27_sites3_c0f7d05dac86.parquet,EC-Earth3,ssp245
+2050-09-28,2050-12-26,3,270,2.38,2050-09-28:2050-12-26 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/EC-Earth3/2050-09-28_2050-12-26_sites3_c0f7d05dac86.parquet,EC-Earth3,ssp245
+2050-12-27,2050-12-31,3,15,1.42,2050-12-27:2050-12-31 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/EC-Earth3/2050-12-27_2050-12-31_sites3_c0f7d05dac86.parquet,EC-Earth3,ssp245
+2050-01-01,2050-03-31,3,270,2.66,2050-01-01:2050-03-31 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/MRI-ESM2-0/2050-01-01_2050-03-31_sites3_c0f7d05dac86.parquet,MRI-ESM2-0,ssp245
+2050-04-01,2050-06-29,3,270,2.69,2050-04-01:2050-06-29 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/MRI-ESM2-0/2050-04-01_2050-06-29_sites3_c0f7d05dac86.parquet,MRI-ESM2-0,ssp245
+2050-06-30,2050-09-27,3,270,3.16,2050-06-30:2050-09-27 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/MRI-ESM2-0/2050-06-30_2050-09-27_sites3_c0f7d05dac86.parquet,MRI-ESM2-0,ssp245
+2050-09-28,2050-12-26,3,270,2.6,2050-09-28:2050-12-26 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/MRI-ESM2-0/2050-09-28_2050-12-26_sites3_c0f7d05dac86.parquet,MRI-ESM2-0,ssp245
+2050-12-27,2050-12-31,3,15,2.01,2050-12-27:2050-12-31 | Nairobi..Cusco (3 sites),False,analysis/cache/nex_gddp_many_points/v1/ssp245/MRI-ESM2-0/2050-12-27_2050-12-31_sites3_c0f7d05dac86.parquet,MRI-ESM2-0,ssp245

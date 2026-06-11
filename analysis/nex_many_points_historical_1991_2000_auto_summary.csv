@@ -1,0 +1,11 @@
+site,lat,lon,model,scenario,days,precip_mean_mm_day,precip_total_mm,tasmax_mean_c,tasmin_mean_c
+Addis_Ababa,8.9806,38.7578,MRI-ESM2-0,historical,3653,3.053,11152.86,24.576,10.381
+Bamako,12.6392,-8.0029,MRI-ESM2-0,historical,3653,2.799,10226.357,33.511,20.633
+Cajamarca,-7.1617,-78.5128,MRI-ESM2-0,historical,3653,1.665,6083.841,20.706,4.827
+Cusco,-13.5319,-71.9675,MRI-ESM2-0,historical,3653,1.812,6618.827,17.471,3.117
+Kampala,0.3476,32.5825,MRI-ESM2-0,historical,3653,3.844,14043.604,28.912,17.045
+La_Paz,-16.4897,-68.1193,MRI-ESM2-0,historical,3653,1.544,5640.764,12.211,-1.96
+Lodwar,3.119,35.5973,MRI-ESM2-0,historical,3653,0.798,2916.339,35.438,23.63
+Nairobi,-1.286,36.817,MRI-ESM2-0,historical,3653,2.383,8705.065,25.856,14.137
+Niamey,13.5116,2.1254,MRI-ESM2-0,historical,3653,1.519,5548.685,36.664,22.954
+Quito,-0.1807,-78.4678,MRI-ESM2-0,historical,3653,3.253,11882.482,22.387,9.187

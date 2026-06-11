@@ -1,0 +1,10 @@
+site,lat,lon,model,scenario,days,precip_mean_mm_day,precip_total_mm,tasmax_mean_c,tasmin_mean_c
+Cusco,-13.5319,-71.9675,ACCESS-CM2,historical,10957,1.906,20881.953,17.795,3.388
+Lodwar,3.119,35.5973,ACCESS-CM2,historical,10957,0.751,8225.914,35.867,24.055
+Nairobi,-1.286,36.817,ACCESS-CM2,historical,10957,2.291,25098.017,26.203,14.462
+Cusco,-13.5319,-71.9675,EC-Earth3,historical,10957,1.955,21418.752,17.933,3.495
+Lodwar,3.119,35.5973,EC-Earth3,historical,10957,0.774,8485.777,35.946,24.303
+Nairobi,-1.286,36.817,EC-Earth3,historical,10957,2.4,26292.913,26.135,14.505
+Cusco,-13.5319,-71.9675,MRI-ESM2-0,historical,10957,1.856,20338.741,17.734,3.368
+Lodwar,3.119,35.5973,MRI-ESM2-0,historical,10957,0.805,8825.34,35.635,23.794
+Nairobi,-1.286,36.817,MRI-ESM2-0,historical,10957,2.429,26615.445,25.937,14.303

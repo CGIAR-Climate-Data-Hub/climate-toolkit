@@ -7,8 +7,12 @@
 *.env
 __pycache__
 env/
+.venv/
 # Ignore CHIRPS download directory
 climate_tookit/fetch_data/source-data/chirps_data/
+analysis/__pycache__/
+analysis/cache/
+tests/__pycache__/
 
 local
 .vscode/
