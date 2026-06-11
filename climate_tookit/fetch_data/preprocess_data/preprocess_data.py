@@ -77,7 +77,12 @@ def apply_unit_conversions(
     source: str,
     verbose: bool = True,
 ) -> pd.DataFrame:
-    """Apply necessary unit conversions for consistency."""
+    """Apply necessary unit conversions for consistency.
+
+    Unit normalization is internal pipeline behavior, so keep it silent in
+    normal runs. Repeated per-fetch printouts add noise without helping users
+    act on anything.
+    """
     if df.empty:
         return df
 
@@ -89,19 +94,13 @@ def apply_unit_conversions(
             if col in converted_df.columns:
                 if converted_df[col].mean() > 200:
                     converted_df[col] = converted_df[col] - 273.15
-                    if verbose:
-                        print(f"Converted {col} from Kelvin to Celsius")
 
     if 'precipitation' in converted_df.columns:
         if source in ['agera_5', 'era_5', 'nex_gddp']:
             if converted_df['precipitation'].max() < 1:
                 converted_df['precipitation'] = converted_df['precipitation'] * 1000
-                if verbose:
-                    print("Converted precipitation from meters to millimeters")
         elif source == 'imerg':
             converted_df['precipitation'] = converted_df['precipitation'] * 0.5
-            if verbose:
-                print("Converted IMERG precipitation from mm/hr to mm/day")
     return converted_df
 
 def quality_control_checks(

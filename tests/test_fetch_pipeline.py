@@ -1,4 +1,6 @@
 from datetime import date
+import contextlib
+import io
 import sys
 import types
 import unittest
@@ -40,9 +42,29 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import (
 )
 from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
 from climate_tookit.fetch_data.transform_data.transform_data import validate_inputs
+from climate_tookit.fetch_data.preprocess_data.preprocess_data import apply_unit_conversions
 
 
 class FetchPipelineTests(unittest.TestCase):
+    def test_apply_unit_conversions_is_silent_while_still_converting(self):
+        raw_df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                "max_temperature": [300.15, 301.15],
+                "min_temperature": [290.15, 291.15],
+                "precipitation": [0.005, 0.010],
+            }
+        )
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            converted = apply_unit_conversions(raw_df, source="era_5", verbose=True)
+
+        self.assertEqual("", buf.getvalue())
+        self.assertAlmostEqual(27.0, converted.loc[0, "max_temperature"], places=6)
+        self.assertAlmostEqual(17.0, converted.loc[0, "min_temperature"], places=6)
+        self.assertAlmostEqual(5.0, converted.loc[0, "precipitation"], places=6)
+
     def test_validate_inputs_rejects_bad_nex_model_and_scenario(self):
         errors = validate_inputs(
             source="nex_gddp",

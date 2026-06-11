@@ -123,6 +123,24 @@ SUMMARY_VARS: List[Tuple[str, str]] = [
 BASELINE_DEFAULT_PERIOD: Tuple[int, int] = (1991, 2020)
 MIN_LTM_YEARS:           int            = 20
 
+
+def _validate_nex_ltm_period(
+    source: str,
+    start_year: int,
+    end_year: int,
+) -> Optional[str]:
+    """NEX-GDDP LTM summaries should use multi-year windows."""
+    if source != 'nex_gddp':
+        return None
+    years_span = end_year - start_year + 1
+    if years_span < 2:
+        return (
+            "NEX-GDDP LTM/statistics analysis requires a multi-year period. "
+            f"Got {start_year}-{end_year} ({years_span} year(s)). "
+            "Single-year NEX-GDDP future/baseline summary runs are not allowed here."
+        )
+    return None
+
 # Data fetching
 def _call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
     """Single preprocess_data call -- isolates the kwargs handling."""
@@ -613,6 +631,9 @@ def analyze_climate_statistics(
     """
     lat, lon = location_coord
     run_started = perf_counter()
+    period_error = _validate_nex_ltm_period(source, start_year, end_year)
+    if period_error:
+        return {'error': period_error}
 
     # Decide fetch window (mirror seasons.py's tail logic)
     fixed_defs: Optional[List[Dict]] = None

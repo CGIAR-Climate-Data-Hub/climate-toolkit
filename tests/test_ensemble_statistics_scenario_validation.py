@@ -43,9 +43,22 @@ def _install_test_stubs():
 _install_test_stubs()
 
 import climate_tookit.climate_statistics.ensemble_statistics as es
+import climate_tookit.climate_statistics.statistics as stats
 
 
 class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):
+    def test_single_year_statistics_rejects_nex_ltm_run(self):
+        result = stats.analyze_climate_statistics(
+            location_coord=(-1.286, 36.817),
+            start_year=2050,
+            end_year=2050,
+            source="nex_gddp",
+            model="MRI-ESM2-0",
+            scenario="ssp245",
+        )
+        self.assertIn("error", result)
+        self.assertIn("multi-year period", result["error"])
+
     def test_header_does_not_label_pre2015_ssp_run_as_baseline(self):
         result = {
             "period": {"start_year": 1991, "end_year": 2020},
@@ -72,6 +85,17 @@ class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):
         )
         self.assertIn("error", result)
         self.assertIn("2015-01-01", result["error"])
+
+    def test_rejects_single_year_ensemble_nex_ltm_run(self):
+        result = es.analyze_ensemble_nex_gddp(
+            location_coord=(-1.286, 36.817),
+            start_year=2050,
+            end_year=2050,
+            scenario="ssp245",
+            verbose=False,
+        )
+        self.assertIn("error", result)
+        self.assertIn("multi-year period", result["error"])
 
 
 if __name__ == "__main__":

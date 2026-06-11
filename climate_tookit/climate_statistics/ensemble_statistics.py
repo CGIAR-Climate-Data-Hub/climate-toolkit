@@ -262,6 +262,15 @@ def analyze_ensemble_nex_gddp(
         return {'error': (f"scenario '{scenario}' not recognised. "
                           f"Accepted: {sorted(SCENARIO_ALIASES)}")}
     scenario = canon
+    years_span = end_year - start_year + 1
+    if years_span < 2:
+        return {
+            'error': (
+                "NEX-GDDP ensemble LTM/statistics analysis requires a multi-year period. "
+                f"Got {start_year}-{end_year} ({years_span} year(s)). "
+                "Single-year NEX-GDDP future/baseline summary runs are not allowed here."
+            )
+        }
     try:
         _validate_period_against_scenario(
             scenario,
@@ -339,7 +348,6 @@ def analyze_ensemble_nex_gddp(
     season_statistics = _ensemble_seasons(per_model_seasons)
     annual_summary    = _ensemble_annual(per_model_annual)
 
-    years_span = end_year - start_year + 1
     coverage_warning = (
         f"LTM coverage is {years_span} year(s); recommended ≥ {MIN_LTM_YEARS}."
         if years_span < MIN_LTM_YEARS else None
