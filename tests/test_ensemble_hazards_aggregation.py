@@ -95,11 +95,16 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
             ["ssp245", "ssp585"],
             [block["scenario"] for block in result["assessments"]],
         )
-        self.assertIsNone(result["overall_ensemble"])
         self.assertEqual(
             ["ssp245", "ssp585"],
             [block["scenario"] for block in result["scenario_ensembles"]],
         )
+        self.assertTrue(result["overall_ensemble"]["mixed_scenarios"])
+        self.assertEqual(
+            ["ssp245", "ssp585"],
+            result["overall_ensemble"]["scenarios"],
+        )
+        self.assertIn("warning", result["overall_ensemble"])
 
     def test_hazard_statuses_come_from_projection_distribution_not_mean_climate(self):
         bucket = [
