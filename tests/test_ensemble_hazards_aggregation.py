@@ -46,6 +46,44 @@ import climate_tookit.calculate_hazards.ensemble_hazards as eh
 
 
 class EnsembleHazardsAggregationTests(unittest.TestCase):
+    def test_evaluate_uses_inclusive_length_days(self):
+        orig_fetch = eh._fetch
+        orig_calc = eh.calculate_season_statistics
+        eh._fetch = lambda *args, **kwargs: None
+        eh.calculate_season_statistics = lambda *args, **kwargs: {
+            "total_precipitation_mm": 600.0,
+            "mean_temperature_c": 24.0,
+        }
+        try:
+            result = eh._evaluate(
+                crop="maize",
+                lat=-1.286,
+                lon=36.817,
+                w={
+                    "start": "2041-01-01",
+                    "end": "2041-12-31",
+                    "season_number": 1,
+                    "year": 2041,
+                    "total": 1,
+                },
+                model="ACCESS-CM2",
+                scenario="ssp245",
+            )
+        finally:
+            eh._fetch = orig_fetch
+            eh.calculate_season_statistics = orig_calc
+
+        self.assertEqual(365, result["season_info"]["length_days"])
+
+    def test_detect_windows_explains_empty_onset_year_range(self):
+        orig = eh.fetch_and_analyze_years
+        eh.fetch_and_analyze_years = lambda *args, **kwargs: ({1991: []}, {1991: {}})
+        try:
+            with self.assertRaisesRegex(RuntimeError, "No onset-year seasons found"):
+                eh._detect_windows(-1.286, 36.817, 1991, 1991, "ACCESS-CM2", "historical")
+        finally:
+            eh.fetch_and_analyze_years = orig
+
     def test_calculate_ensemble_keeps_scenarios_separate(self):
         orig_detect = eh._detect_windows
         orig_evaluate = eh._evaluate

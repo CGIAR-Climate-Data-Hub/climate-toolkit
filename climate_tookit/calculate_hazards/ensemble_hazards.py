@@ -193,6 +193,14 @@ def _detect_windows(lat: float, lon: float, sy: int, ey: int,
                 'year':          y,
                 'total':         len(seasons),
             })
+    if not out:
+        year_label = f"{sy}" if sy == ey else f"{sy}-{ey}"
+        raise RuntimeError(
+            "No onset-year seasons found in requested auto-detect range "
+            f"{year_label} for model={model} scenario={scenario}. "
+            "Season detection reassigns results to onset year, so narrow ranges "
+            "can end up empty. Widen year range or use --fixed-season."
+        )
     return out
 
 def _evaluate(crop: str, lat: float, lon: float,
@@ -213,8 +221,10 @@ def _evaluate(crop: str, lat: float, lon: float,
         v = stats['mean_temperature_c']
         hazards['temperature'] = {'value_c': round(v, 2),
                                   'status':  evaluate_threshold(v, th['TAVG'])}
-    length = (datetime.fromisoformat(w['end'])
-              - datetime.fromisoformat(w['start'])).days
+    length = (
+        datetime.fromisoformat(w['end'])
+        - datetime.fromisoformat(w['start'])
+    ).days + 1
     return {
         'season_info': {**w, 'length_days': length},
         'season_statistics': stats,
