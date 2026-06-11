@@ -205,7 +205,13 @@ def _percent_change(diff: float, baseline: float) -> float:
 
 # Climate data helpers
 def get_climate_data_for_season(
-    lat: float, lon: float, start_date: str, end_date: str
+    lat: float,
+    lon: float,
+    start_date: str,
+    end_date: str,
+    source: str = 'auto',
+    model: Optional[str] = None,
+    scenario: Optional[str] = None,
 ) -> pd.DataFrame:
     """Fetch daily climate data for an explicit window and attach ET0."""
     if not SEASON_ANALYSIS_AVAILABLE:
@@ -213,7 +219,16 @@ def get_climate_data_for_season(
             f"Season analysis module not available -- {_IMPORT_ERROR}\n"
             "Ensure seasons.py and its dependencies (fetch_data, etc.) are importable."
         )
-    df = get_climate_data(lat, lon, start_date, end_date)
+    force_source = None if source == 'auto' else source
+    df = get_climate_data(
+        lat,
+        lon,
+        start_date,
+        end_date,
+        force_source=force_source,
+        model=model,
+        scenario=scenario,
+    )
     if df.empty:
         raise Exception(f"No climate data returned for {start_date} -> {end_date}")
     df = add_et0(df, lat) 
@@ -605,7 +620,13 @@ def calculate_hazards(
     if season_start and season_end:
         print(f"Using provided season dates: {season_start} to {season_end}")
         print(f"Climate data source: {source}")
-        df = get_climate_data_for_season(lat, lon, season_start, season_end)
+        df = get_climate_data_for_season(
+            lat,
+            lon,
+            season_start,
+            season_end,
+            source=source,
+        )
         season_info = {
             'season_detected': True,
             'onset_date':      season_start,
@@ -656,7 +677,13 @@ def calculate_hazards(
                     'total_seasons_per_year': num_seasons_per_year,     
                     'source':                 source,                   
                 }
-                df = get_climate_data_for_season(lat, lon, s_start, s_end)
+                df = get_climate_data_for_season(
+                    lat,
+                    lon,
+                    s_start,
+                    s_end,
+                    source=source,
+                )
                 all_results.append({'season_info': season_info, 'df': df})
         if not all_results:
             return {'error': 'No seasons produced by fixed-season mode for the given date range.'}
@@ -698,7 +725,13 @@ def calculate_hazards(
                     'total_seasons_per_year': num_seasons_per_year,
                     'source':                 auto_source,
                 }
-                df = get_climate_data_for_season(lat, lon, s_start, s_end)
+                df = get_climate_data_for_season(
+                    lat,
+                    lon,
+                    s_start,
+                    s_end,
+                    source=auto_source,
+                )
                 all_results.append({'season_info': season_info, 'df': df})
     else:
         return {

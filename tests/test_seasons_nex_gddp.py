@@ -46,6 +46,7 @@ def _install_test_stubs():
 _install_test_stubs()
 
 import climate_tookit.season_analysis.seasons as seasons
+from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 
 class SeasonsNexGddpTests(unittest.TestCase):
@@ -80,9 +81,45 @@ class SeasonsNexGddpTests(unittest.TestCase):
 
         self.assertEqual("ACCESS-CM2", calls[0]["model"])
         self.assertEqual("ssp245", calls[0]["scenario"])
+        self.assertEqual(
+            ["precipitation", "max_temperature", "min_temperature"],
+            [variable.name for variable in calls[0]["variables"]],
+        )
         self.assertIn("tmax", frame.columns)
         self.assertIn("tmin", frame.columns)
         self.assertIn("precip", frame.columns)
+
+    def test_get_climate_data_requests_minimal_variables_for_historical_source(self):
+        calls = []
+
+        def fake_preprocess_data(**kwargs):
+            calls.append(kwargs)
+            return pd.DataFrame(
+                {
+                    "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                    "max_temperature": [25.0, 26.0],
+                    "min_temperature": [15.0, 16.0],
+                    "precipitation": [3.0, 1.0],
+                }
+            )
+
+        orig = seasons.preprocess_data
+        seasons.preprocess_data = fake_preprocess_data
+        try:
+            seasons.get_climate_data(
+                -1.286,
+                36.817,
+                "2020-01-01",
+                "2020-01-02",
+                force_source="era_5",
+            )
+        finally:
+            seasons.preprocess_data = orig
+
+        self.assertEqual(
+            ["precipitation", "max_temperature", "min_temperature"],
+            [variable.name for variable in calls[0]["variables"]],
+        )
 
     def test_fetch_and_analyze_years_forwards_nex_model_and_scenario(self):
         calls = []

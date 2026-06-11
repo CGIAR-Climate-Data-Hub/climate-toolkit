@@ -52,9 +52,20 @@ warnings.filterwarnings("ignore")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fetch_data.preprocess_data.preprocess_data import preprocess_data
+from fetch_data.source_data.sources.utils.models import ClimateVariable
 
 HISTORICAL_SOURCES = ['era_5', 'agera_5']
 FALLBACK_COMBO     = ('chirps', 'chirts')
+CORE_CLIMATE_VARIABLES = [
+    ClimateVariable.precipitation,
+    ClimateVariable.max_temperature,
+    ClimateVariable.min_temperature,
+]
+CHIRPS_VARIABLES = [ClimateVariable.precipitation]
+CHIRTS_VARIABLES = [
+    ClimateVariable.max_temperature,
+    ClimateVariable.min_temperature,
+]
 
 # Internal perhumid guard thresholds (detection)
 PERHUMID_ANNUAL_MM      = 1400
@@ -231,6 +242,7 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
         return preprocess_data(
             source=force_source,
             location_coord=coord,
+            variables=CORE_CLIMATE_VARIABLES,
             date_from=date_from,
             date_to=date_to,
             model=model,
@@ -238,10 +250,12 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
         )
     if force_source:
         return preprocess_data(source=force_source, location_coord=coord,
+                               variables=CORE_CLIMATE_VARIABLES,
                                date_from=date_from, date_to=date_to)
     for source in HISTORICAL_SOURCES:
         try:
             df = preprocess_data(source=source, location_coord=coord,
+                                 variables=CORE_CLIMATE_VARIABLES,
                                  date_from=date_from, date_to=date_to)
             if not df.empty and 'precipitation' in df.columns:
                 return df
@@ -251,8 +265,10 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
 
 def _merge_chirps_chirts(coord, date_from, date_to) -> pd.DataFrame:
     df_p = preprocess_data(source=FALLBACK_COMBO[0], location_coord=coord,
+                           variables=CHIRPS_VARIABLES,
                            date_from=date_from, date_to=date_to)
     df_t = preprocess_data(source=FALLBACK_COMBO[1], location_coord=coord,
+                           variables=CHIRTS_VARIABLES,
                            date_from=date_from, date_to=date_to)
     return pd.merge(df_p, df_t, on='date', how='inner')
 
