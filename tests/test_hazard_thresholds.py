@@ -152,6 +152,66 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("era_5", season_fetch_calls[0]["source"])
         self.assertEqual("era_5", result["season_info"]["source"])
 
+    def test_calculate_hazards_fixed_season_reuses_prefetched_window_df(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        orig_fixed = hazards.fetch_and_analyze_years_fixed
+        orig_window_fetch = hazards.get_climate_data_for_season
+        orig_calc_stats = hazards.calculate_season_statistics
+        orig_eval = hazards.evaluate_hazard_metrics
+
+        prefetched = hazards.pd.DataFrame(
+            {
+                "date": hazards.pd.to_datetime(["2020-03-01", "2020-03-02"]),
+                "precip": [10.0, 0.0],
+                "tmax": [28.0, 29.0],
+                "tmin": [16.0, 17.0],
+                "ET0_mm_day": [4.0, 4.0],
+            }
+        )
+
+        hazards.fetch_and_analyze_years_fixed = lambda *args, **kwargs: (
+            {
+                2020: [
+                    {
+                        "onset": hazards.pd.Timestamp("2020-03-01"),
+                        "cessation": hazards.pd.Timestamp("2020-05-31"),
+                        "length_days": 92,
+                        "window_df": prefetched,
+                    }
+                ]
+            },
+            {},
+        )
+        hazards.get_climate_data_for_season = lambda *args, **kwargs: self.fail(
+            "fixed-season path should reuse prefetched window_df"
+        )
+        hazards.calculate_season_statistics = lambda df, **kwargs: {
+            "row_count": len(df),
+            "total_precipitation_mm": 10.0,
+            "mean_temperature_c": 22.5,
+        }
+        hazards.evaluate_hazard_metrics = lambda stats, thresholds: {
+            "precipitation": {"status": "no_stress", "value_mm": stats["total_precipitation_mm"]},
+            "temperature": {"status": "no_stress", "value_c": stats["mean_temperature_c"]},
+        }
+        try:
+            result = calculate_hazards(
+                crop_name="maize",
+                location_coord=(-1.286, 36.817),
+                date_from="2020-01-01",
+                date_to="2020-12-31",
+                fixed_season="03-01:05-31",
+                source="era_5",
+            )
+        finally:
+            hazards.fetch_and_analyze_years_fixed = orig_fixed
+            hazards.get_climate_data_for_season = orig_window_fetch
+            hazards.calculate_season_statistics = orig_calc_stats
+            hazards.evaluate_hazard_metrics = orig_eval
+
+        self.assertEqual(2, result["season_statistics"]["row_count"])
+
     def test_resolve_thresholds_includes_atlas_index_defaults(self):
         thresholds = resolve_thresholds("Maize")
         self.assertIn("Total Precip", thresholds)

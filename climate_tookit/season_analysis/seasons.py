@@ -717,10 +717,19 @@ def fetch_and_analyze_years_fixed(
         for onset_date, cessation_date in resolved:
             length_days = (cessation_date - onset_date).days + 1
             cross_note  = " (year-crossing)" if cessation_date.year != year else ""
+            window_df = None
 
             # Fixed-window rainfall stats
             if df is not None and not df.empty:
                 stats = compute_season_stats(df, onset_date, cessation_date)
+                window_df = (
+                    df[
+                        (df['date'] >= pd.Timestamp(onset_date)) &
+                        (df['date'] <= pd.Timestamp(cessation_date))
+                    ]
+                    .copy()
+                    .reset_index(drop=True)
+                )
             else:
                 stats = dict(total_rainfall_mm=None, rainy_days=None,
                              dry_days=None, dry_spells=None)
@@ -758,6 +767,7 @@ def fetch_and_analyze_years_fixed(
                 annual_rain_mm = annual_dict[year].get('annual_rain_mm'),
                 params_used    = "fixed-season",
                 eto_seasons    = eto_seasons,
+                window_df      = window_df,
                 **stats,
             )
             seasons_dict[year].append(season_dict)

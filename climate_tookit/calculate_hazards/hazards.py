@@ -677,13 +677,15 @@ def calculate_hazards(
                     'total_seasons_per_year': num_seasons_per_year,     
                     'source':                 source,                   
                 }
-                df = get_climate_data_for_season(
-                    lat,
-                    lon,
-                    s_start,
-                    s_end,
-                    source=source,
-                )
+                df = s.get('window_df')
+                if df is None or df.empty:
+                    df = get_climate_data_for_season(
+                        lat,
+                        lon,
+                        s_start,
+                        s_end,
+                        source=source,
+                    )
                 all_results.append({'season_info': season_info, 'df': df})
         if not all_results:
             return {'error': 'No seasons produced by fixed-season mode for the given date range.'}
