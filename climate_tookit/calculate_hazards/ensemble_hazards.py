@@ -144,6 +144,45 @@ def _expand_windows(sy: int, ey: int,
 def _fixed_windows_cross_year(defs: List[Tuple[str, str]]) -> bool:
     return any(_yearcross(onset, cessation) for onset, cessation in defs)
 
+def _year_crossing_tail_end(end_year: int, defs: List[Tuple[str, str]]) -> str | None:
+    crossings = [cessation for onset, cessation in defs if _yearcross(onset, cessation)]
+    if not crossings:
+        return None
+    return max(_iso(end_year + 1, cessation) for cessation in crossings)
+
+def _prefetch_year_crossing_tail(
+    lat: float,
+    lon: float,
+    end_year: int,
+    models: List[str],
+    scenarios: List[str],
+    defs: List[Tuple[str, str]],
+) -> None:
+    tail_end = _year_crossing_tail_end(end_year, defs)
+    if tail_end is None:
+        return
+    tail_start = f"{end_year + 1}-01-01"
+    print(
+        f"  Prefetching next-year tail for year-crossing fixed windows: "
+        f"{tail_start} -> {tail_end}"
+    )
+    for scenario in scenarios:
+        for model in models:
+            print(f"    tail prefetch [{scenario}] {model}")
+            try:
+                preprocess_data(
+                    source='nex_gddp',
+                    location_coord=(lat, lon),
+                    variables=_VARS,
+                    date_from=date.fromisoformat(tail_start),
+                    date_to=date.fromisoformat(tail_end),
+                    model=model,
+                    scenario=scenario,
+                )
+                print(f"      tail cache ready {tail_start}->{tail_end}")
+            except Exception as exc:
+                print(f"      tail prefetch failed: {exc}")
+
 # NEX-GDDP fetching & per-window assessment
 def _fetch(lat: float, lon: float, start: str, end: str,
            model: str, scenario: str) -> pd.DataFrame:
@@ -350,6 +389,14 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         print(
             f"  ! Year-crossing fixed window detected. Final requested year {end_year} "
             f"needs following-year tail data ({end_year + 1}) to complete last season.\n"
+        )
+        _prefetch_year_crossing_tail(
+            lat=lat,
+            lon=lon,
+            end_year=end_year,
+            models=models,
+            scenarios=scenarios,
+            defs=fixed_defs,
         )
 
     results: List[Dict] = []

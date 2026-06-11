@@ -2,6 +2,7 @@ import sys
 import types
 import unittest
 from contextlib import redirect_stdout
+from datetime import date
 from io import StringIO
 
 
@@ -48,6 +49,44 @@ import climate_tookit.calculate_hazards.ensemble_hazards as eh
 
 
 class EnsembleHazardsAggregationTests(unittest.TestCase):
+    def test_calculate_ensemble_prefetches_tail_for_year_crossing_fixed_window(self):
+        calls = []
+        orig_preprocess = eh.preprocess_data
+        orig_evaluate = eh._evaluate
+        eh.preprocess_data = lambda **kwargs: calls.append(kwargs) or None
+        eh._evaluate = lambda crop, lat, lon, window, model, scenario, soilcp, soilsat: {
+            "season_info": {**window, "length_days": 121},
+            "season_statistics": {
+                "total_precipitation_mm": 600.0,
+                "mean_temperature_c": 24.0,
+            },
+            "hazard_evaluation": {
+                "precipitation": {"value_mm": 600.0, "status": "no_stress"},
+                "temperature": {"value_c": 24.0, "status": "no_stress"},
+            },
+            "projection": {"model": model, "scenario": scenario},
+        }
+        try:
+            eh.calculate_ensemble(
+                crop="maize",
+                lat=-13.5319,
+                lon=-71.9675,
+                start_year=2041,
+                end_year=2041,
+                models=["ACCESS-CM2"],
+                scenarios=["ssp245"],
+                fixed_season="12-01:03-31",
+            )
+        finally:
+            eh.preprocess_data = orig_preprocess
+            eh._evaluate = orig_evaluate
+
+        self.assertEqual(1, len(calls))
+        self.assertEqual(date(2042, 1, 1), calls[0]["date_from"])
+        self.assertEqual(date(2042, 3, 31), calls[0]["date_to"])
+        self.assertEqual("ACCESS-CM2", calls[0]["model"])
+        self.assertEqual("ssp245", calls[0]["scenario"])
+
     def test_calculate_ensemble_warns_for_year_crossing_fixed_window(self):
         orig_evaluate = eh._evaluate
         eh._evaluate = lambda crop, lat, lon, window, model, scenario, soilcp, soilsat: {
