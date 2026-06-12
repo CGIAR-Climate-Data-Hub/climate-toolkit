@@ -1,6 +1,10 @@
 import sys
 import types
 import unittest
+from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest import mock
 
 
 def _install_test_stubs():
@@ -96,6 +100,31 @@ class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):
         )
         self.assertIn("error", result)
         self.assertIn("multi-year period", result["error"])
+
+    def test_cli_all_error_payload_saves_error_report_not_success_banner(self):
+        with TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "ensemble_stats_errors.json"
+            argv = [
+                "ensemble_statistics.py",
+                "--location=-1.286,36.817",
+                "--start-year=2050",
+                "--end-year=2050",
+                "--fixed-season=03-01:05-31",
+                "--models=MRI-ESM2-0",
+                "--scenarios=ssp245,ssp585",
+                f"--output={output_path}",
+            ]
+
+            stdout = StringIO()
+            with mock.patch("sys.argv", argv), mock.patch("sys.stdout", stdout):
+                with self.assertRaises(SystemExit) as ctx:
+                    es.main()
+
+            self.assertEqual(1, ctx.exception.code)
+            rendered = stdout.getvalue()
+            self.assertIn("Saved error report to:", rendered)
+            self.assertNotIn("✓ SAVED", rendered)
+            self.assertTrue(output_path.exists())
 
 
 if __name__ == "__main__":

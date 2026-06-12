@@ -66,7 +66,7 @@ class NexGddpXeePocTests(unittest.TestCase):
         self.assertTrue(nex_gddp_xee._is_horn_of_africa_coordinate(-1.286, 36.817))
         self.assertFalse(nex_gddp_xee._is_horn_of_africa_coordinate(12.639, -8.002))
 
-    def test_resolve_dataset_version_prefers_1_2(self):
+    def test_resolve_dataset_version_prefers_1_1(self):
         class FakeHistogram:
             def getInfo(self):
                 return {"1.1": 5, "1.2": 7}
@@ -92,6 +92,81 @@ class NexGddpXeePocTests(unittest.TestCase):
 
     def test_coerce_version_filter_value_uses_float_for_numeric_versions(self):
         self.assertEqual(nex_gddp_xee._coerce_version_filter_value("1.2"), 1.2)
+
+    def test_warn_on_suspicious_precipitation_logs_absolute_rainbomb_warning_for_arid_series(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2050-01-01", periods=10, freq="D"),
+                "pr": [0.0, 0.0, 0.2, 0.0, 0.4, 0.0, 0.8, 0.0, 650.0, 0.0],
+            }
+        )
+
+        with self.assertLogs(nex_gddp_xee.logger, level="WARNING") as captured:
+            nex_gddp_xee._warn_on_suspicious_precipitation(
+                frame,
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+            )
+
+        message = "\n".join(captured.output)
+        self.assertIn("rainbomb", message.lower())
+        self.assertIn("650.00 mm/day", message)
+        self.assertIn("MRI-ESM2-0", message)
+
+    def test_warn_on_suspicious_precipitation_ignores_absolute_spike_without_arid_signature(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2050-01-01", periods=10, freq="D"),
+                "pr": [20.0, 35.0, 28.0, 44.0, 60.0, 22.0, 31.0, 27.0, 650.0, 18.0],
+            }
+        )
+
+        with mock.patch.object(nex_gddp_xee.logger, "warning") as warning_mock:
+            nex_gddp_xee._warn_on_suspicious_precipitation(
+                frame,
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+            )
+
+        warning_mock.assert_not_called()
+
+    def test_warn_on_suspicious_precipitation_logs_arid_ratio_rainbomb_warning(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2050-01-01", periods=10, freq="D"),
+                "pr": [0.0, 0.0, 0.2, 0.0, 0.4, 0.0, 0.8, 0.0, 75.0, 0.0],
+            }
+        )
+
+        with self.assertLogs(nex_gddp_xee.logger, level="WARNING") as captured:
+            nex_gddp_xee._warn_on_suspicious_precipitation(
+                frame,
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+            )
+
+        message = "\n".join(captured.output)
+        self.assertIn("arid-zone rainbomb", message.lower())
+        self.assertIn("75.00 mm/day", message)
+        self.assertIn("ratio", message.lower())
+
+    def test_warn_on_suspicious_precipitation_ignores_normal_precip(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2050-01-01", periods=5, freq="D"),
+                "pr": [0.0, 3.0, 8.0, 12.0, 6.0],
+            }
+        )
+
+        with mock.patch.object(nex_gddp_xee.logger, "warning") as warning_mock:
+            nex_gddp_xee._warn_on_suspicious_precipitation(
+                frame,
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+                threshold_mm_day=500.0,
+            )
+
+        warning_mock.assert_not_called()
 
     def test_africa_default_ensemble_excludes_canesm5(self):
         models = nex_gddp.default_ensemble_models_for_location((-1.286, 36.817))

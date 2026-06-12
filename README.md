@@ -95,7 +95,7 @@ Key options:
 - `--variables`: comma-separated toolkit variable names such as `precipitation,max_temperature,min_temperature`
 - `--output` and `--format`: save to `csv` or `json` instead of printing
 
-For NEX-GDDP, you must also provide `--model` and `--scenario`. Current Earth Engine/Xee access also requires prior Earth Engine authentication plus `GCP_PROJECT_ID` in your environment.
+For NEX-GDDP, you must also provide `--model` and `--scenario`. Current Earth Engine/Xee access also requires prior Earth Engine authentication plus `GCP_PROJECT_ID` in your environment. Current package backend is documented and tested against Earth Engine NEX-GDDP version `1.1`.
 
 Example:
 
@@ -158,6 +158,8 @@ If you do want the CLI from a notebook cell, use:
 - Common utilities like enums and settings are stored in `climate_tookit/fetch_data/source_data/sources/utils/`.
 - NEX-GDDP real-access R&D note: [analysis/nex_gddp_access_rnd.md](/Users/pstewarda/Documents/rprojects/climate-toolkit/analysis/nex_gddp_access_rnd.md)
 - `nex_gddp` now uses real Earth Engine/Xee retrieval. It requires Earth Engine auth plus `GCP_PROJECT_ID`.
+- Current `nex_gddp` Earth Engine backend uses dataset version `1.1`. Future `1.2` sourcing is tracked as follow-up work, not current runtime behavior.
+- Arid-region NEX rainfall-spike warning rationale and literature links are documented in [analysis/nex_gddp_access_rnd.md](/Users/pstewarda/Documents/rprojects/climate-toolkit/analysis/nex_gddp_access_rnd.md).
 
 
 ### Solution Architecture

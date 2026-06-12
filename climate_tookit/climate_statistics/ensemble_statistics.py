@@ -668,13 +668,19 @@ def main() -> None:
         if args.output:
             with open(args.output, 'w') as f:
                 f.write(out)
-            print(f"Saved to {args.output}")
+            if any_ok:
+                print(f"Saved to {args.output}")
+            else:
+                print(f"Saved error report to {args.output}")
         else:
             print(out)
     elif args.output:
         with open(args.output, 'w') as f:
             json.dump(payload, f, indent=2, default=str)
-        print(f"\n✓ SAVED: {args.output}")
+        if any_ok:
+            print(f"\n✓ SAVED: {args.output}")
+        else:
+            print(f"\nSaved error report to: {args.output}")
     elif not args.no_save:
         sc_tag = scenarios[0] if len(scenarios) == 1 else 'multi'
         fname = (f"ensemble_stats_{lat:.4f}_{lon:.4f}_"
@@ -682,7 +688,10 @@ def main() -> None:
         path = Path(args.output_dir) / fname
         with open(path, 'w') as f:
             json.dump(payload, f, indent=2, default=str)
-        print(f"\n✓ SAVED: {path}")
+        if any_ok:
+            print(f"\n✓ SAVED: {path}")
+        else:
+            print(f"\nSaved error report to: {path}")
 
     if not any_ok:
         sys.exit(1)

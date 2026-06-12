@@ -25,6 +25,9 @@ Important dataset notes reflected below:
   Celsius via ``- 273.15``.
 - The Earth Engine catalog documents ``historical`` as pre-2015 and SSP
   scenarios as post-2014. This PoC enforces that split early.
+- Current package implementation targets Earth Engine dataset version ``1.1``.
+  Version ``1.2`` should be treated as future follow-up work, not active
+  runtime expectation.
 """
 
 from __future__ import annotations
@@ -64,7 +67,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "ACCESS-CM2"
 DEFAULT_SCENARIO = "ssp245"
-DEFAULT_DATASET_VERSION = "1.2"
+DEFAULT_DATASET_VERSION = "1.1"
 DEFAULT_CACHE_DIR = "outputs/cache/nex_gddp_xee"
 DEFAULT_CHUNK_DAYS = 365
 DEFAULT_RETRY_ATTEMPTS = 4
@@ -76,6 +79,12 @@ AFRICA_CMIP6_GUIDANCE_URL = (
     "african-cmip6-ensembling/"
 )
 SECONDS_PER_DAY = 86_400.0
+RAINCELL_WARN_THRESHOLD_MM_DAY = 500.0
+ARID_RAINBOMB_DRY_DAY_THRESHOLD_MM = 1.0
+ARID_RAINBOMB_DRY_DAY_FRACTION = 0.8
+ARID_RAINBOMB_WET_DAY_MEDIAN_MAX_MM = 2.0
+ARID_RAINBOMB_SPIKE_MIN_MM_DAY = 50.0
+ARID_RAINBOMB_RATIO_MIN = 40.0
 
 SCENARIO_MAPPING = {
     "historical": "historical",
@@ -197,6 +206,67 @@ def _is_retryable_ee_error(err: Exception) -> bool:
 
 def _is_chunk_overflow_error(err: Exception) -> bool:
     return is_chunk_overflow_error(err)
+
+
+def _warn_on_suspicious_precipitation(
+    frame: pd.DataFrame,
+    *,
+    model: str,
+    scenario: str,
+    threshold_mm_day: float = RAINCELL_WARN_THRESHOLD_MM_DAY,
+) -> None:
+    if "pr" not in frame.columns or frame.empty:
+        return
+
+    precip = pd.to_numeric(frame["pr"], errors="coerce")
+    max_idx = precip.idxmax()
+    max_precip = float(precip.loc[max_idx]) if len(precip.dropna()) else float("nan")
+    max_date = pd.to_datetime(frame.loc[max_idx, "date"], errors="coerce").strftime("%Y-%m-%d")
+
+    wet_days = precip[precip > 0]
+    if len(wet_days) < 3:
+        return
+
+    median_wet = float(wet_days.median())
+    dry_fraction = float((precip.fillna(0) <= ARID_RAINBOMB_DRY_DAY_THRESHOLD_MM).mean())
+    is_arid_signature = (
+        dry_fraction >= ARID_RAINBOMB_DRY_DAY_FRACTION
+        and median_wet <= ARID_RAINBOMB_WET_DAY_MEDIAN_MAX_MM
+    )
+    if not is_arid_signature:
+        return
+
+    ratio = (max_precip / median_wet) if median_wet > 0 else float("inf")
+    if max_precip >= threshold_mm_day or (
+        max_precip >= ARID_RAINBOMB_SPIKE_MIN_MM_DAY
+        and ratio >= ARID_RAINBOMB_RATIO_MIN
+    ):
+        extreme = frame.loc[precip > threshold_mm_day, ["date", "pr"]].copy()
+        if not extreme.empty:
+            extreme["date"] = pd.to_datetime(extreme["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+            preview = ", ".join(
+                f"{row.date}={float(row.pr):.2f} mm/day"
+                for row in extreme.head(3).itertuples(index=False)
+            )
+            if len(extreme) > 3:
+                preview = f"{preview}, ..."
+        else:
+            preview = f"{max_date}={max_precip:.2f} mm/day"
+
+        logger.warning(
+            "Potential NEX-GDDP arid-zone rainbomb detected for model=%s scenario=%s: "
+            "max daily precipitation %.2f mm/day on %s versus wet-day median %.2f mm/day "
+            "(ratio %.1fx, dry-day fraction %.0f%%). Sample: %s. This can indicate unstable "
+            "downscaling/bias-correction in very arid regimes.",
+            model,
+            scenario,
+            max_precip,
+            max_date,
+            median_wet,
+            ratio,
+            dry_fraction * 100.0,
+            preview,
+        )
 
 
 def _maybe_log_africa_guidance(
@@ -832,17 +902,11 @@ class DownloadData(models.DataDownloadBase):
                 f"duplicate_dates={integrity['duplicate_dates']}"
             )
 
-        unique_versions = sorted({version for version in selected_versions if version}, key=_version_sort_key)
-        if unique_versions and DEFAULT_DATASET_VERSION not in unique_versions:
-            logger.warning(
-                "Preferred NEX-GDDP version %s unavailable; using %s for model=%s scenario=%s start=%s end=%s",
-                DEFAULT_DATASET_VERSION,
-                ",".join(unique_versions),
-                self.model,
-                self.scenario,
-                self.date_from_utc,
-                self.date_to_utc,
-            )
+        _warn_on_suspicious_precipitation(
+            frame,
+            model=self.model,
+            scenario=self.scenario,
+        )
 
         self._log_progress(
             f"{_progress_bar(total, total)} completed {total}/{total} chunk(s); "
