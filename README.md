@@ -31,7 +31,7 @@ The Climate Toolkit offers a unified, programmatic interface to:
 ## Project Structure
 
 ```
-climate_toolkit/
+climate_tookit/
 ├── calculate_hazards/       # Hazard metrics like SPI
 ├── climate_statistics/      # Stats and anomalies
 ├── compare_periods/         # Compare historic trends
@@ -73,13 +73,79 @@ climate_toolkit/
 
 ## How to Use
 
-To download climate data from the terminal, run:
+### Recommended CLI entry point
+
+Use the package entry point rather than calling internal source files directly:
 
 ```bash
-python climate_toolkit/fetch_data/source_data/source_data.py
+python -m climate_tookit.fetch_data.fetch_data \
+  --source chirps \
+  --lat -1.286 \
+  --lon 36.817 \
+  --start 2020-01-01 \
+  --end 2020-01-10 \
+  --variables precipitation \
+  --stage preprocessed
 ```
 
-This will trigger the configured download process based on the parameters defined in the `SourceData` class within the script.
+Key options:
+
+- `--source`: dataset key such as `chirps`, `era_5`, `agera_5`, `nex_gddp`
+- `--stage`: `raw`, `transformed`, or `preprocessed`
+- `--variables`: comma-separated toolkit variable names such as `precipitation,max_temperature,min_temperature`
+- `--output` and `--format`: save to `csv` or `json` instead of printing
+
+For NEX-GDDP, you must also provide `--model` and `--scenario`. Current Earth Engine/Xee access also requires prior Earth Engine authentication plus `GCP_PROJECT_ID` in your environment.
+
+Example:
+
+```bash
+env GCP_PROJECT_ID=your-project-id python -m climate_tookit.fetch_data.fetch_data \
+  --source nex_gddp \
+  --lat -1.286 \
+  --lon 36.817 \
+  --start 2050-01-01 \
+  --end 2050-01-05 \
+  --model MRI-ESM2-0 \
+  --scenario ssp245 \
+  --variables precipitation,max_temperature,min_temperature \
+  --stage raw
+```
+
+### Jupyter / notebook usage
+
+If you are running from Jupyter, do not paste plain shell commands into a Python cell. Either:
+
+1. Prefix CLI commands with `!`, or
+2. Prefer the import-based Python API shown below.
+
+Notebook-safe example:
+
+```python
+from datetime import date
+
+from climate_tookit.fetch_data import fetch_data
+from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+
+df = fetch_data(
+    source="chirps",
+    location_coord=(-1.286, 36.817),
+    variables=[ClimateVariable.precipitation],
+    date_from=date(2020, 1, 1),
+    date_to=date(2020, 1, 10),
+    stage="preprocessed",
+)
+
+df.head()
+```
+
+If you do want the CLI from a notebook cell, use:
+
+```bash
+!python -m climate_tookit.fetch_data.fetch_data --help
+```
+
+`source_data.py` is an internal module. For end users, the supported top-level entry point is `python -m climate_tookit.fetch_data.fetch_data` or the import-based `fetch_data(...)` API.
 
 ---
 
@@ -88,8 +154,8 @@ This will trigger the configured download process based on the parameters define
 ### Setting Up
 
 - All configuration values (e.g., API keys) are managed via `.env` using `python-dotenv`.
-- Modular dataset handlers are found in `fetch_data/`, each with `DownloadData` classes.
-- Common utilities like enums and settings are stored in `fetch_data/sources/utils/`.
+- Modular dataset handlers are found in `climate_tookit/fetch_data/source_data/sources/`, each with `DownloadData` classes.
+- Common utilities like enums and settings are stored in `climate_tookit/fetch_data/source_data/sources/utils/`.
 - NEX-GDDP real-access R&D note: [analysis/nex_gddp_access_rnd.md](/Users/pstewarda/Documents/rprojects/climate-toolkit/analysis/nex_gddp_access_rnd.md)
 - `nex_gddp` now uses real Earth Engine/Xee retrieval. It requires Earth Engine auth plus `GCP_PROJECT_ID`.
 
