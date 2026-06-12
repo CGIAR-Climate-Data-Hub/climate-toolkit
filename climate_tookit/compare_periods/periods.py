@@ -184,16 +184,46 @@ def compare(
     fs_kw     = {"fixed_season": fixed_season} if fixed_season else {}
 
     print(f"\nFetching baseline {baseline_start}-{baseline_end} | source={source}")
-    base = analyze_climate_statistics(
-        location_coord=location,
-        start_year=baseline_start, end_year=baseline_end,
-        source=source, **fs_kw)
+    try:
+        base = analyze_climate_statistics(
+            location_coord=location,
+            start_year=baseline_start, end_year=baseline_end,
+            source=source, **fs_kw)
+    except Exception as exc:
+        return {
+            "error": (
+                f"Baseline fetch/analysis failed for {source} "
+                f"({baseline_start}-{baseline_end}): {type(exc).__name__}: {exc}"
+            )
+        }
+    if isinstance(base, dict) and base.get("error"):
+        return {
+            "error": (
+                f"Baseline fetch/analysis failed for {source} "
+                f"({baseline_start}-{baseline_end}): {base['error']}"
+            )
+        }
 
     print(f"\nFetching focal year {focal_year} | source={source}")
-    focal = analyze_climate_statistics(
-        location_coord=location,
-        start_year=focal_year, end_year=focal_year,
-        source=source, **fs_kw)
+    try:
+        focal = analyze_climate_statistics(
+            location_coord=location,
+            start_year=focal_year, end_year=focal_year,
+            source=source, **fs_kw)
+    except Exception as exc:
+        return {
+            "error": (
+                f"Focal fetch/analysis failed for {source} "
+                f"({focal_year}): {type(exc).__name__}: {exc}"
+            )
+        }
+    if isinstance(focal, dict) and focal.get("error"):
+        return {
+            "error": (
+                f"Focal fetch/analysis failed for {source} "
+                f"({focal_year}): {focal['error']}"
+            )
+        }
 
     # 1. raw_climate_summary
     raw_diff = _diff_raw(focal.get("raw_climate_summary", []),
