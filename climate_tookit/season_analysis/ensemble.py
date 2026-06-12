@@ -47,7 +47,7 @@ def _nex_gddp_has_wet_confirmation(precip_data, et0_data, start_idx,
 
 # Route seasons.get_climate_data through NEX-GDDP
 @contextmanager
-def use_nex_gddp(model: str, scenario: str):
+def use_nex_gddp(model_name: str, scenario_name: str):
     """
     Temporarily replace seasons.get_climate_data so any call inside seasons.py reads NEX-GDDP for the given (model, scenario).
     Also swaps in a NEX-GDDP-tuned has_wet_confirmation so auto-mode onset
@@ -58,15 +58,23 @@ def use_nex_gddp(model: str, scenario: str):
     original_get      = seasons.get_climate_data
     original_wet_conf = seasons.has_wet_confirmation
 
-    def patched(lat, lon, start_date, end_date, force_source=None):
+    def patched(
+        lat,
+        lon,
+        start_date,
+        end_date,
+        force_source=None,
+        model=None,
+        scenario=None,
+    ):
         try:
             df = preprocess_data(
                 source         = NEX_GDDP_SOURCE,
                 location_coord = (lat, lon),
                 date_from      = date.fromisoformat(start_date),
                 date_to        = date.fromisoformat(end_date),
-                model          = model,
-                scenario       = scenario,
+                model          = model_name,
+                scenario       = scenario_name,
             )
             if df is None or df.empty:
                 raise RuntimeError("preprocess_data returned empty DataFrame")
@@ -160,6 +168,59 @@ def _avg_ts_iso(ts_list):
         return None
     return pd.Timestamp(sum(valid) // len(valid)).strftime('%Y-%m-%d')
 
+
+def _representative_fixed_ts_iso(ts_list):
+    """
+    Average season-relative dates without letting the calendar year distort the
+    result. If all dates share one month-day pair, keep the earliest concrete
+    date. Otherwise, compute a circular mean over day-of-year on a leap-year
+    anchor, then stamp that month-day onto the earliest observed year.
+    """
+    valid = []
+    month_days = set()
+    for t in ts_list:
+        if t is None:
+            continue
+        try:
+            ts = pd.Timestamp(t)
+        except Exception:
+            continue
+        if pd.isna(ts):
+            continue
+        valid.append(ts)
+        month_days.add((ts.month, ts.day))
+
+    if not valid:
+        return None
+    if len(month_days) == 1:
+        return min(valid).strftime('%Y-%m-%d')
+
+    base_year = min(ts.year for ts in valid)
+    anchor_days = []
+    for ts in valid:
+        anchor = pd.Timestamp(year=2000, month=ts.month, day=ts.day)
+        anchor_days.append(anchor.dayofyear)
+
+    angles = [2 * math.pi * ((day - 1) / 366.0) for day in anchor_days]
+    mean_sin = statistics.mean(math.sin(angle) for angle in angles)
+    mean_cos = statistics.mean(math.cos(angle) for angle in angles)
+    mean_angle = math.atan2(mean_sin, mean_cos)
+    if mean_angle < 0:
+        mean_angle += 2 * math.pi
+    mean_day = int(round((mean_angle / (2 * math.pi)) * 366.0)) + 1
+    if mean_day > 366:
+        mean_day = 1
+
+    anchor_date = pd.Timestamp(year=2000, month=1, day=1) + pd.Timedelta(days=mean_day - 1)
+    month = anchor_date.month
+    day = anchor_date.day
+    try:
+        return pd.Timestamp(year=base_year, month=month, day=day).strftime('%Y-%m-%d')
+    except ValueError:
+        if month == 2 and day == 29:
+            return pd.Timestamp(year=base_year, month=2, day=28).strftime('%Y-%m-%d')
+        raise
+
 def _aggregate_eto_subseasons(eto_per_model: List[List[Dict]]) -> Dict:
     """
     Aggregate ETO sub-seasons across models for one fixed-season slot.
@@ -191,8 +252,8 @@ def _aggregate_eto_subseasons(eto_per_model: List[List[Dict]]) -> Dict:
             'subseason_index':  sub_idx + 1,
             'n_models':         n,
             'regime_counts':    regime_counts,
-            'avg_onset':        _avg_ts_iso(onsets),
-            'avg_cessation':    _avg_ts_iso(cessations),
+            'avg_onset':        _representative_fixed_ts_iso(onsets),
+            'avg_cessation':    _representative_fixed_ts_iso(cessations),
             'n_open_cessation': n_open,
             **{k: _avg(buckets[k]) for k in metrics},
         })
@@ -229,8 +290,8 @@ def _avg_eto_over_years(eto_lists: List[List[Dict]]) -> List[Dict]:
                 cessations.append(s.get('cessation'))
                 regimes.append(s.get('regime'))
         out.append({
-            'onset':     _avg_ts_iso(onsets),
-            'cessation': _avg_ts_iso(cessations),
+            'onset':     _representative_fixed_ts_iso(onsets),
+            'cessation': _representative_fixed_ts_iso(cessations),
             'regime':    _most_common(regimes),
             **{k: _avg(buckets[k]) for k in _AGG_METRICS},
         })
@@ -262,8 +323,8 @@ def _average_model_over_period(model_result: Dict, n_slots: int) -> Dict:
         season_means.append({
             'season_index': idx + 1,
             'n_years':      n_years,
-            'onset':        _avg_ts_iso(onsets),
-            'cessation':    _avg_ts_iso(cessations),
+            'onset':        _representative_fixed_ts_iso(onsets),
+            'cessation':    _representative_fixed_ts_iso(cessations),
             'regime':       _most_common(regimes),
             'eto_seasons':  _avg_eto_over_years(eto_lists),
             **{k: _avg(buckets[k]) for k in _AGG_METRICS},
@@ -331,8 +392,8 @@ def aggregate_overall(model_results: List[Dict]):
         seasons_agg.append({
             'season_index':     idx + 1,
             'n_models':         n,
-            'avg_onset':        _avg_ts_iso(onsets),
-            'avg_cessation':    _avg_ts_iso(cessations),
+            'avg_onset':        _representative_fixed_ts_iso(onsets),
+            'avg_cessation':    _representative_fixed_ts_iso(cessations),
             'n_open_cessation': n_open,
             'regime_counts':    regime_counts,
             'eto_subseasons':   _aggregate_eto_subseasons(eto_per_model),
