@@ -10,7 +10,7 @@ Detection: delegates to seasons.py building blocks (add_et0, detect_onset_cessat
 parse_fixed_seasons, check_humid) so behaviour is identical to seasons.py:
     Per reference year, a 1.5-year window is sliced from the master DataFrame so seasons crossing the year boundary are captured. After detection,
     seasons are reassigned to onset year, filtered to MAM/OND windows for equatorial climates, and de-duplicated.
-Data sources accepted: era_5, agera_5, chirps+chirts, nasa_power, nex_gddp, terraclimate, auto. NEX-GDDP requires --model and --scenario.
+Data sources accepted: era_5, agera_5, chirps+chirts, chirps, nasa_power, nex_gddp, auto. NEX-GDDP requires --model and --scenario.
 
 Dependencies: pandas, numpy, climate_toolkit (preprocess_data, seasons.py)
 """
@@ -122,6 +122,7 @@ SUMMARY_VARS: List[Tuple[str, str]] = [
 # LTM (Long-Term Mean) coverage rules
 BASELINE_DEFAULT_PERIOD: Tuple[int, int] = (1991, 2020)
 MIN_LTM_YEARS:           int            = 20
+CHIRTS_LAST_YEAR:        int            = 2016
 
 
 def _validate_nex_ltm_period(
@@ -138,6 +139,39 @@ def _validate_nex_ltm_period(
             "NEX-GDDP LTM/statistics analysis requires a multi-year period. "
             f"Got {start_year}-{end_year} ({years_span} year(s)). "
             "Single-year NEX-GDDP future/baseline summary runs are not allowed here."
+        )
+    return None
+
+
+def _validate_source_compatibility(
+    source: str,
+    start_year: int,
+    end_year: int,
+) -> Optional[str]:
+    source_lc = source.lower()
+    if source_lc == 'terraclimate':
+        return (
+            "terraclimate is monthly-cadence, but climate_statistics.statistics "
+            "requires daily data for ET0, water balance, and season windows."
+        )
+    if source_lc == 'chirts':
+        return (
+            "chirts provides temperature only and is not supported in the current "
+            "single-source interface for precipitation-driven season statistics. "
+            "Use a paired precip+temp workflow or another full daily source."
+        )
+    if source_lc == 'imerg':
+        return (
+            "imerg provides precipitation only and is not supported in the current "
+            "single-source interface. climate_statistics.statistics currently "
+            "requires temperature inputs for ET0 and season analysis, so imerg "
+            "needs an explicit temperature partner."
+        )
+    if source_lc == 'chirps+chirts' and end_year > CHIRTS_LAST_YEAR:
+        return (
+            "chirps+chirts is unavailable for this window because CHIRTS daily "
+            f"coverage ends in {CHIRTS_LAST_YEAR}. Use era_5, agera_5, "
+            "nasa_power, chirps, or nex_gddp for later periods."
         )
     return None
 
@@ -164,6 +198,26 @@ def _fetch_chirps_chirts(lat, lon, date_from, date_to):
         raise RuntimeError("CHIRTS returned no data")
     return pd.merge(df_p, df_t, on='date', how='inner')
 
+
+def _fetch_auto(lat, lon, date_from, date_to):
+    """
+    Match seasons.py intent more closely:
+    try ERA5, then AgERA5, then CHIRPS+CHIRTS as late fallback.
+    """
+    for candidate in ('era_5', 'agera_5'):
+        try:
+            return _call_preprocess(candidate, lat, lon, date_from, date_to, None, None)
+        except Exception:
+            continue
+
+    if date_to.year > CHIRTS_LAST_YEAR:
+        raise RuntimeError(
+            "auto fallback exhausted era_5 and agera_5, and chirps+chirts "
+            f"is unavailable after {CHIRTS_LAST_YEAR} because CHIRTS daily "
+            "coverage ends there."
+        )
+    return _fetch_chirps_chirts(lat, lon, date_from, date_to)
+
 def get_climate_data(
     lat: float, lon: float,
     start_date: str, end_date: str,
@@ -175,7 +229,7 @@ def get_climate_data(
     Fetch all variables for [start_date, end_date] from the given source.
     Source handling
     ---------------
-      - 'auto'           : resolves directly to CHIRPS + CHIRTS merge
+      - 'auto'           : tries era_5, then agera_5, then chirps+chirts fallback
       - 'chirps+chirts'  : merges CHIRPS precip + CHIRTS temperature
       - any other string : passed straight to preprocess_data (era_5, agera_5, nasa_power, nex_gddp, chirps, chirts, …)
     Renames pipeline columns to canonical names: precip, tmax, tmin (humidity, soil_moisture, solar_radiation, wind_speed pass through when the source provides them).
@@ -188,9 +242,11 @@ def get_climate_data(
     source_lc = source.lower()
 
     # Resolve source -> raw DataFrame
-    if source_lc in ('chirps+chirts', 'auto'):
-        label = "auto -> CHIRPS + CHIRTS" if source_lc == 'auto' else "CHIRPS + CHIRTS"
-        print(f"  [source] {label}")
+    if source_lc == 'auto':
+        print("  [source] auto -> era_5 -> agera_5 -> chirps+chirts")
+        df = _fetch_auto(lat, lon, date_from, date_to)
+    elif source_lc == 'chirps+chirts':
+        print("  [source] CHIRPS + CHIRTS")
         df = _fetch_chirps_chirts(lat, lon, date_from, date_to)
     else:
         df = _call_preprocess(source, lat, lon, date_from, date_to, model, scenario)
@@ -631,6 +687,9 @@ def analyze_climate_statistics(
     """
     lat, lon = location_coord
     run_started = perf_counter()
+    source_error = _validate_source_compatibility(source, start_year, end_year)
+    if source_error:
+        return {'error': source_error}
     period_error = _validate_nex_ltm_period(source, start_year, end_year)
     if period_error:
         return {'error': period_error}
@@ -669,8 +728,16 @@ def analyze_climate_statistics(
     print(f"Fetching climate data: {fetch_start} → {fetch_end} | "
           f"{' | '.join(run_label)}")
     fetch_started = perf_counter()
-    df = get_climate_data(lat, lon, fetch_start, fetch_end,
-                          source, model=model, scenario=scenario)
+    try:
+        df = get_climate_data(lat, lon, fetch_start, fetch_end,
+                              source, model=model, scenario=scenario)
+    except Exception as exc:
+        return {
+            'error': (
+                f"Climate data fetch failed for source='{source}' "
+                f"period={fetch_start}..{fetch_end}: {type(exc).__name__}: {exc}"
+            )
+        }
     fetch_elapsed = perf_counter() - fetch_started
     print(f"  Retrieved {len(df)} days in {_format_elapsed(fetch_elapsed)}, "
           f"columns={list(df.columns)}")
@@ -1001,8 +1068,10 @@ def main() -> None:
     parser.add_argument('--source',     required=True,
                         help=(
                             "Data source. Examples:\n"
-                            "  era_5, agera_5, chirps+chirts, nasa_power, "
-                            "nex_gddp, auto"
+                            "  era_5, agera_5, chirps, chirps+chirts, "
+                            "nasa_power, nex_gddp, auto\n"
+                            "Incompatible sources are rejected with a clean "
+                            "error at runtime."
                         ))
     parser.add_argument(
         '--fixed-season',
@@ -1064,17 +1133,24 @@ def main() -> None:
     # Display
     if args.format == 'pandas':
         print_pandas(result)
+        if 'error' in result:
+            sys.exit(1)
     else:
         out = json.dumps(result, indent=2, default=str)
         if args.output:
             with open(args.output, 'w') as f:
                 f.write(out)
+            if 'error' in result:
+                print(f"Saved error report to {args.output}")
+                sys.exit(1)
             print(f"Saved to {args.output}")
         else:
             print(out)
+            if 'error' in result:
+                sys.exit(1)
 
     # Auto-save JSON alongside pandas display
-    if not args.no_save and args.format == 'pandas':
+    if not args.no_save and args.format == 'pandas' and 'error' not in result:
         mode_tag = 'fixed' if args.fixed_season else args.source
         fname = (f"climate_stats_{lat:.4f}_{lon:.4f}_"
                  f"{args.start_year}_{args.end_year}_{mode_tag}.json")
