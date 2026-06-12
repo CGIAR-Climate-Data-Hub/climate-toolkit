@@ -47,6 +47,7 @@ class ClimateDataset(Enum):
     terraclimate = auto()
     imerg = auto()
     chirps = auto()
+    chirps_v3_daily_rnl = auto()
     cmip_6 = auto()
     nex_gddp = auto()
     nasa_power = auto()

@@ -74,6 +74,7 @@ class SourceData:
             ClimateDataset.terraclimate,
             ClimateDataset.imerg,
             ClimateDataset.chirps,
+            ClimateDataset.chirps_v3_daily_rnl,
             ClimateDataset.cmip_6,
             ClimateDataset.chirts,
             ClimateDataset.soil_grid,

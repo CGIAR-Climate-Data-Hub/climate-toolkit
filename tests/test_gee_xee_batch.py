@@ -24,6 +24,7 @@ from climate_tookit.fetch_data import fetch_gee_xee_batch_data
 from climate_tookit.fetch_data.gee_xee_batch import (
     _chunk_dates,
     _coerce_source,
+    _maybe_unbounded_collection,
 )
 from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateDataset
 from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
@@ -33,6 +34,12 @@ class GeeXeeBatchTests(unittest.TestCase):
     def test_unsupported_source_raises(self):
         with self.assertRaises(ValueError):
             _coerce_source("soil_grid")
+
+    def test_chirps_v3_daily_rnl_is_supported_source(self):
+        self.assertEqual(
+            ClimateDataset.chirps_v3_daily_rnl,
+            _coerce_source("chirps_v3_daily_rnl"),
+        )
 
     def test_monthly_source_uses_single_chunk_window(self):
         settings = Settings.load()
@@ -127,6 +134,87 @@ class GeeXeeBatchTests(unittest.TestCase):
 
         self.assertIn("outputs/cache/gee_xee_batch", str(data_path))
         self.assertTrue(str(manifest_path).endswith(".manifest.json"))
+
+    def test_empty_bounds_filtered_collection_falls_back_to_date_only(self):
+        class FakeSized:
+            def __init__(self, value):
+                self.value = value
+
+            def getInfo(self):
+                return self.value
+
+        class FakeCollection:
+            def __init__(self, label):
+                self.label = label
+
+            def size(self):
+                return FakeSized(0 if self.label == "bounded" else 5)
+
+            def select(self, bands):
+                return FakeCollection(f"{self.label}|select:{','.join(bands)}")
+
+            def filterDate(self, start, end):
+                return self
+
+        class FakeImageCollectionFactory:
+            def __call__(self, image_name):
+                return FakeCollection(f"fallback:{image_name}")
+
+        class FakeEe:
+            ImageCollection = FakeImageCollectionFactory()
+
+        bounded = FakeCollection("bounded")
+        fallback = _maybe_unbounded_collection(
+            FakeEe,
+            bounded,
+            image_name="UCSB-CHG/CHIRTS/DAILY",
+            start="2020-01-01",
+            end="2020-01-11",
+            point=None,
+            bands=["maximum_temperature", "minimum_temperature"],
+            verbose_label="Daily GEE collection",
+        )
+
+        self.assertIn("fallback:UCSB-CHG/CHIRTS/DAILY", fallback.label)
+
+    def test_empty_bounded_and_unbounded_collection_raises_clear_error(self):
+        class FakeSized:
+            def __init__(self, value):
+                self.value = value
+
+            def getInfo(self):
+                return self.value
+
+        class FakeCollection:
+            def size(self):
+                return FakeSized(0)
+
+            def select(self, bands):
+                return self
+
+            def filterDate(self, start, end):
+                return self
+
+        class FakeImageCollectionFactory:
+            def __call__(self, image_name):
+                return FakeCollection()
+
+        class FakeEe:
+            ImageCollection = FakeImageCollectionFactory()
+
+        with self.assertRaises(ValueError) as ctx:
+            _maybe_unbounded_collection(
+                FakeEe,
+                FakeCollection(),
+                image_name="UCSB-CHG/CHIRTS/DAILY",
+                start="2020-01-01",
+                end="2020-01-11",
+                point=None,
+                bands=["maximum_temperature", "minimum_temperature"],
+                verbose_label="Daily GEE collection",
+            )
+
+        self.assertIn("No data available from UCSB-CHG/CHIRTS/DAILY", str(ctx.exception))
 
 
 if __name__ == "__main__":

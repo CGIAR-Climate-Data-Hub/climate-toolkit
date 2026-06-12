@@ -166,6 +166,22 @@ class FetchPipelineTests(unittest.TestCase):
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
 
+    def test_chirps_v3_daily_rnl_dispatches_to_gee_adapter(self):
+        src = SourceData(
+            location_coord=(-1.286, 36.817),
+            variables=[ClimateVariable.precipitation],
+            source=ClimateDataset.chirps_v3_daily_rnl,
+            date_from_utc=date(2020, 1, 1),
+            date_to_utc=date(2020, 1, 2),
+            settings=Settings.load(),
+        )
+
+        self.assertEqual(
+            type(src.client).__module__,
+            "climate_tookit.fetch_data.source_data.sources.gee",
+        )
+        self.assertEqual(type(src.client).__name__, "DownloadData")
+
     def test_nex_pipeline_stages_return_expected_columns(self):
         raw_df = pd.DataFrame(
             {
@@ -245,6 +261,24 @@ class FetchPipelineTests(unittest.TestCase):
         ) as batch_mock:
             result = fetch_data(
                 source="chirps",
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 1),
+                stage="raw",
+            )
+
+        self.assertIs(result, batch_df)
+        batch_mock.assert_called_once()
+
+    def test_fetch_data_routes_many_site_chirps_v3_daily_rnl_to_xee_batch_api(self):
+        batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
+
+        with mock.patch(
+            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
+        ) as batch_mock:
+            result = fetch_data(
+                source="chirps_v3_daily_rnl",
                 sites=[("Nairobi", -1.286, 36.817)],
                 date_from=date(2020, 1, 1),
                 date_to=date(2020, 1, 1),

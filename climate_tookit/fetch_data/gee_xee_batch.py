@@ -57,6 +57,7 @@ SUPPORTED_GEE_XEE_BATCH_SOURCES = {
     ClimateDataset.terraclimate,
     ClimateDataset.imerg,
     ClimateDataset.chirps,
+    ClimateDataset.chirps_v3_daily_rnl,
     ClimateDataset.chirts,
     ClimateDataset.cmip_6,
 }
@@ -148,6 +149,44 @@ def _daily_aggregated_collection(ee_module, image_name, start, end, point, bands
     return ee_module.ImageCollection.fromImages(days_seq.map(daily_image))
 
 
+def _maybe_unbounded_collection(
+    ee_module,
+    collection,
+    *,
+    image_name: str,
+    start,
+    end,
+    point,
+    bands: list[str],
+    verbose_label: str,
+):
+    try:
+        size = collection.size().getInfo()
+    except Exception:
+        return collection
+
+    if size:
+        return collection
+
+    logger.warning(
+        "%s returned 0 images after filterBounds for %s. Falling back to date-only collection.",
+        verbose_label,
+        image_name,
+    )
+    fallback = ee_module.ImageCollection(image_name).filterDate(start, end)
+    if bands:
+        fallback = fallback.select(bands)
+    try:
+        fallback_size = fallback.size().getInfo()
+    except Exception:
+        return fallback
+    if fallback_size:
+        return fallback
+    raise ValueError(
+        f"No data available from {image_name} for requested period."
+    )
+
+
 def _collection_and_expected_dates(
     *,
     ee_module,
@@ -172,6 +211,16 @@ def _collection_and_expected_dates(
             .filterBounds(point)
             .select(bands)
         )
+        collection = _maybe_unbounded_collection(
+            ee_module,
+            collection,
+            image_name=image_name,
+            start=ee_start,
+            end=ee_end,
+            point=point,
+            bands=bands,
+            verbose_label="Monthly GEE collection",
+        )
         expected_dates = pd.date_range(chunk_start, chunk_end, freq="MS")
         return collection, expected_dates, chunk_start, chunk_end, "MS"
 
@@ -195,6 +244,16 @@ def _collection_and_expected_dates(
             .filterDate(ee_start, ee_end)
             .filterBounds(point)
             .select(bands)
+        )
+        collection = _maybe_unbounded_collection(
+            ee_module,
+            collection,
+            image_name=image_name,
+            start=ee_start,
+            end=ee_end,
+            point=point,
+            bands=bands,
+            verbose_label="Daily GEE collection",
         )
     expected_dates = pd.date_range(chunk_start, chunk_end, freq="D")
     return collection, expected_dates, chunk_start, chunk_end, "D"
@@ -725,7 +784,7 @@ def main():
             refresh_cache=args.refresh_cache,
             verbose=not args.quiet,
         )
-    except (ValueError, ImportError) as exc:
+    except Exception as exc:
         print(f"Error: {format_ee_setup_error(exc)}")
         return 1
 

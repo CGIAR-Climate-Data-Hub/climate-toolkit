@@ -106,6 +106,13 @@ class ChirpsSettings(BaseModel):
     variable: ClimateVariable
     cadence: str
 
+
+class ChirpsV3DailyRnlSettings(BaseModel):
+    gee_image: str
+    resolution: float
+    variable: ClimateVariable
+    cadence: str
+
 class Cmip6Settings(BaseModel):
     gee_image: str
     resolution: float
@@ -163,6 +170,7 @@ class Settings(BaseModel):
     terraclimate: TerraSettings
     chirts: ChirtsSettings
     chirps: ChirpsSettings
+    chirps_v3_daily_rnl: ChirpsV3DailyRnlSettings
     cmip_6: Cmip6Settings
     nex_gddp: NexGddpSettings
     nasa_power: NasaPowerSettings

@@ -101,6 +101,18 @@ chirps:
     soil_moisture: null
   cadence: daily
 
+chirps_v3_daily_rnl:
+  gee_image: UCSB-CHC/CHIRPS/V3/DAILY_RNL
+  resolution: 5566
+  variable:
+    precipitation: precipitation
+    max_temperature: null
+    min_temperature: null
+    wind_speed: null
+    solar_radiation: null
+    soil_moisture: null
+  cadence: daily
+
 cmip_6:
   gee_image: NASA/GDDP-CMIP6
   resolution: 5566

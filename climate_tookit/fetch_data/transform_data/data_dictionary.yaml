@@ -32,6 +32,9 @@ source_mappings:
   
   chirps:
     precipitation: precipitation
+
+  chirps_v3_daily_rnl:
+    precipitation: precipitation
   
   cmip_6:
     pr: precipitation
