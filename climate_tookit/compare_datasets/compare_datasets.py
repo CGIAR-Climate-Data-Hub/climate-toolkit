@@ -72,6 +72,15 @@ VALID_SOURCES = {
 
 DEFAULT_NEX_ENSEMBLE_MODELS = list(AVAILABLE_MODELS)
 
+
+def _validate_source_selection(sources) -> None:
+    normalized = list(sources or [])
+    if "nex_gddp" in normalized and len(normalized) > 1:
+        raise ValueError(
+            "nex_gddp must be run on its own. Do not combine it with historical "
+            "or other toolkit sources in one compare_datasets run."
+        )
+
 def _fetch_source(source: str, lat: float, lon: float,
                   start, end,
                   model: str | None = None,
@@ -475,6 +484,8 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
         export_data(df, "input_file", output_dir)
         return results
 
+    _validate_source_selection(sources)
+
     for source in sources:
         if source not in VALID_SOURCES:
             print(f"  ⚠️   Unknown source '{source}' — skipping. "
@@ -680,6 +691,12 @@ def main():
     if args.sources and (args.lat is None or args.lon is None):
         parser.error("--lat and --lon are required when using --sources")
 
+    if args.sources:
+        try:
+            _validate_source_selection(args.sources)
+        except ValueError as exc:
+            parser.error(str(exc))
+
     if args.sources and "nex_gddp" in args.sources:
         if args.models:
             models_to_check = args.models
@@ -722,8 +739,8 @@ def main():
 if __name__ == "__main__":
     main()
 
-# Example — all sources; 'nex_gddp' alone is the ensemble mean (default models):
-# python -m climate_tookit.compare_datasets.compare_datasets --sources era_5 chirps nasa_power imerg nex_gddp agera_5 chirts soil_grid terraclimate --lat -1.286 --lon 36.817 --start 1990-01-01 --end 2016-12-31 --scenario ssp245 --format report
+# Example — historical-source comparison only:
+# python -m climate_tookit.compare_datasets.compare_datasets --sources era_5 chirps nasa_power imerg agera_5 chirts soil_grid terraclimate --lat -1.286 --lon 36.817 --start 1990-01-01 --end 2016-12-31 --format report
 
 # Example — NEX-GDDP ensemble over a custom set of models (one 'nex_gddp_ensemble_<scenario>' series):
 # python -m climate_tookit.compare_datasets.compare_datasets --sources nex_gddp --lat -1.286 --lon 36.817 --start 2015-01-01 --end 2016-12-31 --models ACCESS-CM2 MPI-ESM1-2-LR MRI-ESM2-0 GFDL-ESM4 EC-Earth3 --scenario ssp245 --format report
