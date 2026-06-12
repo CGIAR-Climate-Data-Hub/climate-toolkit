@@ -299,7 +299,7 @@ def main():
             sites=parsed_sites,
             sites_csv=args.sites_csv,
         )
-    except (ValueError, ImportError) as exc:
+    except Exception as exc:
         print(f"Error: {format_ee_setup_error(exc)}")
         return 1
 

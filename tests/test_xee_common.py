@@ -58,6 +58,19 @@ class XeeCommonTests(unittest.TestCase):
         self.assertEqual((1, 1), grid["shape_2d"])
         self.assertEqual(6, len(grid["crs_transform"]))
 
+    def test_format_ee_setup_error_simplifies_auth_refresh_network_failures(self):
+        message = xee_common.format_ee_setup_error(
+            RuntimeError(
+                "google.auth.exceptions.TransportError: HTTPSConnectionPool(host='oauth2.googleapis.com', "
+                "port=443): Max retries exceeded with url: /token (Caused by NameResolutionError("
+                "\"HTTPSConnection(host='oauth2.googleapis.com', port=443): Failed to resolve "
+                "'oauth2.googleapis.com'\"))"
+            )
+        )
+
+        self.assertIn("Earth Engine auth refresh failed.", message)
+        self.assertIn("ee.Authenticate()", message)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -61,6 +61,18 @@ def format_ee_setup_error(exc: Exception) -> str:
             "(or GOOGLE_CLOUD_PROJECT / EE_PROJECT_ID) and retry. "
             "Example: export GCP_PROJECT_ID=ee-peetmate"
         )
+    lowered = message.lower()
+    if (
+        "oauth2.googleapis.com" in lowered
+        or "failed to resolve" in lowered
+        or "max retries exceeded" in lowered
+        or "transporterror" in lowered
+    ):
+        return (
+            "Earth Engine auth refresh failed. Check internet/DNS access, then "
+            "refresh auth if needed with: "
+            ".venv/bin/python -c \"import ee; ee.Authenticate(); ee.Initialize(project='YOUR_PROJECT_ID')\""
+        )
     return message
 
 
