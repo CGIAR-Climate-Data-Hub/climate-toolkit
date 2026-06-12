@@ -476,21 +476,20 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
             'hazard_evaluation': _aggregate_hazard_statuses(bucket, agg),
         })
 
-    overall = _avg_stats(results)
-    overall_ensemble = {
-        'n_projections': len(results),
-        'season_statistics': overall,
-        'hazard_evaluation': _aggregate_hazard_statuses(results, overall),
-        'scenarios': sorted({r['projection']['scenario'] for r in results}),
-        'mixed_scenarios': len(scenarios) > 1,
-    }
-    if overall_ensemble['mixed_scenarios']:
-        overall_ensemble['warning'] = (
-            'Cross-scenario pooled ensemble blends multiple SSPs. '
-            'Use scenario_ensembles or scenario-tagged assessments for interpretation.'
-        )
+    overall_ensemble = None
+    cross_scenario_rollup_disabled = len(scenarios) > 1
+    if not cross_scenario_rollup_disabled:
+        overall = _avg_stats(results)
+        overall_ensemble = {
+            'n_projections': len(results),
+            'season_statistics': overall,
+            'hazard_evaluation': _aggregate_hazard_statuses(results, overall),
+            'scenario': scenarios[0] if scenarios else None,
+            'scenarios': sorted({r['projection']['scenario'] for r in results}),
+            'mixed_scenarios': False,
+        }
 
-    return {
+    out = {
         'crop':              crop,
         'location':          {'latitude': lat, 'longitude': lon},
         'data_source':       'nex_gddp',
@@ -505,6 +504,12 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         'scenario_ensembles': scenario_ensembles,
         'overall_ensemble':   overall_ensemble,
     }
+    if cross_scenario_rollup_disabled:
+        out['warning'] = (
+            'Cross-scenario pooled overall ensemble disabled. '
+            'Interpret scenario_ensembles and scenario-tagged assessments separately.'
+        )
+    return out
 
 # Pretty printer (mirrors hazards.py year/season blocks)
 def _sym(status: str) -> str:
@@ -740,6 +745,8 @@ def print_results(r: Dict) -> None:
         print("  Scenario boundaries preserved in scenario_ensembles and assessments.")
         for summary in summaries:
             _print_overall_summary(summary, multi_scenario=True)
+    if r.get('warning'):
+        print(f"\n  Warning: {r['warning']}")
     if r.get('overall_ensemble'):
         _print_overall_summary(r['overall_ensemble'], multi_scenario=False)
     print(f"\n{'='*70}\n")

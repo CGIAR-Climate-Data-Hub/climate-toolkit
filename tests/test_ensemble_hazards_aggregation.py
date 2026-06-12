@@ -211,12 +211,53 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
             ["ssp245", "ssp585"],
             [block["scenario"] for block in result["scenario_ensembles"]],
         )
-        self.assertTrue(result["overall_ensemble"]["mixed_scenarios"])
-        self.assertEqual(
-            ["ssp245", "ssp585"],
-            result["overall_ensemble"]["scenarios"],
-        )
-        self.assertIn("warning", result["overall_ensemble"])
+        self.assertIsNone(result["overall_ensemble"])
+        self.assertIn("warning", result)
+        self.assertIn("disabled", result["warning"])
+
+    def test_calculate_ensemble_keeps_overall_summary_for_single_scenario(self):
+        orig_detect = eh._detect_windows
+        orig_evaluate = eh._evaluate
+        eh._detect_windows = lambda *args, **kwargs: [
+            {
+                "start": "2050-03-01",
+                "end": "2050-05-31",
+                "season_number": 1,
+                "year": 2050,
+                "total": 1,
+            }
+        ]
+
+        eh._evaluate = lambda crop, lat, lon, window, model, scenario, thresholds, soilcp, soilsat: {
+            "season_info": {**window, "length_days": 91},
+            "season_statistics": {
+                "total_precipitation_mm": 600.0,
+                "mean_temperature_c": 24.0,
+            },
+            "hazard_evaluation": {
+                "precipitation": {"value_mm": 600.0, "status": "no_stress"},
+                "temperature": {"value_c": 24.0, "status": "no_stress"},
+            },
+            "projection": {"model": model, "scenario": scenario},
+        }
+        try:
+            result = eh.calculate_ensemble(
+                crop="maize",
+                lat=-1.286,
+                lon=36.817,
+                start_year=2050,
+                end_year=2050,
+                models=["ACCESS-CM2"],
+                scenarios=["ssp245"],
+            )
+        finally:
+            eh._detect_windows = orig_detect
+            eh._evaluate = orig_evaluate
+
+        self.assertIsNotNone(result["overall_ensemble"])
+        self.assertEqual(["ssp245"], result["overall_ensemble"]["scenarios"])
+        self.assertFalse(result["overall_ensemble"]["mixed_scenarios"])
+        self.assertNotIn("warning", result)
 
     def test_hazard_statuses_come_from_projection_distribution_not_mean_climate(self):
         bucket = [
