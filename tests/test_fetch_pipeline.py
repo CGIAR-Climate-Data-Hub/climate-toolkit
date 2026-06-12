@@ -1,6 +1,7 @@
 from datetime import date
 import contextlib
 import io
+import importlib
 import sys
 import types
 import unittest
@@ -43,6 +44,8 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import (
 from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
 from climate_tookit.fetch_data.transform_data.transform_data import validate_inputs
 from climate_tookit.fetch_data.preprocess_data.preprocess_data import apply_unit_conversions
+
+fetch_data_module = importlib.import_module("climate_tookit.fetch_data.fetch_data")
 
 
 class FetchPipelineTests(unittest.TestCase):
@@ -212,6 +215,89 @@ class FetchPipelineTests(unittest.TestCase):
                 scenario="ssp245",
                 stage="bad-stage",
             )
+
+    def test_fetch_data_routes_many_site_nex_to_batch_api(self):
+        batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2050-01-01"])})
+
+        with mock.patch(
+            "climate_tookit.fetch_data.fetch_data.fetch_nex_gddp_batch_data",
+            return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
+        ) as batch_mock:
+            result = fetch_data(
+                source="nex_gddp",
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2050, 1, 1),
+                date_to=date(2050, 1, 1),
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+                stage="raw",
+            )
+
+        self.assertIs(result, batch_df)
+        batch_mock.assert_called_once()
+
+    def test_fetch_data_routes_many_site_historical_gee_to_xee_batch_api(self):
+        batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
+
+        with mock.patch(
+            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
+        ) as batch_mock:
+            result = fetch_data(
+                source="chirps",
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 1),
+                stage="raw",
+            )
+
+        self.assertIs(result, batch_df)
+        batch_mock.assert_called_once()
+
+    def test_fetch_data_rejects_unsupported_many_site_source(self):
+        with self.assertRaises(ValueError):
+            fetch_data(
+                source="nasa_power",
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 1),
+            )
+
+    def test_fetch_data_requires_location_for_single_site_mode(self):
+        with self.assertRaises(ValueError):
+            fetch_data(
+                source="chirps",
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 1),
+            )
+
+    def test_main_prints_simple_message_when_ee_project_id_missing(self):
+        argv = [
+            "fetch_data.py",
+            "--source",
+            "chirps",
+            "--site",
+            "Nairobi,-1.286,36.817",
+            "--start",
+            "2020-01-01",
+            "--end",
+            "2020-01-02",
+        ]
+        buf = io.StringIO()
+        with mock.patch.object(
+            fetch_data_module,
+            "fetch_data",
+            side_effect=ValueError(
+                "Earth Engine project ID is required. Pass ee_project_id or set one of "
+                "GCP_PROJECT_ID, GOOGLE_CLOUD_PROJECT, or EE_PROJECT_ID."
+            ),
+        ), mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(buf):
+            exit_code = fetch_data_module.main()
+
+        output = buf.getvalue()
+        self.assertEqual(1, exit_code)
+        self.assertIn("Earth Engine project ID missing.", output)
+        self.assertIn("GCP_PROJECT_ID", output)
 
 
 if __name__ == "__main__":

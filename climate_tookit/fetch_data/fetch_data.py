@@ -11,7 +11,14 @@ Stages:
 import argparse
 import sys
 from datetime import date
+from .gee_xee_batch import (
+    SUPPORTED_GEE_XEE_BATCH_SOURCES,
+    fetch_gee_xee_batch_data,
+)
+from .multi_site import parse_site_spec
+from .nex_gddp_batch import fetch_nex_gddp_batch_data
 from .source_data.source_data import SourceData
+from .source_data.sources.xee_common import format_ee_setup_error
 from .transform_data.transform_data import (
     transform_data,
     validate_inputs,
@@ -29,7 +36,7 @@ VALID_STAGES = ("raw", "transformed", "preprocessed")
 
 def fetch_data(
     source,
-    location_coord,
+    location_coord=None,
     variables=None,
     date_from=None,
     date_to=None,
@@ -40,14 +47,16 @@ def fetch_data(
     verbose=True,
     cache_dir=None,
     refresh_cache=False,
+    sites=None,
+    sites_csv=None,
 ):
     """Fetch climate data through the pipeline.
     Parameters
     ----------
     source : str
         Climate dataset name (e.g. 'era_5', 'chirps', 'nex_gddp').
-    location_coord : tuple[float, float]
-        (latitude, longitude).
+    location_coord : tuple[float, float], optional
+        (latitude, longitude) for single-site fetches.
     variables : list, optional
         ClimateVariable / SoilVariable enums. Defaults to a sensible set.
     date_from, date_to : date, optional
@@ -58,6 +67,8 @@ def fetch_data(
         Required only for `nex_gddp`.
     stage : {'raw', 'transformed', 'preprocessed'}
         How far through the pipeline to run. Default 'preprocessed'.
+    sites, sites_csv : optional
+        Many-site inputs. If present, package-native batch path is used.
     Returns
     -------
     pandas.DataFrame
@@ -70,6 +81,55 @@ def fetch_data(
     variables = variables or default_variables()
     date_from = date_from or date.today()
     date_to = date_to or date.today()
+
+    batch_requested = bool(sites or sites_csv)
+    if batch_requested:
+        if source == "nex_gddp":
+            data_df, _, _ = fetch_nex_gddp_batch_data(
+                sites=sites,
+                sites_csv=sites_csv,
+                variables=variables,
+                date_from=date_from,
+                date_to=date_to,
+                settings=settings,
+                model=model,
+                scenario=scenario,
+                stage=stage,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
+                verbose=verbose,
+            )
+            return data_df
+
+        try:
+            dataset = ClimateDataset[source]
+        except KeyError:
+            raise ValueError(f"Unknown source '{source}'")
+
+        if dataset not in SUPPORTED_GEE_XEE_BATCH_SOURCES:
+            supported = ", ".join(sorted(item.name for item in SUPPORTED_GEE_XEE_BATCH_SOURCES))
+            raise ValueError(
+                f"Many-site fetch is not supported for source '{source}'. "
+                f"Supported many-site sources: nex_gddp, {supported}"
+            )
+
+        data_df, _, _ = fetch_gee_xee_batch_data(
+            source=source,
+            sites=sites,
+            sites_csv=sites_csv,
+            variables=variables,
+            date_from=date_from,
+            date_to=date_to,
+            settings=settings,
+            stage=stage,
+            cache_dir=cache_dir,
+            refresh_cache=refresh_cache,
+            verbose=verbose,
+        )
+        return data_df
+
+    if location_coord is None:
+        raise ValueError("location_coord must be provided for single-site fetches")
 
     if stage == "raw":
         try:
@@ -149,8 +209,15 @@ def main():
         description="Fetch climate data through the source → transform → preprocess pipeline"
     )
     parser.add_argument("--source", required=True)
-    parser.add_argument("--lat", type=float, required=True)
-    parser.add_argument("--lon", type=float, required=True)
+    parser.add_argument("--lat", type=float, default=None)
+    parser.add_argument("--lon", type=float, default=None)
+    parser.add_argument(
+        "--site",
+        action="append",
+        default=[],
+        help='Repeatable site spec: "name,lat,lon"',
+    )
+    parser.add_argument("--sites-csv", default=None)
     parser.add_argument("--start", required=True)
     parser.add_argument("--end", required=True)
     parser.add_argument("--model", default=None)
@@ -181,15 +248,26 @@ def main():
     date_from = date.fromisoformat(args.start)
     date_to = date.fromisoformat(args.end)
 
-    errors = validate_inputs(
-        args.source, args.lat, args.lon, date_from, date_to,
-        args.model, args.scenario,
-    )
-    if errors:
-        print("\nInput validation failed:\n")
-        for err in errors:
-            print(f" - {err}")
-        return 1
+    batch_requested = bool(args.site or args.sites_csv)
+
+    if batch_requested:
+        if args.lat is not None or args.lon is not None:
+            print("Error: use either --lat/--lon for single-site or --site/--sites-csv for many-site")
+            return 1
+    else:
+        if args.lat is None or args.lon is None:
+            print("Error: provide --lat and --lon for single-site fetches, or use --site/--sites-csv")
+            return 1
+
+        errors = validate_inputs(
+            args.source, args.lat, args.lon, date_from, date_to,
+            args.model, args.scenario,
+        )
+        if errors:
+            print("\nInput validation failed:\n")
+            for err in errors:
+                print(f" - {err}")
+            return 1
 
     try:
         variables = parse_variables(args.variables)
@@ -197,19 +275,33 @@ def main():
         print(f"Error: {e}")
         return 1
 
-    df = fetch_data(
-        source=args.source,
-        location_coord=(args.lat, args.lon),
-        variables=variables,
-        date_from=date_from,
-        date_to=date_to,
-        model=args.model,
-        scenario=args.scenario,
-        stage=args.stage,
-        verbose=not args.quiet,
-        cache_dir=args.cache_dir,
-        refresh_cache=args.refresh_cache,
-    )
+    parsed_sites = None
+    if args.site:
+        try:
+            parsed_sites = [parse_site_spec(raw) for raw in args.site]
+        except ValueError as e:
+            print(f"Error: {e}")
+            return 1
+
+    try:
+        df = fetch_data(
+            source=args.source,
+            location_coord=(args.lat, args.lon) if args.lat is not None and args.lon is not None else None,
+            variables=variables,
+            date_from=date_from,
+            date_to=date_to,
+            model=args.model,
+            scenario=args.scenario,
+            stage=args.stage,
+            verbose=not args.quiet,
+            cache_dir=args.cache_dir,
+            refresh_cache=args.refresh_cache,
+            sites=parsed_sites,
+            sites_csv=args.sites_csv,
+        )
+    except (ValueError, ImportError) as exc:
+        print(f"Error: {format_ee_setup_error(exc)}")
+        return 1
 
     if args.format == "print" or not args.output:
         print(df)

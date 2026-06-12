@@ -9,7 +9,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from .source_data.sources.nex_gddp_xee import CACHE_COORD_DECIMALS, _normalize_cache_coord
+from .multi_site import CACHE_COORD_DECIMALS, normalize_cache_coord
 
 
 DEFAULT_CACHE_ROOT = Path("outputs/cache")
@@ -114,16 +114,16 @@ def _manifest_record_from_manifest(
         normalized_sites = [
             {
                 "name": None,
-                "lat": _normalize_cache_coord(manifest.get("lat")),
-                "lon": _normalize_cache_coord(manifest.get("lon")),
+                "lat": normalize_cache_coord(manifest.get("lat")),
+                "lon": normalize_cache_coord(manifest.get("lon")),
             }
         ]
     else:
         normalized_sites = [
             {
                 "name": site.get("name"),
-                "lat": _normalize_cache_coord(site.get("lat")),
-                "lon": _normalize_cache_coord(site.get("lon")),
+                "lat": normalize_cache_coord(site.get("lat")),
+                "lon": normalize_cache_coord(site.get("lon")),
             }
             for site in sites
         ]

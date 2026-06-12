@@ -29,7 +29,6 @@ Important dataset notes reflected below:
 
 from __future__ import annotations
 
-import importlib
 import json
 import logging
 import os
@@ -40,6 +39,23 @@ from typing import List, Tuple
 
 import pandas as pd
 
+from ...multi_site import (
+    CACHE_COORD_DECIMALS,
+    normalize_cache_coord,
+    safe_coord_fragment,
+)
+from .xee_common import (
+    DEFAULT_EE_OPT_URL,
+    import_xee_stack,
+    infer_ee_project_id,
+    initialize_earth_engine,
+    is_chunk_overflow_error,
+    is_retryable_ee_error,
+    manual_point_grid,
+    open_point_dataset,
+    point_dataset_to_frame,
+    progress_bar,
+)
 from .utils import models
 from .utils.settings import Settings, set_logging
 
@@ -49,20 +65,17 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "ACCESS-CM2"
 DEFAULT_SCENARIO = "ssp245"
 DEFAULT_DATASET_VERSION = "1.2"
-DEFAULT_EE_OPT_URL = "https://earthengine-highvolume.googleapis.com"
 DEFAULT_CACHE_DIR = "outputs/cache/nex_gddp_xee"
 DEFAULT_CHUNK_DAYS = 365
 DEFAULT_RETRY_ATTEMPTS = 4
 DEFAULT_RETRY_BACKOFF_SECONDS = 2.0
 MIN_CHUNK_DAYS = 1
 CACHE_SCHEMA_VERSION = "v1"
-CACHE_COORD_DECIMALS = 4
 AFRICA_CMIP6_GUIDANCE_URL = (
     "https://cgiar-climate-data-hub.github.io/wikis/aaa-atlas/"
     "african-cmip6-ensembling/"
 )
 SECONDS_PER_DAY = 86_400.0
-METERS_PER_DEGREE = 111_320.0
 
 SCENARIO_MAPPING = {
     "historical": "historical",
@@ -119,20 +132,7 @@ def _validate_period_against_scenario(
 
 
 def _manual_point_grid(lon: float, lat: float, pixel_size_meters: float) -> dict:
-    pixel_size_degrees = pixel_size_meters / METERS_PER_DEGREE
-    half = pixel_size_degrees / 2.0
-    return {
-        "crs": "EPSG:4326",
-        "crs_transform": (
-            pixel_size_degrees,
-            0.0,
-            lon - half,
-            0.0,
-            -pixel_size_degrees,
-            lat + half,
-        ),
-        "shape_2d": (1, 1),
-    }
+    return manual_point_grid(lon=lon, lat=lat, pixel_size_meters=pixel_size_meters)
 
 
 def _is_africa_coordinate(lat: float, lon: float) -> bool:
@@ -144,37 +144,11 @@ def _is_horn_of_africa_coordinate(lat: float, lon: float) -> bool:
 
 
 def _import_xee_stack():
-    missing = []
-    modules = {}
-    for module_name in ("ee", "xarray", "xee"):
-        try:
-            modules[module_name] = importlib.import_module(module_name)
-        except ImportError:
-            missing.append(module_name)
-
-    if missing:
-        missing_list = ", ".join(missing)
-        raise ImportError(
-            "nex_gddp_xee requires optional dependencies that are not installed: "
-            f"{missing_list}. Install at least 'earthengine-api', 'xarray', and 'xee'."
-        )
-
-    return modules["ee"], modules["xarray"]
+    return import_xee_stack(required_for="nex_gddp_xee")
 
 
 def _infer_ee_project_id(explicit_project_id: str | None) -> str:
-    project_id = (
-        explicit_project_id
-        or os.getenv("GCP_PROJECT_ID")
-        or os.getenv("GOOGLE_CLOUD_PROJECT")
-        or os.getenv("EE_PROJECT_ID")
-    )
-    if not project_id:
-        raise ValueError(
-            "Earth Engine project ID is required. Pass ee_project_id or set one of "
-            "GCP_PROJECT_ID, GOOGLE_CLOUD_PROJECT, or EE_PROJECT_ID."
-        )
-    return project_id
+    return infer_ee_project_id(explicit_project_id)
 
 
 def _version_sort_key(version: str) -> tuple[int, ...]:
@@ -182,23 +156,15 @@ def _version_sort_key(version: str) -> tuple[int, ...]:
 
 
 def _safe_coord_fragment(value: float) -> str:
-    return (
-        f"{_normalize_cache_coord(value):.{CACHE_COORD_DECIMALS}f}"
-        .replace("-", "m")
-        .replace(".", "p")
-    )
+    return safe_coord_fragment(value)
 
 
 def _normalize_cache_coord(value: float) -> float:
-    normalized = round(float(value), CACHE_COORD_DECIMALS)
-    return 0.0 if normalized == -0.0 else normalized
+    return normalize_cache_coord(value)
 
 
 def _progress_bar(current: int, total: int, width: int = 20) -> str:
-    if total <= 0:
-        return "[" + ("-" * width) + "]"
-    filled = min(width, round(width * current / total))
-    return "[" + ("#" * filled) + ("-" * (width - filled)) + "]"
+    return progress_bar(current, total, width=width)
 
 
 def _coerce_version_filter_value(version: str) -> float | str:
@@ -226,31 +192,11 @@ def _resolve_dataset_version(collection, preferred_version: str = DEFAULT_DATASE
 
 
 def _is_retryable_ee_error(err: Exception) -> bool:
-    msg = str(err).lower()
-    retry_markers = (
-        "429",
-        "too many requests",
-        "rate limit",
-        "quota exceeded",
-        "temporarily unavailable",
-        "internal error",
-        "connection reset",
-        "deadline exceeded",
-        "timed out",
-        "timeout",
-    )
-    return any(marker in msg for marker in retry_markers)
+    return is_retryable_ee_error(err)
 
 
 def _is_chunk_overflow_error(err: Exception) -> bool:
-    msg = str(err).lower()
-    overflow_markers = (
-        "5000 elements",
-        "user memory limit exceeded",
-        "computation timed out",
-        "too many concurrent aggregations",
-    )
-    return any(marker in msg for marker in overflow_markers)
+    return is_chunk_overflow_error(err)
 
 
 def _maybe_log_africa_guidance(
@@ -359,8 +305,11 @@ class DownloadData(models.DataDownloadBase):
             logger.info(message)
 
     def _ensure_ee_initialized(self, ee_module) -> None:
-        project_id = _infer_ee_project_id(self.ee_project_id)
-        ee_module.Initialize(project=project_id, opt_url=self.ee_opt_url)
+        initialize_earth_engine(
+            ee_module,
+            project_id=self.ee_project_id,
+            ee_opt_url=self.ee_opt_url,
+        )
 
     def _requested_band_names(self) -> list[str]:
         bands = []
@@ -406,16 +355,12 @@ class DownloadData(models.DataDownloadBase):
 
     def _open_dataset(self, xr_module, collection):
         lat, lon = self.location_coord
-        grid = _manual_point_grid(
+        return open_point_dataset(
+            xr_module,
+            collection,
             lon=lon,
             lat=lat,
             pixel_size_meters=self.settings.nex_gddp.resolution,
-        )
-        return xr_module.open_dataset(
-            collection,
-            engine="ee",
-            fast_time_slicing=False,
-            **grid,
         )
 
     def _dataset_to_frame(
@@ -424,29 +369,15 @@ class DownloadData(models.DataDownloadBase):
         start_date: date,
         end_date: date,
     ) -> pd.DataFrame:
-        band_names = [band for band in self._requested_band_names() if band in dataset.data_vars]
-        if not band_names:
-            return pd.DataFrame({"date": pd.date_range(start_date, end_date, freq="D")})
-
-        spatial_indexers = {dim: 0 for dim in dataset.dims if dim != "time"}
-        point_ds = dataset[band_names].isel(spatial_indexers, drop=True)
-        frame = point_ds.to_dataframe().reset_index()
-
-        if "time" not in frame.columns:
-            raise ValueError("Expected Xee output to contain a 'time' coordinate.")
-
-        frame = frame.rename(columns={"time": "date"})
-        frame["date"] = pd.to_datetime(frame["date"], utc=False).dt.tz_localize(None)
-        frame = frame[["date", *band_names]].sort_values("date").reset_index(drop=True)
-
-        full_range = pd.date_range(start_date, end_date, freq="D")
-        frame = (
-            frame.set_index("date")
-            .reindex(full_range)
-            .rename_axis("date")
-            .reset_index()
+        return point_dataset_to_frame(
+            dataset,
+            start_date=start_date,
+            end_date=end_date,
+            band_names=self._requested_band_names(),
+            time_coord="time",
+            output_date_column="date",
+            freq="D",
         )
-        return frame
 
     def _chunk_dates(self, start_date: date, end_date: date) -> list[tuple[date, date]]:
         chunks = []

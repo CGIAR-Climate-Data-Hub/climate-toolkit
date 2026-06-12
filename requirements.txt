@@ -5,3 +5,4 @@ python-dotenv==1.1.1
 PyYAML==6.0.2
 Requests==2.32.4
 xarray==2025.6.1
+xee==0.1.1
