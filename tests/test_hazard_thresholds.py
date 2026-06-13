@@ -87,6 +87,74 @@ class HazardThresholdTests(unittest.TestCase):
             hazards.calculate_hazards = orig_calculate
             sys.argv = orig_argv
 
+    def test_calculate_hazards_disables_ltm_when_auto_detected_season_counts_vary(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        orig_detect = hazards.fetch_and_analyze_years
+        orig_window_fetch = hazards.get_climate_data_for_season
+        orig_calc_stats = hazards.calculate_season_statistics
+        orig_eval = hazards.evaluate_hazard_metrics
+
+        hazards.fetch_and_analyze_years = lambda *args, **kwargs: (
+            {
+                2018: [
+                    {
+                        "onset": hazards.pd.Timestamp("2018-03-01"),
+                        "cessation": hazards.pd.Timestamp("2018-05-31"),
+                        "length_days": 92,
+                    }
+                ],
+                2019: [
+                    {
+                        "onset": hazards.pd.Timestamp("2019-03-01"),
+                        "cessation": hazards.pd.Timestamp("2019-05-31"),
+                        "length_days": 92,
+                    },
+                    {
+                        "onset": hazards.pd.Timestamp("2019-10-01"),
+                        "cessation": hazards.pd.Timestamp("2019-12-15"),
+                        "length_days": 76,
+                    },
+                ],
+            },
+            {},
+        )
+        hazards.get_climate_data_for_season = lambda *args, **kwargs: hazards.pd.DataFrame(
+            {
+                "date": hazards.pd.to_datetime(["2019-03-01", "2019-03-02"]),
+                "precipitation": [10.0, 0.0],
+                "max_temperature": [28.0, 29.0],
+                "min_temperature": [16.0, 17.0],
+                "ET0_mm_day": [4.0, 4.0],
+            }
+        )
+        hazards.calculate_season_statistics = lambda *args, **kwargs: {
+            "total_precipitation_mm": 10.0,
+            "mean_temperature_c": 22.5,
+        }
+        hazards.evaluate_hazard_metrics = lambda stats, thresholds: {
+            "precipitation": {"status": "no_stress", "value_mm": stats["total_precipitation_mm"]},
+            "temperature": {"status": "no_stress", "value_c": stats["mean_temperature_c"]},
+        }
+        try:
+            result = calculate_hazards(
+                crop_name="maize",
+                location_coord=(-1.286, 36.817),
+                date_from="2018-01-01",
+                date_to="2019-12-31",
+                source="auto",
+            )
+        finally:
+            hazards.fetch_and_analyze_years = orig_detect
+            hazards.get_climate_data_for_season = orig_window_fetch
+            hazards.calculate_season_statistics = orig_calc_stats
+            hazards.evaluate_hazard_metrics = orig_eval
+
+        self.assertIn("warning", result)
+        self.assertIn("Auto-detected season counts differ across years", result["warning"])
+        self.assertIsNone(result["baseline_ltm"])
+        self.assertEqual([], result["baseline_ltm_comparisons"])
+
     def test_get_climate_data_for_season_forwards_requested_source(self):
         import climate_tookit.calculate_hazards.hazards as hazards
 

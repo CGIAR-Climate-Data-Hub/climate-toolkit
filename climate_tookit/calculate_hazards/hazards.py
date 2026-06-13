@@ -249,6 +249,36 @@ def _percent_change(diff: float, baseline: float) -> float:
     return (diff / abs(baseline) * 100.0) if baseline != 0 else 0.0
 
 
+def _season_counts_by_year(seasons: List[Dict[str, Any]]) -> Dict[int, int]:
+    counts: Dict[int, int] = {}
+    for season in seasons or []:
+        year = season.get("year")
+        if isinstance(year, int):
+            counts[year] = counts.get(year, 0) + 1
+    return counts
+
+
+def _auto_ltm_guard_message(assessments: List[Dict[str, Any]]) -> Optional[str]:
+    counts: Dict[int, int] = {}
+    for assessment in assessments:
+        info = assessment.get("season_info") or {}
+        if info.get("method") != "rainfall_based":
+            continue
+        year = info.get("year")
+        if isinstance(year, int):
+            counts[year] = counts.get(year, 0) + 1
+    observed_counts = set(counts.values())
+    if len(observed_counts) <= 1:
+        return None
+    summary = ", ".join(f"{year}:{count}" for year, count in sorted(counts.items())) or "none"
+    return (
+        "Auto-detected season counts differ across years, so baseline_ltm by season_number "
+        "would blend incomparable seasons. "
+        f"Counts by year: {summary}. "
+        "Use --fixed-season for a stable multi-year hazards baseline."
+    )
+
+
 def _validate_source_window(source: str, end_year: int) -> None:
     source_lc = (source or 'auto').lower()
     if source_lc in {'chirps+chirts', 'chirps_v2+chirts'} and end_year > 2016:
@@ -1353,6 +1383,16 @@ def calculate_hazards(
     # Single season -> flat dict; multiple -> wrapped list with Baseline LTM
     if len(assessments) == 1:
         return assessments[0]
+    auto_ltm_guard = _auto_ltm_guard_message(assessments)
+    if auto_ltm_guard:
+        return {
+            'assessments': assessments,
+            'soil_parameters': soil_parameters,
+            'water_balance_parameters': crop_water_balance,
+            'warning': auto_ltm_guard,
+            'baseline_ltm': None,
+            'baseline_ltm_comparisons': [],
+        }
     baseline_ltm = compute_ltm_baseline(assessments, crop_name, thresholds)
     return {
         'assessments': assessments,
