@@ -133,6 +133,7 @@ class GeeXeeBatchTests(unittest.TestCase):
         )
 
         self.assertIn("outputs/cache/gee_xee_batch", str(data_path))
+        self.assertIn("nairobi-hub_lat_m1p2860_lon_36p8170", str(data_path))
         self.assertTrue(str(manifest_path).endswith(".manifest.json"))
 
     def test_empty_bounds_filtered_collection_falls_back_to_date_only(self):

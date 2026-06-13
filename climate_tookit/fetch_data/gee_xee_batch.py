@@ -23,6 +23,7 @@ from .multi_site import (
     Site,
     load_sites,
     parse_site_spec,
+    safe_coord_fragment,
     safe_site_fragment,
     site_date_integrity_summary,
 )
@@ -363,7 +364,11 @@ def _cache_paths(
     bands: list[str],
 ) -> tuple[Path, Path]:
     band_fragment = "-".join(bands)
-    site_fragment = safe_site_fragment(site.name)
+    site_fragment = (
+        f"{safe_site_fragment(site.name)}_"
+        f"lat_{safe_coord_fragment(site.lat)}_"
+        f"lon_{safe_coord_fragment(site.lon)}"
+    )
     base = (
         Path(cache_dir or DEFAULT_BATCH_CACHE_DIR)
         / CACHE_SCHEMA_VERSION
