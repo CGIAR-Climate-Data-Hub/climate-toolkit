@@ -6,6 +6,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+import pandas as pd
+
 
 def _install_test_stubs():
     dotenv = types.ModuleType("dotenv")
@@ -50,6 +52,54 @@ import climate_tookit.climatology.long_term_climatology as ltc
 
 
 class ClimatologyOutputTests(unittest.TestCase):
+    def test_calculate_annual_statistics_uses_leap_year_day_count(self):
+        dates = pd.date_range("2020-01-01", "2020-12-31", freq="D")
+        df = pd.DataFrame({
+            "date": dates,
+            "precipitation": [1.0] * len(dates),
+            "max_temperature": [30.0] * len(dates),
+            "min_temperature": [20.0] * len(dates),
+        })
+
+        with mock.patch.object(ltc, "PREPROCESS_AVAILABLE", True), \
+             mock.patch.object(ltc, "preprocess_data", return_value=df):
+            stats = ltc.calculate_annual_statistics(
+                lat=-1.286,
+                lon=36.817,
+                year=2020,
+                source="agera5",
+                variables=[],
+                verbose=False,
+            )
+
+        self.assertIsNotNone(stats)
+        self.assertEqual(366, stats["observed_days"])
+        self.assertEqual(366, stats["expected_days"])
+        self.assertEqual(100.0, stats["data_completeness"])
+
+    def test_calculate_annual_statistics_uses_unique_dates_for_completeness_threshold(self):
+        base_dates = pd.date_range("2019-01-01", periods=299, freq="D")
+        duped_dates = list(base_dates) + [base_dates[-1]]
+        df = pd.DataFrame({
+            "date": duped_dates,
+            "precipitation": [1.0] * len(duped_dates),
+            "max_temperature": [30.0] * len(duped_dates),
+            "min_temperature": [20.0] * len(duped_dates),
+        })
+
+        with mock.patch.object(ltc, "PREPROCESS_AVAILABLE", True), \
+             mock.patch.object(ltc, "preprocess_data", return_value=df):
+            stats = ltc.calculate_annual_statistics(
+                lat=-1.286,
+                lon=36.817,
+                year=2019,
+                source="agera5",
+                variables=[],
+                verbose=False,
+            )
+
+        self.assertIsNone(stats)
+
     def test_ensemble_completeness_uses_conservative_minimum_not_rounded_mean(self):
         payload_a = {
             "period": {"years_with_data": 30},

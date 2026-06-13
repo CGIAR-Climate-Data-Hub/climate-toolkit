@@ -28,6 +28,7 @@ import os
 import math
 import logging
 import contextlib
+import calendar
 from datetime import date
 from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
@@ -122,6 +123,21 @@ def _normalize_units(df: pd.DataFrame, tmax_col: Optional[str], tmin_col: Option
             df[tmin_col] = df[tmin_col] - 273.15
     return df
 
+
+def _expected_days_in_year(year: int) -> int:
+    """Return the number of calendar days in the requested year."""
+    return 366 if calendar.isleap(year) else 365
+
+
+def _observed_unique_days(df: pd.DataFrame) -> int:
+    """
+    Count unique observed daily timestamps.
+    This avoids overstating completeness when a source returns duplicate rows.
+    """
+    if 'date' not in df.columns or df.empty:
+        return 0
+    return int(pd.to_datetime(df['date']).dt.normalize().nunique())
+
 def calculate_annual_statistics(
     lat: float,
     lon: float,
@@ -163,9 +179,12 @@ def calculate_annual_statistics(
             **fetch_kwargs
         )
         
-        if df.empty or len(df) < 300:  
+        observed_days = _observed_unique_days(df)
+        expected_days = _expected_days_in_year(year)
+
+        if df.empty or observed_days < 300:
             if verbose:
-                print(f"  ✗ {year}: Insufficient data ({len(df)} days)")
+                print(f"  ✗ {year}: Insufficient data ({observed_days}/{expected_days} days)")
             return None
 
         precip_col, tmax_col, tmin_col = _detect_columns(df)
@@ -213,7 +232,9 @@ def calculate_annual_statistics(
             return None
 
         stats['year'] = year
-        stats['data_completeness'] = len(df) / 365.0 * 100
+        stats['observed_days'] = observed_days
+        stats['expected_days'] = expected_days
+        stats['data_completeness'] = observed_days / expected_days * 100
         stats['_daily_df'] = df
         stats['_columns'] = {'precip': precip_col, 'tmax': tmax_col, 'tmin': tmin_col}
 
