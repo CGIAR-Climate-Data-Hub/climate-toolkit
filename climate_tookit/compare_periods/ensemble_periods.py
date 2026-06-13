@@ -43,7 +43,7 @@ from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
 )
 from climate_tookit.compare_periods.periods import (
     _annualize, _agg_seasons, _round,
-    _diff_raw, _diff_block, _percent_change,
+    _diff_raw, _diff_block, _percent_change, _fmt_pct,
     _auto_season_count_guard,
     PRECIP_ONLY, SUPPORTED,
 )
@@ -161,7 +161,7 @@ def _diff_annual_period(future_ann:    Dict[str, Dict],
             "future":        round(f_avg, 1),
             "baseline_avg": round(b_avg, 1),
             "diff":         round(d, 1),
-            "pct":          round(p, 2),
+            "pct":          round(p, 2) if _is_num(p) else None,
         }
     out["humid_status"] = {
         "future_humid_count":    fhy,
@@ -191,7 +191,8 @@ def _diff_value_2level(a: Dict[str, Dict[str, Any]],
             d = av - bv
             p = _percent_change(d, bv)
             block[inner] = {a_lbl: round(av, round_n), b_lbl: round(bv, round_n),
-                            "diff": round(d, round_n), "pct": round(p, 2)}
+                            "diff": round(d, round_n),
+                            "pct": round(p, 2) if _is_num(p) else None}
         if block:
             out[outer] = block
     return out
@@ -393,7 +394,7 @@ def _diff_focal_vs_ltm(focal:   Dict[str, Any],
         p = _percent_change(d, ltm_rain)
         annual["annual_rain_mm"] = {
             a_lbl: round(float(focal_rain), 1), b_lbl: round(float(ltm_rain), 1),
-            "diff": round(d, 1), "pct": round(p, 2),
+            "diff": round(d, 1), "pct": round(p, 2) if _is_num(p) else None,
         }
     annual["humid_status"] = {
         "focal_is_humid":   focal.get("is_humid"),
@@ -822,7 +823,7 @@ def _print_2level(agg: Dict[str, Any],
                 if short == "diff":
                     row["Δ"]  = f"{v:+.{precision}f}"
                 elif short == "pct":
-                    row["Δ%"] = f"{v:+.2f}%"
+                    row["Δ%"] = _fmt_pct(v)
                 else:
                     row[relabel.get(short, short)] = f"{v:.{precision}f}"
             rows.append(row)
@@ -846,7 +847,7 @@ def _print_diff_block(diff: Dict[str, Any],
                 if k == "diff":
                     row["Δ"]  = f"{v:+.{precision}f}"
                 elif k == "pct":
-                    row["Δ%"] = f"{v:+.2f}%"
+                    row["Δ%"] = _fmt_pct(v)
                 else:
                     row[k] = f"{v:.{precision}f}"
             rows.append(row)
@@ -880,7 +881,7 @@ def _print_focal_vs_ltm(avl: Dict[str, Any]) -> None:
     if arm:
         print(f"  Annual rainfall : focal={arm['focal']} mm | "
               f"{ltm_lbl}={arm[ltm_lbl]} mm | "
-              f"Δ={arm['diff']:+.1f} ({arm['pct']:+.2f}%)")
+              f"Δ={arm['diff']:+.1f} ({_fmt_pct(arm.get('pct'))})")
     hs = ann.get("humid_status") or {}
     if hs:
         focal_state = ("humid" if hs.get("focal_is_humid") else
@@ -923,7 +924,7 @@ def _print_per_model_breakdown(per_model: List[Dict[str, Any]]) -> None:
         if _is_num(arm.get("future")) and _is_num(arm.get("baseline_avg")):
             print(f"  Annual rainfall : future={arm['future']:.1f} mm | "
                   f"baseline={arm['baseline_avg']:.1f} mm | "
-                  f"Δ={arm.get('diff', 0):+.1f} ({arm.get('pct', 0):+.2f}%)")
+                  f"Δ={arm.get('diff', 0):+.1f} ({_fmt_pct(arm.get('pct'))})")
 
 def print_report(r: Dict[str, Any]) -> None:
     if "error" in r:
@@ -973,7 +974,7 @@ def print_report(r: Dict[str, Any]) -> None:
         if _is_num(bas.get("mean")):
             parts.append(f"baseline_ltm={bas['mean']:.1f} mm")
         if _is_num(dif.get("mean")):
-            tail = (f" ({pct['mean']:+.2f}%)"
+            tail = (f" ({_fmt_pct(pct.get('mean'))})"
                     if _is_num(pct.get("mean")) else "")
             parts.append(f"Δ={dif['mean']:+.1f}{tail}")
         print(f"  Annual rainfall  : {' | '.join(parts)}")

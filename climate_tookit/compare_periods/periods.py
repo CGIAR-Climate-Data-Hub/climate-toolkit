@@ -51,14 +51,26 @@ def _round(d: Any, n: int = 2) -> Any:
     return round(d, n) if _is_num(d) else d
 
 
-def _percent_change(diff: float, baseline: float) -> float:
+def _percent_change(diff: float, baseline: float) -> Optional[float]:
     """
     Percent change relative to baseline magnitude.
 
     Using abs(baseline) keeps sign aligned with diff when baseline is negative,
     e.g. -722 vs -705 -> diff -17.1 -> -2.43% rather than +2.43%.
+    Suppress percent change when value crosses zero, because ratio-to-baseline
+    becomes misleading around sign flips (for example seasonal water balance
+    near neutral becoming strongly negative).
     """
-    return (diff / abs(baseline) * 100.0) if baseline != 0 else 0.0
+    if baseline == 0:
+        return None
+    actual = baseline + diff
+    if baseline * actual < 0:
+        return None
+    return diff / abs(baseline) * 100.0
+
+
+def _fmt_pct(v: Optional[float]) -> str:
+    return f"{v:+.2f}%" if _is_num(v) else "n/a"
 
 def _annualize(stats: Dict[str, Any], n_years: int) -> Dict[str, Any]:
     """Period totals -> per-year averages. Means/maxes/mins untouched."""
@@ -149,7 +161,8 @@ def _diff_block(a: Dict, b: Dict, a_lbl: str, b_lbl: str,
             d = av - bv
             p = _percent_change(d, bv)
             cat_out[m] = {a_lbl:    round(av, 2), b_lbl:    round(bv, 2),
-                          "diff":   round(d,  2), "pct":    round(p,  2)}
+                          "diff":   round(d,  2),
+                          "pct":    round(p,  2) if _is_num(p) else None}
         if cat_out:
             out[cat] = cat_out
     return out
@@ -174,7 +187,8 @@ def _diff_raw(focal_raw: List[Dict], baseline_raw: List[Dict],
             d = fv - bv
             p = _percent_change(d, bv)
             per_stat[s] = {"focal":    round(fv, 3), "baseline": round(bv, 3),
-                           "diff":     round(d,  3), "pct":      round(p,  2)}
+                           "diff":     round(d,  3),
+                           "pct":      round(p,  2) if _is_num(p) else None}
         if per_stat:
             out[var] = per_stat
     return out
@@ -196,7 +210,7 @@ def _diff_annual(focal_ann: Dict[str, Dict], baseline_ann: Dict[str, Dict],
         out["annual_rain_mm"] = {"focal":    round(float(fr), 1),
                                   "baseline_avg": round(b_avg, 1),
                                   "diff":     round(d, 1),
-                                  "pct":      round(p, 2)}
+                                  "pct":      round(p, 2) if _is_num(p) else None}
     out["humid_status"] = {
         "focal_is_humid":    fi.get("is_humid"),
         "focal_humid_test":  fi.get("humid_test"),
@@ -353,7 +367,7 @@ def _print_block(diff: Dict[str, Any]) -> None:
             row = {"Category": cat, "Metric": metric}
             for k, v in vals.items():
                 if k == "diff":  row["Δ"]  = f"{v:+.2f}"
-                elif k == "pct": row["Δ%"] = f"{v:+.2f}%"
+                elif k == "pct": row["Δ%"] = _fmt_pct(v)
                 else:            row[k]    = f"{v:.2f}"
             rows.append(row)
     print(pd.DataFrame(rows).to_string(index=False))
@@ -379,7 +393,7 @@ def print_report(r: Dict[str, Any]) -> None:
                  "focal":    f"{v['focal']:.3f}",
                  "baseline": f"{v['baseline']:.3f}",
                  "Δ":        f"{v['diff']:+.3f}",
-                 "Δ%":       f"{v['pct']:+.2f}%"}
+                 "Δ%":       _fmt_pct(v.get("pct"))}
                 for var, stats in raw.items() for stat, v in stats.items()]
         print(pd.DataFrame(rows).to_string(index=False))
     else:
@@ -406,7 +420,7 @@ def print_report(r: Dict[str, Any]) -> None:
     if arm:
         print(f"  Annual rainfall : focal={arm['focal']} mm | "
               f"baseline_avg={arm['baseline_avg']} mm | "
-              f"Δ={arm['diff']:+.1f} ({arm['pct']:+.2f}%)")
+              f"Δ={arm['diff']:+.1f} ({_fmt_pct(arm.get('pct'))})")
     hs = ann.get("humid_status") or {}
     if hs:
         focal_state = ("humid" if hs.get("focal_is_humid") else

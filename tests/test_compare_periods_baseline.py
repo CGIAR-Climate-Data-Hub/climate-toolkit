@@ -1,5 +1,6 @@
 from datetime import date
 import json
+from io import StringIO
 import sys
 import tempfile
 import types
@@ -50,6 +51,52 @@ import climate_tookit.compare_periods.periods as cp
 
 
 class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
+    def test_percent_change_returns_none_when_comparison_crosses_zero(self):
+        self.assertIsNone(cp._percent_change(-835.0, 15.2))
+        self.assertEqual(-100.0, cp._percent_change(-15.2, 15.2))
+
+    def test_print_report_renders_missing_pct_as_na(self):
+        payload = {
+            "focal_year": 2019,
+            "baseline_period": "2018-2018",
+            "source": "auto",
+            "fixed_season": "03-01:06-30",
+            "temperature_excluded": False,
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": {
+                "windows": [
+                    {
+                        "window": "03-01:06-30",
+                        "season_number": 1,
+                        "n_baseline": 1,
+                        "n_focal": 1,
+                        "diff": {
+                            "water_balance": {
+                                "total_balance": {
+                                    "focal": -819.8,
+                                    "baseline_avg": 15.2,
+                                    "diff": -835.0,
+                                    "pct": None,
+                                }
+                            }
+                        },
+                    }
+                ]
+            },
+            "annual_summary": {},
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        self.assertIn("n/a", stdout.getvalue())
+
     def test_main_accepts_json_format_and_creates_output_directory(self):
         orig_compare = cp.compare
         orig_argv = sys.argv[:]
