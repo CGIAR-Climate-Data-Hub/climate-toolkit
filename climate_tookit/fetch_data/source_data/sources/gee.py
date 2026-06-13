@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import ee
+import numpy as np
 import pandas as pd
 
 from .utils import models
@@ -34,6 +35,8 @@ SOIL_GRID_CACHE_SCHEMA_VERSION = "v1"
 DEFAULT_STATIC_CACHE_ROOT = Path("outputs/cache")
 ERA5_U_WIND_BAND = "u_component_of_wind_10m"
 ERA5_V_WIND_BAND = "v_component_of_wind_10m"
+AGERA5_MEAN_TEMPERATURE_BAND = "temperature_2m"
+AGERA5_DEWPOINT_BAND = "dewpoint_temperature_2m"
 
 def _ensure_gee_initialized() -> None:
     """Authenticate + initialize GEE exactly once per Python process."""
@@ -102,18 +105,27 @@ class DownloadData(models.DataDownloadBase):
     def _variable_name(self, variable) -> str:
         return getattr(variable, "name", str(variable).split(".")[-1])
 
-    def _era5_scalar_wind_requested(self) -> bool:
+    def _uv_wind_requested(self) -> bool:
         return (
-            self.source == models.ClimateDataset.era_5
+            self.source in {models.ClimateDataset.era_5, models.ClimateDataset.agera_5}
             and any(self._variable_name(variable) == "wind_speed" for variable in self.variables)
+        )
+
+    def _agera5_humidity_requested(self) -> bool:
+        return (
+            self.source == models.ClimateDataset.agera_5
+            and any(self._variable_name(variable) == "humidity" for variable in self.variables)
         )
 
     def _requested_fetch_bands(self, data_settings) -> list[str]:
         bands: list[str] = []
         for variable in self.variables:
             variable_name = self._variable_name(variable)
-            if self._era5_scalar_wind_requested() and variable_name == "wind_speed":
+            if self._uv_wind_requested() and variable_name == "wind_speed":
                 bands.extend([ERA5_U_WIND_BAND, ERA5_V_WIND_BAND])
+                continue
+            if self._agera5_humidity_requested() and variable_name == "humidity":
+                bands.extend([AGERA5_DEWPOINT_BAND, AGERA5_MEAN_TEMPERATURE_BAND])
                 continue
 
             band_name = data_settings.variable.get_band(variable_name)
@@ -130,8 +142,11 @@ class DownloadData(models.DataDownloadBase):
         columns: list[str] = []
         for variable in self.variables:
             variable_name = self._variable_name(variable)
-            if self._era5_scalar_wind_requested() and variable_name == "wind_speed":
+            if self._uv_wind_requested() and variable_name == "wind_speed":
                 columns.append("wind_speed")
+                continue
+            if self._agera5_humidity_requested() and variable_name == "humidity":
+                columns.append("humidity")
                 continue
 
             band_name = data_settings.variable.get_band(variable_name)
@@ -144,13 +159,14 @@ class DownloadData(models.DataDownloadBase):
                 ordered.append(column)
         return ordered
 
-    def _derive_era5_wind_speed(self, frame: pd.DataFrame) -> pd.DataFrame:
-        if not self._era5_scalar_wind_requested():
+    def _derive_wind_speed(self, frame: pd.DataFrame) -> pd.DataFrame:
+        if not self._uv_wind_requested():
             return frame
 
         if ERA5_U_WIND_BAND not in frame.columns or ERA5_V_WIND_BAND not in frame.columns:
             logger.warning(
-                "ERA5 wind_speed requested but required wind components were not returned."
+                "%s wind_speed requested but required wind components were not returned.",
+                self.source.name,
             )
             return frame
 
@@ -159,9 +175,33 @@ class DownloadData(models.DataDownloadBase):
             (derived[ERA5_U_WIND_BAND] ** 2 + derived[ERA5_V_WIND_BAND] ** 2) ** 0.5
         )
         logger.info(
-            "Derived ERA5 scalar wind_speed from %s and %s.",
+            "Derived scalar wind_speed for %s from %s and %s.",
+            self.source.name,
             ERA5_U_WIND_BAND,
             ERA5_V_WIND_BAND,
+        )
+        return derived
+
+    def _derive_agera5_humidity(self, frame: pd.DataFrame) -> pd.DataFrame:
+        if not self._agera5_humidity_requested():
+            return frame
+
+        if AGERA5_DEWPOINT_BAND not in frame.columns or AGERA5_MEAN_TEMPERATURE_BAND not in frame.columns:
+            logger.warning(
+                "agera_5 humidity requested but dewpoint/temperature bands were not returned."
+            )
+            return frame
+
+        derived = frame.copy()
+        air_c = derived[AGERA5_MEAN_TEMPERATURE_BAND] - 273.15
+        dew_c = derived[AGERA5_DEWPOINT_BAND] - 273.15
+        saturation = np.exp((17.625 * air_c) / (243.04 + air_c))
+        actual = np.exp((17.625 * dew_c) / (243.04 + dew_c))
+        derived["humidity"] = (100.0 * actual / saturation).clip(lower=0.0, upper=100.0)
+        logger.info(
+            "Derived agera_5 relative humidity from %s and %s.",
+            AGERA5_DEWPOINT_BAND,
+            AGERA5_MEAN_TEMPERATURE_BAND,
         )
         return derived
 
@@ -908,7 +948,8 @@ class DownloadData(models.DataDownloadBase):
             logger.warning("No data retrieved from GEE")
             return pd.DataFrame()
 
-        climate_data = self._derive_era5_wind_speed(climate_data)
+        climate_data = self._derive_wind_speed(climate_data)
+        climate_data = self._derive_agera5_humidity(climate_data)
 
         # Map columns to variable names
         dataset_cols = list(climate_data.columns)

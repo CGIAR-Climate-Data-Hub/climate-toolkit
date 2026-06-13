@@ -6,6 +6,12 @@ agera_5:
     precipitation: total_precipitation_sum
     max_temperature: temperature_2m_max
     min_temperature: temperature_2m_min
+    humidity: dewpoint_temperature_2m
+    wind_speed: u_component_of_wind_10m
+    solar_radiation:
+      band: surface_solar_radiation_downwards_sum
+      units: W/m^2
+      scale: 0.0000115740740741
 
 era_5:
   request:

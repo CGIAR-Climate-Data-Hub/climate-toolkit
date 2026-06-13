@@ -5,6 +5,9 @@ source_mappings:
     total_precipitation_sum: precipitation
     temperature_2m_max: max_temperature
     temperature_2m_min: min_temperature
+    humidity: humidity
+    wind_speed: wind_speed
+    surface_solar_radiation_downwards_sum: solar_radiation
   
   era_5:
     maximum_2m_air_temperature: max_temperature

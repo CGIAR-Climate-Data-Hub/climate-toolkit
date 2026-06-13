@@ -125,6 +125,74 @@ class FetchPipelineTests(unittest.TestCase):
             ["u_component_of_wind_10m", "v_component_of_wind_10m"],
         )
 
+    def test_agera5_humidity_and_wind_are_derived_when_requested(self):
+        settings = Settings.load()
+        downloader = GeeDownloadData(
+            variables=[ClimateVariable.humidity, ClimateVariable.wind_speed, ClimateVariable.solar_radiation],
+            location_coord=(-1.286, 36.817),
+            date_from_utc=date(2020, 1, 1),
+            date_to_utc=date(2020, 1, 2),
+            settings=settings,
+            source=ClimateDataset.agera_5,
+        )
+
+        raw_df = pd.DataFrame(
+            {
+                "date": ["2020-01-01", "2020-01-02"],
+                "dewpoint_temperature_2m": [290.15, 289.15],
+                "temperature_2m": [293.15, 295.15],
+                "u_component_of_wind_10m": [3.0, -5.0],
+                "v_component_of_wind_10m": [4.0, 12.0],
+                "surface_solar_radiation_downwards_sum": [86400.0, 172800.0],
+            }
+        )
+
+        with mock.patch.object(
+            downloader,
+            "get_gee_data_daily",
+            return_value=raw_df,
+        ) as mocked_fetch:
+            result = downloader.download_variables()
+
+        self.assertEqual(
+            mocked_fetch.call_args.kwargs["bands"],
+            [
+                "dewpoint_temperature_2m",
+                "temperature_2m",
+                "u_component_of_wind_10m",
+                "v_component_of_wind_10m",
+                "surface_solar_radiation_downwards_sum",
+            ],
+        )
+        self.assertEqual(
+            list(result.columns),
+            ["date", "humidity", "wind_speed", "surface_solar_radiation_downwards_sum"],
+        )
+        self.assertAlmostEqual(5.0, result.loc[0, "wind_speed"], places=6)
+        self.assertTrue(0.0 <= result.loc[0, "humidity"] <= 100.0)
+        self.assertAlmostEqual(1.0, result.loc[0, "surface_solar_radiation_downwards_sum"], places=6)
+
+    def test_agera5_batch_requested_bands_include_humidity_wind_and_solar_inputs(self):
+        settings = Settings.load()
+        data_settings = settings.agera_5
+
+        bands = batch_requested_band_names(
+            ClimateDataset.agera_5,
+            data_settings,
+            [ClimateVariable.humidity, ClimateVariable.wind_speed, ClimateVariable.solar_radiation],
+        )
+
+        self.assertEqual(
+            bands,
+            [
+                "dewpoint_temperature_2m",
+                "temperature_2m",
+                "u_component_of_wind_10m",
+                "v_component_of_wind_10m",
+                "surface_solar_radiation_downwards_sum",
+            ],
+        )
+
     def test_validate_inputs_rejects_bad_nex_model_and_scenario(self):
         errors = validate_inputs(
             source="nex_gddp",

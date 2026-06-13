@@ -16,6 +16,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Iterable
 
+import numpy as np
 import pandas as pd
 
 from .multi_site import (
@@ -52,6 +53,8 @@ DEFAULT_RETRY_BACKOFF_SECONDS = 2.0
 CACHE_SCHEMA_VERSION = "v1"
 ERA5_U_WIND_BAND = "u_component_of_wind_10m"
 ERA5_V_WIND_BAND = "v_component_of_wind_10m"
+AGERA5_MEAN_TEMPERATURE_BAND = "temperature_2m"
+AGERA5_DEWPOINT_BAND = "dewpoint_temperature_2m"
 
 SUPPORTED_GEE_XEE_BATCH_SOURCES = {
     ClimateDataset.agera_5,
@@ -101,10 +104,17 @@ def _variable_name(variable) -> str:
     return getattr(variable, "name", str(variable).split(".")[-1])
 
 
-def _era5_scalar_wind_requested(source: ClimateDataset, variables) -> bool:
+def _uv_wind_requested(source: ClimateDataset, variables) -> bool:
     return (
-        source == ClimateDataset.era_5
+        source in {ClimateDataset.era_5, ClimateDataset.agera_5}
         and any(_variable_name(variable) == "wind_speed" for variable in (variables or default_variables()))
+    )
+
+
+def _agera5_humidity_requested(source: ClimateDataset, variables) -> bool:
+    return (
+        source == ClimateDataset.agera_5
+        and any(_variable_name(variable) == "humidity" for variable in (variables or default_variables()))
     )
 
 
@@ -113,8 +123,11 @@ def _requested_band_names(source: ClimateDataset, data_settings, variables) -> l
     bands = []
     for variable in active_variables:
         variable_name = _variable_name(variable)
-        if _era5_scalar_wind_requested(source, active_variables) and variable_name == "wind_speed":
+        if _uv_wind_requested(source, active_variables) and variable_name == "wind_speed":
             bands.extend([ERA5_U_WIND_BAND, ERA5_V_WIND_BAND])
+            continue
+        if _agera5_humidity_requested(source, active_variables) and variable_name == "humidity":
+            bands.extend([AGERA5_DEWPOINT_BAND, AGERA5_MEAN_TEMPERATURE_BAND])
             continue
         band_name = data_settings.variable.get_band(variable_name)
         if band_name:
@@ -135,8 +148,11 @@ def _requested_output_columns(source: ClimateDataset, data_settings, variables) 
     columns = []
     for variable in active_variables:
         variable_name = _variable_name(variable)
-        if _era5_scalar_wind_requested(source, active_variables) and variable_name == "wind_speed":
+        if _uv_wind_requested(source, active_variables) and variable_name == "wind_speed":
             columns.append("wind_speed")
+            continue
+        if _agera5_humidity_requested(source, active_variables) and variable_name == "humidity":
+            columns.append("humidity")
             continue
         band_name = data_settings.variable.get_band(variable_name)
         if band_name:
@@ -161,23 +177,46 @@ def _scale_band_columns(frame: pd.DataFrame, data_settings, variables) -> pd.Dat
     return scaled
 
 
-def _derive_era5_wind_speed(
+def _derive_wind_speed(
     frame: pd.DataFrame,
     *,
     source: ClimateDataset,
     variables,
 ) -> pd.DataFrame:
-    if not _era5_scalar_wind_requested(source, variables):
+    if not _uv_wind_requested(source, variables):
         return frame
     if ERA5_U_WIND_BAND not in frame.columns or ERA5_V_WIND_BAND not in frame.columns:
         logger.warning(
-            "ERA5 wind_speed requested but required wind components were not returned."
+            "%s wind_speed requested but required wind components were not returned.",
+            source.name,
         )
         return frame
     derived = frame.copy()
     derived["wind_speed"] = (
         (derived[ERA5_U_WIND_BAND] ** 2 + derived[ERA5_V_WIND_BAND] ** 2) ** 0.5
     )
+    return derived
+
+
+def _derive_agera5_humidity(
+    frame: pd.DataFrame,
+    *,
+    source: ClimateDataset,
+    variables,
+) -> pd.DataFrame:
+    if not _agera5_humidity_requested(source, variables):
+        return frame
+    if AGERA5_DEWPOINT_BAND not in frame.columns or AGERA5_MEAN_TEMPERATURE_BAND not in frame.columns:
+        logger.warning(
+            "agera_5 humidity requested but dewpoint/temperature bands were not returned."
+        )
+        return frame
+    derived = frame.copy()
+    air_c = derived[AGERA5_MEAN_TEMPERATURE_BAND] - 273.15
+    dew_c = derived[AGERA5_DEWPOINT_BAND] - 273.15
+    saturation = np.exp((17.625 * air_c) / (243.04 + air_c))
+    actual = np.exp((17.625 * dew_c) / (243.04 + dew_c))
+    derived["humidity"] = (100.0 * actual / saturation).clip(lower=0.0, upper=100.0)
     return derived
 
 
@@ -499,7 +538,8 @@ def _fetch_site_chunk(
         freq=freq,
     )
     frame = _scale_band_columns(frame, data_settings, variables)
-    frame = _derive_era5_wind_speed(frame, source=source, variables=variables)
+    frame = _derive_wind_speed(frame, source=source, variables=variables)
+    frame = _derive_agera5_humidity(frame, source=source, variables=variables)
     keep_columns = ["date", *[column for column in output_columns if column in frame.columns]]
     frame = frame[keep_columns].copy()
     frame.insert(0, "lon", site.lon)

@@ -69,6 +69,14 @@ CORE_CLIMATE_VARIABLES = [
     ClimateVariable.max_temperature,
     ClimateVariable.min_temperature,
 ]
+AUTO_COMPANION_VARIABLES = [
+    ClimateVariable.precipitation,
+    ClimateVariable.max_temperature,
+    ClimateVariable.min_temperature,
+    ClimateVariable.humidity,
+    ClimateVariable.solar_radiation,
+    ClimateVariable.wind_speed,
+]
 PRECIP_VARIABLES = [ClimateVariable.precipitation]
 TEMP_VARIABLES = [
     ClimateVariable.max_temperature,
@@ -288,14 +296,23 @@ def _merge_precip_temp(coord, date_from, date_to, precip_source, temp_source) ->
     df_p = preprocess_data(source=precip_source, location_coord=coord,
                            variables=PRECIP_VARIABLES,
                            date_from=date_from, date_to=date_to)
+    temp_variables = (
+        AUTO_COMPANION_VARIABLES
+        if temp_source == DEFAULT_AUTO_TEMP_SOURCE
+        else TEMP_VARIABLES
+    )
     df_t = preprocess_data(source=temp_source, location_coord=coord,
-                           variables=TEMP_VARIABLES,
+                           variables=temp_variables,
                            date_from=date_from, date_to=date_to)
     if df_p is None or df_p.empty or 'date' not in df_p.columns:
         raise RuntimeError(f"No {precip_source} precipitation data returned.")
     if df_t is None or df_t.empty or 'date' not in df_t.columns:
         raise RuntimeError(f"No {temp_source} temperature data returned.")
-    return pd.merge(df_p[['date', 'precipitation']], df_t, on='date', how='inner')
+    temp_keep_columns = [
+        column for column in df_t.columns
+        if column == 'date' or column != 'precipitation'
+    ]
+    return pd.merge(df_p[['date', 'precipitation']], df_t[temp_keep_columns], on='date', how='inner')
 
 def _merge_chirps_chirts(coord, date_from, date_to) -> pd.DataFrame:
     df_p = preprocess_data(source=LEGACY_FALLBACK_COMBO[0], location_coord=coord,
