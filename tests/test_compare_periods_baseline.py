@@ -48,6 +48,50 @@ import climate_tookit.compare_periods.periods as cp
 
 
 class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
+    def test_compare_rejects_auto_detect_when_yearly_season_counts_differ(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(**kwargs):
+            calls.append((kwargs["start_year"], kwargs["end_year"]))
+            if kwargs["start_year"] == 2018:
+                return {
+                    "raw_climate_summary": [],
+                    "overall_statistics": {},
+                    "season_statistics": [
+                        {"year": 2018, "season_number": 1, "precipitation": {"total_mm": 500}},
+                        {"year": 2019, "season_number": 1, "precipitation": {"total_mm": 400}},
+                        {"year": 2019, "season_number": 2, "precipitation": {"total_mm": 300}},
+                    ],
+                    "annual_summary": {},
+                }
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [
+                    {"year": 2020, "season_number": 1, "precipitation": {"total_mm": 450}},
+                ],
+                "annual_summary": {},
+            }
+
+        orig = cp.analyze_climate_statistics
+        cp.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = cp.compare(
+                location=(-1.286, 36.817),
+                baseline_start=2018,
+                baseline_end=2019,
+                focal_year=2020,
+                source="auto",
+                fixed_season=None,
+            )
+        finally:
+            cp.analyze_climate_statistics = orig
+
+        self.assertEqual([(2018, 2019), (2020, 2020)], calls)
+        self.assertIn("error", result)
+        self.assertIn("Auto-detected season counts differ", result["error"])
+        self.assertIn("Re-run with --fixed-season", result["error"])
+
     def test_periods_compare_returns_clean_error_when_baseline_fetch_raises(self):
         def fake_analyze_climate_statistics(**kwargs):
             raise RuntimeError("No data returned from source 'era_5'")

@@ -89,6 +89,47 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
         out.setdefault(cat, {})[m] = round(sum(vs) / len(vs), 2)
     return out
 
+
+def _season_counts_by_year(seasons: List[Dict[str, Any]]) -> Dict[int, int]:
+    counts: Dict[int, int] = {}
+    for season in seasons or []:
+        year = season.get("year")
+        if isinstance(year, int):
+            counts[year] = counts.get(year, 0) + 1
+    return counts
+
+
+def _auto_season_count_guard(
+    baseline_seasons: List[Dict[str, Any]],
+    focal_seasons: List[Dict[str, Any]],
+) -> str | None:
+    """
+    Auto-detected compare_periods semantics break when season counts differ by year.
+
+    In that case, averaging all detected seasons into one "typical season" can blend
+    incomparable climatological windows. Fixed-season mode is required for a stable
+    baseline/focal comparison.
+    """
+    baseline_counts = _season_counts_by_year(baseline_seasons)
+    focal_counts = _season_counts_by_year(focal_seasons)
+    observed_counts = set(baseline_counts.values()) | set(focal_counts.values())
+    if len(observed_counts) <= 1:
+        return None
+
+    baseline_summary = ", ".join(
+        f"{year}:{count}" for year, count in sorted(baseline_counts.items())
+    ) or "none"
+    focal_summary = ", ".join(
+        f"{year}:{count}" for year, count in sorted(focal_counts.items())
+    ) or "none"
+    return (
+        "Auto-detected season counts differ across baseline/focal years, so "
+        "season-level compare_periods output would blend incomparable seasons. "
+        f"Baseline counts by year: {baseline_summary}. "
+        f"Focal counts by year: {focal_summary}. "
+        "Re-run with --fixed-season for a stable comparison."
+    )
+
 def _diff_block(a: Dict, b: Dict, a_lbl: str, b_lbl: str,
                 drop_temp: bool = False) -> Dict[str, Any]:
     """Diff two category-keyed blocks: {category: {metric: {a_lbl, b_lbl, diff, pct}}}"""
@@ -224,6 +265,14 @@ def compare(
                 f"({focal_year}): {focal['error']}"
             )
         }
+
+    if not fixed_season:
+        auto_guard_error = _auto_season_count_guard(
+            base.get("season_statistics", []),
+            focal.get("season_statistics", []),
+        )
+        if auto_guard_error:
+            return {"error": auto_guard_error}
 
     # 1. raw_climate_summary
     raw_diff = _diff_raw(focal.get("raw_climate_summary", []),
