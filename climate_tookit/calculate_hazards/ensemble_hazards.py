@@ -488,19 +488,30 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         })
 
     scenario_ensembles = []
-    for sc in sorted({r['projection']['scenario'] for r in results}):
-        bucket = [r for r in results if r['projection']['scenario'] == sc]
+    summary_buckets: Dict[Tuple[str, int, int], List[Dict]] = defaultdict(list)
+    for r in results:
+        si = r['season_info']
+        sc = r['projection']['scenario']
+        summary_buckets[(sc, si['season_number'], si['total'])].append(r)
+
+    for (sc, sn, total), bucket in sorted(summary_buckets.items()):
         agg = _avg_stats(bucket)
         scenario_ensembles.append({
             'scenario': sc,
+            'season_number': sn,
+            'total_seasons_per_year': total,
             'n_projections': len(bucket),
             'season_statistics': agg,
             'hazard_evaluation': _aggregate_hazard_statuses(bucket, agg),
         })
 
     overall_ensemble = None
+    unique_season_slots = sorted(
+        {(r['season_info']['season_number'], r['season_info']['total']) for r in results}
+    )
     cross_scenario_rollup_disabled = len(scenarios) > 1
-    if not cross_scenario_rollup_disabled:
+    cross_season_rollup_disabled = len(unique_season_slots) > 1
+    if not cross_scenario_rollup_disabled and not cross_season_rollup_disabled:
         overall = _avg_stats(results)
         overall_ensemble = {
             'n_projections': len(results),
@@ -530,6 +541,11 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         out['warning'] = (
             'Cross-scenario pooled overall ensemble disabled. '
             'Interpret scenario_ensembles and scenario-tagged assessments separately.'
+        )
+    elif cross_season_rollup_disabled:
+        out['warning'] = (
+            'Cross-season pooled overall ensemble disabled. '
+            'Interpret scenario_ensembles and assessments by season_number.'
         )
     return out
 
@@ -705,7 +721,12 @@ def _print_overall_summary(summary: Dict, multi_scenario: bool) -> None:
     h = summary.get('hazard_evaluation', {})
     print(f"\n{'─'*70}")
     if multi_scenario:
-        print(f"  SCENARIO ENSEMBLE  [{scenario}]")
+        slot = summary.get('season_number')
+        total = summary.get('total_seasons_per_year')
+        if slot and total and total > 1:
+            print(f"  SCENARIO ENSEMBLE  [{scenario}]  season {slot}/{total}")
+        else:
+            print(f"  SCENARIO ENSEMBLE  [{scenario}]")
     else:
         print("  OVERALL ENSEMBLE")
     print(f"  n = {summary['n_projections']} projections")

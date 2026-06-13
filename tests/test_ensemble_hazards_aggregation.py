@@ -215,6 +215,52 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
         self.assertIn("warning", result)
         self.assertIn("disabled", result["warning"])
 
+    def test_calculate_ensemble_preserves_season_slots_in_scenario_summaries(self):
+        orig_evaluate = eh._evaluate
+
+        def fake_evaluate(crop, lat, lon, window, model, scenario, thresholds, soilcp, soilsat):
+            precip = 600.0 if window["season_number"] == 1 else 300.0
+            return {
+                "season_info": {**window, "length_days": 91},
+                "season_statistics": {
+                    "total_precipitation_mm": precip,
+                    "mean_temperature_c": 24.0,
+                },
+                "hazard_evaluation": {
+                    "precipitation": {"value_mm": precip, "status": "no_stress"},
+                    "temperature": {"value_c": 24.0, "status": "no_stress"},
+                },
+                "projection": {"model": model, "scenario": scenario},
+            }
+
+        eh._evaluate = fake_evaluate
+        try:
+            result = eh.calculate_ensemble(
+                crop="maize",
+                lat=-1.286,
+                lon=36.817,
+                start_year=2050,
+                end_year=2050,
+                models=["ACCESS-CM2"],
+                scenarios=["ssp245"],
+                fixed_season="03-01:05-31,10-01:12-15",
+            )
+        finally:
+            eh._evaluate = orig_evaluate
+
+        self.assertIsNone(result["overall_ensemble"])
+        self.assertIn("warning", result)
+        self.assertIn("Cross-season pooled overall ensemble disabled", result["warning"])
+        self.assertEqual(2, len(result["scenario_ensembles"]))
+        self.assertEqual(
+            [(1, 2), (2, 2)],
+            [(block["season_number"], block["total_seasons_per_year"]) for block in result["scenario_ensembles"]],
+        )
+        self.assertEqual(
+            [600.0, 300.0],
+            [block["season_statistics"]["total_precipitation_mm"] for block in result["scenario_ensembles"]],
+        )
+
     def test_calculate_ensemble_keeps_overall_summary_for_single_scenario(self):
         orig_detect = eh._detect_windows
         orig_evaluate = eh._evaluate
