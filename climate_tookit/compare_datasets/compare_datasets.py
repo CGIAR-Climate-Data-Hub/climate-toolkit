@@ -28,6 +28,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
+from ..climate_statistics.statistics import (
+    _fetch_auto as _fetch_auto_dataset,
+    _fetch_paired_sources as _fetch_paired_dataset_sources,
+    _validate_paired_sources,
+    DEFAULT_AUTO_PRECIP_SOURCE,
+    DEFAULT_AUTO_TEMP_SOURCE,
+    PAIRED_SOURCE_SENTINEL,
+)
 from ..fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS,
     SCENARIO_MAPPING,
@@ -67,7 +75,7 @@ SOURCE_VARIABLES = {
 
 VALID_SOURCES = {
     "era_5", "agera_5", "chirps", "chirps_v2", "chirps_v3_daily_rnl", "chirts", "cmip_6", "imerg",
-    "nasa_power", "nex_gddp", "soil_grid", "tamsat", "terraclimate",
+    "nasa_power", "nex_gddp", "soil_grid", "tamsat", "terraclimate", "auto", PAIRED_SOURCE_SENTINEL,
 }
 
 DEFAULT_NEX_ENSEMBLE_MODELS = list(AVAILABLE_MODELS)
@@ -75,6 +83,12 @@ DEFAULT_NEX_ENSEMBLE_MODELS = list(AVAILABLE_MODELS)
 
 def _validate_source_selection(sources) -> None:
     normalized = list(sources or [])
+    unknown = [source for source in normalized if source not in VALID_SOURCES]
+    if unknown:
+        raise ValueError(
+            f"Unknown source(s) '{', '.join(unknown)}'. "
+            f"Valid keys: {', '.join(sorted(VALID_SOURCES))}"
+        )
     if "nex_gddp" in normalized and len(normalized) > 1:
         raise ValueError(
             "nex_gddp must be run on its own. Do not combine it with historical "
@@ -84,7 +98,9 @@ def _validate_source_selection(sources) -> None:
 def _fetch_source(source: str, lat: float, lon: float,
                   start, end,
                   model: str | None = None,
-                  scenario: str | None = None) -> pd.DataFrame:
+                  scenario: str | None = None,
+                  precip_source: str | None = None,
+                  temp_source: str | None = None) -> pd.DataFrame:
     """
     Dispatch a single source to the preprocessed-data pipeline.
     Returns the analysis-ready DataFrame (with a `date` column) that `preprocess_data` produces. Raises if the source key is unknown.
@@ -100,6 +116,19 @@ def _fetch_source(source: str, lat: float, lon: float,
         )
     date_from = date.fromisoformat(str(start)) if start else None
     date_to   = date.fromisoformat(str(end))   if end   else None
+    if source == "auto":
+        return _fetch_auto_dataset(lat, lon, date_from, date_to)
+    if source == PAIRED_SOURCE_SENTINEL:
+        return _fetch_paired_dataset_sources(
+            lat,
+            lon,
+            date_from,
+            date_to,
+            precip_source,
+            temp_source,
+            model=model,
+            scenario=scenario,
+        )
     variables = SOURCE_VARIABLES.get(source, DEFAULT_CLIMATE_VARIABLES)
     kwargs = dict(
         source=source,
@@ -474,7 +503,9 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     input_file=None, output_dir="./outputs",
                     nex_model: str | None = None,
                     nex_scenario: str = "ssp245",
-                    nex_models: list[str] | None = None):
+                    nex_models: list[str] | None = None,
+                    precip_source: str | None = None,
+                    temp_source: str | None = None):
     os.makedirs(output_dir, exist_ok=True)
     results = {}
 
@@ -485,12 +516,16 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
         return results
 
     _validate_source_selection(sources)
+    pair_error = _validate_paired_sources(
+        precip_source,
+        temp_source,
+        date.fromisoformat(str(start)).year if start else 0,
+        date.fromisoformat(str(end)).year if end else 0,
+    )
+    if pair_error:
+        raise ValueError(pair_error)
 
     for source in sources:
-        if source not in VALID_SOURCES:
-            print(f"  ⚠️   Unknown source '{source}' — skipping. "
-                  f"Valid keys: {', '.join(sorted(VALID_SOURCES))}")
-            continue
         try:
             if source == "nex_gddp":
                 scenario_key = SCENARIO_MAPPING.get(nex_scenario)
@@ -541,8 +576,49 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     print(f"  ✅  Ensemble mean over {len(per_model)} model(s): "
                           f"{', '.join(per_model)}")
                     result_key = f"nex_gddp_ensemble_{scenario_key}"
+            elif source == "auto":
+                print(
+                    "  ℹ️   auto historical path -> "
+                    f"{DEFAULT_AUTO_PRECIP_SOURCE} + {DEFAULT_AUTO_TEMP_SOURCE}"
+                )
+                df = _fetch_source(
+                    source,
+                    lat,
+                    lon,
+                    start,
+                    end,
+                )
+                result_key = "auto"
+            elif source == PAIRED_SOURCE_SENTINEL:
+                if not (precip_source and temp_source):
+                    raise ValueError(
+                        "paired source requires both --precip-source and --temp-source."
+                    )
+                print(f"  ℹ️   paired precip={precip_source} temp={temp_source}")
+                df = _fetch_source(
+                    source,
+                    lat,
+                    lon,
+                    start,
+                    end,
+                    model=nex_model,
+                    scenario=nex_scenario,
+                    precip_source=precip_source,
+                    temp_source=temp_source,
+                )
+                result_key = (
+                    f"paired_{precip_source}_plus_{temp_source}"
+                )
             else:
-                df = _fetch_source(source, lat, lon, start, end)
+                df = _fetch_source(
+                    source,
+                    lat,
+                    lon,
+                    start,
+                    end,
+                    precip_source=precip_source,
+                    temp_source=temp_source,
+                )
                 result_key = source
 
             if df is None or df.empty or len(df.columns) <= 1:
@@ -553,6 +629,8 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
             export_data(df, result_key, output_dir)
         except Exception as exc:
             print(f"  ❌  Failed to fetch {source}: {exc}")
+    if not results:
+        raise RuntimeError("No usable datasets fetched.")
     return results
 
 # Report
@@ -662,6 +740,20 @@ def main():
     parser.add_argument("--output-dir", default="./outputs",
                         help="Directory for CSV and PNG outputs")
     parser.add_argument(
+        "--precip-source", default=None,
+        help=(
+            "Precipitation partner for --sources paired, e.g. "
+            "chirps_v3_daily_rnl, chirps_v2, imerg, nex_gddp"
+        ),
+    )
+    parser.add_argument(
+        "--temp-source", default=None,
+        help=(
+            "Temperature partner for --sources paired, e.g. "
+            "agera_5, era_5, chirts, nex_gddp"
+        ),
+    )
+    parser.add_argument(
         "--model", default=None, metavar="MODEL",
         help=(
             "Single NEX-GDDP-CMIP6 model name (only used when 'nex_gddp' is in\n"
@@ -696,6 +788,16 @@ def main():
             _validate_source_selection(args.sources)
         except ValueError as exc:
             parser.error(str(exc))
+        pair_error = _validate_paired_sources(
+            args.precip_source,
+            args.temp_source,
+            date.fromisoformat(args.start).year if args.start else 0,
+            date.fromisoformat(args.end).year if args.end else 0,
+        )
+        if pair_error:
+            parser.error(pair_error)
+        if PAIRED_SOURCE_SENTINEL in args.sources and not (args.precip_source and args.temp_source):
+            parser.error("paired source requires both --precip-source and --temp-source.")
 
     if args.sources and "nex_gddp" in args.sources:
         if args.models:
@@ -715,18 +817,26 @@ def main():
                 f"Invalid --scenario '{args.scenario}'.\n"
                 f"Valid options: {', '.join(SCENARIO_MAPPING.keys())}"
             )
-    results = compare_sources(
-        sources=args.sources,
-        lat=args.lat,
-        lon=args.lon,
-        start=args.start,
-        end=args.end,
-        input_file=args.input,
-        output_dir=args.output_dir,
-        nex_model=args.model,
-        nex_scenario=args.scenario,
-        nex_models=args.models,
-    )
+    try:
+        results = compare_sources(
+            sources=args.sources,
+            lat=args.lat,
+            lon=args.lon,
+            start=args.start,
+            end=args.end,
+            input_file=args.input,
+            output_dir=args.output_dir,
+            nex_model=args.model,
+            nex_scenario=args.scenario,
+            nex_models=args.models,
+            precip_source=args.precip_source,
+            temp_source=args.temp_source,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
+    except RuntimeError as exc:
+        print(f"Error: {exc}")
+        raise SystemExit(1)
     all_stats = print_report(results, output_dir=args.output_dir)
 
     if args.format == "json":
