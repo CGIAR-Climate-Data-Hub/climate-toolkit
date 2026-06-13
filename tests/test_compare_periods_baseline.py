@@ -309,6 +309,98 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             calls,
         )
 
+    def test_compare_one_model_returns_clean_error_when_future_payload_has_error(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(
+            *,
+            location_coord,
+            start_year,
+            end_year,
+            source,
+            fixed_season=None,
+            model=None,
+            scenario=None,
+            **kwargs,
+        ):
+            calls.append((start_year, end_year, source, model, scenario))
+            if scenario == "ssp245":
+                return {"error": "Climate data fetch failed for source='nex_gddp'"}
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+            }
+
+        orig = ep.analyze_climate_statistics
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=2020,
+                future_start=2040,
+                future_end=2060,
+                fixed_season="03-01:05-31",
+                model="ACCESS-CM2",
+                scenario="ssp245",
+            )
+        finally:
+            ep.analyze_climate_statistics = orig
+
+        self.assertEqual(
+            [
+                (1991, 2020, "nex_gddp", "ACCESS-CM2", "historical"),
+                (2040, 2060, "nex_gddp", "ACCESS-CM2", "ssp245"),
+            ],
+            calls,
+        )
+        self.assertIn("error", result)
+        self.assertIn("Future fetch/analysis failed", result["error"])
+        self.assertIn("ACCESS-CM2", result["error"])
+
+    def test_compare_one_model_returns_clean_error_when_baseline_payload_has_error(self):
+        def fake_analyze_climate_statistics(
+            *,
+            location_coord,
+            start_year,
+            end_year,
+            source,
+            fixed_season=None,
+            model=None,
+            scenario=None,
+            **kwargs,
+        ):
+            if scenario == "historical":
+                return {"error": "Historical baseline unavailable"}
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+            }
+
+        orig = ep.analyze_climate_statistics
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=2020,
+                future_start=2040,
+                future_end=2060,
+                fixed_season="03-01:05-31",
+                model="ACCESS-CM2",
+                scenario="ssp245",
+            )
+        finally:
+            ep.analyze_climate_statistics = orig
+
+        self.assertIn("error", result)
+        self.assertIn("Baseline fetch/analysis failed", result["error"])
+        self.assertIn("historical", result["error"])
+
     def test_ensemble_compare_does_not_raise_name_error_for_location_filtering(self):
         orig_filter = ep._filter_models
         orig_compare = ep._compare_one_model

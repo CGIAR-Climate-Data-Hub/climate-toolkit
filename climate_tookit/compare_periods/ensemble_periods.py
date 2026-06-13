@@ -464,6 +464,13 @@ def _compare_one_model(
         model=model, scenario="historical",
         **fs_kw,
     )
+    if isinstance(base, dict) and base.get("error"):
+        return {
+            "error": (
+                f"Baseline fetch/analysis failed for model={model} scenario=historical "
+                f"({baseline_start}-{baseline_end}): {base['error']}"
+            )
+        }
     future = analyze_climate_statistics(
         location_coord=location,
         start_year=future_start, end_year=future_end,
@@ -471,6 +478,13 @@ def _compare_one_model(
         model=model, scenario=scenario,
         **fs_kw,
     )
+    if isinstance(future, dict) and future.get("error"):
+        return {
+            "error": (
+                f"Future fetch/analysis failed for model={model} scenario={scenario} "
+                f"({future_start}-{future_end}): {future['error']}"
+            )
+        }
     # 1. raw_climate_summary -- already period-wide means/min/max/std
     raw_diff = _diff_raw(future.get("raw_climate_summary", []),
                          base.get("raw_climate_summary",  []),
