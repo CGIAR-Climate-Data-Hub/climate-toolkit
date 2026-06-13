@@ -1,6 +1,8 @@
 import sys
+import tempfile
 import types
 import unittest
+from pathlib import Path
 
 import pandas as pd
 
@@ -48,6 +50,33 @@ import climate_tookit.season_analysis.ensemble as ensemble
 
 
 class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
+    def test_main_creates_missing_output_directory(self):
+        orig_run = ensemble.run_ensemble
+        orig_print = ensemble.print_summary
+        orig_default_models = ensemble.default_ensemble_models_for_location
+        orig_argv = sys.argv[:]
+        ensemble.run_ensemble = lambda *args, **kwargs: {"ok": True}
+        ensemble.print_summary = lambda results: None
+        ensemble.default_ensemble_models_for_location = lambda *args, **kwargs: ["MRI-ESM2-0"]
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_path = Path(tmpdir) / "nested" / "results" / "season_ensemble.json"
+                sys.argv = [
+                    "ensemble.py",
+                    "--location=-1.286,36.817",
+                    "--start-year=2040",
+                    "--end-year=2060",
+                    f"--output={output_path}",
+                    "--quiet",
+                ]
+                ensemble.main()
+                self.assertTrue(output_path.exists())
+        finally:
+            ensemble.run_ensemble = orig_run
+            ensemble.print_summary = orig_print
+            ensemble.default_ensemble_models_for_location = orig_default_models
+            sys.argv = orig_argv
+
     def test_average_model_over_period_preserves_fixed_month_day_dates(self):
         model_result = {
             "model": "MRI-ESM2-0",

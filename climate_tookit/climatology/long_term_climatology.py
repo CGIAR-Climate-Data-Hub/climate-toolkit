@@ -1286,12 +1286,14 @@ Examples:
         if args.format == 'json':
             output = json.dumps(payload, indent=2, default=str)
             if args.output:
+                os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
                 with open(args.output, 'w') as f:
                     f.write(output)
                 print(f"\n✓ Climatology saved to {args.output}")
             else:
                 print(output)
         elif args.output:
+            os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
             with open(args.output, 'w') as f:
                 json.dump(payload, f, indent=2, default=str)
             print(f"✓ JSON data saved to {args.output}")
@@ -1313,6 +1315,7 @@ Examples:
         output = json.dumps(result, indent=2, default=str)
 
         if args.output:
+            os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
             with open(args.output, 'w') as f:
                 f.write(output)
             print(f"\n✓ Climatology saved to {args.output}")
@@ -1322,6 +1325,7 @@ Examples:
         print_climatology_report(result)
 
         if args.output:
+            os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
             with open(args.output, 'w') as f:
                 json.dump(result, f, indent=2, default=str)
             print(f"✓ JSON data saved to {args.output}")

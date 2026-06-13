@@ -16,6 +16,7 @@ Notes:
 import argparse
 import sys
 from datetime import date
+from pathlib import Path
 from .gee_xee_batch import (
     SUPPORTED_GEE_XEE_BATCH_SOURCES,
     fetch_gee_xee_batch_data,
@@ -191,6 +192,7 @@ def fetch_data(
     )
 
 def save_output(data, output_path, fmt):
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     if fmt == "csv":
         data.to_csv(output_path, index=False)
     elif fmt == "json":

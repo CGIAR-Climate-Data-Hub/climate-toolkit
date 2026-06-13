@@ -126,6 +126,33 @@ class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):
             self.assertNotIn("✓ SAVED", rendered)
             self.assertTrue(output_path.exists())
 
+    def test_cli_json_output_creates_missing_directory(self):
+        argv = [
+            "ensemble_statistics.py",
+            "--location=-1.286,36.817",
+            "--start-year=2040",
+            "--end-year=2060",
+            "--models=MRI-ESM2-0",
+            "--scenarios=ssp245",
+            "--format=json",
+        ]
+
+        payload = {
+            "period": {"start_year": 2040, "end_year": 2060},
+            "scenario": "ssp245",
+        }
+
+        with TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "nested" / "results" / "ensemble_stats.json"
+            stdout = StringIO()
+            with mock.patch("sys.argv", argv + [f"--output={output_path}"]), \
+                 mock.patch("sys.stdout", stdout), \
+                 mock.patch.object(es, "analyze_ensemble_nex_gddp", return_value=payload):
+                es.main()
+
+            self.assertTrue(output_path.exists())
+            self.assertIn("Saved to", stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

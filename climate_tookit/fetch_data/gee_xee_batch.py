@@ -899,8 +899,10 @@ def main():
         return 0
 
     if args.format == "csv":
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         data_df.to_csv(args.output, index=False)
     else:
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         data_df.to_json(args.output, orient="records", date_format="iso", indent=2)
     print(f"Saved data to {args.output}")
     return 0

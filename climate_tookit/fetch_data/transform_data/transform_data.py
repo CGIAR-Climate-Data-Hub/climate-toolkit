@@ -1,6 +1,7 @@
 import os
 import sys
 from datetime import date
+from pathlib import Path
 import yaml
 from ..source_data.source_data import SourceData
 from ..source_data.sources.nex_gddp import AVAILABLE_MODELS, SCENARIO_MAPPING
@@ -180,6 +181,7 @@ def transform_data(
 
 
 def save_output(data, output_path, fmt):
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     if fmt == "csv":
         data.to_csv(output_path, index=False)
     elif fmt == "json":

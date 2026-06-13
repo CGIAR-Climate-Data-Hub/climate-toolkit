@@ -229,6 +229,36 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             self.assertNotIn("Saved to ", rendered)
             self.assertTrue(output_path.exists())
 
+    def test_cli_json_output_creates_missing_directory(self):
+        payload = {
+            "period": {"start_year": 2018, "end_year": 2019},
+            "raw_climate_summary": [],
+            "overall_statistics": {},
+            "season_statistics": [],
+            "annual_summary": {},
+        }
+
+        with TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "nested" / "results" / "stats.json"
+            argv = [
+                "statistics.py",
+                "--location=-1.286,36.817",
+                "--start-year=2018",
+                "--end-year=2019",
+                "--source=era_5",
+                "--format=json",
+                f"--output={output_path}",
+            ]
+
+            stdout = StringIO()
+            with mock.patch("sys.argv", argv), \
+                 mock.patch("sys.stdout", stdout), \
+                 mock.patch.object(stats, "analyze_climate_statistics", return_value=payload):
+                stats.main()
+
+            self.assertTrue(output_path.exists())
+            self.assertIn("Saved to", stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

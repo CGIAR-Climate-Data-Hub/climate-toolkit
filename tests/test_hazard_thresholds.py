@@ -3,6 +3,8 @@ import tempfile
 import types
 import unittest
 import json
+from pathlib import Path
+from unittest import mock
 import pandas as pd
 
 
@@ -46,6 +48,45 @@ from climate_tookit.calculate_hazards.hazards import (
 
 
 class HazardThresholdTests(unittest.TestCase):
+    def test_fetch_soil_grid_snapshot_uses_callable_fetch_data_function(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        hazards._fetch_soil_grid_snapshot.cache_clear()
+        with mock.patch(
+            "climate_tookit.fetch_data.fetch_data.fetch_data",
+            return_value=hazards.pd.DataFrame(
+                [{"soil_field_capacity": 0.34, "soil_wilting_point": 0.14}]
+            ),
+        ) as fake_fetch:
+            row = hazards._fetch_soil_grid_snapshot(-1.286, 36.817)
+
+        self.assertEqual(0.34, row["soil_field_capacity"])
+        self.assertEqual("soil_grid", fake_fetch.call_args.kwargs["source"])
+
+    def test_main_creates_missing_output_directory_for_json(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        orig_calculate = hazards.calculate_hazards
+        orig_argv = sys.argv[:]
+        hazards.calculate_hazards = lambda **kwargs: {"ok": True, "crop": "maize"}
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_path = Path(tmpdir) / "nested" / "results" / "hazards.json"
+                sys.argv = [
+                    "hazards.py",
+                    "maize",
+                    "--location=-1.286,36.817",
+                    "--date-from=2020-01-01",
+                    "--date-to=2020-12-31",
+                    "--format=json",
+                    f"--output={output_path}",
+                ]
+                hazards.main()
+                self.assertTrue(output_path.exists())
+        finally:
+            hazards.calculate_hazards = orig_calculate
+            sys.argv = orig_argv
+
     def test_get_climate_data_for_season_forwards_requested_source(self):
         import climate_tookit.calculate_hazards.hazards as hazards
 

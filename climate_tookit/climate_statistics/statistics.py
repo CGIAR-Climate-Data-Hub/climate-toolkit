@@ -1292,6 +1292,7 @@ def main() -> None:
     else:
         out = json.dumps(result, indent=2, default=str)
         if args.output:
+            Path(args.output).parent.mkdir(parents=True, exist_ok=True)
             with open(args.output, 'w') as f:
                 f.write(out)
             if 'error' in result:
@@ -1309,6 +1310,7 @@ def main() -> None:
         fname = (f"climate_stats_{lat:.4f}_{lon:.4f}_"
                  f"{args.start_year}_{args.end_year}_{mode_tag}.json")
         path  = Path(args.output_dir) / fname
+        path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, 'w') as f:
             f.write(json.dumps(result, indent=2, default=str))
         print(f"\n✓ SAVED: {path}")

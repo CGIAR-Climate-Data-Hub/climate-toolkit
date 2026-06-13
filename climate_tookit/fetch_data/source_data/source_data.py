@@ -6,6 +6,7 @@ different climate databases.
 import argparse
 import sys
 from datetime import datetime, date
+from pathlib import Path
 from .sources.gee import DownloadData as DownloadGEE
 from .sources.gee_xee import DownloadData as DownloadGEEXee
 from .sources.agera_5 import DownloadData as DownloadAgera5
@@ -150,6 +151,7 @@ class SourceData:
 
 
 def save_output(data, output_path, fmt):
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     if fmt == "csv":
         data.to_csv(output_path, index=False)
     elif fmt == "json":

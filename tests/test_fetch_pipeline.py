@@ -3,8 +3,10 @@ import contextlib
 import io
 import importlib
 import sys
+import tempfile
 import types
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import pandas as pd
@@ -36,6 +38,8 @@ def _install_test_stubs():
 _install_test_stubs()
 
 from climate_tookit.fetch_data.fetch_data import fetch_data
+from climate_tookit.fetch_data.cache_inventory import save_output as save_cache_inventory_output
+from climate_tookit.fetch_data.fetch_data import save_output as save_fetch_output
 from climate_tookit.fetch_data.gee_xee_batch import (
     _requested_band_names as batch_requested_band_names,
 )
@@ -57,6 +61,22 @@ fetch_data_module = importlib.import_module("climate_tookit.fetch_data.fetch_dat
 
 
 class FetchPipelineTests(unittest.TestCase):
+    def test_fetch_save_output_creates_missing_output_directory(self):
+        frame = pd.DataFrame({"date": pd.to_datetime(["2020-01-01"]), "value": [1.0]})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "nested" / "results" / "fetch.csv"
+            save_fetch_output(frame, output_path, "csv")
+            self.assertTrue(output_path.exists())
+
+    def test_cache_inventory_save_output_creates_missing_output_directory(self):
+        frame = pd.DataFrame({"dataset": ["nex_gddp"], "entries": [1]})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "nested" / "results" / "cache_inventory.json"
+            save_cache_inventory_output(frame, output_path, "json")
+            self.assertTrue(output_path.exists())
+
     def test_apply_unit_conversions_is_silent_while_still_converting(self):
         raw_df = pd.DataFrame(
             {

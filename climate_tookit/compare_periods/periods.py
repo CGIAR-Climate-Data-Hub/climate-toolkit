@@ -20,6 +20,7 @@ import sys
 import os
 import json
 import argparse
+from pathlib import Path
 from typing import Dict, Any, Tuple, Optional, List
 
 import pandas as pd
@@ -427,6 +428,8 @@ def main() -> None:
     p.add_argument("--focal-year",     type=int, required=True)
     p.add_argument("--source", required=True,
                    help=f"One of: {', '.join(sorted(SUPPORTED))}")
+    p.add_argument("--format", choices=["pandas", "json"], default="pandas",
+                   help="Output format: human-readable table view or raw JSON.")
     p.add_argument("--fixed-season", default=None,
                    metavar="MM-DD:MM-DD[,MM-DD:MM-DD]",
                    help=("Optional. Passed through to statistics.py.\n"
@@ -449,14 +452,24 @@ def main() -> None:
         source=args.source,
         fixed_season=args.fixed_season,
     )
-    print_report(result)
+    rendered = json.dumps(result, indent=2, default=str)
+    if args.format == "json":
+        if args.output:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(rendered)
+            print(f"✓ Saved: {output_path}")
+        else:
+            print(rendered)
+    else:
+        print_report(result)
+        if args.output:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(rendered)
+            print(f"✓ Saved: {output_path}")
     if "error" in result:
         sys.exit(1)
-
-    if args.output:
-        with open(args.output, "w") as f:
-            json.dump(result, f, indent=2, default=str)
-        print(f"✓ Saved: {args.output}")
 
 if __name__ == "__main__":
     main()

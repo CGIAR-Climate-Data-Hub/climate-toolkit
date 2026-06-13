@@ -734,6 +734,7 @@ def main():
     if not args.quiet:
         print_summary(results)
     if args.output:
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         with open(args.output, 'w', encoding='utf-8') as fh:
             fh.write(json.dumps(results, indent=2, default=str))
         try:

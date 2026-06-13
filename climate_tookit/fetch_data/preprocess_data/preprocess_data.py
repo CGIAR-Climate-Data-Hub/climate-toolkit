@@ -9,6 +9,7 @@ Pipeline: Receive Transformed Data → Clean → Unit Conversion → Quality Con
 
 import os
 from datetime import date
+from pathlib import Path
 import pandas as pd
 import numpy as np
 from ..transform_data.transform_data import transform_data
@@ -216,6 +217,7 @@ def preprocess_data(
 
 
 def save_output(data, output_path, fmt):
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     if fmt == "csv":
         data.to_csv(output_path, index=False)
     elif fmt == "json":

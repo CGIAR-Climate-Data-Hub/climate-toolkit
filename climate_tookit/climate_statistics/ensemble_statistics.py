@@ -666,6 +666,7 @@ def main() -> None:
     if args.format == 'json':
         out = json.dumps(payload, indent=2, default=str)
         if args.output:
+            Path(args.output).parent.mkdir(parents=True, exist_ok=True)
             with open(args.output, 'w') as f:
                 f.write(out)
             if any_ok:
@@ -675,6 +676,7 @@ def main() -> None:
         else:
             print(out)
     elif args.output:
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         with open(args.output, 'w') as f:
             json.dump(payload, f, indent=2, default=str)
         if any_ok:
@@ -686,6 +688,7 @@ def main() -> None:
         fname = (f"ensemble_stats_{lat:.4f}_{lon:.4f}_"
                  f"{args.start_year}_{args.end_year}_{sc_tag}.json")
         path = Path(args.output_dir) / fname
+        path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, 'w') as f:
             json.dump(payload, f, indent=2, default=str)
         if any_ok:

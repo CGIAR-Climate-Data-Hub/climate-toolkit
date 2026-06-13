@@ -463,7 +463,7 @@ def _normalize_coarse_fragments_like(value: Any) -> Optional[float]:
 
 @lru_cache(maxsize=128)
 def _fetch_soil_grid_snapshot(lat: float, lon: float) -> Dict[str, Any]:
-    from climate_tookit.fetch_data import fetch_data
+    from climate_tookit.fetch_data.fetch_data import fetch_data
     from climate_tookit.fetch_data.source_data.sources.utils.models import SoilVariable
 
     start_date, end_date = _soil_grid_date_anchor()
@@ -491,7 +491,7 @@ def _fetch_soil_grid_snapshot(lat: float, lon: float) -> Dict[str, Any]:
 
 @lru_cache(maxsize=128)
 def _fetch_hwsd_snapshot(lat: float, lon: float) -> Dict[str, Any]:
-    from climate_tookit.fetch_data import fetch_data
+    from climate_tookit.fetch_data.fetch_data import fetch_data
     from climate_tookit.fetch_data.source_data.sources.utils.models import SoilVariable
 
     start_date, end_date = _soil_grid_date_anchor()
@@ -1636,8 +1636,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
 
     print(f"\n{'='*70}\n")
 
-# CLI
-if __name__ == "__main__":
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='Calculate crop hazard indices',
         formatter_class=argparse.RawTextHelpFormatter,
@@ -1738,13 +1737,19 @@ if __name__ == "__main__":
         output_str = json.dumps(result, indent=2, default=str)
         print(output_str)
         if args.output:
+            os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
             with open(args.output, 'w') as f:
                 f.write(output_str)
     else:
         print_hazard_results(result)
         if args.output:
+            os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
             with open(args.output, 'w') as f:
                 f.write(json.dumps(result, indent=2, default=str))
+
+
+if __name__ == "__main__":
+    main()
 
 # Auto-detect season (no season flag supplied -- uses requested source policy):
 # python -m climate_tookit.calculate_hazards.hazards maize --location="-1.286,36.817" --date-from 2016-01-01 --date-to 2016-12-31 --season-start 2016-03-01 --season-end 2016-06-30

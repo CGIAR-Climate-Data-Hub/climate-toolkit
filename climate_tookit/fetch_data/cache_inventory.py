@@ -322,6 +322,7 @@ def cache_dedup_audit(
 
 
 def save_output(data: pd.DataFrame, output_path: str | Path, fmt: str) -> None:
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     if fmt == "csv":
         data.to_csv(output_path, index=False)
     elif fmt == "json":

@@ -975,6 +975,7 @@ def print_summary(
         print(f"  Humid test            : {humid_str if humid_str else 'n/a'}")
 
     if save_path and rows:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(rows).to_csv(save_path, index=False)
         print(f"\n{'=' * 70}")
         print(f"✓ SAVED: {save_path}")

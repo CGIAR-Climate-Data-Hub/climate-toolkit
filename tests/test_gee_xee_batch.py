@@ -1,7 +1,9 @@
 from datetime import date
 import sys
+import tempfile
 import types
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import pandas as pd
@@ -21,6 +23,7 @@ def _install_test_stubs():
 _install_test_stubs()
 
 from climate_tookit.fetch_data import fetch_gee_xee_batch_data
+import climate_tookit.fetch_data.gee_xee_batch as gee_batch
 from climate_tookit.fetch_data.gee_xee_batch import (
     _chunk_dates,
     _coerce_source,
@@ -31,6 +34,33 @@ from climate_tookit.fetch_data.source_data.sources.utils.settings import Setting
 
 
 class GeeXeeBatchTests(unittest.TestCase):
+    def test_main_creates_missing_output_directory(self):
+        raw_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"]), "precipitation": [1.2]})
+        summary_df = pd.DataFrame({"site": ["Nairobi"]})
+        manifest_df = pd.DataFrame({"cache_hit": [False]})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "nested" / "results" / "gee_batch.json"
+            argv = [
+                "gee_xee_batch.py",
+                "--source=chirps",
+                "--site=Nairobi,-1.286,36.817",
+                "--start=2020-01-01",
+                "--end=2020-01-01",
+                f"--output={output_path}",
+                "--format=json",
+            ]
+
+            with mock.patch("sys.argv", argv), mock.patch.object(
+                gee_batch,
+                "fetch_gee_xee_batch_data",
+                return_value=(raw_df, summary_df, manifest_df),
+            ):
+                rc = gee_batch.main()
+
+            self.assertEqual(0, rc)
+            self.assertTrue(output_path.exists())
+
     def test_unsupported_source_raises(self):
         with self.assertRaises(ValueError):
             _coerce_source("soil_grid")

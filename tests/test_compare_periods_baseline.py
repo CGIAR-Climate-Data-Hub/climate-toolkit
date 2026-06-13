@@ -1,5 +1,7 @@
 from datetime import date
+import json
 import sys
+import tempfile
 import types
 import unittest
 
@@ -48,6 +50,73 @@ import climate_tookit.compare_periods.periods as cp
 
 
 class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
+    def test_main_accepts_json_format_and_creates_output_directory(self):
+        orig_compare = cp.compare
+        orig_argv = sys.argv[:]
+        cp.compare = lambda **kwargs: {
+            "focal_year": 2020,
+            "baseline_period": "2018-2019",
+            "source": "auto",
+        }
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_path = f"{tmpdir}/nested/results/compare_periods.json"
+                sys.argv = [
+                    "periods.py",
+                    "--location=-1.286,36.817",
+                    "--baseline-start=2018",
+                    "--baseline-end=2019",
+                    "--focal-year=2020",
+                    "--source=auto",
+                    "--format=json",
+                    f"--output={output_path}",
+                ]
+                cp.main()
+                with open(output_path) as handle:
+                    saved = json.load(handle)
+        finally:
+            cp.compare = orig_compare
+            sys.argv = orig_argv
+
+        self.assertEqual(2020, saved["focal_year"])
+        self.assertEqual("auto", saved["source"])
+
+    def test_main_default_pandas_mode_creates_output_directory(self):
+        orig_compare = cp.compare
+        orig_print_report = cp.print_report
+        orig_argv = sys.argv[:]
+        cp.compare = lambda **kwargs: {
+            "focal_year": 2020,
+            "baseline_period": "2018-2019",
+            "source": "auto",
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": None,
+            "annual_summary": {},
+        }
+        cp.print_report = lambda result: None
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_path = f"{tmpdir}/nested/results/compare_periods.json"
+                sys.argv = [
+                    "periods.py",
+                    "--location=-1.286,36.817",
+                    "--baseline-start=2018",
+                    "--baseline-end=2019",
+                    "--focal-year=2020",
+                    "--source=auto",
+                    f"--output={output_path}",
+                ]
+                cp.main()
+                with open(output_path) as handle:
+                    saved = json.load(handle)
+        finally:
+            cp.compare = orig_compare
+            cp.print_report = orig_print_report
+            sys.argv = orig_argv
+
+        self.assertEqual("2018-2019", saved["baseline_period"])
+
     def test_compare_rejects_auto_detect_when_yearly_season_counts_differ(self):
         calls = []
 

@@ -1,7 +1,9 @@
 from datetime import date
 import sys
+import tempfile
 import types
 import unittest
+from pathlib import Path
 
 import pandas as pd
 
@@ -50,6 +52,34 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVa
 
 
 class SeasonsNexGddpTests(unittest.TestCase):
+    def test_print_summary_creates_missing_output_directory(self):
+        seasons_dict = {
+            2020: [
+                {
+                    "onset": pd.Timestamp("2020-03-01"),
+                    "cessation": pd.Timestamp("2020-05-31"),
+                    "regime": "unimodal",
+                    "length_days": 92,
+                    "total_rainfall_mm": 120.0,
+                    "rainy_days": 20,
+                    "dry_days": 72,
+                    "dry_spells": 2,
+                    "params_used": "test",
+                }
+            ]
+        }
+        annual_dict = {
+            2020: {
+                "annual_rainfall_mm": 700.0,
+                "humid_result": "Not humid",
+            }
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "nested" / "results" / "seasons.csv"
+            seasons.print_summary(seasons_dict, annual_dict, save_path=str(output_path))
+            self.assertTrue(output_path.exists())
+
     def test_detect_regime_labels_single_late_peak_as_late_peak_unimodal(self):
         df = pd.DataFrame(
             {
