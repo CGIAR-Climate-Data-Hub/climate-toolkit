@@ -343,6 +343,59 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertIn("error", result)
         self.assertEqual([], calls)
 
+    def test_compare_one_model_rejects_auto_detect_when_period_season_counts_differ(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(**kwargs):
+            calls.append((kwargs["start_year"], kwargs["end_year"], kwargs["scenario"]))
+            if kwargs["scenario"] == "historical":
+                return {
+                    "raw_climate_summary": [],
+                    "overall_statistics": {},
+                    "season_statistics": [
+                        {"year": 1991, "season_number": 1, "precipitation": {"total_mm": 500}},
+                        {"year": 1992, "season_number": 1, "precipitation": {"total_mm": 400}},
+                        {"year": 1992, "season_number": 2, "precipitation": {"total_mm": 300}},
+                    ],
+                    "annual_summary": {},
+                }
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [
+                    {"year": 2050, "season_number": 1, "precipitation": {"total_mm": 450}},
+                    {"year": 2051, "season_number": 1, "precipitation": {"total_mm": 470}},
+                ],
+                "annual_summary": {},
+            }
+
+        orig = ep.analyze_climate_statistics
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                fixed_season=None,
+                model="ACCESS-CM2",
+                scenario="ssp245",
+            )
+        finally:
+            ep.analyze_climate_statistics = orig
+
+        self.assertEqual(
+            [
+                (1991, 1992, "historical"),
+                (2050, 2051, "ssp245"),
+            ],
+            calls,
+        )
+        self.assertIn("error", result)
+        self.assertIn("Auto-detected season counts differ", result["error"])
+        self.assertIn("Re-run with --fixed-season", result["error"])
+
     def test_diff_block_uses_baseline_magnitude_for_negative_values(self):
         result = cp._diff_block(
             {"water_balance": {"total_balance": -722.10}},

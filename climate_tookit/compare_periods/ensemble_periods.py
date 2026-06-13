@@ -44,6 +44,7 @@ from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
 from climate_tookit.compare_periods.periods import (
     _annualize, _agg_seasons, _round,
     _diff_raw, _diff_block, _percent_change,
+    _auto_season_count_guard,
     PRECIP_ONLY, SUPPORTED,
 )
 
@@ -483,6 +484,10 @@ def _compare_one_model(
     future_seasons = _round(future.get("season_statistics", []), 2)
     season_diff: Optional[Dict[str, Any]] = None
     if base_seasons or future_seasons:
+        if not fixed_season:
+            auto_guard_error = _auto_season_count_guard(base_seasons, future_seasons)
+            if auto_guard_error:
+                return {"error": auto_guard_error}
         if fixed_season:
             labels = [w.strip() for w in fixed_season.split(",")]
             base_grp:  Dict[int, List[Dict]] = {}
