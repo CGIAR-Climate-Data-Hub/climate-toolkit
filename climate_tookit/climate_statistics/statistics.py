@@ -931,7 +931,9 @@ def analyze_climate_statistics(
             # ETO sub-seasons inside fixed windows
             sub_results: List[Dict] = []
             for es in (season.get('eto_seasons') or []):
-                ssub = season_statistics(df, es)
+                # Reuse the parent fixed-window slice so open ETO sub-seasons
+                # cannot silently extend to the full fetched dataset tail.
+                ssub = season_statistics(sdf, es)
                 if ssub:
                     ssub['regime'] = es.get('regime', 'eto')
                     sub_results.append(ssub)
