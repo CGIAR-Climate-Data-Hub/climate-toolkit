@@ -913,8 +913,10 @@ def calculate_climatology_ensemble(
 
     available_vars = list(climatology.keys())
     source_label = f"nex_gddp ensemble ({len(models_ok)} models, {canon})"
-    years_with_data = int(round(mean(r['period']['years_with_data']
-                                     for r in results_list)))
+    years_with_data_values = [r['period']['years_with_data'] for r in results_list]
+    years_with_data_min = min(years_with_data_values)
+    years_with_data_max = max(years_with_data_values)
+    years_with_data_mean = round(mean(years_with_data_values), 2)
 
     # Plots from the ensemble-mean series (reconstruct an annual_stats shape)
     plots_written: List[str] = []
@@ -949,7 +951,7 @@ def calculate_climatology_ensemble(
         'location': {'latitude': lat, 'longitude': lon},
         'period': {
             'start_year': start_year, 'end_year': end_year,
-            'n_years': n_years, 'years_with_data': years_with_data,
+            'n_years': n_years, 'years_with_data': years_with_data_min,
         },
         'source': source_label,
         'scenario': canon,
@@ -970,10 +972,13 @@ def calculate_climatology_ensemble(
         'plots': plots_written if plots_written else None,
         'metadata': {
             'wmo_standard': n_years == 30,
-            'data_completeness_pct': round(years_with_data / n_years * 100, 1),
+            'data_completeness_pct': round(years_with_data_min / n_years * 100, 1),
             'variables': ', '.join(available_vars),
             'ensemble_models': models_ok,
             'scenario': canon,
+            'years_with_data_min': years_with_data_min,
+            'years_with_data_mean': years_with_data_mean,
+            'years_with_data_max': years_with_data_max,
         },
     }
 
@@ -1109,6 +1114,16 @@ def print_ensemble_climatology_report(result: Dict[str, Any]) -> None:
     if result.get('models_failed'):
         failed_names = ', '.join(f['model'] for f in result['models_failed'])
         print(f"  Failed: {failed_names}")
+    meta = result.get('metadata') or {}
+    if all(k in meta for k in ('years_with_data_min', 'years_with_data_mean', 'years_with_data_max')):
+        n_years = (result.get('period') or {}).get('n_years')
+        if n_years:
+            print(
+                "  Coverage across models: "
+                f"min={meta['years_with_data_min']}/{n_years} | "
+                f"mean={meta['years_with_data_mean']}/{n_years} | "
+                f"max={meta['years_with_data_max']}/{n_years}"
+            )
 
     _print_per_model_climatology_breakdown(result)
     _print_per_model_monthly_breakdown(result)

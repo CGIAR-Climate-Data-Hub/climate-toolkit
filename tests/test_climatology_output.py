@@ -50,6 +50,46 @@ import climate_tookit.climatology.long_term_climatology as ltc
 
 
 class ClimatologyOutputTests(unittest.TestCase):
+    def test_ensemble_completeness_uses_conservative_minimum_not_rounded_mean(self):
+        payload_a = {
+            "period": {"years_with_data": 30},
+            "climatology": {
+                "precipitation": {"mean_annual_total_mm": 1000.0, "years_used": 30},
+            },
+            "monthly_climatology": None,
+            "trends": None,
+            "annual_time_series": None,
+        }
+        payload_b = {
+            "period": {"years_with_data": 29},
+            "climatology": {
+                "precipitation": {"mean_annual_total_mm": 900.0, "years_used": 29},
+            },
+            "monthly_climatology": None,
+            "trends": None,
+            "annual_time_series": None,
+        }
+
+        orig_calc = ltc.calculate_climatology
+        ltc.calculate_climatology = mock.Mock(side_effect=[payload_a, payload_b])
+        try:
+            result = ltc.calculate_climatology_ensemble(
+                location_coord=(-1.286, 36.817),
+                start_year=1991,
+                end_year=2020,
+                scenario="ssp245",
+                models=["MODEL_A", "MODEL_B"],
+                verbose=False,
+            )
+        finally:
+            ltc.calculate_climatology = orig_calc
+
+        self.assertEqual(29, result["period"]["years_with_data"])
+        self.assertEqual(96.7, result["metadata"]["data_completeness_pct"])
+        self.assertEqual(29, result["metadata"]["years_with_data_min"])
+        self.assertEqual(29.5, result["metadata"]["years_with_data_mean"])
+        self.assertEqual(30, result["metadata"]["years_with_data_max"])
+
     def test_main_single_source_json_creates_missing_output_directory(self):
         payload = {
             "source": "era_5",
