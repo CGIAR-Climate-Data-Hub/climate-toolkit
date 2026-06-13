@@ -428,6 +428,76 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertNotIn("error", result)
         self.assertEqual(result["n_models_ok"], 1)
 
+    def test_annotate_cli_timing_promotes_command_total_and_preserves_core_timer(self):
+        result = {
+            "metadata": {
+                "timing": {
+                    "total_seconds": 0.358,
+                    "mean_model_seconds": 0.178,
+                }
+            }
+        }
+
+        annotated = ep._annotate_cli_timing(
+            result,
+            command_total_seconds=30.6,
+            focal_prefetch_seconds=12.4,
+        )
+
+        timing = annotated["metadata"]["timing"]
+        self.assertEqual(30.6, timing["total_seconds"])
+        self.assertEqual(30.6, timing["command_total_seconds"])
+        self.assertEqual(12.4, timing["focal_prefetch_seconds"])
+        self.assertEqual(0.358, timing["ensemble_compare_seconds"])
+        self.assertEqual(0.178, timing["mean_model_seconds"])
+
+    def test_main_json_output_uses_command_wall_clock_timing(self):
+        payload = {
+            "scenario": "ssp245",
+            "metadata": {
+                "timing": {
+                    "total_seconds": 0.358,
+                    "mean_model_seconds": 0.178,
+                }
+            },
+        }
+        orig_argv = sys.argv[:]
+        orig_ensemble_compare = ep.ensemble_compare
+        orig_print_report = ep.print_report
+        orig_perf_counter = ep.perf_counter
+
+        ep.ensemble_compare = lambda **kwargs: json.loads(json.dumps(payload))
+        ep.print_report = lambda result: None
+        perf_values = iter([10.0, 40.6])
+        ep.perf_counter = lambda: next(perf_values)
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_path = f"{tmpdir}/nested/results/ensemble_periods.json"
+                sys.argv = [
+                    "ensemble_periods.py",
+                    "--location=-1.286,36.817",
+                    "--baseline-start=1991",
+                    "--baseline-end=1993",
+                    "--future-start=2040",
+                    "--future-end=2042",
+                    "--scenarios=ssp245",
+                    f"--output={output_path}",
+                ]
+                ep.main()
+                with open(output_path) as handle:
+                    saved = json.load(handle)
+        finally:
+            sys.argv = orig_argv
+            ep.ensemble_compare = orig_ensemble_compare
+            ep.print_report = orig_print_report
+            ep.perf_counter = orig_perf_counter
+
+        timing = saved["metadata"]["timing"]
+        self.assertEqual(30.6, timing["total_seconds"])
+        self.assertEqual(30.6, timing["command_total_seconds"])
+        self.assertEqual(0.0, timing["focal_prefetch_seconds"])
+        self.assertEqual(0.358, timing["ensemble_compare_seconds"])
+
     def test_ensemble_compare_rejects_single_year_baseline_period(self):
         result = ep.ensemble_compare(
             location=(-1.286, 36.817),

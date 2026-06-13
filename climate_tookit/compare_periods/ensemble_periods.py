@@ -1005,6 +1005,26 @@ def print_report(r: Dict[str, Any]) -> None:
         _print_focal_vs_ltm(avf)
         print()
 
+
+def _annotate_cli_timing(
+    result: Dict[str, Any],
+    *,
+    command_total_seconds: float,
+    focal_prefetch_seconds: float = 0.0,
+) -> Dict[str, Any]:
+    """
+    CLI output should expose whole-command wall-clock timing, not only the
+    ensemble_compare() core loop. Preserve the lower-level timer separately.
+    """
+    meta = result.setdefault("metadata", {})
+    timing = meta.setdefault("timing", {})
+    if "ensemble_compare_seconds" not in timing and "total_seconds" in timing:
+        timing["ensemble_compare_seconds"] = timing["total_seconds"]
+    timing["focal_prefetch_seconds"] = round(focal_prefetch_seconds, 3)
+    timing["total_seconds"] = round(command_total_seconds, 3)
+    timing["command_total_seconds"] = round(command_total_seconds, 3)
+    return result
+
 # CLI
 def main() -> None:
     if "--list-models" in sys.argv:
@@ -1092,18 +1112,23 @@ def main() -> None:
     if not scenarios:
         print("Error: no scenarios provided."); sys.exit(1)
 
+    cli_started = perf_counter()
+    focal_prefetch_seconds = 0.0
+
     # An external observed source (era_5, etc.) is scenario-independent, so the focal year is fetched once. A NEX-GDDP focal year inherits each scenario's run, so it is built per-scenario inside the loop below.
     focal_summary: Optional[Dict[str, Any]] = None
     if args.focal_year is not None and not focal_is_nexgddp:
         if not args.quiet:
             print(f"\nFetching focal year {args.focal_year} | "
                   f"source={args.focal_source}")
+        focal_started = perf_counter()
         focal_summary = _build_focal_summary(
             location=(lat, lon),
             focal_year=args.focal_year,
             focal_source=args.focal_source,
             fixed_season=args.fixed_season,
         )
+        focal_prefetch_seconds = perf_counter() - focal_started
 
     all_results: Dict[str, Any] = {}
     any_ok = False
@@ -1142,6 +1167,17 @@ def main() -> None:
 
     if not any_ok:
         sys.exit(1)
+
+    command_total_seconds = perf_counter() - cli_started
+    for scenario, result in all_results.items():
+        scenario_focal_seconds = 0.0
+        if args.focal_year is not None:
+            scenario_focal_seconds = focal_prefetch_seconds if not focal_is_nexgddp else 0.0
+        all_results[scenario] = _annotate_cli_timing(
+            result,
+            command_total_seconds=command_total_seconds,
+            focal_prefetch_seconds=scenario_focal_seconds,
+        )
 
     if args.output:
         os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
