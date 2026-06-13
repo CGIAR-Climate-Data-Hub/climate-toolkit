@@ -26,9 +26,12 @@ The Climate Toolkit offers a unified, programmatic interface to:
 - Compute rainfall statistics, anomalies, and hazard indicators
 - Compare climate trends over historical and seasonal periods
 
-For user-facing historical daily climate work, prefer `agera_5`. Keep `era_5`
-available for compatibility, diagnostics, and comparison work, but do not treat
-it as primary recommended source.
+For user-facing historical daily climate work, the default module policy is
+`chirps_v3_daily_rnl + agera_5`: CHIRPS v3 Daily RNL supplies precipitation and
+AgERA5 supplies temperature plus companion variables such as humidity, wind,
+and solar radiation. If a direct single-source historical fallback is needed,
+prefer `agera_5`. Keep `era_5` available for compatibility, diagnostics, and
+comparison work, but do not treat it as the primary recommended source.
 
 ---
 
@@ -94,12 +97,20 @@ python -m climate_tookit.fetch_data.fetch_data \
 
 Key options:
 
-- `--source`: dataset key such as `chirps_v2`, `agera_5`, `era_5`, `nex_gddp`
+- `--source`: exact dataset key such as `chirps_v3_daily_rnl`, `chirps_v2`,
+  `agera_5`, `era_5`, `nex_gddp`
 - `--stage`: `raw`, `transformed`, or `preprocessed`
 - `--variables`: comma-separated toolkit variable names such as `precipitation,max_temperature,min_temperature`
 - `--output` and `--format`: save to `csv` or `json` instead of printing
+- `--site` / `--sites-csv`: many-site fetch path for GEE/Xee-supported sources
+- `--cache-dir`: optional local cache root for reuse across runs
 
 For NEX-GDDP, you must also provide `--model` and `--scenario`. Current Earth Engine/Xee access also requires prior Earth Engine authentication plus `GCP_PROJECT_ID` in your environment. Current package backend is documented and tested against Earth Engine NEX-GDDP version `1.1`.
+
+The low-level `fetch_data` entry point expects an exact source name. Module-level
+`auto` source selection happens in higher-level workflows such as
+`climate_statistics`, `season_analysis`, and `calculate_hazards`, where the
+historical default path is `chirps_v3_daily_rnl + agera_5`.
 
 Example:
 
@@ -151,6 +162,22 @@ If you do want the CLI from a notebook cell, use:
 
 `source_data.py` is an internal module. For end users, the supported top-level entry point is `python -m climate_tookit.fetch_data.fetch_data` or the import-based `fetch_data(...)` API.
 
+### Cache and reuse
+
+GEE/Xee-backed fetches can be slow on a cold run because the toolkit has to
+retrieve and standardize the source data before writing cache files. Once the
+cache exists, repeat runs can be near-instant for the same source, site, date
+window, and variable set.
+
+For example, a live three-site, one-year benchmark on June 13, 2026 using:
+
+- `chirps_v3_daily_rnl` cold cache: about 22 seconds
+- `agera_5` with precipitation, temperature, humidity, wind, and solar cold cache: about 78 seconds
+- either source from warm cache: about 0.75 seconds
+
+If you want cache reuse across sessions, pass a stable project-local
+`--cache-dir` such as `outputs/cache/...`.
+
 ---
 
 ## Development
@@ -185,7 +212,7 @@ If you do want the CLI from a notebook cell, use:
     <ul style="list-style-type: '- '; padding-left: 1em; line-height: 1.6;">
       <li>The core engine of the Climate Toolkit will reuse existing scripts, APIs, and code, with preference for lazy-execution engines.</li>
       <li>Interoperability between R, Python, and other languages will be ensured via OpenAPI-compliant interfaces.</li>
-      <li>No permanent storage is provisioned initially—caching strategies will be considered for efficiency.</li>
+      <li>Project-local caching under <code>outputs/cache/...</code> is now supported for efficient reuse across sessions and repeated analyses.</li>
       <li>A notebook environment will support non-technical users in exploring climate data.</li>
       <li>Technical users will have access to source code and APIs through GitHub.</li>
       <li>The Solution Design & Architecture is a living document and will evolve over time.</li>

@@ -1,11 +1,16 @@
 """
 Climate Data Fetching Orchestrator
 Single entry point for the climate data pipeline:
-    Source → Transform → Preprocess
+    Source -> Transform -> Preprocess
 Stages:
     raw          - download only (SourceData)
     transformed  - download + standardise column names (transform_data)
     preprocessed - download + standardise + clean/QC (preprocess_data) [default]
+
+Notes:
+    - This low-level entry point expects an exact source name.
+    - Module-level historical `auto` selection lives in higher-level workflows
+      such as climate_statistics, season_analysis, and calculate_hazards.
 """
 
 import argparse
@@ -210,9 +215,21 @@ def parse_variables(raw):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Fetch climate data through the source → transform → preprocess pipeline"
+        description=(
+            "Fetch climate data through the source -> transform -> preprocess "
+            "pipeline. Use an exact source key here; higher-level module "
+            "auto-selection is not handled by this CLI."
+        )
     )
-    parser.add_argument("--source", required=True)
+    parser.add_argument(
+        "--source",
+        required=True,
+        help=(
+            "Exact dataset key, e.g. chirps_v3_daily_rnl, chirps_v2, "
+            "agera_5, era_5, nex_gddp. Use climate_statistics / "
+            "season_analysis / calculate_hazards for module-level auto mode."
+        ),
+    )
     parser.add_argument("--lat", type=float, default=None)
     parser.add_argument("--lon", type=float, default=None)
     parser.add_argument(
@@ -221,13 +238,24 @@ def main():
         default=[],
         help='Repeatable site spec: "name,lat,lon"',
     )
-    parser.add_argument("--sites-csv", default=None)
+    parser.add_argument(
+        "--sites-csv",
+        default=None,
+        help="CSV of many-site specs for the batch path",
+    )
     parser.add_argument("--start", required=True)
     parser.add_argument("--end", required=True)
     parser.add_argument("--model", default=None)
     parser.add_argument("--scenario", default=None)
     parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--cache-dir", default=None)
+    parser.add_argument(
+        "--cache-dir",
+        default=None,
+        help=(
+            "Optional project-local cache root. Reuse a stable path such as "
+            "outputs/cache/... for fast repeat runs."
+        ),
+    )
     parser.add_argument("--refresh-cache", action="store_true")
     parser.add_argument(
         "--stage",
@@ -238,7 +266,11 @@ def main():
     parser.add_argument(
         "--variables",
         default=None,
-        help="Comma-separated list; defaults to a standard set",
+        help=(
+            "Comma-separated list; defaults to a standard set. For agera_5 "
+            "companion variables, request humidity, wind_speed, and/or "
+            "solar_radiation explicitly."
+        ),
     )
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument(
