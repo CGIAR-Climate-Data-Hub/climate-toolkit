@@ -36,10 +36,18 @@ def _install_test_stubs():
 _install_test_stubs()
 
 from climate_tookit.fetch_data.fetch_data import fetch_data
+from climate_tookit.fetch_data.gee_xee_batch import (
+    _requested_band_names as batch_requested_band_names,
+)
 from climate_tookit.fetch_data.source_data.source_data import SourceData
+from climate_tookit.fetch_data.source_data.sources.gee import DownloadData as GeeDownloadData
+from climate_tookit.fetch_data.source_data.sources.gee_xee import (
+    DownloadData as GeeXeeDownloadData,
+)
 from climate_tookit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
+    SoilVariable,
 )
 from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
 from climate_tookit.fetch_data.transform_data.transform_data import validate_inputs
@@ -67,6 +75,55 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertAlmostEqual(27.0, converted.loc[0, "max_temperature"], places=6)
         self.assertAlmostEqual(17.0, converted.loc[0, "min_temperature"], places=6)
         self.assertAlmostEqual(5.0, converted.loc[0, "precipitation"], places=6)
+
+    def test_era5_wind_speed_uses_both_components_and_returns_scalar_speed(self):
+        settings = Settings.load()
+        downloader = GeeDownloadData(
+            variables=[ClimateVariable.wind_speed],
+            location_coord=(-1.286, 36.817),
+            date_from_utc=date(2020, 1, 1),
+            date_to_utc=date(2020, 1, 2),
+            settings=settings,
+            source=ClimateDataset.era_5,
+        )
+
+        raw_df = pd.DataFrame(
+            {
+                "date": ["2020-01-01", "2020-01-02"],
+                "u_component_of_wind_10m": [3.0, -5.0],
+                "v_component_of_wind_10m": [4.0, 12.0],
+            }
+        )
+
+        with mock.patch.object(
+            downloader,
+            "get_gee_data_daily",
+            return_value=raw_df,
+        ) as mocked_fetch:
+            result = downloader.download_variables()
+
+        self.assertEqual(
+            mocked_fetch.call_args.kwargs["bands"],
+            ["u_component_of_wind_10m", "v_component_of_wind_10m"],
+        )
+        self.assertEqual(list(result.columns), ["date", "wind_speed"])
+        self.assertAlmostEqual(5.0, result.loc[0, "wind_speed"], places=6)
+        self.assertAlmostEqual(13.0, result.loc[1, "wind_speed"], places=6)
+
+    def test_era5_batch_requested_bands_include_both_wind_components(self):
+        settings = Settings.load()
+        data_settings = settings.era_5
+
+        bands = batch_requested_band_names(
+            ClimateDataset.era_5,
+            data_settings,
+            [ClimateVariable.wind_speed],
+        )
+
+        self.assertEqual(
+            bands,
+            ["u_component_of_wind_10m", "v_component_of_wind_10m"],
+        )
 
     def test_validate_inputs_rejects_bad_nex_model_and_scenario(self):
         errors = validate_inputs(
@@ -105,6 +162,31 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(historical_errors, [])
         self.assertEqual(ssp370_errors, [])
+
+    def test_validate_inputs_rejects_era5_window_after_current_coverage(self):
+        errors = validate_inputs(
+            source="era_5",
+            lat=-1.286,
+            lon=36.817,
+            date_from=date(2020, 12, 1),
+            date_to=date(2020, 12, 31),
+            model=None,
+            scenario=None,
+        )
+
+        self.assertTrue(
+            any("outside current coverage" in err and "2020-07-09" in err for err in errors)
+        )
+
+    def test_fetch_data_rejects_many_site_era5_window_after_current_coverage(self):
+        with self.assertRaisesRegex(ValueError, "outside current coverage"):
+            fetch_data(
+                source="era_5",
+                sites=[{"site": "Nairobi", "lat": -1.286, "lon": 36.817}],
+                date_from=date(2020, 12, 1),
+                date_to=date(2020, 12, 31),
+                stage="preprocessed",
+            )
 
     def test_source_data_uses_real_nex_downloader(self):
         calls = []
@@ -178,9 +260,53 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(
             type(src.client).__module__,
+            "climate_tookit.fetch_data.source_data.sources.gee_xee",
+        )
+        self.assertEqual(type(src.client).__name__, "DownloadData")
+
+    def test_soil_grid_stays_on_direct_gee_adapter(self):
+        src = SourceData(
+            location_coord=(-1.286, 36.817),
+            variables=[SoilVariable.bulk_density],
+            source=ClimateDataset.soil_grid,
+            date_from_utc=date(2020, 1, 1),
+            date_to_utc=date(2020, 1, 2),
+            settings=Settings.load(),
+        )
+
+        self.assertEqual(
+            type(src.client).__module__,
             "climate_tookit.fetch_data.source_data.sources.gee",
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
+
+    def test_single_site_xee_adapter_strips_site_identity_columns(self):
+        downloader = GeeXeeDownloadData(
+            variables=[ClimateVariable.precipitation],
+            location_coord=(-1.286, 36.817),
+            date_from_utc=date(2020, 1, 1),
+            date_to_utc=date(2020, 1, 2),
+            settings=Settings.load(),
+            source=ClimateDataset.chirps,
+        )
+
+        raw_df = pd.DataFrame(
+            {
+                "site": ["site", "site"],
+                "lat": [-1.286, -1.286],
+                "lon": [36.817, 36.817],
+                "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                "precipitation": [0.0, 1.2],
+            }
+        )
+
+        with mock.patch(
+            "climate_tookit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
+            return_value=(raw_df, pd.DataFrame(), pd.DataFrame()),
+        ):
+            result = downloader.download_variables()
+
+        self.assertEqual(list(result.columns), ["date", "precipitation"])
 
     def test_nex_pipeline_stages_return_expected_columns(self):
         raw_df = pd.DataFrame(

@@ -12,8 +12,8 @@ That assumption is too narrow for real use. Some scientifically valid workflows 
 - temperature from another source
 
 Examples:
-- `chirps` + `era_5`
-- `chirps` + `agera_5`
+- `chirps_v2` + `era_5`
+- `chirps_v2` + `agera_5`
 - `imerg` + `era_5`
 - `imerg` + `agera_5`
 
@@ -30,12 +30,12 @@ Current behavior mixes three patterns:
    - `nex_gddp`
 
 2. special-case patched precip-only sources
-   - `chirps` currently works in `climate_statistics.statistics` only because code injects fallback `tmax=25`, `tmin=15`
+   - `chirps_v2` currently works in `climate_statistics.statistics` only because code injects fallback `tmax=25`, `tmin=15`
 
 3. sources rejected because there is no explicit pairing interface
    - `imerg`
    - `chirts`
-   - post-2016 `chirps+chirts`
+   - post-2016 `chirps_v2+chirts`
 
 This makes interface scientifically muddy:
 - some precip-only runs are allowed via synthetic temperature
@@ -45,8 +45,8 @@ This makes interface scientifically muddy:
 ## Current evidence
 
 Live `climate_statistics.statistics` source-matrix pass:
-- passes: `era_5`, `agera_5`, `auto`, `chirps`, `nasa_power`, `nex_gddp`
-- clean reject: `terraclimate`, `imerg`, `chirps+chirts`
+- passes: `era_5`, `agera_5`, `auto`, `chirps_v2`, `nasa_power`, `nex_gddp`
+- clean reject: `terraclimate`, `imerg`, `chirps_v2+chirts`
 
 Key findings documented in:
 - `analysis/climate_statistics_source_matrix.md`
@@ -66,14 +66,14 @@ Add explicit paired-source support to analysis modules that depend on both preci
 Possible CLI/API shape:
 
 ```text
---precip-source chirps|imerg|era_5|agera_5|...
+--precip-source chirps_v2|imerg|era_5|agera_5|...
 --temp-source   era_5|agera_5|nasa_power|chirts|...
 ```
 
 Then:
 - single-source mode stays available for full-variable datasets
 - paired-source mode becomes explicit and reproducible
-- legacy preset `chirps+chirts` can remain as shorthand for historical windows
+- legacy preset `chirps_v2+chirts` can remain as shorthand for historical windows
 
 ## Expected behavior
 
@@ -92,7 +92,7 @@ Then:
 
 ## Open questions
 
-1. Should `chirps` single-source fallback (`tmax=25`, `tmin=15`) be deprecated immediately, or kept behind explicit legacy flag?
+1. Should `chirps_v2` single-source fallback (`tmax=25`, `tmin=15`) be deprecated immediately, or kept behind explicit legacy flag?
 2. Should `auto` remain single-source/fallback logic only, or should it eventually resolve paired combinations too?
 3. Do we want one generic merge utility in fetch/preprocess layer, or module-local pairing first?
 
@@ -102,4 +102,3 @@ Implement paired-source support first in `climate_statistics.statistics`, becaus
 - requirements are clearest there
 - stress tests already expose source-policy inconsistencies
 - downstream modules can then reuse same merge contract
-

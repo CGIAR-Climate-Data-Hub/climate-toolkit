@@ -50,13 +50,15 @@ DEFAULT_CHUNK_DAYS = 365
 DEFAULT_RETRY_ATTEMPTS = 4
 DEFAULT_RETRY_BACKOFF_SECONDS = 2.0
 CACHE_SCHEMA_VERSION = "v1"
+ERA5_U_WIND_BAND = "u_component_of_wind_10m"
+ERA5_V_WIND_BAND = "v_component_of_wind_10m"
 
 SUPPORTED_GEE_XEE_BATCH_SOURCES = {
     ClimateDataset.agera_5,
     ClimateDataset.era_5,
     ClimateDataset.terraclimate,
     ClimateDataset.imerg,
-    ClimateDataset.chirps,
+    ClimateDataset.chirps_v2,
     ClimateDataset.chirps_v3_daily_rnl,
     ClimateDataset.chirts,
     ClimateDataset.cmip_6,
@@ -95,11 +97,25 @@ def _coerce_source(source: str | ClimateDataset) -> ClimateDataset:
     return dataset
 
 
-def _requested_band_names(data_settings, variables) -> list[str]:
+def _variable_name(variable) -> str:
+    return getattr(variable, "name", str(variable).split(".")[-1])
+
+
+def _era5_scalar_wind_requested(source: ClimateDataset, variables) -> bool:
+    return (
+        source == ClimateDataset.era_5
+        and any(_variable_name(variable) == "wind_speed" for variable in (variables or default_variables()))
+    )
+
+
+def _requested_band_names(source: ClimateDataset, data_settings, variables) -> list[str]:
     active_variables = variables or default_variables()
     bands = []
     for variable in active_variables:
-        variable_name = getattr(variable, "name", str(variable).split(".")[-1])
+        variable_name = _variable_name(variable)
+        if _era5_scalar_wind_requested(source, active_variables) and variable_name == "wind_speed":
+            bands.extend([ERA5_U_WIND_BAND, ERA5_V_WIND_BAND])
+            continue
         band_name = data_settings.variable.get_band(variable_name)
         if band_name:
             bands.append(band_name)
@@ -114,16 +130,55 @@ def _requested_band_names(data_settings, variables) -> list[str]:
     return ordered
 
 
+def _requested_output_columns(source: ClimateDataset, data_settings, variables) -> list[str]:
+    active_variables = variables or default_variables()
+    columns = []
+    for variable in active_variables:
+        variable_name = _variable_name(variable)
+        if _era5_scalar_wind_requested(source, active_variables) and variable_name == "wind_speed":
+            columns.append("wind_speed")
+            continue
+        band_name = data_settings.variable.get_band(variable_name)
+        if band_name:
+            columns.append(band_name)
+
+    ordered = []
+    for column in columns:
+        if column not in ordered:
+            ordered.append(column)
+    return ordered
+
+
 def _scale_band_columns(frame: pd.DataFrame, data_settings, variables) -> pd.DataFrame:
     scaled = frame.copy()
     for variable in variables:
-        variable_name = getattr(variable, "name", str(variable).split(".")[-1])
+        variable_name = _variable_name(variable)
         band_name = data_settings.variable.get_band(variable_name)
         variable_meta = getattr(data_settings.variable, variable_name, None)
         if band_name in scaled.columns and variable_meta is not None:
             scale = getattr(variable_meta, "scale", 1.0)
             scaled[band_name] = scaled[band_name] * scale
     return scaled
+
+
+def _derive_era5_wind_speed(
+    frame: pd.DataFrame,
+    *,
+    source: ClimateDataset,
+    variables,
+) -> pd.DataFrame:
+    if not _era5_scalar_wind_requested(source, variables):
+        return frame
+    if ERA5_U_WIND_BAND not in frame.columns or ERA5_V_WIND_BAND not in frame.columns:
+        logger.warning(
+            "ERA5 wind_speed requested but required wind components were not returned."
+        )
+        return frame
+    derived = frame.copy()
+    derived["wind_speed"] = (
+        (derived[ERA5_U_WIND_BAND] ** 2 + derived[ERA5_V_WIND_BAND] ** 2) ** 0.5
+    )
+    return derived
 
 
 def _daily_aggregated_collection(ee_module, image_name, start, end, point, bands):
@@ -415,7 +470,8 @@ def _fetch_site_chunk(
     start_date: date,
     end_date: date,
 ) -> tuple[pd.DataFrame, pd.DatetimeIndex]:
-    bands = _requested_band_names(data_settings, variables)
+    bands = _requested_band_names(source, data_settings, variables)
+    output_columns = _requested_output_columns(source, data_settings, variables)
     collection, expected_dates, normalized_start, normalized_end, freq = (
         _collection_and_expected_dates(
             ee_module=ee_module,
@@ -443,6 +499,9 @@ def _fetch_site_chunk(
         freq=freq,
     )
     frame = _scale_band_columns(frame, data_settings, variables)
+    frame = _derive_era5_wind_speed(frame, source=source, variables=variables)
+    keep_columns = ["date", *[column for column in output_columns if column in frame.columns]]
+    frame = frame[keep_columns].copy()
     frame.insert(0, "lon", site.lon)
     frame.insert(0, "lat", site.lat)
     frame.insert(0, "site", site.name)
@@ -546,7 +605,7 @@ def run_gee_xee_batch_extraction(
     chunks = _chunk_dates(data_settings, date_from, date_to, chunk_days)
     total = len(sites) * len(chunks)
     completed = 0
-    bands = _requested_band_names(data_settings, active_variables)
+    bands = _requested_band_names(dataset, data_settings, active_variables)
     frames: list[pd.DataFrame] = []
     manifest_rows: list[dict[str, object]] = []
 

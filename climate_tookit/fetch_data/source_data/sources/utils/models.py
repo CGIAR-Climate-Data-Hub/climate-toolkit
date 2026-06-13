@@ -1,7 +1,7 @@
 """Module for defining base classes and enums"""
 
 from abc import ABC, abstractmethod
-from datetime import date
+from datetime import date, datetime
 from enum import Enum, auto
 from typing import NamedTuple
 
@@ -28,8 +28,13 @@ class ClimateVariable(Enum):
 
 class SoilVariable(Enum):
     """Soil-specific variables from ISRIC SoilGrids250m v2.0"""
+    root_depth = auto()
+    available_water_capacity = auto()
+    drainage = auto()
     bulk_density = auto()
     coarse_fragments = auto()
+    field_capacity = auto()
+    wilting_point = auto()
     ph = auto()
     sand_content = auto()
     clay_content = auto()
@@ -46,7 +51,8 @@ class ClimateDataset(Enum):
     era_5 = auto()
     terraclimate = auto()
     imerg = auto()
-    chirps = auto()
+    chirps_v2 = auto()
+    chirps = chirps_v2
     chirps_v3_daily_rnl = auto()
     cmip_6 = auto()
     nex_gddp = auto()
@@ -54,6 +60,7 @@ class ClimateDataset(Enum):
     tamsat = auto()
     chirts = auto()
     soil_grid = auto()
+    hwsd = auto()
 
 
 class Cadence(Enum):
@@ -122,3 +129,77 @@ class DataDownloadBase(ABC):
     def download_variables() -> pd.DataFrame:
         """Retrieves all variables available in the climate database"""
         pass
+
+
+LEGACY_SOURCE_ALIASES = {
+    "chirps": "chirps_v2",
+}
+
+SOURCE_DATE_LIMITS = {
+    "era_5": {
+        "start": date(1979, 1, 2),
+        "end": date(2020, 7, 9),
+        "label": "ECMWF/ERA5/DAILY",
+    },
+}
+
+
+def normalize_climate_dataset_name(source: str | ClimateDataset | None) -> str | None:
+    if source is None:
+        return None
+    if isinstance(source, ClimateDataset):
+        return source.name
+    return LEGACY_SOURCE_ALIASES.get(str(source).lower(), str(source).lower())
+
+
+def accepted_climate_dataset_names() -> list[str]:
+    names = {dataset.name for dataset in ClimateDataset}
+    names.update(LEGACY_SOURCE_ALIASES.keys())
+    return sorted(names)
+
+
+def _coerce_date(value: date | datetime | None) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    return value
+
+
+def source_date_coverage_error(
+    source: str | ClimateDataset | None,
+    date_from: date | datetime | None,
+    date_to: date | datetime | None,
+) -> str | None:
+    source_name = normalize_climate_dataset_name(source)
+    if source_name is None:
+        return None
+
+    limits = SOURCE_DATE_LIMITS.get(source_name)
+    if limits is None:
+        return None
+
+    start = _coerce_date(date_from)
+    end = _coerce_date(date_to)
+    coverage_start = limits["start"]
+    coverage_end = limits["end"]
+    dataset_label = limits["label"]
+
+    violations = []
+    if start is not None and start < coverage_start:
+        violations.append(
+            f"start={start.isoformat()} is before {coverage_start.isoformat()}"
+        )
+    if end is not None and end > coverage_end:
+        violations.append(
+            f"end={end.isoformat()} is after {coverage_end.isoformat()}"
+        )
+
+    if not violations:
+        return None
+
+    return (
+        f"Requested range for source '{source_name}' is outside current coverage "
+        f"for {dataset_label} ({coverage_start.isoformat()}..{coverage_end.isoformat()}): "
+        f"{'; '.join(violations)}. Use 'agera_5' or 'auto' for later periods."
+    )

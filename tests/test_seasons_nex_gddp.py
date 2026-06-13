@@ -50,6 +50,20 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVa
 
 
 class SeasonsNexGddpTests(unittest.TestCase):
+    def test_detect_regime_labels_single_late_peak_as_late_peak_unimodal(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(
+                    [f"2020-{month:02d}-01" for month in range(1, 13)]
+                ),
+                "precip": [5, 10, 20, 25, 30, 35, 40, 45, 70, 130, 60, 25],
+            }
+        )
+
+        labels = seasons.detect_regime(df)
+
+        self.assertTrue((labels == "late_peak_unimodal").all())
+
     def test_get_climate_data_passes_model_and_scenario_for_nex(self):
         calls = []
 
@@ -121,6 +135,90 @@ class SeasonsNexGddpTests(unittest.TestCase):
             [variable.name for variable in calls[0]["variables"]],
         )
 
+    def test_get_climate_data_rejects_malformed_empty_source_payload(self):
+        def fake_preprocess_data(**kwargs):
+            return pd.DataFrame({"precipitation": []})
+
+        orig = seasons.preprocess_data
+        seasons.preprocess_data = fake_preprocess_data
+        try:
+            with self.assertRaisesRegex(RuntimeError, "No climate data returned from source 'era_5'"):
+                seasons.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2020-01-01",
+                    "2020-01-02",
+                    force_source="era_5",
+                )
+        finally:
+            seasons.preprocess_data = orig
+
+    def test_get_climate_data_rejects_malformed_chirps_chirts_fallback_payload(self):
+        def fake_preprocess_data(**kwargs):
+            source = kwargs["source"]
+            if source in {"chirps", "chirps_v2"}:
+                return pd.DataFrame({"precipitation": []})
+            return pd.DataFrame(
+                {
+                    "date": pd.to_datetime(["2020-01-01"]),
+                    "max_temperature": [25.0],
+                    "min_temperature": [15.0],
+                }
+            )
+
+        orig = seasons.preprocess_data
+        seasons.preprocess_data = fake_preprocess_data
+        try:
+            with self.assertRaisesRegex(RuntimeError, "No CHIRPS precipitation data returned"):
+                seasons.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2020-01-01",
+                    "2020-01-02",
+                    force_source="chirps+chirts",
+                )
+        finally:
+            seasons.preprocess_data = orig
+
+    def test_get_climate_data_auto_prefers_chirps_v3_plus_agera5(self):
+        calls = []
+
+        def fake_preprocess_data(**kwargs):
+            calls.append(kwargs["source"])
+            if kwargs["source"] == "chirps_v3_daily_rnl":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                        "precipitation": [3.0, 1.0],
+                    }
+                )
+            if kwargs["source"] == "agera_5":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                        "max_temperature": [25.0, 26.0],
+                        "min_temperature": [15.0, 16.0],
+                    }
+                )
+            raise AssertionError(f"unexpected source {kwargs['source']}")
+
+        orig = seasons.preprocess_data
+        seasons.preprocess_data = fake_preprocess_data
+        try:
+            frame = seasons.get_climate_data(
+                -1.286,
+                36.817,
+                "2020-01-01",
+                "2020-01-02",
+            )
+        finally:
+            seasons.preprocess_data = orig
+
+        self.assertEqual(["chirps_v3_daily_rnl", "agera_5"], calls)
+        self.assertIn("precip", frame.columns)
+        self.assertIn("tmax", frame.columns)
+        self.assertIn("tmin", frame.columns)
+
     def test_fetch_and_analyze_years_forwards_nex_model_and_scenario(self):
         calls = []
 
@@ -186,6 +284,51 @@ class SeasonsNexGddpTests(unittest.TestCase):
             ],
             calls,
         )
+
+    def test_remove_duplicate_seasons_prefers_closed_resolution_over_open_spillover(self):
+        results = {
+            2019: [
+                {
+                    "onset": pd.Timestamp("2019-05-08"),
+                    "cessation": None,
+                    "length_days": 54,
+                    "regime": "erratic",
+                },
+                {
+                    "onset": pd.Timestamp("2019-05-08"),
+                    "cessation": pd.Timestamp("2019-06-25"),
+                    "length_days": 49,
+                    "regime": "late_peak_unimodal",
+                },
+            ]
+        }
+
+        deduped = seasons.remove_duplicate_seasons(results)
+
+        self.assertEqual(1, len(deduped[2019]))
+        self.assertEqual(pd.Timestamp("2019-06-25"), pd.to_datetime(deduped[2019][0]["cessation"]))
+
+    def test_remove_duplicate_seasons_keeps_distinct_seasons(self):
+        results = {
+            2019: [
+                {
+                    "onset": pd.Timestamp("2019-03-02"),
+                    "cessation": pd.Timestamp("2019-06-05"),
+                    "length_days": 96,
+                    "regime": "unimodal",
+                },
+                {
+                    "onset": pd.Timestamp("2019-10-09"),
+                    "cessation": pd.Timestamp("2019-12-29"),
+                    "length_days": 82,
+                    "regime": "late_peak_unimodal",
+                },
+            ]
+        }
+
+        deduped = seasons.remove_duplicate_seasons(results)
+
+        self.assertEqual(2, len(deduped[2019]))
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ from .source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
     SoilVariable,
+    source_date_coverage_error,
 )
 from .source_data.sources.utils.settings import Settings
 
@@ -54,7 +55,7 @@ def fetch_data(
     Parameters
     ----------
     source : str
-        Climate dataset name (e.g. 'era_5', 'chirps', 'nex_gddp').
+        Climate dataset name (e.g. 'era_5', 'chirps_v2', 'nex_gddp').
     location_coord : tuple[float, float], optional
         (latitude, longitude) for single-site fetches.
     variables : list, optional
@@ -81,6 +82,9 @@ def fetch_data(
     variables = variables or default_variables()
     date_from = date_from or date.today()
     date_to = date_to or date.today()
+    coverage_error = source_date_coverage_error(source, date_from, date_to)
+    if coverage_error:
+        raise ValueError(coverage_error)
 
     batch_requested = bool(sites or sites_csv)
     if batch_requested:
@@ -319,10 +323,10 @@ if __name__ == "__main__":
 # python climate_tookit/fetch_data/fetch_data.py --source era_5 --lat -1.286 --lon 36.817 --start 2020-01-01 --end 2020-03-05
 
 # Stop at transformed stage:
-# python climate_tookit/fetch_data/fetch_data.py --source chirps --lat -1.286 --lon 36.817 --start 2020-01-01 --end 2020-01-10 --stage transformed
+# python climate_tookit/fetch_data/fetch_data.py --source chirps_v2 --lat -1.286 --lon 36.817 --start 2020-01-01 --end 2020-01-10 --stage transformed
 
 # Raw download only:
-# python climate_tookit/fetch_data/fetch_data.py --source chirps --lat -1.286 --lon 36.817 --start 2020-01-01 --end 2020-01-10 --stage raw
+# python climate_tookit/fetch_data/fetch_data.py --source chirps_v2 --lat -1.286 --lon 36.817 --start 2020-01-01 --end 2020-01-10 --stage raw
 
 # NEX-GDDP with model/scenario, saved to CSV:
 # python climate_tookit/fetch_data/fetch_data.py --source nex_gddp --lat -1.286 --lon 36.817 --start 2050-01-01 --end 2050-01-10 --model GFDL-ESM4 --scenario ssp245 --format csv --output nex_gddp_2050.csv

@@ -10,7 +10,7 @@ source_mappings:
     maximum_2m_air_temperature: max_temperature
     minimum_2m_air_temperature: min_temperature
     total_precipitation: precipitation
-    u_component_of_wind_10m: wind_speed
+    wind_speed: wind_speed
     solar_radiation: solar_radiation
     soil_moisture: soil_moisture
   
@@ -30,7 +30,7 @@ source_mappings:
     minimum_temperature: min_temperature
     relative_humidity: humidity
   
-  chirps:
+  chirps_v2:
     precipitation: precipitation
 
   chirps_v3_daily_rnl:
@@ -58,6 +58,15 @@ source_mappings:
   soil_grid:
     ph: soil_ph
     bulk_density: soil_bulk_density
+    coarse_fragments: soil_coarse_fragments
     clay_content: soil_clay_content
     sand_content: soil_sand_content
+    field_capacity: soil_field_capacity
+    wilting_point: soil_wilting_point
     organic_carbon: soil_organic_carbon
+
+  hwsd:
+    ROOT_DEPTH: soil_root_depth
+    AWC: soil_available_water_capacity
+    DRAINAGE: soil_drainage
+    BULK_DENSITY: soil_bulk_density

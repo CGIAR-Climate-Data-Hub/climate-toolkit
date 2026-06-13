@@ -1134,7 +1134,7 @@ Examples:
     parser.add_argument('--end-year', required=True, type=int,
                        help='End year of climatology period (inclusive)')
     parser.add_argument('--source', required=True, type=str,
-                       help='Data source (e.g., nasa_power, chirps, chirts). '
+                       help='Data source (e.g., nasa_power, chirps_v2, chirts). '
                             "'nex_gddp' runs the CMIP6 ensemble (averaged across models).")
     parser.add_argument('--scenarios', type=str, default='ssp245',
                        metavar='ssp245[,ssp585]',

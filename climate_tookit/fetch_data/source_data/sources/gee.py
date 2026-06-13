@@ -3,7 +3,9 @@ hosted by Google Earth Engine (GEE)."""
 
 import logging
 import os
+import json
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Optional, Union
 
 from dotenv import load_dotenv
@@ -16,6 +18,7 @@ import pandas as pd
 from .utils import models
 from .utils.models import Cadence
 from .utils.settings import Settings, set_logging
+from ...multi_site import normalize_cache_coord, safe_coord_fragment
 
 set_logging()
 logger = logging.getLogger(__name__)
@@ -27,6 +30,10 @@ logger = logging.getLogger(__name__)
 # 26-year range into dozens of sub-queries, repeating auth dominates the
 # runtime. Use this module-level guard so every entry point is idempotent.
 _GEE_READY = False
+SOIL_GRID_CACHE_SCHEMA_VERSION = "v1"
+DEFAULT_STATIC_CACHE_ROOT = Path("outputs/cache")
+ERA5_U_WIND_BAND = "u_component_of_wind_10m"
+ERA5_V_WIND_BAND = "v_component_of_wind_10m"
 
 def _ensure_gee_initialized() -> None:
     """Authenticate + initialize GEE exactly once per Python process."""
@@ -48,6 +55,8 @@ class DownloadData(models.DataDownloadBase):
         date_to_utc: date,
         settings: Settings,
         source: models.ClimateDataset,
+        cache_dir: str | os.PathLike | None = None,
+        refresh_cache: bool = False,
     ):
         super().__init__(
             location_coord=location_coord,
@@ -62,6 +71,12 @@ class DownloadData(models.DataDownloadBase):
         self.variables = variables
         self.settings = settings
         self.source = source
+        self.cache_dir = (
+            Path(cache_dir)
+            if cache_dir
+            else DEFAULT_STATIC_CACHE_ROOT / self.source.name
+        )
+        self.refresh_cache = refresh_cache
 
     def download_precipitation(self):
         raise NotImplementedError
@@ -83,6 +98,249 @@ class DownloadData(models.DataDownloadBase):
 
     def download_soil_moisture(self):
         raise NotImplementedError
+
+    def _variable_name(self, variable) -> str:
+        return getattr(variable, "name", str(variable).split(".")[-1])
+
+    def _era5_scalar_wind_requested(self) -> bool:
+        return (
+            self.source == models.ClimateDataset.era_5
+            and any(self._variable_name(variable) == "wind_speed" for variable in self.variables)
+        )
+
+    def _requested_fetch_bands(self, data_settings) -> list[str]:
+        bands: list[str] = []
+        for variable in self.variables:
+            variable_name = self._variable_name(variable)
+            if self._era5_scalar_wind_requested() and variable_name == "wind_speed":
+                bands.extend([ERA5_U_WIND_BAND, ERA5_V_WIND_BAND])
+                continue
+
+            band_name = data_settings.variable.get_band(variable_name)
+            if band_name:
+                bands.append(band_name)
+
+        ordered: list[str] = []
+        for band in bands:
+            if band not in ordered:
+                ordered.append(band)
+        return ordered
+
+    def _requested_output_columns(self, data_settings) -> list[str]:
+        columns: list[str] = []
+        for variable in self.variables:
+            variable_name = self._variable_name(variable)
+            if self._era5_scalar_wind_requested() and variable_name == "wind_speed":
+                columns.append("wind_speed")
+                continue
+
+            band_name = data_settings.variable.get_band(variable_name)
+            if band_name:
+                columns.append(band_name)
+
+        ordered: list[str] = []
+        for column in columns:
+            if column not in ordered:
+                ordered.append(column)
+        return ordered
+
+    def _derive_era5_wind_speed(self, frame: pd.DataFrame) -> pd.DataFrame:
+        if not self._era5_scalar_wind_requested():
+            return frame
+
+        if ERA5_U_WIND_BAND not in frame.columns or ERA5_V_WIND_BAND not in frame.columns:
+            logger.warning(
+                "ERA5 wind_speed requested but required wind components were not returned."
+            )
+            return frame
+
+        derived = frame.copy()
+        derived["wind_speed"] = (
+            (derived[ERA5_U_WIND_BAND] ** 2 + derived[ERA5_V_WIND_BAND] ** 2) ** 0.5
+        )
+        logger.info(
+            "Derived ERA5 scalar wind_speed from %s and %s.",
+            ERA5_U_WIND_BAND,
+            ERA5_V_WIND_BAND,
+        )
+        return derived
+
+    def _soil_grid_cache_base_dir(self) -> Path:
+        lat, lon = self.location_coord
+        return (
+            self.cache_dir
+            / SOIL_GRID_CACHE_SCHEMA_VERSION
+            / f"lat_{safe_coord_fragment(lat)}_lon_{safe_coord_fragment(lon)}"
+        )
+
+    def _soil_grid_cache_paths(self) -> tuple[Path, Path]:
+        data_path = self._soil_grid_cache_base_dir() / "soil_grid_snapshot.json"
+        manifest_path = self._soil_grid_cache_base_dir() / "soil_grid_snapshot.json.manifest.json"
+        return data_path, manifest_path
+
+    def _read_soil_grid_cache(self, data_path: Path) -> pd.DataFrame:
+        return pd.read_json(data_path)
+
+    def _write_soil_grid_cache(
+        self,
+        data_path: Path,
+        manifest_path: Path,
+        frame: pd.DataFrame,
+        manifest: dict[str, object],
+    ) -> None:
+        data_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_data = data_path.with_suffix(data_path.suffix + ".part")
+        temp_manifest = manifest_path.with_suffix(manifest_path.suffix + ".part")
+
+        with temp_data.open("w", encoding="utf-8") as handle:
+            handle.write(frame.to_json(orient="records", indent=2))
+        with temp_manifest.open("w", encoding="utf-8") as handle:
+            json.dump(manifest, handle, indent=2)
+
+        os.replace(temp_data, data_path)
+        os.replace(temp_manifest, manifest_path)
+
+    def _soil_grid_manifest(
+        self,
+        frame: pd.DataFrame,
+        stored_variables: list[str],
+    ) -> dict[str, object]:
+        lat, lon = self.location_coord
+        return {
+            "cache_schema_version": SOIL_GRID_CACHE_SCHEMA_VERSION,
+            "dataset": "soil_grid",
+            "lat": normalize_cache_coord(lat),
+            "lon": normalize_cache_coord(lon),
+            "row_count": len(frame),
+            "stored_variables": stored_variables,
+            "columns": list(frame.columns),
+            "complete": not frame.empty,
+        }
+
+    def _load_valid_soil_grid_cache(self) -> pd.DataFrame | None:
+        data_path, manifest_path = self._soil_grid_cache_paths()
+        partial_paths = [
+            data_path.with_suffix(data_path.suffix + ".part"),
+            manifest_path.with_suffix(manifest_path.suffix + ".part"),
+        ]
+        if self.refresh_cache or not data_path.exists() or not manifest_path.exists():
+            return None
+        if any(path.exists() for path in partial_paths):
+            logger.info("Ignoring stale partial soil_grid cache; refetching.")
+            return None
+
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            logger.warning("Soil_grid manifest unreadable; refetching.")
+            return None
+
+        if not manifest.get("complete", False):
+            logger.info("Soil_grid cache incomplete; refetching.")
+            return None
+
+        stored_variables = set(manifest.get("stored_variables") or [])
+        requested_variables = {
+            variable.name for variable in self.variables if hasattr(variable, "name")
+        }
+        if not requested_variables.issubset(stored_variables):
+            logger.info("Soil_grid cache missing requested variables; refetching.")
+            return None
+
+        frame = self._read_soil_grid_cache(data_path)
+        if frame.empty:
+            logger.info("Soil_grid cache empty; refetching.")
+            return None
+        logger.info("Soil_grid cache hit for site lat=%s lon=%s.", *self.location_coord)
+        return frame
+
+    def _static_source_cache_base_dir(self) -> Path:
+        lat, lon = self.location_coord
+        return (
+            self.cache_dir
+            / SOIL_GRID_CACHE_SCHEMA_VERSION
+            / f"lat_{safe_coord_fragment(lat)}_lon_{safe_coord_fragment(lon)}"
+        )
+
+    def _static_source_cache_paths(self) -> tuple[Path, Path]:
+        data_path = self._static_source_cache_base_dir() / "static_snapshot.json"
+        manifest_path = self._static_source_cache_base_dir() / "static_snapshot.json.manifest.json"
+        return data_path, manifest_path
+
+    def _read_static_source_cache(self, data_path: Path) -> pd.DataFrame:
+        return pd.read_json(data_path)
+
+    def _write_static_source_cache(
+        self,
+        data_path: Path,
+        manifest_path: Path,
+        frame: pd.DataFrame,
+        manifest: dict[str, object],
+    ) -> None:
+        data_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_data = data_path.with_suffix(data_path.suffix + ".part")
+        temp_manifest = manifest_path.with_suffix(manifest_path.suffix + ".part")
+
+        with temp_data.open("w", encoding="utf-8") as handle:
+            handle.write(frame.to_json(orient="records", indent=2))
+        with temp_manifest.open("w", encoding="utf-8") as handle:
+            json.dump(manifest, handle, indent=2)
+
+        os.replace(temp_data, data_path)
+        os.replace(temp_manifest, manifest_path)
+
+    def _static_source_manifest(
+        self,
+        frame: pd.DataFrame,
+        stored_columns: list[str],
+    ) -> dict[str, object]:
+        lat, lon = self.location_coord
+        return {
+            "cache_schema_version": SOIL_GRID_CACHE_SCHEMA_VERSION,
+            "dataset": self.source.name,
+            "lat": normalize_cache_coord(lat),
+            "lon": normalize_cache_coord(lon),
+            "row_count": len(frame),
+            "stored_columns": stored_columns,
+            "complete": not frame.empty,
+        }
+
+    def _load_valid_static_source_cache(
+        self,
+        requested_columns: set[str],
+    ) -> pd.DataFrame | None:
+        data_path, manifest_path = self._static_source_cache_paths()
+        partial_paths = [
+            data_path.with_suffix(data_path.suffix + ".part"),
+            manifest_path.with_suffix(manifest_path.suffix + ".part"),
+        ]
+        if self.refresh_cache or not data_path.exists() or not manifest_path.exists():
+            return None
+        if any(path.exists() for path in partial_paths):
+            logger.info("Ignoring stale %s partial cache; refetching.", self.source.name)
+            return None
+
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            logger.warning("%s manifest unreadable; refetching.", self.source.name)
+            return None
+
+        if not manifest.get("complete", False):
+            logger.info("%s cache incomplete; refetching.", self.source.name)
+            return None
+
+        stored_columns = set(manifest.get("stored_columns") or [])
+        if not requested_columns.issubset(stored_columns):
+            logger.info("%s cache missing requested columns; refetching.", self.source.name)
+            return None
+
+        frame = self._read_static_source_cache(data_path)
+        if frame.empty:
+            logger.info("%s cache empty; refetching.", self.source.name)
+            return None
+        logger.info("%s cache hit for site lat=%s lon=%s.", self.source.name, *self.location_coord)
+        return frame
 
     def get_gee_data_static(
         self,
@@ -507,16 +765,19 @@ class DownloadData(models.DataDownloadBase):
 
     def _handle_soil_grid(self, data_settings) -> pd.DataFrame:
         """Handle soil_grid with multiple images."""
+        cached = self._load_valid_soil_grid_cache()
+        if cached is not None:
+            return cached
+
         result_data = {}
+        stored_variables = []
 
-        for variable in self.variables:
-            var_name = variable.name
+        for var_name, gee_image in (
+            data_settings.gee_images.items()
+            if isinstance(data_settings.gee_images, dict)
+            else []
+        ):
 
-            gee_image = (
-                data_settings.gee_images.get(var_name)
-                if isinstance(data_settings.gee_images, dict)
-                else getattr(data_settings.gee_images, var_name, None)
-            )
             if not gee_image:
                 logger.warning(f"No GEE image mapping found for variable '{var_name}'")
                 continue
@@ -537,6 +798,7 @@ class DownloadData(models.DataDownloadBase):
 
                 if not var_data.empty and mapped_col in var_data.columns:
                     result_data[var_name] = var_data[mapped_col].iloc[0]
+                    stored_variables.append(var_name)
                     logger.info(
                         f"Successfully retrieved {var_name}: {result_data[var_name]}"
                     )
@@ -550,7 +812,12 @@ class DownloadData(models.DataDownloadBase):
 
         if result_data:
             logger.info(f"Successfully processed {len(result_data)} soil variables")
-            return pd.DataFrame([result_data])
+            frame = pd.DataFrame([result_data])
+            data_path, manifest_path = self._soil_grid_cache_paths()
+            manifest = self._soil_grid_manifest(frame, stored_variables)
+            self._write_soil_grid_cache(data_path, manifest_path, frame, manifest)
+            logger.info("Saved soil_grid cache to %s", data_path)
+            return frame
         else:
             logger.warning("No soil data successfully retrieved")
             return pd.DataFrame()
@@ -586,11 +853,33 @@ class DownloadData(models.DataDownloadBase):
         # Standard climate data handling
         try:
             if data_settings.cadence == "static":
-                climate_data = self.get_gee_data_static(
-                    image_name=data_settings.gee_image,
-                    location_coord=self.location_coord,
-                    scale=data_settings.resolution,
-                )
+                requested_columns = {
+                    data_settings.variable.get_band(v.name)
+                    for v in self.variables
+                    if hasattr(v, "name") and data_settings.variable.get_band(v.name)
+                }
+                cached_static = self._load_valid_static_source_cache(requested_columns)
+                if cached_static is not None:
+                    climate_data = cached_static
+                else:
+                    climate_data = self.get_gee_data_static(
+                        image_name=data_settings.gee_image,
+                        location_coord=self.location_coord,
+                        scale=data_settings.resolution,
+                    )
+                    if not climate_data.empty:
+                        data_path, manifest_path = self._static_source_cache_paths()
+                        manifest = self._static_source_manifest(
+                            climate_data,
+                            sorted(set(climate_data.columns)),
+                        )
+                        self._write_static_source_cache(
+                            data_path,
+                            manifest_path,
+                            climate_data,
+                            manifest,
+                        )
+                        logger.info("Saved %s cache to %s", self.source.name, data_path)
             elif data_settings.cadence == models.Cadence.monthly.name:
                 climate_data = self.get_gee_data_monthly(
                     image_name=data_settings.gee_image,
@@ -602,11 +891,7 @@ class DownloadData(models.DataDownloadBase):
             else:
                 # Bands we actually need (drops null-mapped variables). For sub-daily sources these restrict the server-side daily
                 # aggregation to a homogeneous, lighter band set; ignored by daily-cadence sources.
-                wanted_bands = [
-                    b for b in (data_settings.variable.get_band(v.name)
-                                for v in self.variables)
-                    if b
-                ]
+                wanted_bands = self._requested_fetch_bands(data_settings)
                 climate_data = self.get_gee_data_daily(
                     image_name=data_settings.gee_image,
                     location_coord=self.location_coord,
@@ -623,20 +908,24 @@ class DownloadData(models.DataDownloadBase):
             logger.warning("No data retrieved from GEE")
             return pd.DataFrame()
 
+        climate_data = self._derive_era5_wind_speed(climate_data)
+
         # Map columns to variable names
         dataset_cols = list(climate_data.columns)
         req_vars = [v.name for v in self.variables]
 
         available_cols = []
         missing_vars = []
+        requested_output_columns = self._requested_output_columns(data_settings)
 
-        for v in self.variables:
-            mapped_col = data_settings.variable.get_band(v.name)
-            if mapped_col and mapped_col in climate_data.columns:
-                available_cols.append(mapped_col)
+        for output_col in requested_output_columns:
+            if output_col in climate_data.columns:
+                available_cols.append(output_col)
             else:
-                logger.warning(f"{self.source.name.upper()} does not have {v.name} data")
-                missing_vars.append(v.name)
+                logger.warning(
+                    f"{self.source.name.upper()} does not have requested output column '{output_col}'"
+                )
+                missing_vars.append(output_col)
 
         logger.info(f"Available columns: {dataset_cols}")
         logger.info(f"Requested variables: {req_vars}")

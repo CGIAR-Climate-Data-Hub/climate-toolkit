@@ -18,6 +18,8 @@ era_5:
     precipitation: total_precipitation
     max_temperature: maximum_2m_air_temperature
     min_temperature: minimum_2m_air_temperature
+    # ERA5 Daily exposes u/v 10 m wind components, not a scalar wind-speed band.
+    # Runtime fetches both components and derives wind_speed = sqrt(u^2 + v^2).
     wind_speed: u_component_of_wind_10m
     solar_radiation: null
     soil_moisture: null
@@ -89,7 +91,7 @@ chirts:
     solar_radiation: null
     soil_moisture: null
 
-chirps:
+chirps_v2:
   gee_image: UCSB-CHG/CHIRPS/DAILY
   resolution: 5566
   variable:
@@ -169,9 +171,12 @@ tamsat:
 
 soil_grid:
   gee_images:
+    coarse_fragments: projects/soilgrids-isric/cfvo_mean
     clay_content: OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02
     sand_content: OpenLandMap/SOL/SOL_SAND-WFRACTION_USDA-3A1A1A_M/v02
     silt_content: projects/soilgrids-isric/silt_mean
+    field_capacity: projects/soilgrids-isric/wv0033
+    wilting_point: projects/soilgrids-isric/wv1500
     bulk_density: OpenLandMap/SOL/SOL_BULKDENS-FINEEARTH_USDA-4A1H_M/v02
     ph: OpenLandMap/SOL/SOL_PH-H2O_USDA-4C1A2A_M/v02
     organic_carbon: OpenLandMap/SOL/SOL_ORGANIC-CARBON_USDA-6A1C_M/v02
@@ -179,12 +184,34 @@ soil_grid:
   cadence: static
   resolution: 250
   variable:
+    coarse_fragments: cfvo_0-5cm_mean
     clay_content: b0
     sand_content: b0
     silt_content: silt_0-5cm_mean
+    field_capacity: wv0033_0-5cm_mean
+    wilting_point: wv1500_0-5cm_mean
     bulk_density: b0
     ph: b0
     organic_carbon: b0
     cation_exchange_capacity: cec_0-5cm_mean
+    organic_carbon_stock: null
+    soil_moisture: null
+
+hwsd:
+  gee_image: projects/sat-io/open-datasets/FAO/HWSD_V2_SMU
+  cadence: static
+  resolution: 1000
+  variable:
+    root_depth: ROOT_DEPTH
+    available_water_capacity: AWC
+    drainage: DRAINAGE
+    bulk_density: BULK_DENSITY
+    field_capacity: null
+    clay_content: null
+    sand_content: null
+    silt_content: null
+    ph: null
+    organic_carbon: null
+    cation_exchange_capacity: null
     organic_carbon_stock: null
     soil_moisture: null

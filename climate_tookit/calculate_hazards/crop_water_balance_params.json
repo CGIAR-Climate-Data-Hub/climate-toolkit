@@ -1,0 +1,58 @@
+{
+  "Beans": {
+    "kc_init": 0.5,
+    "kc_mid": 1.15,
+    "kc_end": 0.35,
+    "root_depth_m": 0.6,
+    "depletion_fraction_p": 0.45,
+    "source_doc": "FAO-56 starter default"
+  },
+  "Maize": {
+    "kc_init": 0.3,
+    "kc_mid": 1.2,
+    "kc_end": 0.6,
+    "root_depth_m": 1.5,
+    "depletion_fraction_p": 0.55,
+    "source_doc": "FAO-56 starter default"
+  },
+  "Millet": {
+    "kc_init": 0.3,
+    "kc_mid": 1.0,
+    "kc_end": 0.45,
+    "root_depth_m": 1.2,
+    "depletion_fraction_p": 0.55,
+    "source_doc": "FAO-56 starter default"
+  },
+  "Groundnuts": {
+    "kc_init": 0.4,
+    "kc_mid": 1.15,
+    "kc_end": 0.6,
+    "root_depth_m": 0.7,
+    "depletion_fraction_p": 0.5,
+    "source_doc": "FAO-56 starter default"
+  },
+  "Sorghum": {
+    "kc_init": 0.35,
+    "kc_mid": 1.05,
+    "kc_end": 0.55,
+    "root_depth_m": 1.5,
+    "depletion_fraction_p": 0.55,
+    "source_doc": "FAO-56 starter default"
+  },
+  "Cassava": {
+    "kc_init": 0.45,
+    "kc_mid": 1.1,
+    "kc_end": 0.8,
+    "root_depth_m": 1.2,
+    "depletion_fraction_p": 0.5,
+    "source_doc": "FAO-56 starter default"
+  },
+  "Rice": {
+    "kc_init": 1.05,
+    "kc_mid": 1.2,
+    "kc_end": 0.9,
+    "root_depth_m": 0.5,
+    "depletion_fraction_p": 0.2,
+    "source_doc": "FAO-56 starter default"
+  }
+}

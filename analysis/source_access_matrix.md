@@ -31,7 +31,7 @@ Key observation:
 | `tamsat` | direct JASMIN daily NetCDF download | Partly, but parked | No | Maybe technically, but not product-ready | Team already treating as deprecated / future inclusion | Mark unsupported / experimental for now |
 | `nex_gddp` | synthetic placeholder module | No | No | Not meaningful | Current tests earlier in session hit this path, not live NEX | Do not present as real data source |
 | `nex_gddp_xee` | Xee + Earth Engine PoC | Intended yes, not live-validated here | Yes | No | R&D only | Keep backend/operator R&D only |
-| `chirps` | shared Earth Engine downloader | Yes if EE works | Yes | No | Advertised as standard source, but local setup burden hidden | Either document burden or build direct non-GEE backend |
+| `chirps_v2` | shared Earth Engine downloader | Yes if EE works | Yes | No | Advertised as standard source, but local setup burden hidden | Either document burden or build direct non-GEE backend |
 | `chirts` | shared Earth Engine downloader | Yes if EE works | Yes | No | Same issue as CHIRPS | Same |
 | `agera_5` | shared Earth Engine downloader | Yes if EE works | Yes | No | Same issue | Same |
 | `era_5` | shared Earth Engine downloader | Yes if EE works | Yes | No | Despite separate `era_5.py`, normal dispatch does not use CDS client | Decide: explicit `era_5_gee` vs real CDS-backed local path |
@@ -62,7 +62,7 @@ Key observation:
 ### Local-advanced
 
 - Earth Engine-backed sources requiring auth + project ID
-- `chirps`, `chirts`, `agera_5`, `era_5`, `imerg`, `terraclimate`,
+- `chirps_v2`, `chirts`, `agera_5`, `era_5`, `imerg`, `terraclimate`,
   `soil_grid`, `cmip_6`
 - future real `nex_gddp` if kept local
 

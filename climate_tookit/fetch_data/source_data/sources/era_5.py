@@ -5,7 +5,7 @@ authoritative ERA5 entry point so runtime dispatch, import surface, and setup
 expectations stay aligned.
 """
 
-from .gee import DownloadData as _GeeDownloadData
+from .gee_xee import DownloadData as _GeeDownloadData
 
 
 class DownloadData(_GeeDownloadData):

@@ -36,7 +36,10 @@ try:
         add_et0,
         DEFAULT_SOILCP,
         DEFAULT_SOILSAT,
+        DEFAULT_SPINUP_DAYS,
         resolve_thresholds,
+        resolve_crop_water_balance_params,
+        _shift_iso_date,
     )
 except ImportError:
     try:
@@ -51,7 +54,10 @@ except ImportError:
             add_et0,
             DEFAULT_SOILCP,
             DEFAULT_SOILSAT,
+            DEFAULT_SPINUP_DAYS,
             resolve_thresholds,
+            resolve_crop_water_balance_params,
+            _shift_iso_date,
         )
     except ImportError:
         HERE = os.path.dirname(os.path.abspath(__file__))
@@ -68,7 +74,10 @@ except ImportError:
             add_et0,
             DEFAULT_SOILCP,
             DEFAULT_SOILSAT,
+            DEFAULT_SPINUP_DAYS,
             resolve_thresholds,
+            resolve_crop_water_balance_params,
+            _shift_iso_date,
         )
 
 PREPROCESS_AVAILABLE = False
@@ -266,8 +275,21 @@ def _evaluate(crop: str, lat: float, lon: float,
               soilcp: float = DEFAULT_SOILCP,
               soilsat: float = DEFAULT_SOILSAT) -> Dict:
     """hazards.py-style assessment for a single window using NEX-GDDP."""
-    df    = _fetch(lat, lon, w['start'], w['end'], model, scenario)
-    stats = calculate_season_statistics(df, soilcp=soilcp, soilsat=soilsat)
+    crop_params = resolve_crop_water_balance_params(crop.capitalize())
+    fetch_start = _shift_iso_date(w['start'], -DEFAULT_SPINUP_DAYS)
+    df = _fetch(lat, lon, fetch_start, w['end'], model, scenario)
+    stats = calculate_season_statistics(
+        df,
+        soilcp=soilcp,
+        soilsat=soilsat,
+        kc=float(crop_params.get("kc_mid", 1.0)),
+        kc_init=float(crop_params.get("kc_init", crop_params.get("kc_mid", 1.0))),
+        kc_mid=float(crop_params.get("kc_mid", 1.0)),
+        kc_end=float(crop_params.get("kc_end", crop_params.get("kc_mid", 1.0))),
+        depletion_fraction_p=float(crop_params.get("depletion_fraction_p", 0.5)),
+        analysis_start=w['start'],
+        analysis_end=w['end'],
+    )
     hazards = evaluate_hazard_metrics(stats, thresholds)
     length = (
         datetime.fromisoformat(w['end'])

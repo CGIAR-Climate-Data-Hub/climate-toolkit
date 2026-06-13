@@ -7,13 +7,35 @@ import argparse
 import sys
 from datetime import datetime, date
 from .sources.gee import DownloadData as DownloadGEE
+from .sources.gee_xee import DownloadData as DownloadGEEXee
 from .sources.agera_5 import DownloadData as DownloadAgera5
 from .sources.era_5 import DownloadData as DownloadERA5
 from .sources.tamsat import DownloadTAMSAT
 from .sources.nasa_power import DownloadData as DownloadNASA
 from .sources.nex_gddp import DownloadData as DownloadNEXGDDP
-from .sources.utils.models import ClimateDataset, ClimateVariable, SoilVariable, Location
+from .sources.utils.models import (
+    ClimateDataset,
+    ClimateVariable,
+    SoilVariable,
+    Location,
+)
 from .sources.utils.settings import Settings
+
+XEE_SINGLE_SITE_SOURCES = (
+    ClimateDataset.era_5,
+    ClimateDataset.agera_5,
+    ClimateDataset.terraclimate,
+    ClimateDataset.imerg,
+    ClimateDataset.chirps_v2,
+    ClimateDataset.chirps_v3_daily_rnl,
+    ClimateDataset.cmip_6,
+    ClimateDataset.chirts,
+)
+
+STATIC_GEE_SOURCES = (
+    ClimateDataset.soil_grid,
+    ClimateDataset.hwsd,
+)
 
 
 class SourceData:
@@ -59,7 +81,10 @@ class SourceData:
                 date_from_utc=date_from_utc,
                 date_to_utc=date_to_utc,
                 settings=settings,
-                source=source
+                source=source,
+                verbose=verbose,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
             )
         elif source == ClimateDataset.agera_5:
             client = DownloadAgera5(
@@ -68,24 +93,33 @@ class SourceData:
                 date_from_utc=date_from_utc,
                 date_to_utc=date_to_utc,
                 settings=settings,
-                source=source
+                source=source,
+                verbose=verbose,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
             )
-        elif source in (
-            ClimateDataset.terraclimate,
-            ClimateDataset.imerg,
-            ClimateDataset.chirps,
-            ClimateDataset.chirps_v3_daily_rnl,
-            ClimateDataset.cmip_6,
-            ClimateDataset.chirts,
-            ClimateDataset.soil_grid,
-        ):
+        elif source in XEE_SINGLE_SITE_SOURCES:
+            client = DownloadGEEXee(
+                variables=variables,
+                location_coord=location_coord,
+                date_from_utc=date_from_utc,
+                date_to_utc=date_to_utc,
+                settings=settings,
+                source=source,
+                verbose=verbose,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
+            )
+        elif source in STATIC_GEE_SOURCES:
             client = DownloadGEE(
                 variables=variables,
                 location_coord=location_coord,
                 date_from_utc=date_from_utc,
                 date_to_utc=date_to_utc,
                 settings=settings,
-                source=source
+                source=source,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
             )
         elif source == ClimateDataset.tamsat:
             client = DownloadTAMSAT(
@@ -208,7 +242,7 @@ if __name__ == "__main__":
 # python .\climate_tookit\fetch_data\source_data\source_data.py --source nex_gddp --variables precipitation,max_temperature,min_temperature --from 2050-01-01 --to 2050-01-10 --lon 36.817 --lat -1.286 --model GFDL-ESM4 --scenario ssp245
 
 # For other sources
-# python .\climate_tookit\fetch_data\source_data\source_data.py --source chirps --variables precipitation,max_temperature,min_temperature,soil_moisture,bulk_density,wind_speed,solar_radiation,humidity,ph,silt_content,clay_content --from 2020-01-01 --to 2020-01-10 --lon 36.817 --lat -1.286
+# python .\climate_tookit\fetch_data\source_data\source_data.py --source chirps_v2 --variables precipitation,max_temperature,min_temperature,soil_moisture,bulk_density,wind_speed,solar_radiation,humidity,ph,silt_content,clay_content --from 2020-01-01 --to 2020-01-10 --lon 36.817 --lat -1.286
 
 # Download data in csv
 # For nex_gddp with different models and scenarios

@@ -14,7 +14,8 @@ Dependencies: pandas, season_analysis.seasons module
 import sys
 import os
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from functools import lru_cache
 from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
 import json
@@ -26,6 +27,22 @@ project_root = os.path.dirname(parent_dir)
 
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
+CROP_WATER_BALANCE_PARAMS_PATH = os.path.join(
+    current_dir,
+    "crop_water_balance_params.json",
+)
+
+DEFAULT_SPINUP_DAYS = 60
+DEFAULT_DEPLETION_FRACTION_P = 0.5
+DEFAULT_KC_PARAMS = {
+    "kc_init": 0.7,
+    "kc_mid": 1.0,
+    "kc_end": 0.8,
+    "root_depth_m": 1.0,
+    "depletion_fraction_p": DEFAULT_DEPLETION_FRACTION_P,
+    "source_doc": "generic fallback",
+}
 
 SEASON_ANALYSIS_AVAILABLE = False
 _IMPORT_ERROR: str = ""
@@ -76,6 +93,11 @@ CROP_THRESHOLDS = {
     },
 }
 
+# Starter crop water-balance defaults.
+# Source basis:
+# - FAO-56 Crop evapotranspiration guidance for Kc / rooting-depth methodology
+# - conservative agronomic defaults for these crop classes pending crop-by-crop
+#   line-level FAO/AquaCrop validation in package docs
 # Generic hazard-index thresholds from Adaptation Atlas hazard definitions wiki.
 ATLAS_HAZARD_INDEX_THRESHOLDS = {
     'NDD': {
@@ -200,8 +222,450 @@ def load_custom_thresholds_file(path: Optional[str]) -> Optional[Dict[str, Dict[
         raise ValueError("Threshold override file must contain a JSON object keyed by metric name.")
     return data
 
+
+@lru_cache(maxsize=4)
+def load_crop_water_balance_params(path: str = CROP_WATER_BALANCE_PARAMS_PATH) -> Dict[str, Dict[str, Any]]:
+    with open(path, "r", encoding="utf-8") as handle:
+        data = json.load(handle)
+    if not isinstance(data, dict):
+        raise ValueError("Crop water-balance params file must contain a JSON object keyed by crop name.")
+    return data
+
+
+def resolve_crop_water_balance_params(
+    crop_name: str,
+    params_path: str = CROP_WATER_BALANCE_PARAMS_PATH,
+) -> Dict[str, Any]:
+    params = load_crop_water_balance_params(params_path).get(crop_name)
+    if not params:
+        fallback = deepcopy(DEFAULT_KC_PARAMS)
+        fallback["warning"] = (
+            f"No crop water-balance params found for {crop_name}; using generic defaults."
+        )
+        return fallback
+    return deepcopy(params)
+
 def _percent_change(diff: float, baseline: float) -> float:
     return (diff / abs(baseline) * 100.0) if baseline != 0 else 0.0
+
+
+def _validate_source_window(source: str, end_year: int) -> None:
+    source_lc = (source or 'auto').lower()
+    if source_lc in {'chirps+chirts', 'chirps_v2+chirts'} and end_year > 2016:
+        raise ValueError(
+            "chirps_v2+chirts is unavailable for this window because CHIRTS daily "
+            "temperature currently ends in 2016. Use agera_5, era_5, or "
+            "--source auto (default CHIRPS v3 Daily RNL + AgERA5) for newer periods."
+        )
+
+
+def _extract_detection_errors(annual_dict: Dict[int, Dict[str, Any]]) -> List[str]:
+    errors: List[str] = []
+    for annual_info in (annual_dict or {}).values():
+        if not isinstance(annual_info, dict):
+            continue
+        message = annual_info.get('error')
+        if message and message not in errors:
+            errors.append(message)
+    return errors
+
+
+def _shift_iso_date(date_str: str, days: int) -> str:
+    return (datetime.fromisoformat(date_str) + timedelta(days=days)).strftime("%Y-%m-%d")
+
+
+def _prefetched_window_covers(
+    df: Optional[pd.DataFrame],
+    required_start: str,
+    required_end: str,
+) -> bool:
+    if df is None or df.empty or "date" not in df.columns:
+        return False
+    dates = pd.to_datetime(df["date"])
+    return dates.min() <= pd.Timestamp(required_start) and dates.max() >= pd.Timestamp(required_end)
+
+
+def _slice_prefetched_window(
+    df: Optional[pd.DataFrame],
+    required_start: str,
+    required_end: str,
+) -> Optional[pd.DataFrame]:
+    if not _prefetched_window_covers(df, required_start, required_end):
+        return None
+    sliced = df.copy()
+    sliced["date"] = pd.to_datetime(sliced["date"])
+    return (
+        sliced[
+            (sliced["date"] >= pd.Timestamp(required_start)) &
+            (sliced["date"] <= pd.Timestamp(required_end))
+        ]
+        .copy()
+        .reset_index(drop=True)
+    )
+
+
+def _allocate_stage_lengths(total_days: int) -> Tuple[int, int, int, int]:
+    if total_days <= 0:
+        return (0, 0, 0, 0)
+    weights = (0.2, 0.3, 0.3, 0.2)
+    raw = [total_days * weight for weight in weights]
+    counts = [int(value) for value in raw]
+    remaining = total_days - sum(counts)
+    remainders = sorted(
+        enumerate(value - int(value) for value in raw),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    for idx, _ in remainders[:remaining]:
+        counts[idx] += 1
+    return tuple(counts)
+
+
+def _build_daily_kc_series(
+    total_days: int,
+    *,
+    kc_init: float,
+    kc_mid: float,
+    kc_end: float,
+) -> List[float]:
+    if total_days <= 0:
+        return []
+    if total_days == 1:
+        return [float(kc_mid)]
+
+    init_days, dev_days, mid_days, late_days = _allocate_stage_lengths(total_days)
+    values: List[float] = []
+    values.extend([float(kc_init)] * init_days)
+    if dev_days > 0:
+        values.extend(
+            float(kc_init + (kc_mid - kc_init) * ((idx + 1) / dev_days))
+            for idx in range(dev_days)
+        )
+    values.extend([float(kc_mid)] * mid_days)
+    if late_days > 0:
+        values.extend(
+            float(kc_mid + (kc_end - kc_mid) * ((idx + 1) / late_days))
+            for idx in range(late_days)
+        )
+    if len(values) < total_days:
+        values.extend([float(kc_end)] * (total_days - len(values)))
+    return values[:total_days]
+
+
+def _build_aligned_kc_series(
+    dates: pd.Series,
+    *,
+    analysis_start: Optional[str],
+    analysis_end: Optional[str],
+    default_kc: float,
+    kc_init: Optional[float],
+    kc_mid: Optional[float],
+    kc_end: Optional[float],
+    preseason_kc: float = 0.0,
+) -> List[float]:
+    if kc_init is None and kc_mid is None and kc_end is None:
+        return [float(default_kc)] * len(dates)
+
+    start_ts = pd.Timestamp(analysis_start) if analysis_start else None
+    end_ts = pd.Timestamp(analysis_end) if analysis_end else None
+    if start_ts is None and end_ts is None:
+        return _build_daily_kc_series(
+            len(dates),
+            kc_init=float(default_kc if kc_init is None else kc_init),
+            kc_mid=float(default_kc if kc_mid is None else kc_mid),
+            kc_end=float(default_kc if kc_end is None else kc_end),
+        )
+
+    if start_ts is None:
+        start_ts = dates.min()
+    if end_ts is None:
+        end_ts = dates.max()
+
+    in_window = (dates >= start_ts) & (dates <= end_ts)
+    window_len = int(in_window.sum())
+    window_series = _build_daily_kc_series(
+        window_len,
+        kc_init=float(default_kc if kc_init is None else kc_init),
+        kc_mid=float(default_kc if kc_mid is None else kc_mid),
+        kc_end=float(default_kc if kc_end is None else kc_end),
+    )
+
+    kc_series = [float(preseason_kc)] * len(dates)
+    window_idx = 0
+    for idx, inside in enumerate(in_window.to_list()):
+        if inside:
+            kc_series[idx] = window_series[window_idx]
+            window_idx += 1
+    return kc_series
+
+
+def _soil_grid_date_anchor() -> Tuple[str, str]:
+    # soil_grid is static, but the fetch layer still expects a valid date window
+    return ("2000-01-01", "2000-01-01")
+
+
+def _normalize_percent_like(value: Any) -> Optional[float]:
+    if value is None or pd.isna(value):
+        return None
+    numeric = float(value)
+    if numeric <= 0:
+        return None
+    if numeric <= 1:
+        return numeric
+    if numeric <= 100:
+        return numeric / 100.0
+    if numeric <= 1000:
+        return numeric / 1000.0
+    return None
+
+
+def _normalize_bulk_density_like(value: Any) -> Optional[float]:
+    if value is None or pd.isna(value):
+        return None
+    numeric = float(value)
+    if numeric <= 0:
+        return None
+    if numeric <= 3.0:
+        return numeric
+    if numeric <= 30.0:
+        return numeric / 10.0
+    if numeric <= 300.0:
+        return numeric / 100.0
+    if numeric <= 3000.0:
+        return numeric / 1000.0
+    return None
+
+
+def _coerce_optional_float(value: Any) -> Optional[float]:
+    if value is None or pd.isna(value):
+        return None
+    return float(value)
+
+
+def _normalize_root_depth_like(value: Any) -> Optional[float]:
+    if value is None or pd.isna(value):
+        return None
+    numeric = float(value)
+    if numeric <= 0:
+        return None
+    if numeric <= 5:
+        return numeric
+    if numeric <= 300:
+        return numeric / 100.0
+    if numeric <= 3000:
+        return numeric / 1000.0
+    return None
+
+
+def _normalize_coarse_fragments_like(value: Any) -> Optional[float]:
+    return _normalize_percent_like(value)
+
+
+@lru_cache(maxsize=128)
+def _fetch_soil_grid_snapshot(lat: float, lon: float) -> Dict[str, Any]:
+    from climate_tookit.fetch_data import fetch_data
+    from climate_tookit.fetch_data.source_data.sources.utils.models import SoilVariable
+
+    start_date, end_date = _soil_grid_date_anchor()
+    soil_df = fetch_data(
+        source="soil_grid",
+        location_coord=(lat, lon),
+        variables=[
+            SoilVariable.bulk_density,
+            SoilVariable.coarse_fragments,
+            SoilVariable.field_capacity,
+            SoilVariable.wilting_point,
+            SoilVariable.clay_content,
+            SoilVariable.sand_content,
+            SoilVariable.organic_carbon,
+        ],
+        date_from=date.fromisoformat(start_date),
+        date_to=date.fromisoformat(end_date),
+        stage="transformed",
+        verbose=False,
+    )
+    if soil_df is None or soil_df.empty:
+        return {}
+    return soil_df.iloc[0].to_dict()
+
+
+@lru_cache(maxsize=128)
+def _fetch_hwsd_snapshot(lat: float, lon: float) -> Dict[str, Any]:
+    from climate_tookit.fetch_data import fetch_data
+    from climate_tookit.fetch_data.source_data.sources.utils.models import SoilVariable
+
+    start_date, end_date = _soil_grid_date_anchor()
+    hwsd_df = fetch_data(
+        source="hwsd",
+        location_coord=(lat, lon),
+        variables=[
+            SoilVariable.root_depth,
+            SoilVariable.available_water_capacity,
+            SoilVariable.drainage,
+            SoilVariable.bulk_density,
+        ],
+        date_from=date.fromisoformat(start_date),
+        date_to=date.fromisoformat(end_date),
+        stage="transformed",
+        verbose=False,
+    )
+    if hwsd_df is None or hwsd_df.empty:
+        return {}
+    return hwsd_df.iloc[0].to_dict()
+
+
+def _derive_soil_storage_params_from_row(
+    row: Dict[str, Any],
+    *,
+    root_depth_row: Optional[Dict[str, Any]] = None,
+    crop_root_depth_m: Optional[float] = None,
+) -> Optional[Dict[str, Any]]:
+    field_capacity = _normalize_percent_like(row.get("soil_field_capacity"))
+    wilting_point = _normalize_percent_like(row.get("soil_wilting_point"))
+    bulk_density = _normalize_bulk_density_like(row.get("soil_bulk_density"))
+    coarse_fragments = _normalize_coarse_fragments_like(row.get("soil_coarse_fragments"))
+    clay_content = _normalize_percent_like(row.get("soil_clay_content"))
+    sand_content = _normalize_percent_like(row.get("soil_sand_content"))
+    organic_carbon = _normalize_percent_like(row.get("soil_organic_carbon"))
+    site_root_depth = _normalize_root_depth_like((root_depth_row or {}).get("soil_root_depth"))
+    available_water_capacity = _coerce_optional_float(
+        (root_depth_row or {}).get("soil_available_water_capacity")
+    )
+    drainage = _coerce_optional_float((root_depth_row or {}).get("soil_drainage"))
+
+    if field_capacity is None:
+        texture_bonus = 0.0
+        if clay_content is not None:
+            texture_bonus += 0.20 * clay_content
+        if sand_content is not None:
+            texture_bonus -= 0.10 * sand_content
+        if organic_carbon is not None:
+            texture_bonus += 0.10 * organic_carbon
+        field_capacity = min(max(0.10 + texture_bonus, 0.05), 0.60)
+    if wilting_point is None and field_capacity is not None:
+        wilting_point = min(max(field_capacity * 0.4, 0.02), field_capacity - 0.01)
+
+    porosity = None
+    if bulk_density is not None:
+        porosity = min(max(1.0 - (bulk_density / 2.65), 0.20), 0.70)
+
+    saturation_excess = None
+    if porosity is not None and field_capacity is not None:
+        saturation_excess = max(porosity - field_capacity, 0.05)
+    elif field_capacity is not None:
+        saturation_excess = max(0.45 - field_capacity, 0.05)
+
+    if field_capacity is None or saturation_excess is None:
+        return None
+
+    crop_root_depth = _coerce_optional_float(crop_root_depth_m)
+    if site_root_depth is not None and crop_root_depth is not None:
+        effective_root_depth = min(site_root_depth, crop_root_depth)
+        root_depth_source = "min(crop_default,hwsd)"
+    elif site_root_depth is not None:
+        effective_root_depth = site_root_depth
+        root_depth_source = "hwsd"
+    elif crop_root_depth is not None:
+        effective_root_depth = crop_root_depth
+        root_depth_source = "crop_default"
+    else:
+        effective_root_depth = 1.0
+        root_depth_source = "default_1m"
+
+    root_depth_factor = min(max(effective_root_depth, 0.25), 2.0)
+    coarse_fragment_factor = 1.0 - min(max(coarse_fragments or 0.0, 0.0), 0.9)
+
+    taw_mm = None
+    if field_capacity is not None and wilting_point is not None and field_capacity > wilting_point:
+        taw_mm = 1000.0 * (field_capacity - wilting_point) * effective_root_depth * coarse_fragment_factor
+
+    saturation_storage_mm = None
+    if porosity is not None and field_capacity is not None and porosity > field_capacity:
+        saturation_storage_mm = 1000.0 * (porosity - field_capacity) * effective_root_depth * coarse_fragment_factor
+
+    if taw_mm is not None:
+        soilcp = min(max(taw_mm, 25.0), 400.0)
+        soilcp_source = "taw"
+    else:
+        soilcp = min(max(DEFAULT_SOILCP * (field_capacity / 0.30) * root_depth_factor, 25.0), 400.0)
+        soilcp_source = "heuristic"
+
+    if saturation_storage_mm is not None:
+        soilsat = min(max(saturation_storage_mm, 20.0), 300.0)
+        soilsat_source = "saturation_storage"
+    else:
+        soilsat = min(max(DEFAULT_SOILSAT * (saturation_excess / 0.15) * root_depth_factor, 20.0), 300.0)
+        soilsat_source = "heuristic"
+
+    return {
+        "soilcp": round(soilcp, 2),
+        "soilsat": round(soilsat, 2),
+        "source": "soil_grid_scaled_hwsd_root_depth",
+        "soilcp_source": soilcp_source,
+        "soilsat_source": soilsat_source,
+        "field_capacity_fraction": round(field_capacity, 4),
+        "wilting_point_fraction": round(wilting_point, 4) if wilting_point is not None else None,
+        "saturation_excess_fraction": round(saturation_excess, 4),
+        "bulk_density_g_cm3": _coerce_optional_float(bulk_density),
+        "soil_coarse_fragments_fraction": _coerce_optional_float(coarse_fragments),
+        "soil_clay_fraction": _coerce_optional_float(clay_content),
+        "soil_sand_fraction": _coerce_optional_float(sand_content),
+        "soil_organic_carbon_fraction": _coerce_optional_float(organic_carbon),
+        "crop_root_depth_m": crop_root_depth,
+        "site_root_depth_m": _coerce_optional_float(site_root_depth),
+        "root_depth_m": _coerce_optional_float(effective_root_depth),
+        "root_depth_source": root_depth_source,
+        "taw_mm": round(taw_mm, 2) if taw_mm is not None else None,
+        "saturation_storage_mm": round(saturation_storage_mm, 2) if saturation_storage_mm is not None else None,
+        "soil_available_water_capacity_mm_m": available_water_capacity,
+        "soil_drainage_class": drainage,
+    }
+
+
+def _resolve_soil_storage_params(
+    lat: float,
+    lon: float,
+    soilcp: float,
+    soilsat: float,
+    crop_root_depth_m: Optional[float] = None,
+) -> Dict[str, Any]:
+    if soilcp != DEFAULT_SOILCP or soilsat != DEFAULT_SOILSAT:
+        return {
+            "soilcp": float(soilcp),
+            "soilsat": float(soilsat),
+            "source": "user_provided",
+        }
+
+    try:
+        soil_row = _fetch_soil_grid_snapshot(round(lat, 5), round(lon, 5))
+    except Exception as exc:
+        return {
+            "soilcp": float(soilcp),
+            "soilsat": float(soilsat),
+            "source": "default_fallback",
+            "warning": f"soil_grid lookup failed: {exc}",
+        }
+
+    try:
+        root_depth_row = _fetch_hwsd_snapshot(round(lat, 5), round(lon, 5))
+    except Exception as exc:
+        root_depth_row = {"root_depth_warning": f"hwsd lookup failed: {exc}"}
+
+    derived = _derive_soil_storage_params_from_row(
+        soil_row,
+        root_depth_row=root_depth_row,
+        crop_root_depth_m=crop_root_depth_m,
+    )
+    if not derived:
+        return {
+            "soilcp": float(soilcp),
+            "soilsat": float(soilsat),
+            "source": "default_fallback",
+            "warning": "soil_grid lookup returned insufficient values; using defaults",
+        }
+    if root_depth_row.get("root_depth_warning"):
+        derived["root_depth_warning"] = root_depth_row["root_depth_warning"]
+    return derived
 
 # Climate data helpers
 def get_climate_data_for_season(
@@ -308,11 +772,22 @@ def calc_water_balance(
     soilsat: float = DEFAULT_SOILSAT,
     kc:      float = 1.0,
     init_avail: float = 0.0,
+    kc_init: Optional[float] = None,
+    kc_mid: Optional[float] = None,
+    kc_end: Optional[float] = None,
+    depletion_fraction_p: float = DEFAULT_DEPLETION_FRACTION_P,
+    analysis_start: Optional[str] = None,
+    analysis_end: Optional[str] = None,
+    preseason_kc: float = 0.0,
 ) -> pd.DataFrame:
     """
-    Run the day-by-day soil water balance used by the Adaptation Atlas (CIAT ERA_dev / AdaptationAtlas/hazards). Returns the input frame with
-    per-day columns: ERATIO (actual/potential ET ratio), LOGGING (water above field capacity, mm) and RUNOFF (water above saturation, mm).
-    PET is taken from the Hargreaves ET0 column ('ET0_mm_day'); actual crop demand is ERATIO * kc * PET.
+    Run a day-by-day root-zone water balance with TAW/RAW style depletion.
+    `soilcp` is treated as total available water (TAW, mm) and `soilsat` as
+    excess storage above field capacity before runoff (mm). Returns the input
+    frame with per-day columns including ERATIO (stress coefficient / AET:PET
+    ratio relative to crop demand), LOGGING, RUNOFF, Kc, and available soil
+    water. PET is taken from `ET0_mm_day`; actual crop demand is
+    ERATIO * Kc * PET.
     """
     precip_col = next(
         (c for c in ['precipitation', 'precip', 'total_precipitation'] if c in df.columns),
@@ -325,18 +800,46 @@ def calc_water_balance(
         out['RUNOFF']  = pd.NA
         return out
 
+    if 'date' in out.columns:
+        out['date'] = pd.to_datetime(out['date'])
     rain = out[precip_col].fillna(0).to_numpy()
     pet  = out['ET0_mm_day'].fillna(0).to_numpy()
+    if 'date' in out.columns:
+        kc_series = _build_aligned_kc_series(
+            out['date'],
+            analysis_start=analysis_start,
+            analysis_end=analysis_end,
+            default_kc=float(kc),
+            kc_init=kc_init,
+            kc_mid=kc_mid,
+            kc_end=kc_end,
+            preseason_kc=preseason_kc,
+        )
+    else:
+        if kc_init is not None or kc_mid is not None or kc_end is not None:
+            kc_series = _build_daily_kc_series(
+                len(out),
+                kc_init=float(kc if kc_init is None else kc_init),
+                kc_mid=float(kc if kc_mid is None else kc_mid),
+                kc_end=float(kc if kc_end is None else kc_end),
+            )
+        else:
+            kc_series = [float(kc)] * len(out)
+    depletion_fraction_p = min(max(float(depletion_fraction_p), 0.05), 0.95)
 
-    eratios, loggings, runoffs = [], [], []
-    avail = float(init_avail)
-    denom = 97.0 - 3.868 * (soilcp ** 0.5)
-    for r, e in zip(rain, pet):
-        avail = min(avail, soilcp)
-        percwt = min(avail / soilcp * 100.0, 100.0) if soilcp > 0 else 1.0
-        percwt = max(percwt, 1.0)
-        eratio = min(percwt / denom, 1.0) if denom > 0 else 1.0
-        demand = eratio * kc * float(e)
+    eratios, loggings, runoffs, availabilities, depletions = [], [], [], [], []
+    avail = min(max(float(init_avail), 0.0), float(soilcp))
+    raw_mm = float(soilcp) * depletion_fraction_p
+    critical_band = max((1.0 - depletion_fraction_p) * float(soilcp), 1e-6)
+    for r, e, kc_day in zip(rain, pet, kc_series):
+        avail = min(max(avail, 0.0), float(soilcp))
+        depletion = max(float(soilcp) - avail, 0.0)
+        if depletion <= raw_mm:
+            eratio = 1.0
+        else:
+            eratio = max(avail / critical_band, 0.0)
+        eratio = min(eratio, 1.0)
+        demand = eratio * float(kc_day) * float(e)
 
         result  = avail + float(r) - demand
         logging = min(max(result - soilcp, 0.0), soilsat)
@@ -346,10 +849,16 @@ def calc_water_balance(
         eratios.append(eratio)
         loggings.append(logging)
         runoffs.append(runoff)
+        availabilities.append(avail)
+        depletions.append(max(float(soilcp) - avail, 0.0))
 
     out['ERATIO']  = eratios
     out['LOGGING'] = loggings
     out['RUNOFF']  = runoffs
+    out['Kc'] = kc_series
+    out['RAW_MM'] = raw_mm
+    out['AVAILABLE_SOIL_WATER_MM'] = availabilities
+    out['DEPLETION_MM'] = depletions
     return out
 
 # Season statistics
@@ -357,16 +866,39 @@ def calculate_season_statistics(
     df:      pd.DataFrame,
     soilcp:  float = DEFAULT_SOILCP,
     soilsat: float = DEFAULT_SOILSAT,
+    kc:      float = 1.0,
+    kc_init: Optional[float] = None,
+    kc_mid: Optional[float] = None,
+    kc_end: Optional[float] = None,
+    depletion_fraction_p: float = DEFAULT_DEPLETION_FRACTION_P,
+    analysis_start: Optional[str] = None,
+    analysis_end: Optional[str] = None,
+    init_avail: float = 0.0,
 ) -> Dict[str, Any]:
     stats: Dict[str, Any] = {}
+    working = df.sort_values('date').copy() if 'date' in df.columns else df.copy()
+    if 'date' in working.columns:
+        working['date'] = pd.to_datetime(working['date'])
+
+    analysis_df = working
+    analysis_mask = None
+    if 'date' in working.columns and (analysis_start or analysis_end):
+        mask = pd.Series(True, index=working.index)
+        if analysis_start:
+            mask &= working['date'] >= pd.Timestamp(analysis_start)
+        if analysis_end:
+            mask &= working['date'] <= pd.Timestamp(analysis_end)
+        if mask.any():
+            analysis_mask = mask
+            analysis_df = working.loc[mask].copy()
 
     precip_col = next(
-        (c for c in ['precipitation', 'precip', 'total_precipitation'] if c in df.columns),
+        (c for c in ['precipitation', 'precip', 'total_precipitation'] if c in analysis_df.columns),
         None,
     )
     p = None
     if precip_col:
-        p = df[precip_col].copy()
+        p = analysis_df[precip_col].copy()
         stats['total_precipitation_mm']      = float(p.sum())
         stats['mean_daily_precipitation_mm'] = float(p.mean())
         stats['max_daily_precipitation_mm']  = float(p.max())
@@ -375,19 +907,19 @@ def calculate_season_statistics(
         # NDD: Number of Dry Days (precip < 1 mm) -- canonical hazard label
         stats['NDD']                         = int((p < 1.0).sum())
         stats['dry_spell_statistics']        = calculate_dry_spell_statistics(
-            detect_dry_spells(df, min_dry_days=7, precip_threshold=1.0)
+            detect_dry_spells(analysis_df, min_dry_days=7, precip_threshold=1.0)
         )
     tmax_col = next(
-        (c for c in ['max_temperature', 'tmax', 'maximum_2m_air_temperature'] if c in df.columns),
+        (c for c in ['max_temperature', 'tmax', 'maximum_2m_air_temperature'] if c in analysis_df.columns),
         None,
     )
     tmin_col = next(
-        (c for c in ['min_temperature', 'tmin', 'minimum_2m_air_temperature'] if c in df.columns),
+        (c for c in ['min_temperature', 'tmin', 'minimum_2m_air_temperature'] if c in analysis_df.columns),
         None,
     )
     if tmax_col and tmin_col:
-        tmax = df[tmax_col].copy()
-        tmin = df[tmin_col].copy()
+        tmax = analysis_df[tmax_col].copy()
+        tmin = analysis_df[tmin_col].copy()
         if tmax.mean() > 100:
             tmax -= 273.15
             tmin -= 273.15
@@ -407,8 +939,22 @@ def calculate_season_statistics(
     # Soil-water hazard counts derived from a running soil water balance (Adaptation Atlas method), NOT a naive daily precip - ET0 comparison.
     #   NDWS  = days the crop cannot meet half its evaporative demand (ERATIO < 0.5)
     #   NDWL0 = days soil water exceeds field capacity (LOGGING > 0)
-    if p is not None and 'ET0_mm_day' in df.columns:
-        wb = calc_water_balance(df, soilcp=soilcp, soilsat=soilsat)
+    if p is not None and 'ET0_mm_day' in working.columns:
+        wb = calc_water_balance(
+            working,
+            soilcp=soilcp,
+            soilsat=soilsat,
+            kc=kc,
+            init_avail=init_avail,
+            kc_init=kc_init,
+            kc_mid=kc_mid,
+            kc_end=kc_end,
+            depletion_fraction_p=depletion_fraction_p,
+            analysis_start=analysis_start,
+            analysis_end=analysis_end,
+        )
+        if analysis_mask is not None:
+            wb = wb.loc[analysis_mask]
         eratio  = wb['ERATIO']
         logging = wb['LOGGING']
         stats['NDWS']  = int((eratio < 0.5).sum())
@@ -605,6 +1151,7 @@ def calculate_hazards(
     min_season_days:   int            = 30,
     soilcp:            float          = DEFAULT_SOILCP,
     soilsat:           float          = DEFAULT_SOILSAT,
+    spinup_days:       int            = DEFAULT_SPINUP_DAYS,
 ) -> Dict[str, Any]:
 
     lat, lon = location_coord
@@ -615,15 +1162,29 @@ def calculate_hazards(
             'available_crops': list(CROP_THRESHOLDS.keys()),
         }
     thresholds = resolve_thresholds(crop_normalized, custom_thresholds)
+    crop_water_balance = resolve_crop_water_balance_params(crop_normalized)
+    requested_end_year = datetime.fromisoformat(date_to).year
+    try:
+        _validate_source_window(source, requested_end_year)
+    except ValueError as exc:
+        return {'error': str(exc)}
+    soil_parameters = _resolve_soil_storage_params(
+        lat,
+        lon,
+        soilcp,
+        soilsat,
+        crop_root_depth_m=crop_water_balance.get("root_depth_m"),
+    )
 
     # Branch A: explicit --season-start / --season-end
     if season_start and season_end:
         print(f"Using provided season dates: {season_start} to {season_end}")
         print(f"Climate data source: {source}")
+        fetch_start = _shift_iso_date(season_start, -spinup_days)
         df = get_climate_data_for_season(
             lat,
             lon,
-            season_start,
+            fetch_start,
             season_end,
             source=source,
         )
@@ -631,7 +1192,9 @@ def calculate_hazards(
             'season_detected': True,
             'onset_date':      season_start,
             'cessation_date':  season_end,
+            'fetch_start_date': fetch_start,
             'length_days':     (datetime.fromisoformat(season_end) - datetime.fromisoformat(season_start)).days,
+            'spinup_days':     spinup_days,
             'method':          'user_provided',
             'source':          source,          # record dataset used
         }
@@ -666,23 +1229,28 @@ def calculate_hazards(
                     pd.to_datetime(s['cessation']).strftime('%Y-%m-%d')
                     if s.get('cessation') else date_to
                 )
+                fetch_start = _shift_iso_date(s_start, -spinup_days)
                 season_info = {
                     'season_detected':        True,
                     'onset_date':             s_start,
                     'cessation_date':         s_end,
+                    'fetch_start_date':       fetch_start,
                     'length_days':            s['length_days'],
+                    'spinup_days':            spinup_days,
                     'method':                 'fixed_season',
                     'year':                   year,
                     'season_number':          season_idx + 1,           
                     'total_seasons_per_year': num_seasons_per_year,     
                     'source':                 source,                   
                 }
-                df = s.get('window_df')
-                if df is None or df.empty:
+                df = _slice_prefetched_window(s.get('source_df'), fetch_start, s_end)
+                if df is None:
+                    df = _slice_prefetched_window(s.get('window_df'), fetch_start, s_end)
+                if df is None:
                     df = get_climate_data_for_season(
                         lat,
                         lon,
-                        s_start,
+                        fetch_start,
                         s_end,
                         source=source,
                     )
@@ -690,17 +1258,28 @@ def calculate_hazards(
         if not all_results:
             return {'error': 'No seasons produced by fixed-season mode for the given date range.'}
 
-    # auto-detect via fetch_and_analyze_years, always use chirps+chirts for auto-detection
+    # auto-detect via fetch_and_analyze_years using the requested source policy
     elif SEASON_ANALYSIS_AVAILABLE:
-        auto_source = 'chirps+chirts'
+        detection_source = source
         print(f"Detecting growing season for {crop_name} at ({lat}, {lon})")
-        print(f"Climate data source: {auto_source} (fixed for auto-detection accuracy)")
+        if detection_source == 'auto':
+            print("Climate data source: auto (chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts)")
+        else:
+            print(f"Climate data source: {detection_source}")
         start_year = datetime.fromisoformat(date_from).year
         end_year   = datetime.fromisoformat(date_to).year
-        seasons_dict, _ = fetch_and_analyze_years(
-            lat, lon, start_year=start_year, end_year=end_year, source=auto_source
+        seasons_dict, annual_dict = fetch_and_analyze_years(
+            lat, lon, start_year=start_year, end_year=end_year, source=detection_source
         )
         if not any(seasons_dict.values()):
+            detection_errors = _extract_detection_errors(annual_dict)
+            if detection_errors:
+                return {
+                    'error': (
+                        'Growing-season detection failed before season identification: '
+                        f'{detection_errors[0]}'
+                    )
+                }
             return {
                 'error': (
                     'No growing season detected. '
@@ -716,23 +1295,26 @@ def calculate_hazards(
                     pd.to_datetime(s['cessation']).strftime('%Y-%m-%d')
                     if s.get('cessation') else date_to
                 )
+                fetch_start = _shift_iso_date(s_start, -spinup_days)
                 season_info = {
                     'season_detected':        True,
                     'onset_date':             s_start,
                     'cessation_date':         s_end,
+                    'fetch_start_date':       fetch_start,
                     'length_days':            s['length_days'],
+                    'spinup_days':            spinup_days,
                     'method':                 'rainfall_based',
                     'year':                   year,
                     'season_number':          season_idx + 1,
                     'total_seasons_per_year': num_seasons_per_year,
-                    'source':                 auto_source,
+                    'source':                 detection_source,
                 }
                 df = get_climate_data_for_season(
                     lat,
                     lon,
-                    s_start,
+                    fetch_start,
                     s_end,
-                    source=auto_source,
+                    source=detection_source,
                 )
                 all_results.append({'season_info': season_info, 'df': df})
     else:
@@ -744,12 +1326,27 @@ def calculate_hazards(
     # Evaluate hazards for every resolved season
     assessments = []
     for entry in all_results:
-        stats      = calculate_season_statistics(entry['df'], soilcp=soilcp, soilsat=soilsat)
+        stats = calculate_season_statistics(
+            entry['df'],
+            soilcp=soil_parameters['soilcp'],
+            soilsat=soil_parameters['soilsat'],
+            kc=float(crop_water_balance.get("kc_mid", 1.0)),
+            kc_init=float(crop_water_balance.get("kc_init", crop_water_balance.get("kc_mid", 1.0))),
+            kc_mid=float(crop_water_balance.get("kc_mid", 1.0)),
+            kc_end=float(crop_water_balance.get("kc_end", crop_water_balance.get("kc_mid", 1.0))),
+            depletion_fraction_p=float(
+                crop_water_balance.get("depletion_fraction_p", DEFAULT_DEPLETION_FRACTION_P)
+            ),
+            analysis_start=entry['season_info'].get('onset_date'),
+            analysis_end=entry['season_info'].get('cessation_date'),
+        )
         hazard_eval = evaluate_hazard_metrics(stats, thresholds)
         assessments.append({
             'crop':              crop_name,
             'location':          {'latitude': lat, 'longitude': lon},
             'season_info':       entry['season_info'],
+            'soil_parameters':   soil_parameters,
+            'water_balance_parameters': crop_water_balance,
             'season_statistics': stats,
             'hazard_evaluation': hazard_eval,
         })
@@ -759,6 +1356,8 @@ def calculate_hazards(
     baseline_ltm = compute_ltm_baseline(assessments, crop_name, thresholds)
     return {
         'assessments': assessments,
+        'soil_parameters': soil_parameters,
+        'water_balance_parameters': crop_water_balance,
         'baseline_ltm': baseline_ltm,
         'baseline_ltm_comparisons': build_actual_vs_ltm_comparisons(assessments, baseline_ltm),
     }
@@ -1079,16 +1678,18 @@ if __name__ == "__main__":
                         help='Explicit season end (YYYY-MM-DD). Pair with --season-start.')
     parser.add_argument(
         '--source',
-        choices=['era_5', 'agera_5', 'chirps+chirts', 'auto'],
+        choices=['era_5', 'agera_5', 'chirps+chirts', 'chirps_v2+chirts', 'auto'],
         default='auto',
         help=(
             "Climate data source (default: auto).\n"
-            "  era_5         -- ERA5 reanalysis\n"
             "  agera_5       -- AgERA5 / ERA5-Land\n"
-            "  chirps+chirts -- CHIRPS precipitation + CHIRTS temperature\n"
-            "  auto          -- tries era_5 -> agera_5 -> chirps+chirts\n"
-            "Note: auto-detection (no --season-* flag) always uses chirps+chirts\n"
-            "      regardless of this setting, as thresholds are calibrated for it."
+            "  era_5         -- ERA5 reanalysis\n"
+            "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
+            "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts\n"
+            "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
+            "Recommended direct single-source fallback: agera_5.\n"
+            "Note: auto-detection (no --season-* flag) now honors this source\n"
+            "      setting instead of forcing chirps_v2+chirts."
         ),
     )
     parser.add_argument('--gap-days',        type=int, default=30,
@@ -1145,7 +1746,7 @@ if __name__ == "__main__":
             with open(args.output, 'w') as f:
                 f.write(json.dumps(result, indent=2, default=str))
 
-# Auto-detect season (no season flag supplied -- always uses chirps+chirts internally):
+# Auto-detect season (no season flag supplied -- uses requested source policy):
 # python -m climate_tookit.calculate_hazards.hazards maize --location="-1.286,36.817" --date-from 2016-01-01 --date-to 2016-12-31 --season-start 2016-03-01 --season-end 2016-06-30
 
 # Fixed single season:
@@ -1155,7 +1756,7 @@ if __name__ == "__main__":
 # python -m climate_tookit.calculate_hazards.hazards beans --location="-1.286,36.817" --date-from 2018-01-01 --date-to 2022-12-31 --fixed-season "03-01:05-31,10-01:12-15" --source agera_5
 
 # Fixed year-crossing season:
-# python -m climate_tookit.calculate_hazards.hazards sorghum --location="-1.286,36.817" --date-from 2012-01-01 --date-to 2016-12-31 --fixed-season "11-01:02-28" --source chirps+chirts
+# python -m climate_tookit.calculate_hazards.hazards sorghum --location="-1.286,36.817" --date-from 2012-01-01 --date-to 2016-12-31 --fixed-season "11-01:02-28" --source chirps_v2+chirts
 
 # Explicit season dates (single season):
 # python -m climate_tookit.calculate_hazards.hazards maize --location="-1.286,36.817" --date-from 2020-01-01 --date-to 2020-12-31 --season-start 2020-03-01 --season-end 2020-06-30

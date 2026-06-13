@@ -13,7 +13,7 @@ from .multi_site import CACHE_COORD_DECIMALS, normalize_cache_coord
 
 
 DEFAULT_CACHE_ROOT = Path("outputs/cache")
-SUPPORTED_DATASETS = ("nex_gddp_xee", "nex_gddp_batch")
+SUPPORTED_DATASETS = ("nex_gddp_xee", "nex_gddp_batch", "soil_grid", "hwsd")
 
 
 def _normalize_dataset_filter(dataset: str | None) -> tuple[str, ...]:
@@ -65,7 +65,7 @@ def _site_rows_from_manifest(
         "file_size_bytes": data_path.stat().st_size if data_path.exists() else None,
     }
 
-    if dataset == "nex_gddp_xee":
+    if dataset in {"nex_gddp_xee", "soil_grid", "hwsd"}:
         return [
             {
                 **common,
@@ -110,7 +110,7 @@ def _manifest_record_from_manifest(
     data_path: Path,
 ) -> dict:
     sites = manifest.get("sites") or []
-    if dataset == "nex_gddp_xee":
+    if dataset in {"nex_gddp_xee", "soil_grid", "hwsd"}:
         normalized_sites = [
             {
                 "name": None,

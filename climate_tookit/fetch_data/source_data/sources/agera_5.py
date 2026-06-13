@@ -5,7 +5,7 @@ authoritative AgERA5 entry point so runtime dispatch and source surface stay
 aligned.
 """
 
-from .gee import DownloadData as _GeeDownloadData
+from .gee_xee import DownloadData as _GeeDownloadData
 
 
 class DownloadData(_GeeDownloadData):

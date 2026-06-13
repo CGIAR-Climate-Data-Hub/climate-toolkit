@@ -52,18 +52,78 @@ import climate_tookit.climate_statistics.statistics as stats
 
 
 class StatisticsSourcePolicyTests(unittest.TestCase):
-    def test_get_climate_data_auto_uses_era5_before_fallback(self):
+    def test_get_climate_data_paired_mode_merges_precip_and_temperature_sources(self):
         calls = []
 
         def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
             calls.append(source)
-            if source == "era_5":
+            if source == "chirps_v2":
                 return pd.DataFrame(
                     {
                         "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
                         "precipitation": [1.0, 0.0],
+                    }
+                )
+            if source == "era_5":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
                         "max_temperature": [25.0, 26.0],
                         "min_temperature": [15.0, 16.0],
+                        "humidity": [70.0, 72.0],
+                    }
+                )
+            raise AssertionError(f"unexpected source {source}")
+
+        orig_call = stats._call_preprocess
+        stats._call_preprocess = fake_call_preprocess
+        try:
+            frame = stats.get_climate_data(
+                -1.286,
+                36.817,
+                "2018-01-01",
+                "2018-01-02",
+                "paired",
+                precip_source="chirps_v2",
+                temp_source="era_5",
+            )
+        finally:
+            stats._call_preprocess = orig_call
+
+        self.assertEqual(["chirps_v2", "era_5"], calls)
+        self.assertEqual(["date", "precip", "tmax", "tmin", "humidity"], list(frame.columns))
+
+    def test_analyze_climate_statistics_rejects_incomplete_paired_args(self):
+        result = stats.analyze_climate_statistics(
+            location_coord=(-1.286, 36.817),
+            start_year=2018,
+            end_year=2019,
+            source="paired",
+            precip_source="chirps_v2",
+        )
+
+        self.assertIn("error", result)
+        self.assertIn("Provide both precip_source and temp_source together", result["error"])
+
+    def test_get_climate_data_auto_prefers_chirps_v3_plus_agera5(self):
+        calls = []
+
+        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
+            calls.append(source)
+            if source == "chirps_v3_daily_rnl":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
+                        "precipitation": [1.0, 0.0],
+                    }
+                )
+            if source == "agera_5":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
+                        "max_temperature": [25.0, 26.0],
+                        "min_temperature": [15.0, 16.0],
+                        "humidity": [70.0, 72.0],
                     }
                 )
             raise AssertionError("auto should stop after first successful source")
@@ -86,10 +146,11 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             stats._call_preprocess = orig_call
             stats._fetch_chirps_chirts = orig_merge
 
-        self.assertEqual(["era_5"], calls)
+        self.assertEqual(["chirps_v3_daily_rnl", "agera_5"], calls)
         self.assertIn("precip", frame.columns)
         self.assertIn("tmax", frame.columns)
         self.assertIn("tmin", frame.columns)
+        self.assertIn("humidity", frame.columns)
 
     def test_get_climate_data_auto_reports_chirts_limit_after_2016(self):
         def fake_call_preprocess(*args, **kwargs):

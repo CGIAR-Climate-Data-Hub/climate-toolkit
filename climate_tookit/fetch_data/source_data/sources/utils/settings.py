@@ -48,7 +48,13 @@ class ClimateVariable(BaseModel):
         return v
 
 class SoilVariable(BaseModel):
+    root_depth: str | None = None
+    available_water_capacity: str | None = None
+    drainage: str | None = None
     bulk_density: str | None = None
+    field_capacity: str | None = None
+    coarse_fragments: str | None = None
+    wilting_point: str | None = None
     clay_content: str | None = None
     ph: str | None = None
     sand_content: str | None = None
@@ -169,13 +175,14 @@ class Settings(BaseModel):
     imerg: ImergSettings
     terraclimate: TerraSettings
     chirts: ChirtsSettings
-    chirps: ChirpsSettings
+    chirps_v2: ChirpsSettings
     chirps_v3_daily_rnl: ChirpsV3DailyRnlSettings
     cmip_6: Cmip6Settings
     nex_gddp: NexGddpSettings
     nasa_power: NasaPowerSettings
     tamsat: TamsatSettings
     soil_grid: SoilGridSettings
+    hwsd: SoilGridSettings
 
     @classmethod
     def load(cls, settings_path: Path = config_path):
@@ -188,7 +195,7 @@ class Settings(BaseModel):
 if __name__ == "__main__":
     print(Settings.load().agera_5)
     print(Settings.load().imerg.short_name.monthly)
-    print(Settings.load().chirps.variable)
+    print(Settings.load().chirps_v2.variable)
     print(Settings.load().cmip_6.variable)
     print(Settings.load().nex_gddp.variable)
     print(Settings.load().nasa_power.variable)

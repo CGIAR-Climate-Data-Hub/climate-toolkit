@@ -1,10 +1,10 @@
 """Climate Data Preprocessing Module
 
 Pre-processes raw source data from climate databases into analysis-ready format.
-Receives transformed data from transform_data module and applies cleaning, quality control,
-bias correction, and other preprocessing operations.
+Receives transformed data from transform_data module and applies cleaning,
+unit normalization, and quality control operations.
 
-Pipeline: Receive Transformed Data → Clean → Quality Control → Analysis-Ready Output
+Pipeline: Receive Transformed Data → Clean → Unit Conversion → Quality Control → Analysis-Ready Output
 """
 
 import os
@@ -18,20 +18,11 @@ def _active_group_columns(df: pd.DataFrame, group_columns=None) -> list[str]:
     return [column for column in (group_columns or []) if column in df.columns]
 
 
-def _replace_outliers(series: pd.Series) -> pd.Series:
-    mean = series.mean()
-    std = series.std()
-    if pd.isna(std) or std == 0:
-        return series
-    outlier_threshold = 3 * std
-    return series.where((series - mean).abs() <= outlier_threshold, mean)
-
-
 def clean_climate_data(
     df: pd.DataFrame,
     group_columns=None,
 ) -> pd.DataFrame:
-    """Clean climate data: handle missing values, outliers, and data quality issues."""
+    """Clean climate data: sort records and fill missing values conservatively."""
     if df.empty:
         return df
 
@@ -54,20 +45,12 @@ def clean_climate_data(
                 cleaned_df[col] = grouped[col].transform(lambda series: series.fillna(0))
             else:
                 cleaned_df[col] = grouped[col].transform(lambda series: series.ffill().bfill())
-
-        for col in numeric_columns:
-            if col != 'date':
-                cleaned_df[col] = grouped[col].transform(_replace_outliers)
     else:
         for col in numeric_columns:
             if col == 'precipitation':
                 cleaned_df[col] = cleaned_df[col].fillna(0)
             else:
                 cleaned_df[col] = cleaned_df[col].ffill().bfill()
-
-        for col in numeric_columns:
-            if col != 'date':
-                cleaned_df[col] = _replace_outliers(cleaned_df[col])
 
     return cleaned_df
 
@@ -87,8 +70,9 @@ def apply_unit_conversions(
         return df
 
     converted_df = df.copy()
+    source_lc = (source or "").lower()
 
-    if source in ['agera_5', 'era_5', 'nex_gddp']:
+    if source_lc in ['agera_5', 'era_5', 'nex_gddp']:
         temp_columns = [col for col in converted_df.columns if 'temperature' in col.lower()]
         for col in temp_columns:
             if col in converted_df.columns:
@@ -96,10 +80,12 @@ def apply_unit_conversions(
                     converted_df[col] = converted_df[col] - 273.15
 
     if 'precipitation' in converted_df.columns:
-        if source in ['agera_5', 'era_5', 'nex_gddp']:
-            if converted_df['precipitation'].max() < 1:
-                converted_df['precipitation'] = converted_df['precipitation'] * 1000
-        elif source == 'imerg':
+        if source_lc in ['agera_5', 'era_5']:
+            # ERA5 and AgERA5 precipitation bands are depth in meters.
+            converted_df['precipitation'] = converted_df['precipitation'] * 1000.0
+        elif source_lc == 'imerg':
+            # IMERG GEE fetch currently sums half-hourly precipitation rates
+            # expressed in mm/hr; multiply by 0.5 hr to obtain daily depth.
             converted_df['precipitation'] = converted_df['precipitation'] * 0.5
     return converted_df
 
@@ -128,15 +114,32 @@ def quality_control_checks(
         qc_df.loc[small_negative, 'precipitation'] = 0
 
         large_negative = qc_df['precipitation'] <= -0.01
+        if large_negative.any() and verbose:
+            print(
+                "Warning: "
+                f"{int(large_negative.sum())} precipitation value(s) <= -0.01 detected; "
+                "setting to NaN."
+            )
         qc_df.loc[large_negative, 'precipitation'] = np.nan
 
         extreme_precip = qc_df['precipitation'] > 500
-        qc_df.loc[extreme_precip, 'precipitation'] = np.nan
+        if extreme_precip.any() and verbose:
+            max_precip = float(qc_df.loc[extreme_precip, 'precipitation'].max())
+            print(
+                "Warning: "
+                f"{int(extreme_precip.sum())} precipitation value(s) > 500 mm/day detected "
+                f"(max={max_precip:.2f}). Values retained; inspect source data."
+            )
 
     if 'wind_speed' in qc_df.columns:
-        qc_df['wind_speed'] = qc_df['wind_speed'].abs()
-        extreme_wind = qc_df['wind_speed'] > 50
-        qc_df.loc[extreme_wind, 'wind_speed'] = np.nan
+        extreme_wind = qc_df['wind_speed'].abs() > 50
+        if extreme_wind.any() and verbose:
+            max_abs_wind = float(qc_df.loc[extreme_wind, 'wind_speed'].abs().max())
+            print(
+                "Warning: "
+                f"{int(extreme_wind.sum())} wind_speed value(s) with |value| > 50 detected "
+                f"(max abs={max_abs_wind:.2f}). Values retained; verify units and source data."
+            )
 
     active_group_columns = _active_group_columns(qc_df, group_columns)
     sort_columns = [*active_group_columns, 'date'] if 'date' in qc_df.columns else active_group_columns

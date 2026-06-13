@@ -5,7 +5,10 @@ Applies the Hargreaves ET0 method to identify planting season onset and cessatio
 based on whether precipitation meets or exceeds 50% of reference evapotranspiration.
 
 Data source priority:
-    Historical : ERA5 -> AgERA5 -> CHIRPS + CHIRTS (fallback)
+    Historical : CHIRPS v3 Daily RNL + AgERA5 -> AgERA5 -> ERA5 -> CHIRPS v2 + CHIRTS (legacy fallback)
+User guidance:
+    Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus AgERA5 temperature.
+    Prefer AgERA5 for direct single-source historical daily runs. Keep ERA5 as secondary option.
 Detection strategy:
     Per reference year: fetches a 1.5-year window (Jan-Dec + 6 extra months)
     to capture seasons that cross the year boundary.
@@ -52,17 +55,22 @@ warnings.filterwarnings("ignore")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fetch_data.preprocess_data.preprocess_data import preprocess_data
-from fetch_data.source_data.sources.utils.models import ClimateVariable
+from fetch_data.source_data.sources.utils.models import (
+    ClimateVariable,
+    normalize_climate_dataset_name,
+)
 
-HISTORICAL_SOURCES = ['era_5', 'agera_5']
-FALLBACK_COMBO     = ('chirps', 'chirts')
+HISTORICAL_SOURCES = ['agera_5', 'era_5']
+DEFAULT_AUTO_PRECIP_SOURCE = 'chirps_v3_daily_rnl'
+DEFAULT_AUTO_TEMP_SOURCE = 'agera_5'
+LEGACY_FALLBACK_COMBO = ('chirps_v2', 'chirts')
 CORE_CLIMATE_VARIABLES = [
     ClimateVariable.precipitation,
     ClimateVariable.max_temperature,
     ClimateVariable.min_temperature,
 ]
-CHIRPS_VARIABLES = [ClimateVariable.precipitation]
-CHIRTS_VARIABLES = [
+PRECIP_VARIABLES = [ClimateVariable.precipitation]
+TEMP_VARIABLES = [
     ClimateVariable.max_temperature,
     ClimateVariable.min_temperature,
 ]
@@ -219,13 +227,15 @@ def get_climate_data(
 ) -> pd.DataFrame:
     """
     Fetch standardised daily climate data (date, tmax, tmin, precip).
-    Source priority: era_5 → agera_5 → chirps+chirts.
+    Source priority: chirps_v3_daily_rnl + agera_5 → agera_5 → era_5 → chirps_v2+chirts.
     Raises RuntimeError when all sources are exhausted.
     """
     date_from = date.fromisoformat(start_date)
     date_to   = date.fromisoformat(end_date)
     df = _fetch_raw(lat, lon, date_from, date_to, force_source, model=model, scenario=scenario)
-    if df is None or df.empty:
+    if df is None or df.empty or 'date' not in df.columns:
+        if force_source:
+            raise RuntimeError(f"No climate data returned from source '{force_source}'.")
         raise RuntimeError("All data sources exhausted.")
     result           = pd.DataFrame()
     result['date']   = pd.to_datetime(df['date'])
@@ -236,11 +246,12 @@ def get_climate_data(
 
 def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=None) -> Optional[pd.DataFrame]:
     coord = (lat, lon)
-    if force_source == 'chirps+chirts':
+    normalized_force_source = normalize_climate_dataset_name(force_source)
+    if normalized_force_source in {'chirps+chirts', 'chirps_v2+chirts'}:
         return _merge_chirps_chirts(coord, date_from, date_to)
-    if force_source == 'nex_gddp':
+    if normalized_force_source == 'nex_gddp':
         return preprocess_data(
-            source=force_source,
+            source=normalized_force_source,
             location_coord=coord,
             variables=CORE_CLIMATE_VARIABLES,
             date_from=date_from,
@@ -248,10 +259,20 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
             model=model,
             scenario=scenario,
         )
-    if force_source:
-        return preprocess_data(source=force_source, location_coord=coord,
+    if normalized_force_source:
+        return preprocess_data(source=normalized_force_source, location_coord=coord,
                                variables=CORE_CLIMATE_VARIABLES,
                                date_from=date_from, date_to=date_to)
+    try:
+        return _merge_precip_temp(
+            coord,
+            date_from,
+            date_to,
+            precip_source=DEFAULT_AUTO_PRECIP_SOURCE,
+            temp_source=DEFAULT_AUTO_TEMP_SOURCE,
+        )
+    except Exception:
+        pass
     for source in HISTORICAL_SOURCES:
         try:
             df = preprocess_data(source=source, location_coord=coord,
@@ -263,13 +284,30 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
             continue
     return _merge_chirps_chirts(coord, date_from, date_to)
 
+def _merge_precip_temp(coord, date_from, date_to, precip_source, temp_source) -> pd.DataFrame:
+    df_p = preprocess_data(source=precip_source, location_coord=coord,
+                           variables=PRECIP_VARIABLES,
+                           date_from=date_from, date_to=date_to)
+    df_t = preprocess_data(source=temp_source, location_coord=coord,
+                           variables=TEMP_VARIABLES,
+                           date_from=date_from, date_to=date_to)
+    if df_p is None or df_p.empty or 'date' not in df_p.columns:
+        raise RuntimeError(f"No {precip_source} precipitation data returned.")
+    if df_t is None or df_t.empty or 'date' not in df_t.columns:
+        raise RuntimeError(f"No {temp_source} temperature data returned.")
+    return pd.merge(df_p[['date', 'precipitation']], df_t, on='date', how='inner')
+
 def _merge_chirps_chirts(coord, date_from, date_to) -> pd.DataFrame:
-    df_p = preprocess_data(source=FALLBACK_COMBO[0], location_coord=coord,
-                           variables=CHIRPS_VARIABLES,
+    df_p = preprocess_data(source=LEGACY_FALLBACK_COMBO[0], location_coord=coord,
+                           variables=PRECIP_VARIABLES,
                            date_from=date_from, date_to=date_to)
-    df_t = preprocess_data(source=FALLBACK_COMBO[1], location_coord=coord,
-                           variables=CHIRTS_VARIABLES,
+    df_t = preprocess_data(source=LEGACY_FALLBACK_COMBO[1], location_coord=coord,
+                           variables=TEMP_VARIABLES,
                            date_from=date_from, date_to=date_to)
+    if df_p is None or df_p.empty or 'date' not in df_p.columns:
+        raise RuntimeError("No CHIRPS precipitation data returned.")
+    if df_t is None or df_t.empty or 'date' not in df_t.columns:
+        raise RuntimeError("No CHIRTS temperature data returned.")
     return pd.merge(df_p, df_t, on='date', how='inner')
 
 # ET0 — Hargreaves
@@ -355,7 +393,8 @@ def detect_regime(df):
             regime_dict[year] = 'bimodal'
         elif n_peaks == 1:
             pm = peak_months[year][0] if year in peak_months.index else 6
-            regime_dict[year] = 'year_crossing' if pm > 6 else 'unimodal'
+            # Single late-year rainfall peak. This is not necessarily a calendar-year-crossing season.
+            regime_dict[year] = 'late_peak_unimodal' if pm > 6 else 'unimodal'
         else:
             regime_dict[year] = 'erratic'
     return df['year'].map(regime_dict)
@@ -406,17 +445,17 @@ def detect_onset_cessation(df):
         min_rainy_days     = max(25, int(annual_rain * 0.08))
         min_wet_confirm    = 2
         base_cess_days     = 18
-        regime_multipliers = {'unimodal': 0.9, 'bimodal': 1.1, 'year_crossing': 0.8, 'erratic': 1.0}
+        regime_multipliers = {'unimodal': 0.9, 'bimodal': 1.1, 'late_peak_unimodal': 0.8, 'erratic': 1.0}
     elif annual_rain > 1400:
         min_rainy_days     = max(90, int(annual_rain * 0.06))
         min_wet_confirm    = 3
         base_cess_days     = 15
-        regime_multipliers = {'unimodal': 1.2, 'bimodal': 1.0, 'year_crossing': 1.1, 'erratic': 1.3}
+        regime_multipliers = {'unimodal': 1.2, 'bimodal': 1.0, 'late_peak_unimodal': 1.1, 'erratic': 1.3}
     else:
         min_rainy_days     = 45
         min_wet_confirm    = 3
         base_cess_days     = 15
-        regime_multipliers = {'unimodal': 1.0, 'bimodal': 1.15, 'year_crossing': 0.85, 'erratic': 1.0}
+        regime_multipliers = {'unimodal': 1.0, 'bimodal': 1.15, 'late_peak_unimodal': 0.85, 'erratic': 1.0}
 
     print(f"  ✓ Adaptive params: min_days={min_rainy_days} | "
           f"wet_confirm={min_wet_confirm} | base_cess={base_cess_days}")
@@ -511,19 +550,61 @@ def reassign_spillover_seasons(results_dict, lat=0, start_year=None,
         cleaned[year] = sorted(cleaned[year], key=lambda s: pd.to_datetime(s['onset']))
     return cleaned
 
+def _season_end_for_dedup(season):
+    cessation = season.get('cessation')
+    if cessation is not None:
+        return pd.to_datetime(cessation)
+    return pd.to_datetime(season['onset']) + pd.Timedelta(days=max(season.get('length_days', 1) - 1, 0))
+
+def _seasons_look_duplicate(candidate, kept):
+    onset_a = pd.to_datetime(candidate['onset'])
+    onset_b = pd.to_datetime(kept['onset'])
+    if abs((onset_a - onset_b).days) > 5:
+        return False
+
+    end_a = _season_end_for_dedup(candidate)
+    end_b = _season_end_for_dedup(kept)
+    overlap_start = max(onset_a, onset_b)
+    overlap_end = min(end_a, end_b)
+    overlap_days = max((overlap_end - overlap_start).days + 1, 0)
+    shorter = max(min(candidate.get('length_days', 0), kept.get('length_days', 0)), 1)
+
+    if overlap_days / shorter >= 0.8:
+        return True
+    return abs((end_a - end_b).days) <= 7
+
+def _prefer_duplicate_season(kept, candidate):
+    kept_closed = kept.get('cessation') is not None
+    cand_closed = candidate.get('cessation') is not None
+    if kept_closed != cand_closed:
+        return candidate if cand_closed else kept
+
+    kept_end = _season_end_for_dedup(kept)
+    cand_end = _season_end_for_dedup(candidate)
+    if kept_end != cand_end:
+        return candidate if cand_end > kept_end else kept
+
+    kept_length = kept.get('length_days', 0)
+    cand_length = candidate.get('length_days', 0)
+    return candidate if cand_length > kept_length else kept
+
 def remove_duplicate_seasons(refined_results):
     deduped = {}
     for year, seasons in refined_results.items():
         unique = []
         for season in seasons:
-            onset  = pd.to_datetime(season['onset'])
-            length = season.get('length_days', 0)
+            onset = pd.to_datetime(season['onset'])
             dup    = False
-            for kept in unique:
-                if (abs((onset - pd.to_datetime(kept['onset'])).days) <= 5 and
-                        abs(length - kept.get('length_days', 0)) <= 3):
-                    print(f"  Duplicate dropped: {onset.strftime('%Y-%m-%d')}")
-                    dup = True; break
+            for idx, kept in enumerate(unique):
+                if _seasons_look_duplicate(season, kept):
+                    preferred = _prefer_duplicate_season(kept, season)
+                    if preferred is season:
+                        unique[idx] = season
+                        print(f"  Duplicate replaced: {onset.strftime('%Y-%m-%d')}")
+                    else:
+                        print(f"  Duplicate dropped: {onset.strftime('%Y-%m-%d')}")
+                    dup = True
+                    break
             if not dup:
                 unique.append(season)
         deduped[year] = unique
@@ -590,7 +671,9 @@ def fetch_and_analyze_years(
             if df_window is None or df_window.empty:
                 print(f"  Retrieved 0 days for {ref_year}")
                 seasons_dict[ref_year] = []
-                annual_dict[ref_year]  = {}
+                annual_dict[ref_year]  = {
+                    'error': 'No climate data returned for season detection window.'
+                }
                 continue
             print(f"  Retrieved {len(df_window)} days")
 
@@ -628,7 +711,9 @@ def fetch_and_analyze_years(
         except Exception as e:
             print(f"  ✗ Error analyzing {ref_year}: {e}")
             seasons_dict[ref_year] = []
-            annual_dict[ref_year]  = {}
+            annual_dict[ref_year]  = {
+                'error': str(e),
+            }
     temp    = reassign_spillover_seasons(seasons_dict, lat=lat,
                                          start_year=start_year, end_year=end_year)
     final   = remove_duplicate_seasons(temp)
@@ -767,6 +852,7 @@ def fetch_and_analyze_years_fixed(
                 annual_rain_mm = annual_dict[year].get('annual_rain_mm'),
                 params_used    = "fixed-season",
                 eto_seasons    = eto_seasons,
+                source_df      = df,
                 window_df      = window_df,
                 **stats,
             )
@@ -879,20 +965,22 @@ def print_summary(
 # CLI
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description='Season analysis — ERA5 / AgERA5 / CHIRPS+CHIRTS',
+        description='Season analysis — CHIRPS v3 + AgERA5 / AgERA5 / ERA5 / CHIRPS+CHIRTS',
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument('--location',     required=True,
                         help='Coordinates as "lat,lon"  e.g. "-1.286,36.817"')
     parser.add_argument('--source',
-                        choices=['era_5', 'agera_5', 'chirps+chirts', 'auto'],
+                        choices=['era_5', 'agera_5', 'chirps+chirts', 'chirps_v2+chirts', 'auto'],
                         default='auto',
                         help=(
                             "Data source — used in both automatic and fixed-season modes.\n"
-                            "  era_5         -- ERA5 reanalysis\n"
                             "  agera_5       -- AgERA5 / ERA5-Land\n"
-                            "  chirps+chirts -- CHIRPS precipitation + CHIRTS temperature\n"
-                            "  auto          -- tries era_5 -> agera_5 -> chirps+chirts  [default]"
+                            "  era_5         -- ERA5 reanalysis\n"
+                            "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
+                            "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts  [default]\n"
+                            "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
+                            "Recommended direct single-source fallback: agera_5."
                         ))
     parser.add_argument('--start-year',   type=int, required=True)
     parser.add_argument('--end-year',     type=int, required=True)
@@ -978,7 +1066,7 @@ if __name__ == '__main__':
 # Automatic detection:
 # python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2018 --end-year 2020 --source era_5
 # python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2018 --end-year 2020 --source agera_5
-# python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2015 --end-year 2016 --source chirps+chirts
+# python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2015 --end-year 2016 --source chirps_v2+chirts
 # python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2015 --end-year 2020 --source agera_5 --output-dir ./results
 
 # Fixed season:
@@ -988,7 +1076,7 @@ if __name__ == '__main__':
 # python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2015 --end-year 2022 --fixed-season "03-01:05-31,10-01:12-15" --source agera_5
 
 # Fixed year-crossing season:
-# python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2015 --end-year 2022 --fixed-season "11-01:02-28" --source chirps+chirts
+# python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2015 --end-year 2022 --fixed-season "11-01:02-28" --source chirps_v2+chirts
 
 # Fixed season, auto source selection, no CSV:
 # python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "04-15:07-10" --source auto --no-save

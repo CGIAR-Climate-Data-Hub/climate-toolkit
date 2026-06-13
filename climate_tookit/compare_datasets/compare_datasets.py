@@ -66,7 +66,7 @@ SOURCE_VARIABLES = {
 }
 
 VALID_SOURCES = {
-    "era_5", "agera_5", "chirps", "chirts", "cmip_6", "imerg",
+    "era_5", "agera_5", "chirps", "chirps_v2", "chirps_v3_daily_rnl", "chirts", "cmip_6", "imerg",
     "nasa_power", "nex_gddp", "soil_grid", "tamsat", "terraclimate",
 }
 
@@ -740,7 +740,7 @@ if __name__ == "__main__":
     main()
 
 # Example — historical-source comparison only:
-# python -m climate_tookit.compare_datasets.compare_datasets --sources era_5 chirps nasa_power imerg agera_5 chirts soil_grid terraclimate --lat -1.286 --lon 36.817 --start 1990-01-01 --end 2016-12-31 --format report
+# python -m climate_tookit.compare_datasets.compare_datasets --sources era_5 chirps_v2 nasa_power imerg agera_5 chirts soil_grid terraclimate --lat -1.286 --lon 36.817 --start 1990-01-01 --end 2016-12-31 --format report
 
 # Example — NEX-GDDP ensemble over a custom set of models (one 'nex_gddp_ensemble_<scenario>' series):
 # python -m climate_tookit.compare_datasets.compare_datasets --sources nex_gddp --lat -1.286 --lon 36.817 --start 2015-01-01 --end 2016-12-31 --models ACCESS-CM2 MPI-ESM1-2-LR MRI-ESM2-0 GFDL-ESM4 EC-Earth3 --scenario ssp245 --format report

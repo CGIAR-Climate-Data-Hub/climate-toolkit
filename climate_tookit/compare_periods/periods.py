@@ -13,7 +13,7 @@ sections statistics.py produces:
     Single        : '03-01:05-31'
     Two seasons   : '03-01:05-31,10-01:12-15'
     Year-crossing : '11-01:02-28'
-Plain `chirps` source defaults tmax=25/tmin=15 in statistics.py, so temperature is excluded from every diff section when chirps is the source.
+Plain `chirps_v2` source defaults tmax=25/tmin=15 in statistics.py, so temperature is excluded from every diff section when chirps_v2 is source.
 """
 
 import sys
@@ -36,9 +36,9 @@ ANNUALIZABLE = {
     "et0":           ["total_mm"],
     "water_balance": ["total_balance", "deficit_days", "surplus_days"],
 }
-PRECIP_ONLY  = {"chirps"}
-SUPPORTED    = {"era_5", "agera_5", "chirps+chirts", "nasa_power",
-                "chirps", "chirts", "terraclimate", "imerg", "tamsat", "auto"}
+PRECIP_ONLY  = {"chirps", "chirps_v2"}
+SUPPORTED    = {"era_5", "agera_5", "chirps+chirts", "chirps_v2+chirts", "nasa_power",
+                "chirps", "chirps_v2", "chirts", "terraclimate", "imerg", "tamsat", "auto"}
 
 # helpers
 def _is_num(x: Any) -> bool:
@@ -413,7 +413,7 @@ if __name__ == "__main__":
     main()
 
 # Auto-detected seasons (no --fixed-season):
-# python -m climate_tookit.compare_periods.periods --location=-1.286,36.817 --baseline-start=1991 --baseline-end=2016 --focal-year=2015 --source=chirps+chirts --output=results/nairobi_2015_vs_1991-2016_auto.json
+# python -m climate_tookit.compare_periods.periods --location=-1.286,36.817 --baseline-start=1991 --baseline-end=2016 --focal-year=2015 --source=chirps_v2+chirts --output=results/nairobi_2015_vs_1991-2016_auto.json
 
 # Single fixed season:
 # python -m climate_tookit.compare_periods.periods --location=-1.286,36.817 --baseline-start=1991 --baseline-end=2020 --focal-year=2019 --source=terraclimate --fixed-season=03-01:05-31 --output=results/nairobi_2019_MAM.json
@@ -422,4 +422,4 @@ if __name__ == "__main__":
 # python -m climate_tookit.compare_periods.periods --location=-1.286,36.817 --baseline-start=1991 --baseline-end=2020 --focal-year=2019 --source=era_5 --fixed-season='03-01:05-31,10-01:12-15' --output=results/nairobi_2019_MAM_OND.json
 
 # Year-crossing single window:
-# python -m climate_tookit.compare_periods.periods --location=-1.286,36.817 --baseline-start=1991 --baseline-end=2016 --focal-year=2016 --source=chirps --fixed-season=11-01:02-28 --output=results/nairobi_2016_NDJF.json
+# python -m climate_tookit.compare_periods.periods --location=-1.286,36.817 --baseline-start=1991 --baseline-end=2016 --focal-year=2016 --source=chirps_v2 --fixed-season=11-01:02-28 --output=results/nairobi_2016_NDJF.json

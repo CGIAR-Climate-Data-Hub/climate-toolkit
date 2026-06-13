@@ -10,7 +10,7 @@ Detection: delegates to seasons.py building blocks (add_et0, detect_onset_cessat
 parse_fixed_seasons, check_humid) so behaviour is identical to seasons.py:
     Per reference year, a 1.5-year window is sliced from the master DataFrame so seasons crossing the year boundary are captured. After detection,
     seasons are reassigned to onset year, filtered to MAM/OND windows for equatorial climates, and de-duplicated.
-Data sources accepted: era_5, agera_5, chirps+chirts, chirps, nasa_power, nex_gddp, auto. NEX-GDDP requires --model and --scenario.
+Data sources accepted: agera_5, era_5, chirps_v2+chirts, chirps_v2, nasa_power, nex_gddp, auto. Legacy alias `chirps` still works. NEX-GDDP requires --model and --scenario. Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus AgERA5 companion variables.
 
 Dependencies: pandas, numpy, climate_toolkit (preprocess_data, seasons.py)
 """
@@ -43,7 +43,10 @@ except ImportError:
         print("Warning: preprocess_data pipeline not available")
 
 try:
-    from ..fetch_data.source_data.sources.utils.models import ClimateVariable
+    from ..fetch_data.source_data.sources.utils.models import (
+        ClimateVariable,
+        normalize_climate_dataset_name,
+    )
     CLIMATE_VARS = [
         ClimateVariable.precipitation,
         ClimateVariable.max_temperature,
@@ -55,7 +58,10 @@ try:
     ]
 except (ImportError, AttributeError):
     try:
-        from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+        from climate_tookit.fetch_data.source_data.sources.utils.models import (
+            ClimateVariable,
+            normalize_climate_dataset_name,
+        )
         CLIMATE_VARS = [
             ClimateVariable.precipitation,
             ClimateVariable.max_temperature,
@@ -70,6 +76,8 @@ except (ImportError, AttributeError):
             'precipitation', 'max_temperature', 'min_temperature',
             'humidity', 'soil_moisture', 'solar_radiation', 'wind_speed',
         ]
+        def normalize_climate_dataset_name(source):
+            return str(source).lower() if source is not None else None
 
 try:
     from ..season_analysis.seasons import (
@@ -123,6 +131,11 @@ SUMMARY_VARS: List[Tuple[str, str]] = [
 BASELINE_DEFAULT_PERIOD: Tuple[int, int] = (1991, 2020)
 MIN_LTM_YEARS:           int            = 20
 CHIRTS_LAST_YEAR:        int            = 2016
+PRECIP_ONLY_SOURCES = {'chirps', 'chirps_v2', 'imerg'}
+TEMP_ONLY_SOURCES = {'chirts'}
+PAIRED_SOURCE_SENTINEL = 'paired'
+DEFAULT_AUTO_PRECIP_SOURCE = 'chirps_v3_daily_rnl'
+DEFAULT_AUTO_TEMP_SOURCE = 'agera_5'
 
 
 def _validate_nex_ltm_period(
@@ -167,11 +180,42 @@ def _validate_source_compatibility(
             "requires temperature inputs for ET0 and season analysis, so imerg "
             "needs an explicit temperature partner."
         )
-    if source_lc == 'chirps+chirts' and end_year > CHIRTS_LAST_YEAR:
+    if source_lc == 'chirps_v3_daily_rnl':
         return (
-            "chirps+chirts is unavailable for this window because CHIRTS daily "
-            f"coverage ends in {CHIRTS_LAST_YEAR}. Use era_5, agera_5, "
-            "nasa_power, chirps, or nex_gddp for later periods."
+            "chirps_v3_daily_rnl provides precipitation only and is not supported "
+            "in the current single-source interface. Use --source auto for the "
+            "default CHIRPS v3 Daily RNL + AgERA5 path, or use paired sources "
+            "explicitly."
+        )
+    if source_lc in {'chirps+chirts', 'chirps_v2+chirts'} and end_year > CHIRTS_LAST_YEAR:
+        return (
+            "chirps_v2+chirts is unavailable for this window because CHIRTS daily "
+            f"coverage ends in {CHIRTS_LAST_YEAR}. Use agera_5, era_5, "
+            "nasa_power, chirps_v2, or nex_gddp for later periods."
+        )
+    return None
+
+
+def _validate_paired_sources(
+    precip_source: Optional[str],
+    temp_source: Optional[str],
+    start_year: int,
+    end_year: int,
+) -> Optional[str]:
+    precip_lc = normalize_climate_dataset_name(precip_source)
+    temp_lc = normalize_climate_dataset_name(temp_source)
+    if bool(precip_lc) != bool(temp_lc):
+        return "Provide both precip_source and temp_source together."
+    if not precip_lc and not temp_lc:
+        return None
+    if precip_lc in TEMP_ONLY_SOURCES:
+        return f"precip_source '{precip_source}' is temperature-only."
+    if temp_lc in PRECIP_ONLY_SOURCES:
+        return f"temp_source '{temp_source}' is precipitation-only."
+    if temp_lc == 'chirts' and end_year > CHIRTS_LAST_YEAR:
+        return (
+            "Temperature partner chirts is unavailable for this window because "
+            f"CHIRTS daily coverage ends in {CHIRTS_LAST_YEAR}."
         )
     return None
 
@@ -190,7 +234,7 @@ def _call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
 
 def _fetch_chirps_chirts(lat, lon, date_from, date_to):
     """Merge CHIRPS (precip) + CHIRTS (temp). Other vars unavailable."""
-    df_p = _call_preprocess('chirps', lat, lon, date_from, date_to, None, None)
+    df_p = _call_preprocess('chirps_v2', lat, lon, date_from, date_to, None, None)
     df_t = _call_preprocess('chirts', lat, lon, date_from, date_to, None, None)
     if df_p is None or df_p.empty:
         raise RuntimeError("CHIRPS returned no data")
@@ -199,12 +243,79 @@ def _fetch_chirps_chirts(lat, lon, date_from, date_to):
     return pd.merge(df_p, df_t, on='date', how='inner')
 
 
+def _fetch_paired_sources(
+    lat,
+    lon,
+    date_from,
+    date_to,
+    precip_source,
+    temp_source,
+    *,
+    model=None,
+    scenario=None,
+):
+    precip_lc = normalize_climate_dataset_name(precip_source)
+    temp_lc = normalize_climate_dataset_name(temp_source)
+    precip_df = _call_preprocess(
+        precip_lc,
+        lat,
+        lon,
+        date_from,
+        date_to,
+        model if precip_lc == 'nex_gddp' else None,
+        scenario if precip_lc == 'nex_gddp' else None,
+    )
+    temp_df = _call_preprocess(
+        temp_lc,
+        lat,
+        lon,
+        date_from,
+        date_to,
+        model if temp_lc == 'nex_gddp' else None,
+        scenario if temp_lc == 'nex_gddp' else None,
+    )
+    if precip_df is None or precip_df.empty or 'date' not in precip_df.columns:
+        raise RuntimeError(f"No precipitation data returned from source '{precip_source}'")
+    if temp_df is None or temp_df.empty or 'date' not in temp_df.columns:
+        raise RuntimeError(f"No temperature data returned from source '{temp_source}'")
+
+    temp_columns = [
+        column for column in temp_df.columns
+        if column == 'date' or column != 'precipitation'
+    ]
+    merged = pd.merge(
+        precip_df[['date', 'precipitation']],
+        temp_df[temp_columns],
+        on='date',
+        how='inner',
+    )
+    if merged.empty:
+        raise RuntimeError(
+            f"No overlapping daily records between precip_source='{precip_source}' "
+            f"and temp_source='{temp_source}'."
+        )
+    return merged
+
+
 def _fetch_auto(lat, lon, date_from, date_to):
     """
-    Match seasons.py intent more closely:
-    try ERA5, then AgERA5, then CHIRPS+CHIRTS as late fallback.
+    Default historical path:
+    try CHIRPS v3 Daily RNL precipitation + AgERA5 companion variables first,
+    then AgERA5 alone, then ERA5, then legacy CHIRPS v2 + CHIRTS fallback.
     """
-    for candidate in ('era_5', 'agera_5'):
+    try:
+        return _fetch_paired_sources(
+            lat,
+            lon,
+            date_from,
+            date_to,
+            DEFAULT_AUTO_PRECIP_SOURCE,
+            DEFAULT_AUTO_TEMP_SOURCE,
+        )
+    except Exception:
+        pass
+
+    for candidate in (DEFAULT_AUTO_TEMP_SOURCE, 'era_5'):
         try:
             return _call_preprocess(candidate, lat, lon, date_from, date_to, None, None)
         except Exception:
@@ -212,9 +323,9 @@ def _fetch_auto(lat, lon, date_from, date_to):
 
     if date_to.year > CHIRTS_LAST_YEAR:
         raise RuntimeError(
-            "auto fallback exhausted era_5 and agera_5, and chirps+chirts "
-            f"is unavailable after {CHIRTS_LAST_YEAR} because CHIRTS daily "
-            "coverage ends there."
+            "auto fallback exhausted default CHIRPS v3 Daily RNL + AgERA5 pair, "
+            "AgERA5, and ERA5, and legacy chirps_v2+chirts is unavailable after "
+            f"{CHIRTS_LAST_YEAR} because CHIRTS daily coverage ends there."
         )
     return _fetch_chirps_chirts(lat, lon, date_from, date_to)
 
@@ -224,14 +335,21 @@ def get_climate_data(
     source: str,
     model:    Optional[str] = None,
     scenario: Optional[str] = None,
+    precip_source: Optional[str] = None,
+    temp_source: Optional[str] = None,
 ) -> pd.DataFrame:
     """
     Fetch all variables for [start_date, end_date] from the given source.
     Source handling
     ---------------
-      - 'auto'           : tries era_5, then agera_5, then chirps+chirts fallback
-      - 'chirps+chirts'  : merges CHIRPS precip + CHIRTS temperature
-      - any other string : passed straight to preprocess_data (era_5, agera_5, nasa_power, nex_gddp, chirps, chirts, …)
+      - 'auto'              : tries chirps_v3_daily_rnl + agera_5, then agera_5, then era_5, then chirps_v2+chirts fallback
+      - 'paired'            : merges explicit precip_source + temp_source
+      - 'chirps_v2+chirts'  : merges CHIRPS v2 precip + CHIRTS temperature
+      - any other string    : passed straight to preprocess_data (agera_5, era_5, nasa_power, nex_gddp, chirps_v2, chirts, …)
+    Recommendation
+    --------------
+      - Default historical daily path uses `chirps_v3_daily_rnl` + `agera_5`.
+      - For direct single-source historical daily runs, prefer `agera_5`.
     Renames pipeline columns to canonical names: precip, tmax, tmin (humidity, soil_moisture, solar_radiation, wind_speed pass through when the source provides them).
     """
     if not PREPROCESS_AVAILABLE:
@@ -239,17 +357,31 @@ def get_climate_data(
 
     date_from = date.fromisoformat(start_date)
     date_to   = date.fromisoformat(end_date)
-    source_lc = source.lower()
+    source_lc = normalize_climate_dataset_name(source)
+    precip_lc = normalize_climate_dataset_name(precip_source)
+    temp_lc = normalize_climate_dataset_name(temp_source)
 
     # Resolve source -> raw DataFrame
-    if source_lc == 'auto':
-        print("  [source] auto -> era_5 -> agera_5 -> chirps+chirts")
+    if precip_lc and temp_lc:
+        print(f"  [source] paired precip={precip_lc} + temp={temp_lc}")
+        df = _fetch_paired_sources(
+            lat,
+            lon,
+            date_from,
+            date_to,
+            precip_lc,
+            temp_lc,
+            model=model,
+            scenario=scenario,
+        )
+    elif source_lc == 'auto':
+        print("  [source] auto -> chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts")
         df = _fetch_auto(lat, lon, date_from, date_to)
-    elif source_lc == 'chirps+chirts':
-        print("  [source] CHIRPS + CHIRTS")
+    elif source_lc in {'chirps+chirts', 'chirps_v2+chirts'}:
+        print("  [source] CHIRPS v2 + CHIRTS")
         df = _fetch_chirps_chirts(lat, lon, date_from, date_to)
     else:
-        df = _call_preprocess(source, lat, lon, date_from, date_to, model, scenario)
+        df = _call_preprocess(source_lc, lat, lon, date_from, date_to, model, scenario)
 
     if df is None or df.empty:
         raise RuntimeError(f"No data returned from source '{source}'")
@@ -262,8 +394,8 @@ def get_climate_data(
         print(f"  [WARN] No precipitation column from {source}; defaulting to 0")
         df['precip'] = 0.0
     if 'tmax' not in df.columns or 'tmin' not in df.columns:
-        if source_lc == 'chirps':
-            print("  [WARN] CHIRPS provides precipitation only -- defaulting tmax=25, tmin=15")
+        if source_lc == 'chirps_v2':
+            print("  [WARN] CHIRPS v2 provides precipitation only -- defaulting tmax=25, tmin=15")
             df['tmax'] = 25.0
             df['tmin'] = 15.0
         else:
@@ -677,6 +809,8 @@ def analyze_climate_statistics(
     model:          Optional[str] = None,
     scenario:       Optional[str] = None,
     extra_months:   int = 6,
+    precip_source:  Optional[str] = None,
+    temp_source:    Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Single entrypoint.
@@ -687,9 +821,13 @@ def analyze_climate_statistics(
     """
     lat, lon = location_coord
     run_started = perf_counter()
-    source_error = _validate_source_compatibility(source, start_year, end_year)
-    if source_error:
-        return {'error': source_error}
+    pair_error = _validate_paired_sources(precip_source, temp_source, start_year, end_year)
+    if pair_error:
+        return {'error': pair_error}
+    if not (precip_source and temp_source):
+        source_error = _validate_source_compatibility(source, start_year, end_year)
+        if source_error:
+            return {'error': source_error}
     period_error = _validate_nex_ltm_period(source, start_year, end_year)
     if period_error:
         return {'error': period_error}
@@ -723,6 +861,10 @@ def analyze_climate_statistics(
         run_label.append(f"model={model}")
     if scenario:
         run_label.append(f"scenario={scenario}")
+    if precip_source:
+        run_label.append(f"precip_source={normalize_climate_dataset_name(precip_source)}")
+    if temp_source:
+        run_label.append(f"temp_source={normalize_climate_dataset_name(temp_source)}")
     if fixed_season:
         run_label.append(f"fixed_season={fixed_season}")
     print(f"Fetching climate data: {fetch_start} → {fetch_end} | "
@@ -730,7 +872,9 @@ def analyze_climate_statistics(
     fetch_started = perf_counter()
     try:
         df = get_climate_data(lat, lon, fetch_start, fetch_end,
-                              source, model=model, scenario=scenario)
+                              source, model=model, scenario=scenario,
+                              precip_source=precip_source,
+                              temp_source=temp_source)
     except Exception as exc:
         return {
             'error': (
@@ -838,6 +982,8 @@ def analyze_climate_statistics(
         'fixed_season':        fixed_season,
         'model':               model,
         'scenario':            scenario,
+        'precip_source':       normalize_climate_dataset_name(precip_source),
+        'temp_source':         normalize_climate_dataset_name(temp_source),
         'raw_climate_summary': raw_period,
         'overall_statistics':  overall_period,
         'season_statistics':   season_results,
@@ -1068,11 +1214,17 @@ def main() -> None:
     parser.add_argument('--source',     required=True,
                         help=(
                             "Data source. Examples:\n"
-                            "  era_5, agera_5, chirps, chirps+chirts, "
+                            "  agera_5, era_5, chirps_v2, chirps_v2+chirts, paired, "
                             "nasa_power, nex_gddp, auto\n"
+                            "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
+                            "Recommended direct single-source fallback: agera_5.\n"
                             "Incompatible sources are rejected with a clean "
                             "error at runtime."
                         ))
+    parser.add_argument('--precip-source', default=None,
+                        help='Optional paired precipitation source, e.g. chirps_v3_daily_rnl, chirps_v2, or imerg')
+    parser.add_argument('--temp-source', default=None,
+                        help='Optional paired temperature source, e.g. agera_5 or era_5')
     parser.add_argument(
         '--fixed-season',
         default=None,
@@ -1128,6 +1280,8 @@ def main() -> None:
         model=args.model,
         scenario=args.scenario,
         extra_months=args.extra_months,
+        precip_source=args.precip_source,
+        temp_source=args.temp_source,
     )
 
     # Display
@@ -1168,7 +1322,7 @@ if __name__ == "__main__":
 # Fixed two seasons:
 # python climate_tookit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "03-01:05-31,10-01:12-15" --source agera_5 --format pandas
 
-# python climate_tookit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "11-01:02-28" --source chirps+chirts --format pandas
+# python climate_tookit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "11-01:02-28" --source chirps_v2+chirts --format pandas
 
 # NEX-GDDP with fixed season:
 # python climate_tookit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2030 --end-year 2032 --fixed-season "03-01:05-31" --source nex_gddp --model ACCESS-CM2 --scenario ssp245 --format pandas

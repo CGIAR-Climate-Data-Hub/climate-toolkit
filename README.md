@@ -26,6 +26,10 @@ The Climate Toolkit offers a unified, programmatic interface to:
 - Compute rainfall statistics, anomalies, and hazard indicators
 - Compare climate trends over historical and seasonal periods
 
+For user-facing historical daily climate work, prefer `agera_5`. Keep `era_5`
+available for compatibility, diagnostics, and comparison work, but do not treat
+it as primary recommended source.
+
 ---
 
 ## Project Structure
@@ -79,7 +83,7 @@ Use the package entry point rather than calling internal source files directly:
 
 ```bash
 python -m climate_tookit.fetch_data.fetch_data \
-  --source chirps \
+  --source chirps_v2 \
   --lat -1.286 \
   --lon 36.817 \
   --start 2020-01-01 \
@@ -90,7 +94,7 @@ python -m climate_tookit.fetch_data.fetch_data \
 
 Key options:
 
-- `--source`: dataset key such as `chirps`, `era_5`, `agera_5`, `nex_gddp`
+- `--source`: dataset key such as `chirps_v2`, `agera_5`, `era_5`, `nex_gddp`
 - `--stage`: `raw`, `transformed`, or `preprocessed`
 - `--variables`: comma-separated toolkit variable names such as `precipitation,max_temperature,min_temperature`
 - `--output` and `--format`: save to `csv` or `json` instead of printing
@@ -128,7 +132,7 @@ from climate_tookit.fetch_data import fetch_data
 from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 df = fetch_data(
-    source="chirps",
+    source="chirps_v2",
     location_coord=(-1.286, 36.817),
     variables=[ClimateVariable.precipitation],
     date_from=date(2020, 1, 1),

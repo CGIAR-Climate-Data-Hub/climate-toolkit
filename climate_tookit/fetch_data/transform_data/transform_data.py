@@ -8,6 +8,9 @@ from ..source_data.sources.utils.models import (
     ClimateVariable,
     ClimateDataset,
     SoilVariable,
+    accepted_climate_dataset_names,
+    normalize_climate_dataset_name,
+    source_date_coverage_error,
 )
 from ..source_data.sources.utils.settings import Settings
 
@@ -26,15 +29,19 @@ def validate_coordinates(lat, lon):
 def validate_inputs(source, lat, lon, date_from, date_to, model, scenario):
     """Validate all user inputs and return a list of errors."""
     errors = []
+    source_name = normalize_climate_dataset_name(source)
     errors.extend(validate_coordinates(lat, lon))
-    valid_sources = [s.name for s in ClimateDataset]
-    if source not in valid_sources:
+    valid_sources = accepted_climate_dataset_names()
+    if source_name not in valid_sources:
         errors.append(
             f"Invalid source '{source}'. Valid sources: {', '.join(valid_sources)}"
         )
     if date_from and date_to and date_from > date_to:
         errors.append("Start date must be before end date")
-    if source == "nex_gddp":
+    coverage_error = source_date_coverage_error(source_name, date_from, date_to)
+    if coverage_error:
+        errors.append(coverage_error)
+    if source_name == "nex_gddp":
         valid_scenarios = sorted(SCENARIO_MAPPING.keys())
         if model and model not in AVAILABLE_MODELS:
             errors.append(
@@ -90,7 +97,13 @@ def default_variables():
         ClimateVariable.soil_moisture,
         ClimateVariable.wind_speed,
         ClimateVariable.humidity,
+        SoilVariable.root_depth,
+        SoilVariable.available_water_capacity,
+        SoilVariable.drainage,
         SoilVariable.bulk_density,
+        SoilVariable.coarse_fragments,
+        SoilVariable.field_capacity,
+        SoilVariable.wilting_point,
         SoilVariable.cation_exchange_capacity,
         SoilVariable.clay_content,
         SoilVariable.coarse_fragments,
@@ -122,16 +135,24 @@ def transform_data(
         raise ValueError("location_coord must be provided as (lat, lon)")
     
     lat, lon = location_coord
-    coord_errors = validate_coordinates(lat, lon)
-
-    if coord_errors:
-        raise ValueError(" | ".join(coord_errors))
+    input_errors = validate_inputs(
+        source=source,
+        lat=lat,
+        lon=lon,
+        date_from=date_from,
+        date_to=date_to,
+        model=model,
+        scenario=scenario,
+    )
+    if input_errors:
+        raise ValueError(" | ".join(input_errors))
     variables = variables or default_variables()
     date_from = date_from or date.today()
     date_to = date_to or date.today()
+    source_name = normalize_climate_dataset_name(source)
 
     try:
-        dataset = ClimateDataset[source]
+        dataset = ClimateDataset[source_name]
     except KeyError:
         raise ValueError(f"Unknown source '{source}'")
 
@@ -151,9 +172,9 @@ def transform_data(
 
     raw_df = src.download()
 
-    mappings = load_variable_mappings().get(source, {})
+    mappings = load_variable_mappings().get(dataset.name, {})
     if not mappings:
-        raise ValueError(f"No variable mappings found for source '{source}'")
+        raise ValueError(f"No variable mappings found for source '{dataset.name}'")
 
     return raw_df.rename(columns=mappings)
 
