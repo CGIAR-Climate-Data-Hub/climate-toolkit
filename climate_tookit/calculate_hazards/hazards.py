@@ -20,6 +20,7 @@ from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
 import json
 import argparse
+from climate_tookit.season_analysis.season_identity import build_season_identity
 
 current_dir  = os.path.dirname(os.path.abspath(__file__)) 
 parent_dir   = os.path.dirname(current_dir)                 
@@ -302,6 +303,22 @@ def _extract_detection_errors(annual_dict: Dict[int, Dict[str, Any]]) -> List[st
 
 def _shift_iso_date(date_str: str, days: int) -> str:
     return (datetime.fromisoformat(date_str) + timedelta(days=days)).strftime("%Y-%m-%d")
+
+
+def _attach_season_identity(season_info: Dict[str, Any]) -> Dict[str, Any]:
+    season_info = dict(season_info)
+    onset = season_info.get("onset_date")
+    cessation = season_info.get("cessation_date")
+    if onset and cessation:
+        season_info["season_identity"] = build_season_identity(
+            onset,
+            cessation,
+            length_days=season_info.get("length_days"),
+            regime=season_info.get("regime"),
+            season_number=season_info.get("season_number"),
+            total_seasons_per_year=season_info.get("total_seasons_per_year"),
+        )
+    return season_info
 
 
 def _prefetched_window_covers(
@@ -1226,7 +1243,7 @@ def calculate_hazards(
             season_end,
             source=source,
         )
-        season_info = {
+        season_info = _attach_season_identity({
             'season_detected': True,
             'onset_date':      season_start,
             'cessation_date':  season_end,
@@ -1235,7 +1252,7 @@ def calculate_hazards(
             'spinup_days':     spinup_days,
             'method':          'user_provided',
             'source':          source,          # record dataset used
-        }
+        })
         all_results = [{'season_info': season_info, 'df': df}]
 
     # fixed-season (mirrors seasons.py fixed-season mode)
@@ -1269,7 +1286,7 @@ def calculate_hazards(
                     if s.get('cessation') else date_to
                 )
                 fetch_start = _shift_iso_date(s_start, -spinup_days)
-                season_info = {
+                season_info = _attach_season_identity({
                     'season_detected':        True,
                     'onset_date':             s_start,
                     'cessation_date':         s_end,
@@ -1277,11 +1294,12 @@ def calculate_hazards(
                     'length_days':            s['length_days'],
                     'spinup_days':            spinup_days,
                     'method':                 'fixed_season',
+                    'regime':                 s.get('regime', 'fixed'),
                     'year':                   year,
                     'season_number':          season_idx + 1,           
                     'total_seasons_per_year': num_seasons_per_year,     
                     'source':                 source,                   
-                }
+                })
                 df = _slice_prefetched_window(s.get('source_df'), fetch_start, s_end)
                 if df is None:
                     df = _slice_prefetched_window(s.get('window_df'), fetch_start, s_end)
@@ -1335,7 +1353,7 @@ def calculate_hazards(
                     if s.get('cessation') else date_to
                 )
                 fetch_start = _shift_iso_date(s_start, -spinup_days)
-                season_info = {
+                season_info = _attach_season_identity({
                     'season_detected':        True,
                     'onset_date':             s_start,
                     'cessation_date':         s_end,
@@ -1343,11 +1361,12 @@ def calculate_hazards(
                     'length_days':            s['length_days'],
                     'spinup_days':            spinup_days,
                     'method':                 'rainfall_based',
+                    'regime':                 s.get('regime', 'auto'),
                     'year':                   year,
                     'season_number':          season_idx + 1,
                     'total_seasons_per_year': num_seasons_per_year,
                     'source':                 detection_source,
-                }
+                })
                 df = get_climate_data_for_season(
                     lat,
                     lon,

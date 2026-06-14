@@ -27,6 +27,7 @@ from time import perf_counter
 from typing import Tuple, Dict, List, Any, Optional
 
 import pandas as pd
+from climate_tookit.season_analysis.season_identity import build_season_identity
 import numpy as np
 
 warnings.filterwarnings("ignore")
@@ -934,6 +935,14 @@ def analyze_climate_statistics(
             stats['year']          = year
             stats['season_number'] = i
             stats['regime']        = season.get('regime', 'auto')
+            stats['season_identity'] = build_season_identity(
+                stats['onset'],
+                stats['cessation'],
+                length_days=stats.get('length_days'),
+                regime=season.get('regime', 'auto'),
+                season_number=i,
+                total_seasons_per_year=len(seasons_dict[year]),
+            )
 
             # Slice once and attach the raw + overall views to this season
             onset_ts = pd.to_datetime(season['onset'])

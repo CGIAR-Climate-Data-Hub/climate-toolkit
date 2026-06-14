@@ -277,6 +277,11 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("era_5", season_fetch_calls[0]["source"])
         self.assertEqual("era_5", result["season_info"]["source"])
         self.assertEqual(60, fixed_call_kwargs[0]["prefetch_pad_days"])
+        self.assertEqual("2020-03-01", result["season_info"]["season_identity"]["onset_date"])
+        self.assertEqual(
+            "regime:fixed|onset_month:03",
+            result["season_info"]["season_identity"]["experimental_alignment_key"],
+        )
 
     def test_calculate_hazards_fixed_season_reuses_prefetched_window_df(self):
         import climate_tookit.calculate_hazards.hazards as hazards

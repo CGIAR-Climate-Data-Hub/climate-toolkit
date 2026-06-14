@@ -394,6 +394,10 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual(3, len(result["season_statistics"]))
         self.assertEqual([], result["ltm_season_summary"]["windows"])
         self.assertIn("Auto-detected season counts differ across years", result["season_slot_warning"])
+        self.assertEqual(
+            "regime:unimodal|onset_month:03",
+            result["season_statistics"][0]["season_identity"]["experimental_alignment_key"],
+        )
 
 
 if __name__ == "__main__":
