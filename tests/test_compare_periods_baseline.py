@@ -455,6 +455,64 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             calls,
         )
 
+    def test_compare_one_model_forwards_optional_spei_args(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(
+            *,
+            location_coord,
+            start_year,
+            end_year,
+            source,
+            fixed_season=None,
+            model=None,
+            scenario=None,
+            **kwargs,
+        ):
+            calls.append((start_year, end_year, scenario, kwargs))
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "spei": {
+                    "config": {"scale_months": kwargs.get("spei_scale_months")},
+                    "summary": {"n_months": 12, "n_valid_spei": 12},
+                    "metadata": {},
+                    "monthly_series": [
+                        {"date": "2050-01-01", "month": 1, "spei": -0.4}
+                    ],
+                },
+            }
+
+        orig = ep.analyze_climate_statistics
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=2020,
+                future_start=2040,
+                future_end=2060,
+                fixed_season="03-01:05-31",
+                model="ACCESS-CM2",
+                scenario="ssp245",
+                spei_scale_months=6,
+                spei_fit="ub-pwm",
+                spei_ref_start="1991-01-01",
+                spei_ref_end="2020-12-31",
+            )
+        finally:
+            ep.analyze_climate_statistics = orig
+
+        self.assertEqual(2, len(calls))
+        self.assertEqual(6, calls[0][3]["spei_scale_months"])
+        self.assertEqual("ub-pwm", calls[0][3]["spei_fit"])
+        self.assertEqual("1991-01-01", calls[0][3]["spei_ref_start"])
+        self.assertEqual("2020-12-31", calls[0][3]["spei_ref_end"])
+        self.assertEqual(6, result["spei_scale_months"])
+        self.assertIn("spei", result)
+
     def test_compare_one_model_returns_clean_error_when_future_payload_has_error(self):
         calls = []
 
@@ -573,6 +631,94 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
 
         self.assertNotIn("error", result)
         self.assertEqual(result["n_models_ok"], 1)
+
+    def test_ensemble_compare_aggregates_spei_from_per_model_results(self):
+        orig_filter = ep._filter_models
+        orig_compare = ep._compare_one_model
+        ep._filter_models = lambda location, models, exclude_models: ["ACCESS-CM2", "MRI-ESM2-0"]
+        ep._compare_one_model = lambda **kwargs: {
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": [],
+            "annual_summary": {},
+            "spei": {
+                "summary": {
+                    "focal_avg_spei": -0.5 if kwargs["model"] == "ACCESS-CM2" else -1.5,
+                    "baseline_avg_spei": -0.2 if kwargs["model"] == "ACCESS-CM2" else -0.4,
+                    "diff": -0.3 if kwargs["model"] == "ACCESS-CM2" else -1.1,
+                    "pct": -150.0 if kwargs["model"] == "ACCESS-CM2" else -275.0,
+                },
+                "monthly": [
+                    {
+                        "date": "2050-01-01",
+                        "month": 1,
+                        "focal_spei": -0.5 if kwargs["model"] == "ACCESS-CM2" else -1.5,
+                        "baseline_avg_spei": -0.2 if kwargs["model"] == "ACCESS-CM2" else -0.4,
+                        "diff": -0.3 if kwargs["model"] == "ACCESS-CM2" else -1.1,
+                        "pct": -150.0 if kwargs["model"] == "ACCESS-CM2" else -275.0,
+                    }
+                ],
+            },
+        }
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                scenario="ssp245",
+                spei_scale_months=3,
+                verbose=False,
+            )
+        finally:
+            ep._filter_models = orig_filter
+            ep._compare_one_model = orig_compare
+
+        self.assertAlmostEqual(-1.0, result["spei"]["summary"]["focal_avg_spei"])
+        self.assertAlmostEqual(-0.3, result["spei"]["summary"]["baseline_avg_spei"])
+        self.assertAlmostEqual(-0.7, result["spei"]["summary"]["diff"])
+        self.assertEqual(2, result["spei"]["n_models"])
+
+    def test_print_focal_vs_ltm_renders_spei_block(self):
+        payload = {
+            "focal_year": 2019,
+            "focal_source": "era_5",
+            "ltm_label": "future_ltm",
+            "overall_statistics": {},
+            "season_statistics": None,
+            "annual_summary": {},
+            "spei": {
+                "summary": {
+                    "focal_avg_spei": -0.8,
+                    "baseline_avg_spei": -0.2,
+                    "diff": -0.6,
+                    "pct": -300.0,
+                },
+                "monthly": [
+                    {
+                        "date": "2019-01-01",
+                        "month": 1,
+                        "focal_spei": -1.0,
+                        "baseline_avg_spei": -0.3,
+                        "diff": -0.7,
+                        "pct": -233.33,
+                    }
+                ],
+            },
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            ep._print_focal_vs_ltm(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("2019-01-01", rendered)
+        self.assertIn("Mean SPEI", rendered)
 
     def test_annotate_cli_timing_promotes_command_total_and_preserves_core_timer(self):
         result = {
