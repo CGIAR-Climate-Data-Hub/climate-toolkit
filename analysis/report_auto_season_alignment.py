@@ -31,6 +31,25 @@ DEFAULT_SITES: List[Site] = [
     Site("Cusco", -13.5319, -71.9675, "Andes"),
 ]
 
+
+def parse_site(value: str) -> Site:
+    parts = [part.strip() for part in value.split(",")]
+    if len(parts) == 3:
+        name, lat, lon = parts
+        region = "Custom"
+    elif len(parts) == 4:
+        name, lat, lon, region = parts
+    else:
+        raise argparse.ArgumentTypeError(
+            "Site must be 'name,lat,lon' or 'name,lat,lon,region'."
+        )
+    try:
+        return Site(name=name, lat=float(lat), lon=float(lon), region=region)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"Invalid site coordinate in '{value}'."
+        ) from exc
+
 def _candidate_value(row: Dict[str, Any], candidate: str) -> str:
     identity = row.get("season_identity") or {}
     if candidate == "season_number":
@@ -108,6 +127,10 @@ def summarize_candidate(rows: List[Dict[str, Any]], candidate: str) -> Dict[str,
 
 def overall_recommendation(candidate_summaries: Iterable[Dict[str, Any]]) -> str:
     summaries = list(candidate_summaries)
+    if not summaries or all(summary.get("n_seasons", 0) == 0 for summary in summaries):
+        return (
+            "No detected seasons in tested years; alignment-key comparison is not informative for this site/window."
+        )
     regime_month = next((s for s in summaries if s["candidate"] == "regime_onset_month"), None)
     if not regime_month:
         return "No recommendation"
@@ -212,6 +235,8 @@ def render_markdown(
         if report.get("season_slot_warning"):
             lines.append(f"- Guard triggered: `{report['season_slot_warning']}`")
         lines.append(f"- Recommendation: {report['recommendation']}")
+        if not report.get("season_rows"):
+            lines.append("- Note: no season rows were produced for this site/window.")
         lines.append("")
         lines.append("### Seasons")
         lines.append("")
@@ -244,15 +269,22 @@ def main() -> None:
     parser.add_argument("--end-year", type=int, default=2020)
     parser.add_argument("--source", default="auto")
     parser.add_argument(
+        "--site",
+        action="append",
+        type=parse_site,
+        help="Repeatable site spec: 'name,lat,lon' or 'name,lat,lon,region'.",
+    )
+    parser.add_argument(
         "--output-prefix",
         default="analysis/auto_season_alignment_report",
         help="Prefix for .json/.csv/.md outputs",
     )
     args = parser.parse_args()
+    sites = args.site or DEFAULT_SITES
 
     reports = [
         collect_site_rows(site, args.start_year, args.end_year, args.source)
-        for site in DEFAULT_SITES
+        for site in sites
     ]
 
     output_prefix = Path(args.output_prefix)
