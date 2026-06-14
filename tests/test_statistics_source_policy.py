@@ -259,6 +259,143 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             self.assertTrue(output_path.exists())
             self.assertIn("Saved to", stdout.getvalue())
 
+    def test_analyze_climate_statistics_includes_optional_spei_block(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range("2018-01-01", "2019-12-31", freq="D"),
+                "precip": [1.0] * 730,
+                "tmax": [25.0] * 730,
+                "tmin": [15.0] * 730,
+                "ET0_mm_day": [4.0] * 730,
+                "water_balance": [-3.0] * 730,
+            }
+        )
+        spei_calls = []
+
+        orig_get = stats.get_climate_data
+        orig_add_et0 = stats.add_et0
+        orig_wb = stats.calculate_water_balance
+        orig_detect_fixed = stats.detect_seasons_fixed
+        orig_spei = stats._spei_block
+        try:
+            stats.get_climate_data = lambda *args, **kwargs: df.copy()
+            stats.add_et0 = lambda frame, lat: frame
+            stats.calculate_water_balance = lambda frame: frame
+            stats.detect_seasons_fixed = lambda frame, fixed_defs, start_year, end_year: (
+                {2018: []},
+                {2018: {"annual_rain_mm": 365.0, "is_humid": False, "low_rain_months": 12, "result_str": "Not humid"}},
+            )
+
+            def fake_spei(frame, **kwargs):
+                spei_calls.append({"rows": len(frame), **kwargs})
+                return {
+                    "config": kwargs,
+                    "summary": {"n_months": 24, "n_valid_spei": 22},
+                    "metadata": {"standardization_method": "generalized_logistic_ub_pwm_by_calendar_month"},
+                    "monthly_series": [
+                        {"date": "2018-01-01", "water_balance_accumulated_mm": -30.0, "spei": -1.2}
+                    ],
+                }
+
+            stats._spei_block = fake_spei
+            result = stats.analyze_climate_statistics(
+                location_coord=(-1.286, 36.817),
+                start_year=2018,
+                end_year=2019,
+                source="era_5",
+                fixed_season="03-01:05-31",
+                spei_scale_months=3,
+                spei_fit="ub-pwm",
+                spei_ref_start="2018-01-01",
+                spei_ref_end="2019-12-31",
+            )
+        finally:
+            stats.get_climate_data = orig_get
+            stats.add_et0 = orig_add_et0
+            stats.calculate_water_balance = orig_wb
+            stats.detect_seasons_fixed = orig_detect_fixed
+            stats._spei_block = orig_spei
+
+        self.assertEqual(1, len(spei_calls))
+        self.assertEqual(730, spei_calls[0]["rows"])
+        self.assertEqual(3, spei_calls[0]["scale_months"])
+        self.assertEqual("ub-pwm", spei_calls[0]["fit"])
+        self.assertEqual("2018-01-01", spei_calls[0]["ref_start"])
+        self.assertEqual("2019-12-31", spei_calls[0]["ref_end"])
+        self.assertEqual(22, result["spei"]["summary"]["n_valid_spei"])
+
+    def test_cli_json_output_saves_spei_sidecar_csv(self):
+        payload = {
+            "period": {"start_year": 2018, "end_year": 2019},
+            "raw_climate_summary": [],
+            "overall_statistics": {},
+            "season_statistics": [],
+            "annual_summary": {},
+            "spei": {
+                "config": {"scale_months": 3, "fit": "ub-pwm"},
+                "summary": {"n_months": 2, "n_valid_spei": 2},
+                "metadata": {},
+                "monthly_series": [
+                    {"date": "2018-01-01", "water_balance_accumulated_mm": -10.0, "spei": -1.0},
+                    {"date": "2018-02-01", "water_balance_accumulated_mm": -5.0, "spei": -0.5},
+                ],
+            },
+        }
+
+        with TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "nested" / "results" / "stats.json"
+            spei_csv = output_path.with_name("stats_spei.csv")
+            argv = [
+                "statistics.py",
+                "--location=-1.286,36.817",
+                "--start-year=2018",
+                "--end-year=2019",
+                "--source=era_5",
+                "--format=json",
+                f"--output={output_path}",
+            ]
+
+            stdout = StringIO()
+            with mock.patch("sys.argv", argv), \
+                 mock.patch("sys.stdout", stdout), \
+                 mock.patch.object(stats, "analyze_climate_statistics", return_value=payload):
+                stats.main()
+
+            self.assertTrue(output_path.exists())
+            self.assertTrue(spei_csv.exists())
+            rendered = stdout.getvalue()
+            self.assertIn("Saved to", rendered)
+            self.assertIn("Saved SPEI CSV to", rendered)
+
+    def test_print_pandas_renders_spei_preview(self):
+        payload = {
+            "location": {"lat": -1.286, "lon": 36.817},
+            "period": {"start_year": 2018, "end_year": 2019},
+            "source": "era_5",
+            "mode": "fixed",
+            "fixed_season": "03-01:05-31",
+            "season_statistics": [],
+            "ltm_season_summary": {"windows": []},
+            "annual_summary": {},
+            "spei": {
+                "config": {"scale_months": 3, "fit": "ub-pwm"},
+                "summary": {"n_months": 24, "n_valid_spei": 20},
+                "metadata": {},
+                "monthly_series": [
+                    {"date": "2019-01-01", "water_balance_accumulated_mm": -10.0, "spei": -1.0},
+                    {"date": "2019-02-01", "water_balance_accumulated_mm": -5.0, "spei": -0.5},
+                ],
+            },
+        }
+
+        stdout = StringIO()
+        with mock.patch("sys.stdout", stdout):
+            stats.print_pandas(payload)
+
+        rendered = stdout.getvalue()
+        self.assertIn("SPEI-3 | fit=ub-pwm", rendered)
+        self.assertIn("2019-01-01", rendered)
+
     def test_fixed_window_eto_subseason_is_capped_to_window_end_not_dataset_tail(self):
         dates = pd.date_range("2018-01-01", "2020-12-31", freq="D")
         df = pd.DataFrame(
