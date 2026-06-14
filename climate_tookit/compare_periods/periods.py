@@ -31,7 +31,7 @@ sys.path.insert(0, project_root)
 
 from climate_tookit.climate_statistics.statistics import analyze_climate_statistics
 
-CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance"]
+CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance", "spei"]
 ANNUALIZABLE = {
     "precipitation": ["total_mm", "rainy_days", "dry_days"],
     "et0":           ["total_mm"],
@@ -84,6 +84,173 @@ def _fmt_pct(v: Optional[float]) -> str:
     return f"{v:+.2f}%" if _is_num(v) else "n/a"
 
 
+def _parse_fixed_season_windows(fixed_season: Optional[str]) -> List[Tuple[int, str, Tuple[int, int], Tuple[int, int]]]:
+    windows: List[Tuple[int, str, Tuple[int, int], Tuple[int, int]]] = []
+    if not fixed_season:
+        return windows
+    for idx, raw in enumerate(fixed_season.split(","), start=1):
+        label = raw.strip()
+        if not label:
+            continue
+        start_str, end_str = label.split(":")
+        start_md = tuple(int(x) for x in start_str.split("-", 1))
+        end_md = tuple(int(x) for x in end_str.split("-", 1))
+        windows.append((idx, label, start_md, end_md))
+    return windows
+
+
+def _month_day_in_window(
+    month: int,
+    day: int,
+    start_md: Tuple[int, int],
+    end_md: Tuple[int, int],
+) -> bool:
+    current = (month, day)
+    if start_md <= end_md:
+        return start_md <= current <= end_md
+    return current >= start_md or current <= end_md
+
+
+def _seasonal_spei_period_block(
+    spei_block: Optional[Dict[str, Any]],
+    fixed_season: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    if not (spei_block and fixed_season):
+        return None
+    windows = _parse_fixed_season_windows(fixed_season)
+    if not windows:
+        return None
+
+    pool: Dict[int, Dict[str, Any]] = {
+        sn: {"window": label, "season_number": sn, "values": []}
+        for sn, label, _, _ in windows
+    }
+    for row in spei_block.get("monthly_series") or []:
+        date_str = row.get("date")
+        value = row.get("spei")
+        if not (_is_num(value) and isinstance(date_str, str) and len(date_str) >= 10):
+            continue
+        try:
+            month = int(date_str[5:7])
+            day = int(date_str[8:10])
+        except ValueError:
+            continue
+        for sn, label, start_md, end_md in windows:
+            if _month_day_in_window(month, day, start_md, end_md):
+                pool[sn]["values"].append(float(value))
+                break
+
+    out_windows = []
+    for sn, label, _, _ in windows:
+        values = pool[sn]["values"]
+        if not values:
+            continue
+        out_windows.append({
+            "window": label,
+            "season_number": sn,
+            "n_months": len(values),
+            "block": {
+                "spei": {
+                    "mean_spei": round(sum(values) / len(values), 3),
+                }
+            },
+        })
+    return {"windows": out_windows} if out_windows else None
+
+
+def _merge_seasonal_spei_into_summary(
+    season_summary: Optional[Dict[str, Any]],
+    spei_summary: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not spei_summary:
+        return season_summary
+    if not season_summary:
+        season_summary = {"windows": []}
+
+    if "windows" in spei_summary:
+        existing = {
+            w.get("season_number", 1): w
+            for w in season_summary.get("windows", [])
+        }
+        for sw in spei_summary.get("windows", []):
+            sn = sw.get("season_number", 1)
+            target = existing.get(sn)
+            if target is None:
+                target = {
+                    "window": sw.get("window"),
+                    "season_number": sn,
+                    "block": {},
+                }
+                season_summary.setdefault("windows", []).append(target)
+                existing[sn] = target
+            target.setdefault("block", {}).update(sw.get("block", {}))
+            if sw.get("n_months") is not None:
+                target["spei_n_months"] = sw.get("n_months")
+        if "windows" in season_summary:
+            season_summary["windows"] = sorted(
+                season_summary["windows"],
+                key=lambda w: w.get("season_number", 1),
+            )
+        return season_summary
+
+    season_summary.setdefault("block", {}).update(spei_summary.get("block", {}))
+    return season_summary
+
+
+def _merge_seasonal_spei_into_diff(
+    season_diff: Optional[Dict[str, Any]],
+    a_spei: Optional[Dict[str, Any]],
+    b_spei: Optional[Dict[str, Any]],
+    a_lbl: str,
+    b_lbl: str,
+) -> Optional[Dict[str, Any]]:
+    if not (a_spei and b_spei):
+        return season_diff
+    if not season_diff:
+        season_diff = {"windows": []}
+
+    a_by_sn = {
+        w.get("season_number", 1): w.get("block", {})
+        for w in a_spei.get("windows", [])
+    }
+    b_by_sn = {
+        w.get("season_number", 1): w.get("block", {})
+        for w in b_spei.get("windows", [])
+    }
+    all_sns = sorted(set(a_by_sn) | set(b_by_sn))
+    if "windows" not in season_diff:
+        season_diff["windows"] = []
+    existing = {
+        w.get("season_number", 1): w
+        for w in season_diff.get("windows", [])
+    }
+    labels = {
+        w.get("season_number", 1): w.get("window")
+        for w in (a_spei.get("windows", []) + b_spei.get("windows", []))
+    }
+    for sn in all_sns:
+        diff_block = _diff_block(a_by_sn.get(sn, {}), b_by_sn.get(sn, {}), a_lbl, b_lbl)
+        if not diff_block:
+            continue
+        target = existing.get(sn)
+        if target is None:
+            target = {
+                "window": labels.get(sn, f"window_{sn}"),
+                "season_number": sn,
+                "n_baseline": 0,
+                "n_focal": 0,
+                "diff": {},
+            }
+            season_diff["windows"].append(target)
+            existing[sn] = target
+        target.setdefault("diff", {}).update(diff_block)
+    season_diff["windows"] = sorted(
+        season_diff["windows"],
+        key=lambda w: w.get("season_number", 1),
+    )
+    return season_diff
+
+
 def _diff_spei(
     focal_spei: Optional[Dict[str, Any]],
     baseline_spei: Optional[Dict[str, Any]],
@@ -113,14 +280,13 @@ def _diff_spei(
             continue
         baseline_avg = sum(base_vals) / len(base_vals)
         diff = float(focal_value) - baseline_avg
-        pct = _percent_change(diff, baseline_avg)
         windows.append({
             "date": row.get("date"),
             "month": month,
             "focal_spei": round(float(focal_value), 3),
             "baseline_avg_spei": round(baseline_avg, 3),
             "diff": round(diff, 3),
-            "pct": round(pct, 2) if _is_num(pct) else None,
+            "pct": None,
         })
 
     focal_vals = [float(row["spei"]) for row in focal_series if _is_num(row.get("spei"))]
@@ -130,12 +296,11 @@ def _diff_spei(
         focal_avg = sum(focal_vals) / len(focal_vals)
         base_avg = sum(base_vals) / len(base_vals)
         diff = focal_avg - base_avg
-        pct = _percent_change(diff, base_avg)
         summary = {
             "focal_avg_spei": round(focal_avg, 3),
             "baseline_avg_spei": round(base_avg, 3),
             "diff": round(diff, 3),
-            "pct": round(pct, 2) if _is_num(pct) else None,
+            "pct": None,
         }
 
     return {
@@ -256,7 +421,7 @@ def _diff_block(a: Dict, b: Dict, a_lbl: str, b_lbl: str,
             if not (_is_num(av) and _is_num(bv)):
                 continue
             d = av - bv
-            p = _percent_change(d, bv)
+            p = None if cat == "spei" else _percent_change(d, bv)
             cat_out[m] = {a_lbl:    round(av, 2), b_lbl:    round(bv, 2),
                           "diff":   round(d,  2),
                           "pct":    round(p,  2) if _is_num(p) else None}
@@ -453,6 +618,13 @@ def compare(
                 "diff":       _diff_block(fb, bb, "focal_avg", "baseline_avg",
                                           drop_temp),
             }
+    season_diff = _merge_seasonal_spei_into_diff(
+        season_diff,
+        _seasonal_spei_period_block(focal.get("spei"), fixed_season),
+        _seasonal_spei_period_block(base.get("spei"), fixed_season),
+        "focal",
+        "baseline_avg",
+    )
     # 4. annual_summary
     annual_diff = _diff_annual(focal.get("annual_summary", {}),
                                base.get("annual_summary",  {}),
@@ -553,13 +725,13 @@ def print_report(r: Dict[str, Any]) -> None:
 
     spei = r.get("spei")
     if spei:
-        print(f"\n--- 5. SPEI ---")
+        print(f"\n--- 5. SPEI (monthly/period summary, not seasonal) ---")
         summary = spei.get("summary") or {}
         if summary:
             print(
                 f"  Mean SPEI       : focal={summary['focal_avg_spei']:.3f} | "
                 f"baseline_avg={summary['baseline_avg_spei']:.3f} | "
-                f"Δ={summary['diff']:+.3f} ({_fmt_pct(summary.get('pct'))})"
+                f"Δ={summary['diff']:+.3f}"
             )
         monthly = spei.get("monthly") or []
         if monthly:
