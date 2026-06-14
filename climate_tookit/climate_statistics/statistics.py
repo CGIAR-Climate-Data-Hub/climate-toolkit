@@ -38,6 +38,16 @@ except ImportError:
     from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note
 
 try:
+    from ..climatology import compute_monthly_spei
+    SPEI_AVAILABLE = True
+except ImportError:
+    try:
+        from climate_tookit.climatology import compute_monthly_spei
+        SPEI_AVAILABLE = True
+    except ImportError:
+        SPEI_AVAILABLE = False
+
+try:
     from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
     PREPROCESS_AVAILABLE = True
 except ImportError:
@@ -574,6 +584,56 @@ def _format_elapsed(seconds: float) -> str:
     hours, minutes = divmod(minutes, 60)
     return f"{hours}h{minutes:02d}m{sec:02d}s"
 
+
+def _spei_block(
+    df: pd.DataFrame,
+    *,
+    scale_months: int,
+    fit: str,
+    ref_start: Optional[str],
+    ref_end: Optional[str],
+) -> Dict[str, Any]:
+    if not SPEI_AVAILABLE:
+        return {"error": "SPEI helper unavailable."}
+
+    monthly = compute_monthly_spei(
+        df,
+        scale_months=scale_months,
+        fit=fit,
+        ref_start=ref_start,
+        ref_end=ref_end,
+    )
+    records_df = monthly[
+        ["date", "year", "month", "precipitation_mm", "et0_mm", "water_balance_mm", "water_balance_accumulated_mm", "spei"]
+    ].copy()
+    records_df["date"] = records_df["date"].dt.strftime("%Y-%m-%d")
+    valid = records_df["spei"].notna()
+    return {
+        "config": {
+            "scale_months": scale_months,
+            "fit": fit,
+            "ref_start": ref_start,
+            "ref_end": ref_end,
+        },
+        "summary": {
+            "n_months": int(len(records_df)),
+            "n_valid_spei": int(valid.sum()),
+            "start_date": records_df["date"].iloc[0] if len(records_df) else None,
+            "end_date": records_df["date"].iloc[-1] if len(records_df) else None,
+        },
+        "metadata": monthly.attrs.get("spei_metadata", {}),
+        "monthly_series": records_df.to_dict(orient="records"),
+    }
+
+
+def _save_spei_csv_if_present(result: Dict[str, Any], json_path: Path) -> Optional[Path]:
+    spei = result.get("spei")
+    if not spei or not spei.get("monthly_series"):
+        return None
+    csv_path = json_path.with_name(f"{json_path.stem}_spei.csv")
+    pd.DataFrame(spei["monthly_series"]).to_csv(csv_path, index=False)
+    return csv_path
+
 def ltm_season_summary(
     season_results: List[Dict[str, Any]],
     fixed_season:   Optional[str] = None,
@@ -834,6 +894,10 @@ def analyze_climate_statistics(
     extra_months:   int = 6,
     precip_source:  Optional[str] = None,
     temp_source:    Optional[str] = None,
+    spei_scale_months: Optional[int] = None,
+    spei_fit: str = "ub-pwm",
+    spei_ref_start: Optional[str] = None,
+    spei_ref_end: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Single entrypoint.
@@ -995,6 +1059,23 @@ def analyze_climate_statistics(
                    (df['date'] <= pd.Timestamp(f"{end_year}-12-31"))]
     raw_period     = raw_climate_summary(period_df)
     overall_period = overall_statistics(period_df) if not period_df.empty else {}
+    spei_result: Optional[Dict[str, Any]] = None
+    if spei_scale_months is not None and not period_df.empty:
+        spei_started = perf_counter()
+        spei_result = _spei_block(
+            period_df,
+            scale_months=spei_scale_months,
+            fit=spei_fit,
+            ref_start=spei_ref_start,
+            ref_end=spei_ref_end,
+        )
+        spei_elapsed = perf_counter() - spei_started
+        print(
+            f"  SPEI-{spei_scale_months} computed in {_format_elapsed(spei_elapsed)} "
+            f"(valid_months={spei_result.get('summary', {}).get('n_valid_spei', 0)})"
+        )
+    else:
+        spei_elapsed = 0.0
 
     season_slot_warning: Optional[str] = None
     if not fixed_season:
@@ -1036,6 +1117,7 @@ def analyze_climate_statistics(
         'overall_statistics':  overall_period,
         'season_statistics':   season_results,
         'ltm_season_summary':  ltm,
+        'spei':                spei_result,
         'season_slot_warning': season_slot_warning,
         'coverage_warning':    coverage_warning,
         'annual_summary':      annual_summary,
@@ -1044,6 +1126,7 @@ def analyze_climate_statistics(
             'prep_seconds': round(prep_elapsed, 3),
             'season_detection_seconds': round(detect_elapsed, 3),
             'season_reduction_seconds': round(reduce_elapsed, 3),
+            'spei_seconds': round(spei_elapsed, 3),
             'total_seconds': round(total_elapsed, 3),
         },
         'analysis_date':       datetime.now().isoformat(),
@@ -1251,6 +1334,21 @@ def print_pandas(result: Dict[str, Any]) -> None:
     print_ltm_by_season(result.get('ltm_season_summary', {}),
                         header=_ltm_header(result))
     print_annual(result['annual_summary'])
+    spei = result.get("spei")
+    if spei:
+        print("\n" + "=" * 70)
+        print("SPEI")
+        print("=" * 70)
+        summary = spei.get("summary") or {}
+        config = spei.get("config") or {}
+        print(
+            f"SPEI-{config.get('scale_months')} | fit={config.get('fit')} | "
+            f"months={summary.get('n_months')} | valid={summary.get('n_valid_spei')}"
+        )
+        rows = (spei.get("monthly_series") or [])[-12:]
+        if rows:
+            preview = pd.DataFrame(rows)[["date", "water_balance_accumulated_mm", "spei"]]
+            _print_indented_table(preview.fillna("n/a"))
 
 # CLI
 def main() -> None:
@@ -1299,6 +1397,15 @@ def main() -> None:
                         help='NEX-GDDP model (e.g. ACCESS-CM2)')
     parser.add_argument('--scenario', default=None,
                         help='NEX-GDDP scenario (e.g. ssp245)')
+    parser.add_argument('--spei-scale-months', type=int, default=None,
+                        help='Optional SPEI scale in months, e.g. 3, 6, or 12')
+    parser.add_argument('--spei-fit', choices=['ub-pwm', 'empirical'],
+                        default='ub-pwm',
+                        help='SPEI fitting method (default: ub-pwm)')
+    parser.add_argument('--spei-ref-start', default=None,
+                        help='Optional SPEI reference-period start date, e.g. 1991-01-01')
+    parser.add_argument('--spei-ref-end', default=None,
+                        help='Optional SPEI reference-period end date, e.g. 2020-12-31')
     parser.add_argument('--format', choices=['json', 'pandas'],
                         default='pandas',
                         help='Output format (default: pandas)')
@@ -1335,6 +1442,10 @@ def main() -> None:
         extra_months=args.extra_months,
         precip_source=args.precip_source,
         temp_source=args.temp_source,
+        spei_scale_months=args.spei_scale_months,
+        spei_fit=args.spei_fit,
+        spei_ref_start=args.spei_ref_start,
+        spei_ref_end=args.spei_ref_end,
     )
 
     # Display
@@ -1348,10 +1459,13 @@ def main() -> None:
             Path(args.output).parent.mkdir(parents=True, exist_ok=True)
             with open(args.output, 'w') as f:
                 f.write(out)
+            spei_csv_path = _save_spei_csv_if_present(result, Path(args.output))
             if 'error' in result:
                 print(f"Saved error report to {args.output}")
                 sys.exit(1)
             print(f"Saved to {args.output}")
+            if spei_csv_path is not None:
+                print(f"Saved SPEI CSV to {spei_csv_path}")
         else:
             print(out)
             if 'error' in result:
@@ -1366,7 +1480,10 @@ def main() -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, 'w') as f:
             f.write(json.dumps(result, indent=2, default=str))
+        spei_csv_path = _save_spei_csv_if_present(result, path)
         print(f"\n✓ SAVED: {path}")
+        if spei_csv_path is not None:
+            print(f"✓ SAVED SPEI CSV: {spei_csv_path}")
 
 if __name__ == "__main__":
     main()
