@@ -327,6 +327,74 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual("2018-06-30", eto_subs[0]["cessation"])
         self.assertEqual(122, eto_subs[0]["length_days"])
 
+    def test_auto_mode_suppresses_ltm_windows_when_yearly_season_counts_differ(self):
+        dates = pd.date_range("2018-01-01", "2019-12-31", freq="D")
+        df = pd.DataFrame(
+            {
+                "date": dates,
+                "precip": [1.0] * len(dates),
+                "tmax": [25.0] * len(dates),
+                "tmin": [15.0] * len(dates),
+                "ET0_mm_day": [4.0] * len(dates),
+                "water_balance": [-1.0] * len(dates),
+            }
+        )
+
+        auto_seasons = {
+            2018: [
+                {
+                    "onset": pd.Timestamp("2018-03-01"),
+                    "cessation": pd.Timestamp("2018-05-31"),
+                    "length_days": 92,
+                    "regime": "unimodal",
+                }
+            ],
+            2019: [
+                {
+                    "onset": pd.Timestamp("2019-03-01"),
+                    "cessation": pd.Timestamp("2019-05-31"),
+                    "length_days": 92,
+                    "regime": "unimodal",
+                },
+                {
+                    "onset": pd.Timestamp("2019-10-01"),
+                    "cessation": pd.Timestamp("2019-12-31"),
+                    "length_days": 92,
+                    "regime": "bimodal",
+                },
+            ],
+        }
+        annual_dict = {
+            2018: {"annual_rain_mm": 700.0, "is_humid": False, "low_rain_months": 6, "result_str": "Not humid"},
+            2019: {"annual_rain_mm": 900.0, "is_humid": False, "low_rain_months": 5, "result_str": "Not humid"},
+        }
+
+        orig_get = stats.get_climate_data
+        orig_add_et0 = stats.add_et0
+        orig_wb = stats.calculate_water_balance
+        orig_detect_auto = stats.detect_seasons_auto
+        try:
+            stats.get_climate_data = lambda *args, **kwargs: df.copy()
+            stats.add_et0 = lambda frame, lat: frame
+            stats.calculate_water_balance = lambda frame: frame
+            stats.detect_seasons_auto = lambda frame, lat, start_year, end_year: (auto_seasons, annual_dict)
+
+            result = stats.analyze_climate_statistics(
+                location_coord=(-1.286, 36.817),
+                start_year=2018,
+                end_year=2019,
+                source="era_5",
+            )
+        finally:
+            stats.get_climate_data = orig_get
+            stats.add_et0 = orig_add_et0
+            stats.calculate_water_balance = orig_wb
+            stats.detect_seasons_auto = orig_detect_auto
+
+        self.assertEqual(3, len(result["season_statistics"]))
+        self.assertEqual([], result["ltm_season_summary"]["windows"])
+        self.assertIn("Auto-detected season counts differ across years", result["season_slot_warning"])
+
 
 if __name__ == "__main__":
     unittest.main()

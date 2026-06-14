@@ -654,6 +654,23 @@ def ltm_season_summary(
         'windows': windows,
     }
 
+
+def _auto_season_slot_warning(season_results: List[Dict[str, Any]]) -> Optional[str]:
+    counts: Dict[int, int] = {}
+    for season in season_results or []:
+        year = season.get("year")
+        if isinstance(year, int):
+            counts[year] = counts.get(year, 0) + 1
+    observed = set(counts.values())
+    if len(observed) <= 1:
+        return None
+    summary = ", ".join(f"{year}:{count}" for year, count in sorted(counts.items())) or "none"
+    return (
+        "Auto-detected season counts differ across years, so LTM season windows by "
+        f"season_number would blend incomparable seasons. Counts by year: {summary}. "
+        "Use --fixed-season for stable multi-year seasonal LTM output."
+    )
+
 # Season detection on a pre-fetched DataFrame
 def detect_seasons_auto(
     df: pd.DataFrame,
@@ -958,8 +975,16 @@ def analyze_climate_statistics(
     raw_period     = raw_climate_summary(period_df)
     overall_period = overall_statistics(period_df) if not period_df.empty else {}
 
+    season_slot_warning: Optional[str] = None
+    if not fixed_season:
+        season_slot_warning = _auto_season_slot_warning(season_results)
+
     # LTM (long-term mean) across years per season window
-    ltm = ltm_season_summary(season_results, fixed_season)
+    if season_slot_warning:
+        ltm = {'mode': 'auto', 'windows': [], 'warning': season_slot_warning}
+        print(f"\n  [WARN] {season_slot_warning}")
+    else:
+        ltm = ltm_season_summary(season_results, fixed_season)
     years_span = end_year - start_year + 1
     coverage_warning: Optional[str] = None
     if years_span < MIN_LTM_YEARS:
@@ -990,6 +1015,7 @@ def analyze_climate_statistics(
         'overall_statistics':  overall_period,
         'season_statistics':   season_results,
         'ltm_season_summary':  ltm,
+        'season_slot_warning': season_slot_warning,
         'coverage_warning':    coverage_warning,
         'annual_summary':      annual_summary,
         'timing':              {
@@ -1195,6 +1221,8 @@ def print_pandas(result: Dict[str, Any]) -> None:
         print(f"Scenario : {result['scenario']}")
     if result.get('coverage_warning'):
         print(f"Coverage : [WARN] {result['coverage_warning']}")
+    if result.get('season_slot_warning'):
+        print(f"Season LTM: [WARN] {result['season_slot_warning']}")
 
     print_raw_summary_by_season(result['season_statistics'])
     print_overall_by_season(result['season_statistics'])
