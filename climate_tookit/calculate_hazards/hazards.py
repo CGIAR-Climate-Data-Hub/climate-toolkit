@@ -1257,6 +1257,7 @@ def calculate_hazards(
             start_year=start_year,
             end_year=end_year,
             source=source,
+            prefetch_pad_days=spinup_days,
         )
         num_seasons_per_year = len(fixed_defs) 
         all_results = []

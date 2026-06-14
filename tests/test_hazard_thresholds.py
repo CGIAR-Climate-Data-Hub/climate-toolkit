@@ -208,23 +208,29 @@ class HazardThresholdTests(unittest.TestCase):
         import climate_tookit.calculate_hazards.hazards as hazards
 
         season_fetch_calls = []
+        fixed_call_kwargs = []
 
         orig_fixed = hazards.fetch_and_analyze_years_fixed
         orig_window_fetch = hazards.get_climate_data_for_season
         orig_calc_stats = hazards.calculate_season_statistics
         orig_eval = hazards.evaluate_hazard_metrics
-        hazards.fetch_and_analyze_years_fixed = lambda *args, **kwargs: (
-            {
-                2020: [
-                    {
-                        "onset": hazards.pd.Timestamp("2020-03-01"),
-                        "cessation": hazards.pd.Timestamp("2020-05-31"),
-                        "length_days": 92,
-                    }
-                ]
-            },
-            {},
-        )
+
+        def fake_fixed(*args, **kwargs):
+            fixed_call_kwargs.append(kwargs)
+            return (
+                {
+                    2020: [
+                        {
+                            "onset": hazards.pd.Timestamp("2020-03-01"),
+                            "cessation": hazards.pd.Timestamp("2020-05-31"),
+                            "length_days": 92,
+                        }
+                    ]
+                },
+                {},
+            )
+
+        hazards.fetch_and_analyze_years_fixed = fake_fixed
 
         def fake_window_fetch(lat, lon, start_date, end_date, source="auto", model=None, scenario=None):
             season_fetch_calls.append(
@@ -270,6 +276,7 @@ class HazardThresholdTests(unittest.TestCase):
 
         self.assertEqual("era_5", season_fetch_calls[0]["source"])
         self.assertEqual("era_5", result["season_info"]["source"])
+        self.assertEqual(60, fixed_call_kwargs[0]["prefetch_pad_days"])
 
     def test_calculate_hazards_fixed_season_reuses_prefetched_window_df(self):
         import climate_tookit.calculate_hazards.hazards as hazards

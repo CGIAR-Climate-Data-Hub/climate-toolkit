@@ -753,6 +753,7 @@ def fetch_and_analyze_years_fixed(
     source       : str = "auto",
     model        : Optional[str] = None,
     scenario     : Optional[str] = None,
+    prefetch_pad_days: int = 0,
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
     Apply fixed season windows to every year.
@@ -787,7 +788,11 @@ def fetch_and_analyze_years_fixed(
             continue
 
         # Fetch data: full calendar year + any year-crossing tail, in one call
-        fetch_start = f"{year}-01-01"
+        earliest_prefetch_start = min(
+            onset_date - timedelta(days=max(prefetch_pad_days, 0))
+            for onset_date, _ in resolved
+        )
+        fetch_start = earliest_prefetch_start.strftime("%Y-%m-%d")
         fetch_end   = max(date(year, 12, 31), max(c for _, c in resolved)).strftime("%Y-%m-%d")
         print(f"  Fetching {fetch_start} to {fetch_end} ...")
 

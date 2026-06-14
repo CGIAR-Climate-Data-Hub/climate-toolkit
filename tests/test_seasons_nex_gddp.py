@@ -121,6 +121,30 @@ class SeasonsNexGddpTests(unittest.TestCase):
         self.assertEqual(pd.Timestamp("2020-06-30"), pd.to_datetime(eto[0]["cessation"]))
         self.assertEqual(108, eto[0]["length_days"])
 
+    def test_fetch_and_analyze_years_fixed_prefetches_spinup_padding(self):
+        calls = []
+
+        orig = seasons.get_climate_data
+        def fake_get_climate_data(lat, lon, start_date, end_date, **kwargs):
+            calls.append((start_date, end_date))
+            raise Exception("stop")
+
+        seasons.get_climate_data = fake_get_climate_data
+        try:
+            seasons.fetch_and_analyze_years_fixed(
+                -1.286,
+                36.817,
+                fixed_seasons=seasons.parse_fixed_seasons("03-01:05-31"),
+                start_year=2020,
+                end_year=2020,
+                source="era_5",
+                prefetch_pad_days=60,
+            )
+        finally:
+            seasons.get_climate_data = orig
+
+        self.assertEqual([("2020-01-01", "2020-12-31")], calls)
+
     def test_get_climate_data_passes_model_and_scenario_for_nex(self):
         calls = []
 
