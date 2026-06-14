@@ -97,6 +97,49 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
 
         self.assertIn("n/a", stdout.getvalue())
 
+    def test_print_report_renders_spei_block(self):
+        payload = {
+            "focal_year": 2019,
+            "baseline_period": "2018-2018",
+            "source": "auto",
+            "fixed_season": None,
+            "temperature_excluded": False,
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": None,
+            "annual_summary": {},
+            "spei": {
+                "summary": {
+                    "focal_avg_spei": -0.8,
+                    "baseline_avg_spei": -0.2,
+                    "diff": -0.6,
+                    "pct": -300.0,
+                },
+                "monthly": [
+                    {
+                        "date": "2019-01-01",
+                        "month": 1,
+                        "focal_spei": -1.0,
+                        "baseline_avg_spei": -0.3,
+                        "diff": -0.7,
+                        "pct": -233.33,
+                    }
+                ],
+            },
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("--- 5. SPEI ---", rendered)
+        self.assertIn("2019-01-01", rendered)
+
     def test_main_accepts_json_format_and_creates_output_directory(self):
         orig_compare = cp.compare
         orig_argv = sys.argv[:]
@@ -163,6 +206,109 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             sys.argv = orig_argv
 
         self.assertEqual("2018-2019", saved["baseline_period"])
+
+    def test_compare_forwards_optional_spei_args(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(**kwargs):
+            calls.append(kwargs)
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "spei": {
+                    "config": {"scale_months": kwargs.get("spei_scale_months")},
+                    "summary": {"n_months": 12, "n_valid_spei": 12},
+                    "metadata": {},
+                    "monthly_series": [
+                        {"date": "2019-01-01", "month": 1, "spei": -1.0}
+                    ],
+                },
+            }
+
+        orig = cp.analyze_climate_statistics
+        cp.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = cp.compare(
+                location=(-1.286, 36.817),
+                baseline_start=2018,
+                baseline_end=2019,
+                focal_year=2020,
+                source="era_5",
+                fixed_season="03-01:05-31",
+                spei_scale_months=3,
+                spei_fit="ub-pwm",
+                spei_ref_start="1991-01-01",
+                spei_ref_end="2020-12-31",
+            )
+        finally:
+            cp.analyze_climate_statistics = orig
+
+        self.assertEqual(2, len(calls))
+        self.assertEqual(3, calls[0]["spei_scale_months"])
+        self.assertEqual("ub-pwm", calls[0]["spei_fit"])
+        self.assertEqual("1991-01-01", calls[0]["spei_ref_start"])
+        self.assertEqual("2020-12-31", calls[0]["spei_ref_end"])
+        self.assertEqual(3, result["spei_scale_months"])
+
+    def test_compare_computes_spei_monthly_and_summary_diffs(self):
+        orig = cp.analyze_climate_statistics
+
+        def fake_analyze_climate_statistics(**kwargs):
+            if kwargs["start_year"] == 2018:
+                return {
+                    "raw_climate_summary": [],
+                    "overall_statistics": {},
+                    "season_statistics": [],
+                    "annual_summary": {},
+                    "spei": {
+                        "config": {"scale_months": 3},
+                        "summary": {"n_months": 24, "n_valid_spei": 24},
+                        "metadata": {},
+                        "monthly_series": [
+                            {"date": "2018-01-01", "month": 1, "spei": -0.5},
+                            {"date": "2019-01-01", "month": 1, "spei": -1.5},
+                            {"date": "2018-02-01", "month": 2, "spei": 0.0},
+                            {"date": "2019-02-01", "month": 2, "spei": 0.5},
+                        ],
+                    },
+                }
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "spei": {
+                    "config": {"scale_months": 3},
+                    "summary": {"n_months": 12, "n_valid_spei": 12},
+                    "metadata": {},
+                    "monthly_series": [
+                        {"date": "2020-01-01", "month": 1, "spei": -1.0},
+                        {"date": "2020-02-01", "month": 2, "spei": 1.0},
+                    ],
+                },
+            }
+
+        cp.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = cp.compare(
+                location=(-1.286, 36.817),
+                baseline_start=2018,
+                baseline_end=2019,
+                focal_year=2020,
+                source="era_5",
+                fixed_season="03-01:05-31",
+                spei_scale_months=3,
+            )
+        finally:
+            cp.analyze_climate_statistics = orig
+
+        self.assertAlmostEqual(-1.0, result["spei"]["monthly"][0]["baseline_avg_spei"])
+        self.assertAlmostEqual(0.0, result["spei"]["monthly"][0]["diff"])
+        self.assertAlmostEqual(-0.375, result["spei"]["summary"]["baseline_avg_spei"])
+        self.assertAlmostEqual(0.0, result["spei"]["summary"]["focal_avg_spei"])
+        self.assertAlmostEqual(0.375, result["spei"]["summary"]["diff"])
 
     def test_compare_rejects_auto_detect_when_yearly_season_counts_differ(self):
         calls = []
