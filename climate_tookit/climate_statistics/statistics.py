@@ -132,6 +132,36 @@ except ImportError as exc:
         SEASONS_AVAILABLE = False
         print(f"Warning: seasons.py not available -- {exc}")
 
+try:
+    from ..calculate_hazards.hazards import (
+        DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
+        DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
+        DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
+        calc_water_balance as shared_calc_water_balance,
+        summarize_water_balance as shared_summarize_water_balance,
+    )
+    HAZARD_WATER_BALANCE_AVAILABLE = True
+except ImportError:
+    try:
+        from climate_tookit.calculate_hazards.hazards import (
+            DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
+            DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
+            DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
+            calc_water_balance as shared_calc_water_balance,
+            summarize_water_balance as shared_summarize_water_balance,
+        )
+        HAZARD_WATER_BALANCE_AVAILABLE = True
+    except ImportError:
+        HAZARD_WATER_BALANCE_AVAILABLE = False
+        HAZARD_DEFAULT_KC_PARAMS = {
+            "kc_init": 0.7,
+            "kc_mid": 1.0,
+            "kc_end": 0.8,
+            "depletion_fraction_p": 0.5,
+        }
+        HAZARD_DEFAULT_SOILCP = 100.0
+        HAZARD_DEFAULT_SOILSAT = 100.0
+
 if 'CLIMATE_VARS' not in globals():
     CLIMATE_VARS = [
         'precipitation', 'max_temperature', 'min_temperature',
@@ -531,6 +561,68 @@ def calculate_water_balance(df: pd.DataFrame) -> pd.DataFrame:
     df['water_stress']       = df['water_balance'] < 0
     return df
 
+
+def _shared_water_balance_summary(
+    df: pd.DataFrame,
+    *,
+    analysis_start: Optional[str] = None,
+    analysis_end: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Shared root-zone diagnostics from calculate_hazards.hazards.
+
+    Keep legacy precip-minus-ET0 totals for continuity, but source NDWS/NDWL0/WRSI
+    from the same running soil-water balance used by hazards/ensemble_hazards.
+    """
+    if not HAZARD_WATER_BALANCE_AVAILABLE or df is None or df.empty:
+        return {}
+    if 'ET0_mm_day' not in df.columns:
+        return {}
+    if not any(col in df.columns for col in ('precip', 'precipitation', 'total_precipitation')):
+        return {}
+
+    params = dict(HAZARD_DEFAULT_KC_PARAMS)
+    wb = shared_calc_water_balance(
+        df,
+        soilcp=HAZARD_DEFAULT_SOILCP,
+        soilsat=HAZARD_DEFAULT_SOILSAT,
+        kc=float(params.get('kc_mid', 1.0)),
+        kc_init=params.get('kc_init'),
+        kc_mid=params.get('kc_mid'),
+        kc_end=params.get('kc_end'),
+        depletion_fraction_p=float(params.get('depletion_fraction_p', 0.5)),
+        analysis_start=analysis_start,
+        analysis_end=analysis_end,
+    )
+    if wb is None or wb.empty:
+        return {}
+
+    if analysis_start or analysis_end:
+        mask = pd.Series(True, index=wb.index)
+        if analysis_start:
+            mask &= wb['date'] >= pd.Timestamp(analysis_start)
+        if analysis_end:
+            mask &= wb['date'] <= pd.Timestamp(analysis_end)
+        wb = wb.loc[mask]
+        if wb.empty:
+            return {}
+
+    summary = shared_summarize_water_balance(wb)
+    if not summary:
+        return {}
+
+    rounded: Dict[str, Any] = {}
+    for key, value in summary.items():
+        if key in {'NDWS', 'NDWL0'}:
+            rounded[key] = int(value)
+        elif key == 'WRSI':
+            rounded[key] = _r(value, 2)
+        elif key in {'crop_water_requirement_mm', 'actual_crop_et_mm', 'runoff_mm'}:
+            rounded[key] = _r(value, 1)
+        else:
+            rounded[key] = _r(value, 2)
+    return rounded
+
 # Statistics
 def _r(value, n=2):
     """Round but preserve None for missing data."""
@@ -575,6 +667,16 @@ def overall_statistics(df: pd.DataFrame) -> Dict[str, Any]:
     tn  = df['tmin']
     et0 = df['ET0_mm_day'].fillna(0)
     wb  = df['water_balance']
+    shared_wb = _shared_water_balance_summary(df)
+
+    water_balance_stats = {
+        'total_balance': _r(wb.sum(), 1),
+        'deficit_days':  int((wb < 0).sum()),
+        'surplus_days':  int((wb > 0).sum()),
+        'max_deficit':   _r(wb.min()),
+        'max_surplus':   _r(wb.max()),
+    }
+    water_balance_stats.update(shared_wb)
 
     return {
         'total_days': int(len(df)),
@@ -594,13 +696,7 @@ def overall_statistics(df: pd.DataFrame) -> Dict[str, Any]:
         'et0': {
             'total_mm':   _r(et0.sum(), 1),
         },
-        'water_balance': {
-            'total_balance': _r(wb.sum(), 1),
-            'deficit_days':  int((wb < 0).sum()),
-            'surplus_days':  int((wb > 0).sum()),
-            'max_deficit':   _r(wb.min()),
-            'max_surplus':   _r(wb.max()),
-        },
+        'water_balance': water_balance_stats,
     }
 
 def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
@@ -609,7 +705,7 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
     Slices df to [onset, cessation] and computes the trimmed metric set:
       Precip       : Total_mm, Max_Daily, Rainy_Days, Intensity
       Temperature  : Mean_Tmax, Mean_Tmin, Mean_Tavg, Max_Tmax, Min_Tmin
-      Water Balance: Total_Balance, Deficit_Days, Surplus_Days, Stress_Ratio
+      Water Balance: legacy precip-minus-ET0 totals plus shared NDWS/NDWL0/WRSI
     """
     onset_ts = pd.to_datetime(season['onset'])
     if season.get('cessation') is not None:
@@ -630,6 +726,19 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
     length_days = int(season.get('length_days',
                                  (cess_ts - onset_ts).days + 1))
     intensity = _r(p.sum() / rainy_days, 2) if rainy_days else 0.0
+    shared_wb = _shared_water_balance_summary(
+        df,
+        analysis_start=onset_ts.strftime('%Y-%m-%d'),
+        analysis_end=cess_ts.strftime('%Y-%m-%d'),
+    )
+
+    water_balance_stats = {
+        'total_balance': _r(wb.sum(), 1),
+        'deficit_days':  int((wb < 0).sum()),
+        'surplus_days':  int((wb > 0).sum()),
+        'stress_ratio':  _r((wb < 0).mean(), 3),
+    }
+    water_balance_stats.update(shared_wb)
 
     return {
         'onset':       onset_ts.strftime('%Y-%m-%d'),
@@ -648,12 +757,7 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
             'max_tmax':   _r(tx.max()),
             'min_tmin':   _r(tn.min()),
         },
-        'water_balance': {
-            'total_balance': _r(wb.sum(), 1),
-            'deficit_days':  int((wb < 0).sum()),
-            'surplus_days':  int((wb > 0).sum()),
-            'stress_ratio':  _r((wb < 0).mean(), 3),
-        },
+        'water_balance': water_balance_stats,
     }
 
 # LTM (Long-Term Mean) aggregation across years per season window
@@ -1331,6 +1435,19 @@ def print_seasons(seasons: List[Dict]) -> None:
               f"deficit_days={w['deficit_days']} | "
               f"surplus_days={w['surplus_days']} | "
               f"stress_ratio={w['stress_ratio']}")
+        if any(key in w for key in ('WRSI', 'NDWS', 'NDWL0')):
+            extras = []
+            if 'WRSI' in w:
+                extras.append(f"WRSI={w['WRSI']}%")
+            if 'NDWS' in w:
+                extras.append(f"NDWS={w['NDWS']}d")
+            if 'NDWL0' in w:
+                extras.append(f"NDWL0={w['NDWL0']}d")
+            if 'crop_water_requirement_mm' in w:
+                extras.append(f"CWR={w['crop_water_requirement_mm']} mm")
+            if 'actual_crop_et_mm' in w:
+                extras.append(f"AET={w['actual_crop_et_mm']} mm")
+            print(f"                    shared_root_zone: {' | '.join(extras)}")
 
         subs = s.get('eto_sub_seasons')
         if subs is not None:
@@ -1345,7 +1462,11 @@ def print_seasons(seasons: List[Dict]) -> None:
                       f"({es['length_days']}d) | "
                       f"rain={ep['total_mm']} mm | "
                       f"rainy={ep['rainy_days']}d | "
-                      f"stress_ratio={ew['stress_ratio']}")
+                      f"stress_ratio={ew['stress_ratio']}"
+                      + (
+                          f" | WRSI={ew.get('WRSI')}%"
+                          if ew.get('WRSI') is not None else ""
+                      ))
 
 def print_ltm_by_season(ltm: Dict[str, Any],
                         header: str = "LTM SEASON SUMMARY") -> None:
@@ -1389,6 +1510,19 @@ def print_ltm_by_season(ltm: Dict[str, Any],
                   f"deficit_days={wb.get('deficit_days')} | "
                   f"surplus_days={wb.get('surplus_days')} | "
                   f"stress_ratio={wb.get('stress_ratio')}")
+            if any(key in wb for key in ('WRSI', 'NDWS', 'NDWL0')):
+                extras = []
+                if wb.get('WRSI') is not None:
+                    extras.append(f"WRSI={wb.get('WRSI')}%")
+                if wb.get('NDWS') is not None:
+                    extras.append(f"NDWS={wb.get('NDWS')}d")
+                if wb.get('NDWL0') is not None:
+                    extras.append(f"NDWL0={wb.get('NDWL0')}d")
+                if wb.get('crop_water_requirement_mm') is not None:
+                    extras.append(f"CWR={wb.get('crop_water_requirement_mm')} mm")
+                if wb.get('actual_crop_et_mm') is not None:
+                    extras.append(f"AET={wb.get('actual_crop_et_mm')} mm")
+                print(f"                    shared_root_zone: {' | '.join(extras)}")
 
 def print_annual(annual: Dict[str, Dict]) -> None:
     print("\n" + "=" * 70)

@@ -5,8 +5,8 @@ Retrieves crop hazard indices at a specific location by:
 2. Calculating total precipitation and average temperature for the season
 3. Evaluating crop-specific hazard thresholds
 4. Analyzing dry spell patterns
-5. Deriving soil-water hazards (NDWS, NDWL0) from a running soil water balance following the Adaptation Atlas method (ERATIO < 0.5 for NDWS;
-   LOGGING > 0 for NDWL0)
+5. Deriving soil-water diagnostics from an Atlas-inspired running soil water balance
+   (ERATIO < 0.5 for NDWS; LOGGING > 0 for NDWL0; seasonal WRSI from AET:CWR)
 
 Dependencies: pandas, season_analysis.seasons module
 """
@@ -100,7 +100,7 @@ CROP_THRESHOLDS = {
 # - FAO-56 Crop evapotranspiration guidance for Kc / rooting-depth methodology
 # - conservative agronomic defaults for these crop classes pending crop-by-crop
 #   line-level FAO/AquaCrop validation in package docs
-# Generic hazard-index thresholds from Adaptation Atlas hazard definitions wiki.
+# Atlas-inspired starter hazard-index thresholds.
 ATLAS_HAZARD_INDEX_THRESHOLDS = {
     'NDD': {
         'no_stress': (None, 15),
@@ -188,11 +188,21 @@ HAZARD_EVAL_SPECS = {
 
 HAZARD_PRINT_ORDER = ['precipitation', 'temperature', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0']
 
+FULL_WINDOW_WATER_BALANCE = "full_window"
+CROP_ACTIVE_WATER_BALANCE = "crop_active"
+WATER_BALANCE_WINDOW_CHOICES = (
+    FULL_WINDOW_WATER_BALANCE,
+    CROP_ACTIVE_WATER_BALANCE,
+)
+
 COMPARISON_METRIC_SPECS = [
     ('total_precipitation_mm', 'total_mm', 'Total Precipitation', 'mm'),
     ('mean_temperature_c', 'mean_tavg', 'TAVG', 'deg C'),
     ('min_tmin_c', 'min_tmin', 'Min Tmin', 'deg C'),
     ('max_tmax_c', 'max_tmax', 'Max Tmax', 'deg C'),
+    ('crop_water_requirement_mm', 'crop_water_requirement_mm', 'Crop Water Requirement', 'mm'),
+    ('actual_crop_et_mm', 'actual_crop_et_mm', 'Actual Crop ET', 'mm'),
+    ('WRSI', 'wrsi', 'WRSI', '%'),
     ('NTx35', 'NTx35', 'NTx35', 'days'),
     ('NTx40', 'NTx40', 'NTx40', 'days'),
     ('NDD', 'NDD', 'NDD', 'days'),
@@ -260,32 +270,162 @@ def _season_counts_by_year(seasons: List[Dict[str, Any]]) -> Dict[int, int]:
     return counts
 
 
+def _normalize_water_balance_window_mode(mode: Optional[str]) -> str:
+    normalized = (mode or FULL_WINDOW_WATER_BALANCE).strip().lower()
+    if normalized not in WATER_BALANCE_WINDOW_CHOICES:
+        raise ValueError(
+            "water_balance_window must be one of "
+            f"{', '.join(WATER_BALANCE_WINDOW_CHOICES)}"
+        )
+    return normalized
+
+
+def _inclusive_day_count(start_date: Optional[str], end_date: Optional[str]) -> Optional[int]:
+    if not start_date or not end_date:
+        return None
+    return (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days + 1
+
+
+def _valid_eto_subseasons(eto_seasons: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    valid: List[Dict[str, Any]] = []
+    for season in eto_seasons or []:
+        onset = season.get("onset")
+        cessation = season.get("cessation")
+        if onset is None or cessation is None:
+            continue
+        valid.append(season)
+    return valid
+
+
+def _apply_water_balance_window_mode(
+    base_stats: Dict[str, Any],
+    df: pd.DataFrame,
+    season_info: Dict[str, Any],
+    soil_parameters: Dict[str, Any],
+    crop_water_balance: Dict[str, Any],
+    water_balance_window: str = FULL_WINDOW_WATER_BALANCE,
+    eto_seasons: Optional[List[Dict[str, Any]]] = None,
+    eto_detection_note: Optional[str] = None,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    requested_mode = _normalize_water_balance_window_mode(water_balance_window)
+    full_window_days = _inclusive_day_count(
+        season_info.get("onset_date"),
+        season_info.get("cessation_date"),
+    )
+    metadata = {
+        "requested_window_mode": requested_mode,
+        "applied_window_mode": FULL_WINDOW_WATER_BALANCE,
+        "counted_days": full_window_days,
+        "counted_subseasons": 0,
+        "fallback_reason": None,
+        "warnings": [],
+    }
+    if "NDWS" not in base_stats and "NDWL0" not in base_stats:
+        metadata["applied_window_mode"] = "unavailable"
+        metadata["counted_days"] = None
+        metadata["warnings"].append(
+            "NDWS/NDWL0 unavailable because precipitation or ET0 inputs were missing."
+        )
+        return base_stats, metadata
+    if season_info.get("method") != "fixed_season" or requested_mode == FULL_WINDOW_WATER_BALANCE:
+        return base_stats, metadata
+
+    valid_subseasons = _valid_eto_subseasons(eto_seasons)
+    if not valid_subseasons:
+        metadata["fallback_reason"] = (
+            eto_detection_note or "No closed ETO sub-season detected within fixed window."
+        )
+        metadata["warnings"].append(
+            "Requested crop-active NDWS window, but "
+            f"{metadata['fallback_reason']} "
+            "Falling back to full fixed window."
+        )
+        return base_stats, metadata
+
+    ndws_total = 0
+    ndwl0_total = 0
+    counted_days = 0
+    for sub_season in valid_subseasons:
+        sub_stats = calculate_season_statistics(
+            df,
+            soilcp=soil_parameters["soilcp"],
+            soilsat=soil_parameters["soilsat"],
+            kc=float(crop_water_balance.get("kc_mid", 1.0)),
+            kc_init=float(crop_water_balance.get("kc_init", crop_water_balance.get("kc_mid", 1.0))),
+            kc_mid=float(crop_water_balance.get("kc_mid", 1.0)),
+            kc_end=float(crop_water_balance.get("kc_end", crop_water_balance.get("kc_mid", 1.0))),
+            depletion_fraction_p=float(
+                crop_water_balance.get("depletion_fraction_p", DEFAULT_DEPLETION_FRACTION_P)
+            ),
+            analysis_start=pd.to_datetime(sub_season["onset"]).strftime("%Y-%m-%d"),
+            analysis_end=pd.to_datetime(sub_season["cessation"]).strftime("%Y-%m-%d"),
+        )
+        ndws_total += int(sub_stats.get("NDWS", 0))
+        ndwl0_total += int(sub_stats.get("NDWL0", 0))
+        counted_days += int(
+            _inclusive_day_count(
+                pd.to_datetime(sub_season["onset"]).strftime("%Y-%m-%d"),
+                pd.to_datetime(sub_season["cessation"]).strftime("%Y-%m-%d"),
+            )
+            or 0
+        )
+
+    adjusted = dict(base_stats)
+    adjusted["NDWS"] = ndws_total
+    adjusted["NDWL0"] = ndwl0_total
+    metadata["applied_window_mode"] = CROP_ACTIVE_WATER_BALANCE
+    metadata["counted_days"] = counted_days
+    metadata["counted_subseasons"] = len(valid_subseasons)
+    return adjusted, metadata
+
+
 def build_water_balance_methodology(
     season_info: Dict[str, Any],
     soil_parameters: Dict[str, Any],
     crop_water_balance: Dict[str, Any],
+    count_window: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
+    count_window = count_window or {
+        "requested_window_mode": FULL_WINDOW_WATER_BALANCE,
+        "applied_window_mode": FULL_WINDOW_WATER_BALANCE,
+        "counted_days": _inclusive_day_count(
+            season_info.get("onset_date"),
+            season_info.get("cessation_date"),
+        ),
+        "counted_subseasons": 0,
+        "fallback_reason": None,
+        "warnings": [],
+    }
     notes = [
         "NDWS counts days where ERATIO < 0.5 after running the crop root-zone water balance.",
         "NDWL0 counts days where LOGGING > 0 after the same balance.",
+        "WRSI is calculated as seasonal actual crop ET divided by seasonal crop water requirement, expressed as a percentage.",
         "These are crop-water-balance diagnostics, not a simple daily precipitation minus ET0 threshold.",
         "ET0 is derived with the season_analysis Hargreaves implementation when not already present.",
-        "Default hazard day-count thresholds come from the Adaptation Atlas hazards definitions.",
+        "Hazard day-count bands are Atlas-inspired starter thresholds, not peer-reviewed validation targets.",
     ]
     if season_info.get("method") == "fixed_season":
-        notes.append(
-            "Fixed-season mode counts NDWS and NDWL0 only inside the user-defined window. "
-            "Broad or misaligned windows can inflate counts by including shoulder months."
-        )
+        if count_window.get("applied_window_mode") == CROP_ACTIVE_WATER_BALANCE:
+            notes.append(
+                "Fixed-season mode counted NDWS and NDWL0 only within detected ETO sub-seasons inside the user-defined window."
+            )
+        else:
+            notes.append(
+                "Fixed-season mode counts NDWS and NDWL0 only inside the user-defined window. "
+                "Broad or misaligned windows can inflate counts by including shoulder months."
+            )
 
     warnings_list = [
         crop_water_balance.get("warning"),
         soil_parameters.get("warning"),
         soil_parameters.get("root_depth_warning"),
+        count_window.get("fallback_reason"),
+        *(count_window.get("warnings") or []),
     ]
     return {
         "ndws_definition": "Days with ERATIO < 0.5",
         "ndwl0_definition": "Days with LOGGING > 0",
+        "wrsi_definition": "100 * seasonal actual crop ET / seasonal crop water requirement",
         "et0_method": "Hargreaves reference ET0",
         "analysis_method": season_info.get("method", "unknown"),
         "analysis_window": {
@@ -298,6 +438,12 @@ def build_water_balance_methodology(
             "soilsat_mm": soil_parameters.get("soilsat"),
             "root_depth_m": soil_parameters.get("root_depth_m"),
         },
+        "count_window": {
+            "requested_mode": count_window.get("requested_window_mode"),
+            "applied_mode": count_window.get("applied_window_mode"),
+            "counted_days": count_window.get("counted_days"),
+            "counted_subseasons": count_window.get("counted_subseasons"),
+        },
         "crop_parameters": {
             "kc_init": crop_water_balance.get("kc_init"),
             "kc_mid": crop_water_balance.get("kc_mid"),
@@ -305,7 +451,7 @@ def build_water_balance_methodology(
             "depletion_fraction_p": crop_water_balance.get("depletion_fraction_p"),
             "source_doc": crop_water_balance.get("source_doc"),
         },
-        "threshold_source": "Adaptation Atlas hazards definitions wiki",
+        "threshold_source": "Atlas-inspired provisional day-count bands",
         "notes": notes,
         "warnings": [item for item in warnings_list if item],
     }
@@ -894,7 +1040,8 @@ def calc_water_balance(
     frame with per-day columns including ERATIO (stress coefficient / AET:PET
     ratio relative to crop demand), LOGGING, RUNOFF, Kc, and available soil
     water. PET is taken from `ET0_mm_day`; actual crop demand is
-    ERATIO * Kc * PET.
+    ERATIO * Kc * PET. Also returns seasonal-accounting helpers for WRSI:
+    CROP_WATER_REQUIREMENT_MM and ACTUAL_CROP_ET_MM.
     """
     precip_col = next(
         (c for c in ['precipitation', 'precip', 'total_precipitation'] if c in df.columns),
@@ -935,6 +1082,7 @@ def calc_water_balance(
     depletion_fraction_p = min(max(float(depletion_fraction_p), 0.05), 0.95)
 
     eratios, loggings, runoffs, availabilities, depletions = [], [], [], [], []
+    crop_water_requirements, actual_crop_ets = [], []
     avail = min(max(float(init_avail), 0.0), float(soilcp))
     raw_mm = float(soilcp) * depletion_fraction_p
     critical_band = max((1.0 - depletion_fraction_p) * float(soilcp), 1e-6)
@@ -946,7 +1094,8 @@ def calc_water_balance(
         else:
             eratio = max(avail / critical_band, 0.0)
         eratio = min(eratio, 1.0)
-        demand = eratio * float(kc_day) * float(e)
+        crop_water_requirement = float(kc_day) * float(e)
+        demand = eratio * crop_water_requirement
 
         result  = avail + float(r) - demand
         logging = min(max(result - soilcp, 0.0), soilsat)
@@ -958,15 +1107,65 @@ def calc_water_balance(
         runoffs.append(runoff)
         availabilities.append(avail)
         depletions.append(max(float(soilcp) - avail, 0.0))
+        crop_water_requirements.append(crop_water_requirement)
+        actual_crop_ets.append(demand)
 
     out['ERATIO']  = eratios
     out['LOGGING'] = loggings
     out['RUNOFF']  = runoffs
     out['Kc'] = kc_series
+    out['CROP_WATER_REQUIREMENT_MM'] = crop_water_requirements
+    out['ACTUAL_CROP_ET_MM'] = actual_crop_ets
     out['RAW_MM'] = raw_mm
     out['AVAILABLE_SOIL_WATER_MM'] = availabilities
     out['DEPLETION_MM'] = depletions
     return out
+
+
+def summarize_water_balance(
+    wb: pd.DataFrame,
+    *,
+    wrsi_floor: float = 0.0,
+    wrsi_ceiling: float = 100.0,
+) -> Dict[str, Any]:
+    if wb is None or wb.empty:
+        return {}
+
+    summary: Dict[str, Any] = {}
+    if 'ERATIO' in wb.columns:
+        eratio = wb['ERATIO'].dropna()
+        if not eratio.empty:
+            summary['NDWS'] = int((eratio < 0.5).sum())
+            summary['mean_eratio'] = float(eratio.mean())
+    if 'LOGGING' in wb.columns:
+        logging = wb['LOGGING'].dropna()
+        if not logging.empty:
+            summary['NDWL0'] = int((logging > 0).sum())
+            summary['mean_logging_mm'] = float(logging.mean())
+
+    crop_water_requirement = None
+    if 'CROP_WATER_REQUIREMENT_MM' in wb.columns:
+        crop_water_requirement = float(wb['CROP_WATER_REQUIREMENT_MM'].fillna(0).sum())
+        summary['crop_water_requirement_mm'] = crop_water_requirement
+    actual_crop_et = None
+    if 'ACTUAL_CROP_ET_MM' in wb.columns:
+        actual_crop_et = float(wb['ACTUAL_CROP_ET_MM'].fillna(0).sum())
+        summary['actual_crop_et_mm'] = actual_crop_et
+
+    if (
+        crop_water_requirement is not None
+        and actual_crop_et is not None
+        and crop_water_requirement > 0
+    ):
+        wrsi = 100.0 * actual_crop_et / crop_water_requirement
+        summary['WRSI'] = round(min(max(wrsi, wrsi_floor), wrsi_ceiling), 2)
+
+    if 'AVAILABLE_SOIL_WATER_MM' in wb.columns and not wb['AVAILABLE_SOIL_WATER_MM'].empty:
+        summary['ending_soil_water_mm'] = float(wb['AVAILABLE_SOIL_WATER_MM'].iloc[-1])
+    if 'RUNOFF' in wb.columns:
+        summary['runoff_mm'] = float(wb['RUNOFF'].fillna(0).sum())
+
+    return summary
 
 # Season statistics
 def calculate_season_statistics(
@@ -1043,9 +1242,10 @@ def calculate_season_statistics(
         stats['NTx35']              = int((tmax >= 35).sum())
         stats['NTx40']              = int((tmax >= 40).sum())
 
-    # Soil-water hazard counts derived from a running soil water balance (Adaptation Atlas method), NOT a naive daily precip - ET0 comparison.
+    # Soil-water diagnostics derived from shared running root-zone water balance.
     #   NDWS  = days the crop cannot meet half its evaporative demand (ERATIO < 0.5)
     #   NDWL0 = days soil water exceeds field capacity (LOGGING > 0)
+    #   WRSI  = seasonal actual crop ET / crop water requirement * 100
     if p is not None and 'ET0_mm_day' in working.columns:
         wb = calc_water_balance(
             working,
@@ -1062,10 +1262,7 @@ def calculate_season_statistics(
         )
         if analysis_mask is not None:
             wb = wb.loc[analysis_mask]
-        eratio  = wb['ERATIO']
-        logging = wb['LOGGING']
-        stats['NDWS']  = int((eratio < 0.5).sum())
-        stats['NDWL0'] = int((logging > 0).sum())
+        stats.update(summarize_water_balance(wb))
     return stats
 
 def evaluate_threshold(value: float, thresholds: Dict[str, Tuple]) -> str:
@@ -1102,6 +1299,7 @@ _LTM_SCALAR_KEYS = (
     'rainy_days', 'dry_days', 'NDD',
     'mean_temperature_c', 'mean_tmax_c', 'mean_tmin_c',
     'max_temperature_c', 'min_temperature_c', 'max_tmax_c', 'min_tmin_c',
+    'crop_water_requirement_mm', 'actual_crop_et_mm', 'ending_soil_water_mm', 'WRSI',
     'NTx35', 'NTx40', 'NDWS', 'NDWL0',
 )
 
@@ -1175,6 +1373,7 @@ def compute_ltm_baseline(
             'n_seasons_averaged':     len(bucket),
             'years_covered':          years,
             'mean_length_days':       round(sum(lengths) / len(lengths), 1) if lengths else None,
+            'water_balance_methodology': bucket[0].get('water_balance_methodology'),
             'season_statistics':      agg,
             'hazard_evaluation':      hazard_eval,
         })
@@ -1183,6 +1382,7 @@ def compute_ltm_baseline(
         'crop':            crop_name,
         'n_total_seasons': len(assessments),
         'baseline_method': 'long_term_mean',
+        'water_balance_methodology': assessments[0].get('water_balance_methodology') if assessments else None,
         'per_season':      ltm_blocks,
     }
 
@@ -1259,9 +1459,14 @@ def calculate_hazards(
     soilcp:            float          = DEFAULT_SOILCP,
     soilsat:           float          = DEFAULT_SOILSAT,
     spinup_days:       int            = DEFAULT_SPINUP_DAYS,
+    water_balance_window: str         = FULL_WINDOW_WATER_BALANCE,
 ) -> Dict[str, Any]:
 
     lat, lon = location_coord
+    try:
+        water_balance_window = _normalize_water_balance_window_mode(water_balance_window)
+    except ValueError as exc:
+        return {"error": str(exc)}
     crop_normalized = crop_name.capitalize()
     if crop_normalized not in CROP_THRESHOLDS and not custom_thresholds:
         return {
@@ -1364,6 +1569,8 @@ def calculate_hazards(
                         source=source,
                     )
                 all_results.append({'season_info': season_info, 'df': df})
+                all_results[-1]["eto_seasons"] = s.get("eto_seasons") or []
+                all_results[-1]["eto_detection_note"] = s.get("eto_detection_note")
         if not all_results:
             return {'error': 'No seasons produced by fixed-season mode for the given date range.'}
 
@@ -1450,11 +1657,22 @@ def calculate_hazards(
             analysis_start=entry['season_info'].get('onset_date'),
             analysis_end=entry['season_info'].get('cessation_date'),
         )
+        stats, count_window = _apply_water_balance_window_mode(
+            stats,
+            entry["df"],
+            entry["season_info"],
+            soil_parameters,
+            crop_water_balance,
+            water_balance_window=water_balance_window,
+            eto_seasons=entry.get("eto_seasons"),
+            eto_detection_note=entry.get("eto_detection_note"),
+        )
         hazard_eval = evaluate_hazard_metrics(stats, thresholds)
         methodology = build_water_balance_methodology(
             entry['season_info'],
             soil_parameters,
             crop_water_balance,
+            count_window=count_window,
         )
         assessments.append({
             'crop':              crop_name,
@@ -1548,10 +1766,16 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
             print(f"  {'Min Tmin':<32} {s.get('min_tmin_c', s.get('min_temperature_c', 0)):>15.2f}  deg C")
 
         # New hazard counts
-        has_counts = any(k in s for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0'))
+        has_counts = any(k in s for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
         if has_counts:
             print(f"\n  Hazard Indices (LTM means)")
             print(f"  {'─'*66}")
+            if 'WRSI' in s:
+                print(f"  {'WRSI (seasonal satisfaction)':<32} {s['WRSI']:>15.2f}  %")
+            if 'crop_water_requirement_mm' in s:
+                print(f"  {'Crop Water Requirement':<32} {s['crop_water_requirement_mm']:>15.2f}  mm")
+            if 'actual_crop_et_mm' in s:
+                print(f"  {'Actual Crop ET':<32} {s['actual_crop_et_mm']:>15.2f}  mm")
             if 'NTx35' in s:
                 print(f"  {'NTx35 (days Tmax > 35C)':<32} {s['NTx35']:>15.2f}  days")
             if 'NTx40' in s:
@@ -1562,6 +1786,10 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
                 print(f"  {'NDWL0 (water-logging days)':<32} {s['NDWL0']:>15.2f}  days")
             if 'NDWS' in s or 'NDWL0' in s:
                 print("  Note: NDWS/NDWL0 come from the crop water-balance model, not a raw precip-minus-ET0 count.")
+                methodology = blk.get('water_balance_methodology') or ltm.get('water_balance_methodology') or {}
+                count_window = methodology.get("count_window") or {}
+                if count_window.get("applied_mode") == CROP_ACTIVE_WATER_BALANCE:
+                    print("  Count window: crop-active ETO sub-season(s) inside fixed window.")
 
         h = blk.get('hazard_evaluation', {})
         if h:
@@ -1723,12 +1951,18 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
         print(f"  {'Min Tmin (Minimum Recorded)':<32} {stats['min_temperature_c']:>15.2f}  deg C")
 
     # Hazard index counts (NTx35, NTx40, NDD, NDWS, NDWL0)
-    has_counts = any(k in stats for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0'))
+    has_counts = any(k in stats for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
     if has_counts:
         print(f"\n  Hazard Index Counts")
         print(f"  {'─'*66}")
         print(f"  {'Index':<32} {'Value':>15}  Unit")
         print(f"  {'─'*32} {'─'*15}  {'─'*10}")
+        if 'WRSI' in stats:
+            print(f"  {'WRSI (seasonal satisfaction)':<32} {stats['WRSI']:>15}  %")
+        if 'crop_water_requirement_mm' in stats:
+            print(f"  {'Crop Water Requirement':<32} {stats['crop_water_requirement_mm']:>15.2f}  mm")
+        if 'actual_crop_et_mm' in stats:
+            print(f"  {'Actual Crop ET':<32} {stats['actual_crop_et_mm']:>15.2f}  mm")
         if 'NTx35' in stats:
             print(f"  {'NTx35 (days Tmax > 35C)':<32} {stats['NTx35']:>15}  days")
         if 'NTx40' in stats:
@@ -1741,7 +1975,11 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
             print(f"  {'NDWL0 (water-logging days)':<32} {stats['NDWL0']:>15}  days")
         if 'NDWS' in stats or 'NDWL0' in stats:
             print("  Note: NDWS/NDWL0 come from the crop water-balance model, not a raw precip-minus-ET0 count.")
-            if season.get('method') == 'fixed_season':
+            methodology = result.get("water_balance_methodology") or {}
+            count_window = methodology.get("count_window") or {}
+            if count_window.get("applied_mode") == CROP_ACTIVE_WATER_BALANCE:
+                print("  Count window: crop-active ETO sub-season(s) inside fixed window.")
+            elif season.get('method') == 'fixed_season':
                 print("  Caution: fixed-season windows can bias counts if they include non-growing shoulder months.")
 
     hazards = result['hazard_evaluation']
@@ -1835,6 +2073,16 @@ def main() -> None:
     parser.add_argument('--soilsat', type=float, default=DEFAULT_SOILSAT,
                         help=f'Extra soil water from field capacity to saturation, mm '
                              f'(water-balance NDWL0; default: {DEFAULT_SOILSAT})')
+    parser.add_argument(
+        '--water-balance-window',
+        choices=list(WATER_BALANCE_WINDOW_CHOICES),
+        default=FULL_WINDOW_WATER_BALANCE,
+        help=(
+            "How to count NDWS/NDWL0 within fixed-season runs.\n"
+            "  full_window  -- use full fixed window [default]\n"
+            "  crop_active  -- use detected ETO sub-season(s) inside fixed window when available\n"
+        ),
+    )
     parser.add_argument('--format',          choices=['json', 'text'], default='text',
                         help='Output format (default: text)')
     parser.add_argument('--thresholds-file', type=str, default=None,
@@ -1866,6 +2114,7 @@ def main() -> None:
         'min_season_days': args.min_season_days,
         'soilcp': args.soilcp,
         'soilsat': args.soilsat,
+        'water_balance_window': args.water_balance_window,
     }
     if args.format == 'json':
         with redirect_stdout(sys.stderr):

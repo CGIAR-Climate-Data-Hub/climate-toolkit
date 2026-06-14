@@ -680,6 +680,137 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertAlmostEqual(-0.7, result["spei"]["summary"]["diff"])
         self.assertEqual(2, result["spei"]["n_models"])
 
+    def test_ensemble_compare_keeps_wrsi_only_in_season_blocks(self):
+        orig_filter = ep._filter_models
+        orig_compare = ep._compare_one_model
+        ep._filter_models = lambda location, models, exclude_models: ["ACCESS-CM2", "MRI-ESM2-0"]
+
+        def fake_compare_one_model(**kwargs):
+            if kwargs["model"] == "ACCESS-CM2":
+                wrsi_future, wrsi_base, wrsi_diff = 74.0, 68.0, 6.0
+                ndws_future, ndws_base, ndws_diff = 12.0, 18.0, -6.0
+            else:
+                wrsi_future, wrsi_base, wrsi_diff = 82.0, 72.0, 10.0
+                ndws_future, ndws_base, ndws_diff = 8.0, 14.0, -6.0
+            return {
+                "raw_climate_summary": {},
+                "overall_statistics": {
+                    "water_balance": {
+                        "WRSI": {
+                            "future_avg": wrsi_future,
+                            "baseline_avg": wrsi_base,
+                            "diff": wrsi_diff,
+                            "pct": ep._percent_change(wrsi_diff, wrsi_base),
+                        },
+                        "NDWS": {
+                            "future_avg": ndws_future,
+                            "baseline_avg": ndws_base,
+                            "diff": ndws_diff,
+                            "pct": ep._percent_change(ndws_diff, ndws_base),
+                        },
+                    }
+                },
+                "season_statistics": {
+                    "windows": [
+                        {
+                            "window": "03-01:05-31",
+                            "season_number": 1,
+                            "n_baseline": 2,
+                            "n_future": 2,
+                            "diff": {
+                                "water_balance": {
+                                    "WRSI": {
+                                        "future_avg": wrsi_future - 2.0,
+                                        "baseline_avg": wrsi_base - 1.0,
+                                        "diff": wrsi_diff - 1.0,
+                                        "pct": ep._percent_change(wrsi_diff - 1.0, wrsi_base - 1.0),
+                                    }
+                                }
+                            },
+                        }
+                    ]
+                },
+                "annual_summary": {},
+                "spei": None,
+            }
+
+        ep._compare_one_model = fake_compare_one_model
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                scenario="ssp245",
+                fixed_season="03-01:05-31",
+                verbose=False,
+            )
+        finally:
+            ep._filter_models = orig_filter
+            ep._compare_one_model = orig_compare
+
+        self.assertNotIn("water_balance", result["overall_statistics"])
+        season_wb = result["season_statistics"]["windows"][0]["diff"]["water_balance"]
+        self.assertEqual(76.0, season_wb["WRSI"]["future_avg_ensemble_mean"])
+        self.assertEqual(69.0, season_wb["WRSI"]["baseline_avg_ensemble_mean"])
+        self.assertEqual(7.0, season_wb["WRSI"]["diff_ensemble_mean"])
+
+    def test_diff_focal_vs_future_keeps_wrsi_only_in_season_block(self):
+        focal = {
+            "focal_year": 2019,
+            "source": "era_5",
+            "overall": {"water_balance": {"WRSI": 84.0}},
+            "seasons": {
+                "windows": [
+                    {
+                        "season_number": 1,
+                        "block": {"water_balance": {"WRSI": 80.0}},
+                    }
+                ]
+            },
+            "annual_rain": None,
+            "is_humid": None,
+            "humid_test": None,
+            "spei": None,
+        }
+        ensemble = {
+            "overall_statistics": {
+                "water_balance": {
+                    "WRSI": {
+                        "future_avg_ensemble_mean": 76.0,
+                        "baseline_avg_ensemble_mean": 68.0,
+                    }
+                }
+            },
+            "season_statistics": {
+                "windows": [
+                    {
+                        "window": "03-01:05-31",
+                        "season_number": 1,
+                        "diff": {
+                            "water_balance": {
+                                "WRSI": {
+                                    "future_avg_ensemble_mean": 74.0,
+                                    "baseline_avg_ensemble_mean": 69.0,
+                                }
+                            }
+                        },
+                    }
+                ]
+            },
+            "annual_summary": {},
+            "spei": None,
+        }
+
+        result = ep._diff_focal_vs_future(focal, ensemble)
+
+        self.assertNotIn("water_balance", result["overall_statistics"])
+        season_wb = result["season_statistics"]["windows"][0]["diff"]["water_balance"]
+        self.assertEqual(80.0, season_wb["WRSI"]["focal"])
+        self.assertEqual(74.0, season_wb["WRSI"]["future_ltm"])
+        self.assertEqual(6.0, season_wb["WRSI"]["diff"])
+
     def test_print_focal_vs_ltm_renders_spei_block(self):
         payload = {
             "focal_year": 2019,
@@ -907,6 +1038,71 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
 
         self.assertEqual(-17.1, result["water_balance"]["total_balance"]["diff"])
         self.assertEqual(-2.43, result["water_balance"]["total_balance"]["pct"])
+
+    def test_compare_keeps_wrsi_only_in_season_diffs(self):
+        orig = cp.analyze_climate_statistics
+
+        def fake_analyze_climate_statistics(**kwargs):
+            if kwargs["start_year"] == 2018:
+                return {
+                    "raw_climate_summary": [],
+                    "overall_statistics": {
+                        "water_balance": {
+                            "WRSI": 72.0,
+                            "NDWS": 12,
+                        }
+                    },
+                    "season_statistics": [
+                        {
+                            "year": 2018,
+                            "season_number": 1,
+                            "water_balance": {
+                                "WRSI": 70.0,
+                                "NDWS": 10,
+                            },
+                        }
+                    ],
+                    "annual_summary": {},
+                }
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {
+                    "water_balance": {
+                        "WRSI": 80.0,
+                        "NDWS": 8,
+                    }
+                },
+                "season_statistics": [
+                    {
+                        "year": 2019,
+                        "season_number": 1,
+                        "water_balance": {
+                            "WRSI": 78.0,
+                            "NDWS": 7,
+                        },
+                    }
+                ],
+                "annual_summary": {},
+            }
+
+        cp.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = cp.compare(
+                location=(-1.286, 36.817),
+                baseline_start=2018,
+                baseline_end=2018,
+                focal_year=2019,
+                source="era_5",
+                fixed_season="03-01:05-31",
+            )
+        finally:
+            cp.analyze_climate_statistics = orig
+
+        self.assertNotIn("water_balance", result["overall_statistics"])
+        season_diff = result["season_statistics"]["windows"][0]["diff"]["water_balance"]
+        self.assertEqual(78.0, season_diff["WRSI"]["focal"])
+        self.assertEqual(70.0, season_diff["WRSI"]["baseline_avg"])
+        self.assertEqual(8.0, season_diff["WRSI"]["diff"])
 
     def test_diff_value_2level_uses_baseline_magnitude_for_negative_values(self):
         result = ep._diff_value_2level(

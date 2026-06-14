@@ -196,7 +196,12 @@ def compute_season_stats(df: pd.DataFrame, onset, cessation) -> Dict[str, Any]:
         dry_spells        = dry_spells,
     )
 # Season analysis within a fixed window
-def run_eto_in_window(df_with_et0: pd.DataFrame, onset, cessation) -> List[Dict]:
+def run_eto_in_window(
+    df_with_et0: pd.DataFrame,
+    onset,
+    cessation,
+    return_metadata: bool = False,
+):
     """
     Slice df to [onset, cessation] and run the full ETO-based detection.
     Returns a list of detected seasons (may be empty if the window is too
@@ -204,6 +209,7 @@ def run_eto_in_window(df_with_et0: pd.DataFrame, onset, cessation) -> List[Dict]
     Each season dict already includes rainfall statistics via
     detect_onset_cessation -> compute_season_stats.
     """
+    detection_note = None
     onset_ts  = pd.Timestamp(onset)
     cess_ts   = pd.Timestamp(cessation)
     window_df = (
@@ -212,8 +218,9 @@ def run_eto_in_window(df_with_et0: pd.DataFrame, onset, cessation) -> List[Dict]
         .reset_index(drop=True)
     )
     if len(window_df) < 14:
-        print("    [ETO] Window too short for detection (<14 days).")
-        return []
+        detection_note = "ETO window too short for detection (<14 days)."
+        print(f"    [ETO] {detection_note}")
+        return ([], detection_note) if return_metadata else []
     try:
         eto_seasons = detect_onset_cessation(window_df)
         for season in eto_seasons:
@@ -221,13 +228,17 @@ def run_eto_in_window(df_with_et0: pd.DataFrame, onset, cessation) -> List[Dict]
                 onset_ts = pd.to_datetime(season['onset'])
                 season['cessation'] = cess_ts
                 season['length_days'] = int((cess_ts - onset_ts).days + 1)
-        return eto_seasons
+        if not eto_seasons:
+            detection_note = "No ETO sub-season detected within fixed window."
+        return (eto_seasons, detection_note) if return_metadata else eto_seasons
     except ValueError as exc:
-        print(f"    [ETO] Detection skipped: {exc}")
-        return []
+        detection_note = str(exc)
+        print(f"    [ETO] Detection skipped: {detection_note}")
+        return ([], detection_note) if return_metadata else []
     except Exception as exc:
-        print(f"    [ETO] Detection failed: {exc}")
-        return []
+        detection_note = f"ETO detection failed: {exc}"
+        print(f"    [ETO] {detection_note}")
+        return ([], detection_note) if return_metadata else []
 
 # Data access
 def get_climate_data(
@@ -858,9 +869,15 @@ def fetch_and_analyze_years_fixed(
                   f"{onset_date.strftime('%Y-%m-%d')} → "
                   f"{cessation_date.strftime('%Y-%m-%d')}{cross_note} ...")
             if df is not None and not df.empty:
-                eto_seasons = run_eto_in_window(df, onset_date, cessation_date)
+                eto_seasons, eto_detection_note = run_eto_in_window(
+                    df,
+                    onset_date,
+                    cessation_date,
+                    return_metadata=True,
+                )
             else:
                 eto_seasons = []
+                eto_detection_note = "Climate data unavailable for ETO sub-season detection."
 
             if eto_seasons:
                 for k, es in enumerate(eto_seasons, 1):
@@ -876,7 +893,7 @@ def fetch_and_analyze_years_fixed(
                         f"dry_spells={es.get('dry_spells')}"
                     )
             else:
-                print("    ETO: no sub-season detected within window")
+                print(f"    ETO: {eto_detection_note or 'no sub-season detected within window'}")
 
             season_dict = dict(
                 onset          = pd.Timestamp(onset_date),
@@ -886,6 +903,7 @@ def fetch_and_analyze_years_fixed(
                 annual_rain_mm = annual_dict[year].get('annual_rain_mm'),
                 params_used    = "fixed-season",
                 eto_seasons    = eto_seasons,
+                eto_detection_note = eto_detection_note,
                 source_df      = df,
                 window_df      = window_df,
                 **stats,
