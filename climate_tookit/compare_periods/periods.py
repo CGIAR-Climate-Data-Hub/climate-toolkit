@@ -72,6 +72,70 @@ def _percent_change(diff: float, baseline: float) -> Optional[float]:
 def _fmt_pct(v: Optional[float]) -> str:
     return f"{v:+.2f}%" if _is_num(v) else "n/a"
 
+
+def _diff_spei(
+    focal_spei: Optional[Dict[str, Any]],
+    baseline_spei: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not (focal_spei and baseline_spei):
+        return None
+    focal_series = focal_spei.get("monthly_series") or []
+    baseline_series = baseline_spei.get("monthly_series") or []
+    focal_cfg = focal_spei.get("config") or {}
+    baseline_cfg = baseline_spei.get("config") or {}
+
+    baseline_by_month: Dict[int, List[float]] = {}
+    for row in baseline_series:
+        month = row.get("month")
+        value = row.get("spei")
+        if isinstance(month, int) and _is_num(value):
+            baseline_by_month.setdefault(month, []).append(float(value))
+
+    windows = []
+    for row in focal_series:
+        month = row.get("month")
+        focal_value = row.get("spei")
+        if not (isinstance(month, int) and _is_num(focal_value)):
+            continue
+        base_vals = baseline_by_month.get(month) or []
+        if not base_vals:
+            continue
+        baseline_avg = sum(base_vals) / len(base_vals)
+        diff = float(focal_value) - baseline_avg
+        pct = _percent_change(diff, baseline_avg)
+        windows.append({
+            "date": row.get("date"),
+            "month": month,
+            "focal_spei": round(float(focal_value), 3),
+            "baseline_avg_spei": round(baseline_avg, 3),
+            "diff": round(diff, 3),
+            "pct": round(pct, 2) if _is_num(pct) else None,
+        })
+
+    focal_vals = [float(row["spei"]) for row in focal_series if _is_num(row.get("spei"))]
+    base_vals = [float(row["spei"]) for row in baseline_series if _is_num(row.get("spei"))]
+    summary = None
+    if focal_vals and base_vals:
+        focal_avg = sum(focal_vals) / len(focal_vals)
+        base_avg = sum(base_vals) / len(base_vals)
+        diff = focal_avg - base_avg
+        pct = _percent_change(diff, base_avg)
+        summary = {
+            "focal_avg_spei": round(focal_avg, 3),
+            "baseline_avg_spei": round(base_avg, 3),
+            "diff": round(diff, 3),
+            "pct": round(pct, 2) if _is_num(pct) else None,
+        }
+
+    return {
+        "config": {
+            "focal": focal_cfg,
+            "baseline": baseline_cfg,
+        },
+        "summary": summary,
+        "monthly": windows,
+    }
+
 def _annualize(stats: Dict[str, Any], n_years: int) -> Dict[str, Any]:
     """Period totals -> per-year averages. Means/maxes/mins untouched."""
     if n_years <= 0:
@@ -227,6 +291,10 @@ def compare(
     focal_year:     int,
     source:         str,
     fixed_season:   Optional[str] = None,
+    spei_scale_months: Optional[int] = None,
+    spei_fit: str = "ub-pwm",
+    spei_ref_start: Optional[str] = None,
+    spei_ref_end: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run statistics.py for baseline + focal, diff the four sections."""
     if source.lower() not in SUPPORTED:
@@ -238,13 +306,22 @@ def compare(
     n_years   = baseline_end - baseline_start + 1
     drop_temp = source.lower() in PRECIP_ONLY
     fs_kw     = {"fixed_season": fixed_season} if fixed_season else {}
+    spei_kw   = (
+        {
+            "spei_scale_months": spei_scale_months,
+            "spei_fit": spei_fit,
+            "spei_ref_start": spei_ref_start,
+            "spei_ref_end": spei_ref_end,
+        }
+        if spei_scale_months is not None else {}
+    )
 
     print(f"\nFetching baseline {baseline_start}-{baseline_end} | source={source}")
     try:
         base = analyze_climate_statistics(
             location_coord=location,
             start_year=baseline_start, end_year=baseline_end,
-            source=source, **fs_kw)
+            source=source, **fs_kw, **spei_kw)
     except Exception as exc:
         return {
             "error": (
@@ -265,7 +342,7 @@ def compare(
         focal = analyze_climate_statistics(
             location_coord=location,
             start_year=focal_year, end_year=focal_year,
-            source=source, **fs_kw)
+            source=source, **fs_kw, **spei_kw)
     except Exception as exc:
         return {
             "error": (
@@ -343,17 +420,24 @@ def compare(
     annual_diff = _diff_annual(focal.get("annual_summary", {}),
                                base.get("annual_summary",  {}),
                                focal_year)
+    spei_diff = _diff_spei(
+        focal.get("spei"),
+        base.get("spei"),
+    )
     return {
         "focal_year":           focal_year,
         "baseline_period":      f"{baseline_start}-{baseline_end}",
         "baseline_years":       n_years,
         "source":               source,
         "fixed_season":         fixed_season,
+        "spei_scale_months":    spei_scale_months,
+        "spei_fit":             spei_fit if spei_scale_months is not None else None,
         "temperature_excluded": drop_temp,
         "raw_climate_summary":  raw_diff,
         "overall_statistics":   overall_diff,
         "season_statistics":    season_diff,
         "annual_summary":       annual_diff,
+        "spei":                 spei_diff,
     }
 
 #  printing 
@@ -429,6 +513,30 @@ def print_report(r: Dict[str, Any]) -> None:
               f"baseline={hs.get('baseline_humid', 'n/a')}")
         if hs.get("focal_humid_test"):
             print(f"                    test: {hs['focal_humid_test']}")
+
+    spei = r.get("spei")
+    if spei:
+        print(f"\n--- 5. SPEI ---")
+        summary = spei.get("summary") or {}
+        if summary:
+            print(
+                f"  Mean SPEI       : focal={summary['focal_avg_spei']:.3f} | "
+                f"baseline_avg={summary['baseline_avg_spei']:.3f} | "
+                f"Δ={summary['diff']:+.3f} ({_fmt_pct(summary.get('pct'))})"
+            )
+        monthly = spei.get("monthly") or []
+        if monthly:
+            rows = []
+            for row in monthly:
+                rows.append({
+                    "date": row["date"],
+                    "month": row["month"],
+                    "focal_spei": f"{row['focal_spei']:.3f}",
+                    "baseline_avg_spei": f"{row['baseline_avg_spei']:.3f}",
+                    "Δ": f"{row['diff']:+.3f}",
+                    "Δ%": _fmt_pct(row.get("pct")),
+                })
+            print(pd.DataFrame(rows).to_string(index=False))
     print()
 
 # CLI 
@@ -442,6 +550,14 @@ def main() -> None:
     p.add_argument("--focal-year",     type=int, required=True)
     p.add_argument("--source", required=True,
                    help=f"One of: {', '.join(sorted(SUPPORTED))}")
+    p.add_argument("--spei-scale-months", type=int, default=None,
+                   help="Optional SPEI scale in months to compare alongside other statistics.")
+    p.add_argument("--spei-fit", choices=["ub-pwm", "empirical"], default="ub-pwm",
+                   help="SPEI fitting method when --spei-scale-months is used.")
+    p.add_argument("--spei-ref-start", default=None,
+                   help="Optional SPEI reference-period start date, e.g. 1991-01-01.")
+    p.add_argument("--spei-ref-end", default=None,
+                   help="Optional SPEI reference-period end date, e.g. 2020-12-31.")
     p.add_argument("--format", choices=["pandas", "json"], default="pandas",
                    help="Output format: human-readable table view or raw JSON.")
     p.add_argument("--fixed-season", default=None,
@@ -465,6 +581,10 @@ def main() -> None:
         focal_year=args.focal_year,
         source=args.source,
         fixed_season=args.fixed_season,
+        spei_scale_months=args.spei_scale_months,
+        spei_fit=args.spei_fit,
+        spei_ref_start=args.spei_ref_start,
+        spei_ref_end=args.spei_ref_end,
     )
     rendered = json.dumps(result, indent=2, default=str)
     if args.format == "json":
