@@ -1241,6 +1241,169 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual(70.0, season_diff["WRSI"]["baseline_avg"])
         self.assertEqual(8.0, season_diff["WRSI"]["diff"])
 
+    def test_compare_carries_water_balance_methodology_summary(self):
+        orig = cp.analyze_climate_statistics
+
+        def _method(counted_days):
+            return {
+                "count_window": {
+                    "requested_mode": "full_window",
+                    "applied_mode": "full_window",
+                    "counted_days": counted_days,
+                    "counted_subseasons": 0,
+                },
+                "warnings": [
+                    "climate_statistics shared NDWS/WRSI uses default full-window root-zone settings."
+                ],
+            }
+
+        def fake_analyze_climate_statistics(**kwargs):
+            if kwargs["start_year"] == 2018:
+                return {
+                    "raw_climate_summary": [],
+                    "overall_statistics": {"water_balance": {"NDWS": 10}},
+                    "season_statistics": [
+                        {
+                            "year": 2018,
+                            "season_number": 1,
+                            "water_balance": {"NDWS": 10},
+                            "water_balance_methodology": _method(92),
+                        }
+                    ],
+                    "annual_summary": {},
+                }
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {"water_balance": {"NDWS": 8}},
+                "season_statistics": [
+                    {
+                        "year": 2019,
+                        "season_number": 1,
+                        "water_balance": {"NDWS": 8},
+                        "water_balance_methodology": _method(92),
+                    }
+                ],
+                "annual_summary": {},
+            }
+
+        cp.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = cp.compare(
+                location=(-1.286, 36.817),
+                baseline_start=2018,
+                baseline_end=2018,
+                focal_year=2019,
+                source="era_5",
+                fixed_season="03-01:05-31",
+            )
+        finally:
+            cp.analyze_climate_statistics = orig
+
+        methodology = result["season_statistics"]["windows"][0]["water_balance_methodology"]
+        self.assertEqual(["full_window"], methodology["focal"]["applied_modes"])
+        self.assertEqual(["full_window"], methodology["baseline_avg"]["applied_modes"])
+        self.assertEqual(92.0, methodology["focal"]["counted_days"]["mean"])
+
+    def test_print_report_renders_water_balance_methodology_summary(self):
+        payload = {
+            "focal_year": 2019,
+            "baseline_period": "2018-2018",
+            "source": "auto",
+            "fixed_season": "03-01:05-31",
+            "temperature_excluded": False,
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": {
+                "windows": [
+                    {
+                        "window": "03-01:05-31",
+                        "season_number": 1,
+                        "n_baseline": 1,
+                        "n_focal": 1,
+                        "water_balance_methodology": {
+                            "focal": {
+                                "applied_modes": ["full_window"],
+                                "counted_days": {"mean": 92.0, "min": 92, "max": 92},
+                            },
+                            "baseline_avg": {
+                                "applied_modes": ["full_window"],
+                                "counted_days": {"mean": 92.0, "min": 92, "max": 92},
+                            },
+                        },
+                        "diff": {
+                            "water_balance": {
+                                "NDWS": {
+                                    "focal": 8.0,
+                                    "baseline_avg": 10.0,
+                                    "diff": -2.0,
+                                    "pct": -20.0,
+                                }
+                            }
+                        },
+                    }
+                ]
+            },
+            "annual_summary": {},
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("NDWS/WRSI method:", rendered)
+        self.assertIn("mode=full_window", rendered)
+
+    def test_ensemble_aggregate_seasons_carries_methodology_summary(self):
+        aggregated = ep._aggregate_seasons([
+            {
+                "windows": [
+                    {
+                        "window": "03-01:05-31",
+                        "season_number": 1,
+                        "water_balance_methodology": {
+                            "future_avg": {
+                                "applied_modes": ["full_window"],
+                                "counted_days": {"mean": 92.0, "min": 92, "max": 92},
+                            },
+                            "baseline_avg": {
+                                "applied_modes": ["full_window"],
+                                "counted_days": {"mean": 92.0, "min": 92, "max": 92},
+                            },
+                        },
+                        "diff": {"water_balance": {"NDWS": {"diff": -2.0, "pct": -20.0}}},
+                    }
+                ]
+            },
+            {
+                "windows": [
+                    {
+                        "window": "03-01:05-31",
+                        "season_number": 1,
+                        "water_balance_methodology": {
+                            "future_avg": {
+                                "applied_modes": ["full_window"],
+                                "counted_days": {"mean": 92.0, "min": 92, "max": 92},
+                            },
+                            "baseline_avg": {
+                                "applied_modes": ["full_window"],
+                                "counted_days": {"mean": 92.0, "min": 92, "max": 92},
+                            },
+                        },
+                        "diff": {"water_balance": {"NDWS": {"diff": -1.0, "pct": -10.0}}},
+                    }
+                ]
+            },
+        ])
+
+        methodology = aggregated["windows"][0]["water_balance_methodology"]
+        self.assertEqual(["full_window"], methodology["future_avg"]["applied_modes"])
+        self.assertEqual(92.0, methodology["future_avg"]["counted_days"]["mean"])
+
     def test_diff_value_2level_uses_baseline_magnitude_for_negative_values(self):
         result = ep._diff_value_2level(
             {"water_balance": {"total_balance": -722.10}},

@@ -125,6 +125,8 @@ try:
         DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
         DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
         DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
+        FULL_WINDOW_WATER_BALANCE as HAZARD_FULL_WINDOW_WATER_BALANCE,
+        build_water_balance_methodology as shared_build_water_balance_methodology,
         calc_water_balance as shared_calc_water_balance,
         summarize_water_balance as shared_summarize_water_balance,
     )
@@ -135,6 +137,8 @@ except ImportError:
             DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
             DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
             DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
+            FULL_WINDOW_WATER_BALANCE as HAZARD_FULL_WINDOW_WATER_BALANCE,
+            build_water_balance_methodology as shared_build_water_balance_methodology,
             calc_water_balance as shared_calc_water_balance,
             summarize_water_balance as shared_summarize_water_balance,
         )
@@ -149,6 +153,7 @@ except ImportError:
         }
         HAZARD_DEFAULT_SOILCP = 100.0
         HAZARD_DEFAULT_SOILSAT = 100.0
+        HAZARD_FULL_WINDOW_WATER_BALANCE = "full_window"
 
 if 'CLIMATE_VARS' not in globals():
     CLIMATE_VARS = [
@@ -645,6 +650,32 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
     }
     water_balance_stats.update(shared_wb)
 
+    water_balance_methodology = None
+    if HAZARD_WATER_BALANCE_AVAILABLE and shared_wb:
+        water_balance_methodology = shared_build_water_balance_methodology(
+            {
+                'method': season.get('method', 'statistics_default_full_window'),
+                'onset_date': onset_ts.strftime('%Y-%m-%d'),
+                'cessation_date': cess_ts.strftime('%Y-%m-%d'),
+                'spinup_days': season.get('spinup_days'),
+            },
+            {
+                'soilcp': HAZARD_DEFAULT_SOILCP,
+                'soilsat': HAZARD_DEFAULT_SOILSAT,
+            },
+            dict(HAZARD_DEFAULT_KC_PARAMS),
+            count_window={
+                'requested_window_mode': HAZARD_FULL_WINDOW_WATER_BALANCE,
+                'applied_window_mode': HAZARD_FULL_WINDOW_WATER_BALANCE,
+                'counted_days': int(len(sdf)),
+                'counted_subseasons': 0,
+                'fallback_reason': None,
+                'warnings': [
+                    'climate_statistics shared NDWS/WRSI uses default full-window root-zone settings.'
+                ],
+            },
+        )
+
     return {
         'onset':       onset_ts.strftime('%Y-%m-%d'),
         'cessation':   cess_ts.strftime('%Y-%m-%d'),
@@ -663,6 +694,7 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
             'min_tmin':   _r(tn.min()),
         },
         'water_balance': water_balance_stats,
+        'water_balance_methodology': water_balance_methodology,
     }
 
 # LTM (Long-Term Mean) aggregation across years per season window
