@@ -215,6 +215,11 @@ def run_eto_in_window(df_with_et0: pd.DataFrame, onset, cessation) -> List[Dict]
         return []
     try:
         eto_seasons = detect_onset_cessation(window_df)
+        for season in eto_seasons:
+            if season.get('cessation') is None:
+                onset_ts = pd.to_datetime(season['onset'])
+                season['cessation'] = cess_ts
+                season['length_days'] = int((cess_ts - onset_ts).days + 1)
         return eto_seasons
     except ValueError as exc:
         print(f"    [ETO] Detection skipped: {exc}")

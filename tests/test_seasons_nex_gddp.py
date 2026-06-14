@@ -94,6 +94,33 @@ class SeasonsNexGddpTests(unittest.TestCase):
 
         self.assertTrue((labels == "late_peak_unimodal").all())
 
+    def test_run_eto_in_window_caps_open_season_at_window_end(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-03-01", "2020-06-30", freq="D"),
+                "precip": [5.0] * 122,
+                "ET0_mm_day": [4.0] * 122,
+            }
+        )
+
+        orig = seasons.detect_onset_cessation
+        seasons.detect_onset_cessation = lambda frame: [
+            {
+                "onset": pd.Timestamp("2020-03-15"),
+                "cessation": None,
+                "length_days": 108,
+                "regime": "unimodal",
+            }
+        ]
+        try:
+            eto = seasons.run_eto_in_window(df, "2020-03-01", "2020-06-30")
+        finally:
+            seasons.detect_onset_cessation = orig
+
+        self.assertEqual(1, len(eto))
+        self.assertEqual(pd.Timestamp("2020-06-30"), pd.to_datetime(eto[0]["cessation"]))
+        self.assertEqual(108, eto[0]["length_days"])
+
     def test_get_climate_data_passes_model_and_scenario_for_nex(self):
         calls = []
 
