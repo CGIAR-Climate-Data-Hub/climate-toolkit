@@ -137,7 +137,7 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             sys.stdout = orig_stdout
 
         rendered = stdout.getvalue()
-        self.assertIn("--- 5. SPEI ---", rendered)
+        self.assertIn("--- 5. SPEI (monthly/period summary, not seasonal) ---", rendered)
         self.assertIn("2019-01-01", rendered)
 
     def test_main_accepts_json_format_and_creates_output_directory(self):
@@ -309,6 +309,67 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertAlmostEqual(-0.375, result["spei"]["summary"]["baseline_avg_spei"])
         self.assertAlmostEqual(0.0, result["spei"]["summary"]["focal_avg_spei"])
         self.assertAlmostEqual(0.375, result["spei"]["summary"]["diff"])
+
+    def test_compare_injects_fixed_season_spei_into_season_block(self):
+        orig = cp.analyze_climate_statistics
+
+        def fake_analyze_climate_statistics(**kwargs):
+            if kwargs["start_year"] == 2018:
+                return {
+                    "raw_climate_summary": [],
+                    "overall_statistics": {},
+                    "season_statistics": [],
+                    "annual_summary": {},
+                    "spei": {
+                        "config": {"scale_months": 3},
+                        "summary": {"n_months": 6, "n_valid_spei": 6},
+                        "metadata": {},
+                        "monthly_series": [
+                            {"date": "2018-03-01", "month": 3, "spei": -1.0},
+                            {"date": "2018-04-01", "month": 4, "spei": -0.5},
+                            {"date": "2018-05-01", "month": 5, "spei": 0.0},
+                            {"date": "2019-03-01", "month": 3, "spei": -0.5},
+                            {"date": "2019-04-01", "month": 4, "spei": 0.0},
+                            {"date": "2019-05-01", "month": 5, "spei": 0.5},
+                        ],
+                    },
+                }
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "spei": {
+                    "config": {"scale_months": 3},
+                    "summary": {"n_months": 3, "n_valid_spei": 3},
+                    "metadata": {},
+                    "monthly_series": [
+                        {"date": "2020-03-01", "month": 3, "spei": 0.5},
+                        {"date": "2020-04-01", "month": 4, "spei": 1.0},
+                        {"date": "2020-05-01", "month": 5, "spei": 1.5},
+                    ],
+                },
+            }
+
+        cp.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = cp.compare(
+                location=(-1.286, 36.817),
+                baseline_start=2018,
+                baseline_end=2019,
+                focal_year=2020,
+                source="era_5",
+                fixed_season="03-01:05-31",
+                spei_scale_months=3,
+            )
+        finally:
+            cp.analyze_climate_statistics = orig
+
+        season_spei = result["season_statistics"]["windows"][0]["diff"]["spei"]["mean_spei"]
+        self.assertAlmostEqual(1.0, season_spei["focal"])
+        self.assertAlmostEqual(-0.25, season_spei["baseline_avg"])
+        self.assertAlmostEqual(1.25, season_spei["diff"])
+        self.assertIsNone(season_spei["pct"])
 
     def test_compare_rejects_auto_detect_when_yearly_season_counts_differ(self):
         calls = []
@@ -512,6 +573,82 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual("2020-12-31", calls[0][3]["spei_ref_end"])
         self.assertEqual(6, result["spei_scale_months"])
         self.assertIn("spei", result)
+
+    def test_compare_one_model_injects_fixed_season_spei_into_season_block(self):
+        orig = ep.analyze_climate_statistics
+
+        def fake_analyze_climate_statistics(
+            *,
+            location_coord,
+            start_year,
+            end_year,
+            source,
+            fixed_season=None,
+            model=None,
+            scenario=None,
+            **kwargs,
+        ):
+            if scenario == "historical":
+                return {
+                    "raw_climate_summary": [],
+                    "overall_statistics": {},
+                    "season_statistics": [],
+                    "annual_summary": {},
+                    "spei": {
+                        "config": {"scale_months": 3},
+                        "summary": {"n_months": 6, "n_valid_spei": 6},
+                        "metadata": {},
+                        "monthly_series": [
+                            {"date": "1991-03-01", "month": 3, "spei": -1.0},
+                            {"date": "1991-04-01", "month": 4, "spei": -0.5},
+                            {"date": "1991-05-01", "month": 5, "spei": 0.0},
+                            {"date": "1992-03-01", "month": 3, "spei": -0.5},
+                            {"date": "1992-04-01", "month": 4, "spei": 0.0},
+                            {"date": "1992-05-01", "month": 5, "spei": 0.5},
+                        ],
+                    },
+                }
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "spei": {
+                    "config": {"scale_months": 3},
+                    "summary": {"n_months": 6, "n_valid_spei": 6},
+                    "metadata": {},
+                    "monthly_series": [
+                        {"date": "2041-03-01", "month": 3, "spei": 0.5},
+                        {"date": "2041-04-01", "month": 4, "spei": 1.0},
+                        {"date": "2041-05-01", "month": 5, "spei": 1.5},
+                        {"date": "2042-03-01", "month": 3, "spei": 0.0},
+                        {"date": "2042-04-01", "month": 4, "spei": 0.5},
+                        {"date": "2042-05-01", "month": 5, "spei": 1.0},
+                    ],
+                },
+            }
+
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2041,
+                future_end=2042,
+                fixed_season="03-01:05-31",
+                model="ACCESS-CM2",
+                scenario="ssp245",
+                spei_scale_months=3,
+            )
+        finally:
+            ep.analyze_climate_statistics = orig
+
+        season_spei = result["season_statistics"]["windows"][0]["diff"]["spei"]["mean_spei"]
+        self.assertAlmostEqual(0.75, season_spei["future_avg"])
+        self.assertAlmostEqual(-0.25, season_spei["baseline_avg"])
+        self.assertAlmostEqual(1.0, season_spei["diff"])
+        self.assertIsNone(season_spei["pct"])
 
     def test_compare_one_model_returns_clean_error_when_future_payload_has_error(self):
         calls = []

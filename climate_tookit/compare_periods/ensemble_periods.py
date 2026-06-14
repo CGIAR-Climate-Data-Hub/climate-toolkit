@@ -47,6 +47,9 @@ from climate_tookit.compare_periods.periods import (
     _auto_season_count_guard,
     _diff_spei,
     _filter_overall_statistics_for_period_compare,
+    _seasonal_spei_period_block,
+    _merge_seasonal_spei_into_summary,
+    _merge_seasonal_spei_into_diff,
     PRECIP_ONLY, SUPPORTED,
 )
 
@@ -255,6 +258,10 @@ def _build_focal_summary(location:     Tuple[float, float],
         block = {c: agg[c] for c in ("precipitation", "temperature", "water_balance")
                  if isinstance(agg.get(c), dict)}
         season_summary = {"block": block}
+    season_summary = _merge_seasonal_spei_into_summary(
+        season_summary,
+        _seasonal_spei_period_block(stats.get("spei"), fixed_season),
+    )
 
     ann = (stats.get("annual_summary", {}) or {}).get(str(focal_year), {}) or {}
     return {
@@ -335,12 +342,20 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
             )
         )
         seasons = _round(stats.get("season_statistics", []), 2)
+        spei_windows = _seasonal_spei_period_block(stats.get("spei"), fixed_season)
+        spei_by_sn = {
+            w.get("season_number", 1): w.get("block", {})
+            for w in (spei_windows or {}).get("windows", [])
+        }
         if fixed_season:
             grp: Dict[int, List[Dict]] = {}
             for s in seasons:
                 grp.setdefault(s.get("season_number", 1), []).append(s)
             for sn, rows in grp.items():
-                win_blocks.setdefault(sn, []).append(_season_block(rows))
+                block = _season_block(rows)
+                if spei_by_sn.get(sn):
+                    block.update(spei_by_sn[sn])
+                win_blocks.setdefault(sn, []).append(block)
         else:
             lump_blocks.append(_season_block(seasons))
 
@@ -624,6 +639,13 @@ def _compare_one_model(
                 "diff":       _diff_block(fb, bb, "future_avg", "baseline_avg",
                                           drop_temp),
             }
+    season_diff = _merge_seasonal_spei_into_diff(
+        season_diff,
+        _seasonal_spei_period_block(future.get("spei"), fixed_season),
+        _seasonal_spei_period_block(base.get("spei"), fixed_season),
+        "future_avg",
+        "baseline_avg",
+    )
     # 4. annual_summary -- future is now a period
     annual_diff = _diff_annual_period(future.get("annual_summary", {}),
                                       base.get("annual_summary",  {}))
@@ -759,11 +781,11 @@ def _aggregate_spei_diff(per_model: List[Optional[Dict[str, Any]]]) -> Optional[
             if not date_key:
                 continue
             slot = monthly_pool.setdefault(date_key, {"month": [month]})
-            for key in ("focal_spei", "baseline_avg_spei", "diff", "pct"):
+            for key in ("focal_spei", "baseline_avg_spei", "diff"):
                 if _is_num(row.get(key)):
                     slot.setdefault(key, []).append(float(row[key]))
         summary = sample.get("summary") or {}
-        for key in ("focal_avg_spei", "baseline_avg_spei", "diff", "pct"):
+        for key in ("focal_avg_spei", "baseline_avg_spei", "diff"):
             if _is_num(summary.get(key)):
                 summary_pool.setdefault(key, []).append(float(summary[key]))
     monthly_rows = []
@@ -773,16 +795,28 @@ def _aggregate_spei_diff(per_model: List[Optional[Dict[str, Any]]]) -> Optional[
             "date": date_key,
             "month": int(slot["month"][0]) if slot["month"] and slot["month"][0] is not None else None,
         }
-        for key in ("focal_spei", "baseline_avg_spei", "diff", "pct"):
+        for key in ("focal_spei", "baseline_avg_spei", "diff"):
             vals = slot.get(key) or []
-            row[key] = round(sum(vals) / len(vals), 3 if key != "pct" else 2) if vals else None
+            row[key] = round(sum(vals) / len(vals), 3) if vals else None
+        row["pct"] = None
         monthly_rows.append(row)
     summary_out = None
     if summary_pool:
         summary_out = {
-            key: round(sum(vals) / len(vals), 3 if key != "pct" else 2)
+            key: round(sum(vals) / len(vals), 3)
             for key, vals in summary_pool.items() if vals
         }
+    elif monthly_rows:
+        focal_vals = [row["focal_spei"] for row in monthly_rows if _is_num(row.get("focal_spei"))]
+        base_vals = [row["baseline_avg_spei"] for row in monthly_rows if _is_num(row.get("baseline_avg_spei"))]
+        diff_vals = [row["diff"] for row in monthly_rows if _is_num(row.get("diff"))]
+        if focal_vals and base_vals and diff_vals:
+            summary_out = {
+                "focal_avg_spei": round(sum(focal_vals) / len(focal_vals), 3),
+                "baseline_avg_spei": round(sum(base_vals) / len(base_vals), 3),
+                "diff": round(sum(diff_vals) / len(diff_vals), 3),
+                "pct": None,
+            }
     return {
         "summary": summary_out,
         "monthly": monthly_rows,
@@ -1063,13 +1097,13 @@ def _print_focal_vs_ltm(avl: Dict[str, Any]) -> None:
 
     spei = avl.get("spei")
     if spei:
-        print(f"\n--- 5. SPEI ---")
+        print(f"\n--- 5. SPEI (monthly/period summary, not seasonal) ---")
         summary = spei.get("summary") or {}
         if summary:
             print(
                 f"  Mean SPEI       : focal={summary['focal_avg_spei']:.3f} | "
                 f"{ltm_lbl}={summary['baseline_avg_spei']:.3f} | "
-                f"Δ={summary['diff']:+.3f} ({_fmt_pct(summary.get('pct'))})"
+                f"Δ={summary['diff']:+.3f}"
             )
         monthly = spei.get("monthly") or []
         if monthly:
@@ -1178,13 +1212,13 @@ def print_report(r: Dict[str, Any]) -> None:
 
     spei = r.get("spei")
     if spei:
-        print(f"\n--- 5. SPEI (ensemble) ---")
+        print(f"\n--- 5. SPEI (ensemble monthly/period summary, not seasonal) ---")
         summary = spei.get("summary") or {}
         if summary:
             print(
                 f"  Mean SPEI       : future_ltm={summary.get('focal_avg_spei'):.3f} | "
                 f"baseline_ltm={summary.get('baseline_avg_spei'):.3f} | "
-                f"Δ={summary.get('diff'):+.3f} ({_fmt_pct(summary.get('pct'))})"
+                f"Δ={summary.get('diff'):+.3f}"
             )
         monthly = spei.get("monthly") or []
         if monthly:
