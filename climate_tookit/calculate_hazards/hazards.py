@@ -13,6 +13,7 @@ Dependencies: pandas, season_analysis.seasons module
 
 import sys
 import os
+from contextlib import redirect_stdout
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 from functools import lru_cache
@@ -1786,21 +1787,26 @@ def main() -> None:
 
     custom_thresholds = load_custom_thresholds_file(args.thresholds_file)
 
-    result = calculate_hazards(
-        crop_name=args.crop,
-        location_coord=(lat, lon),
-        date_from=args.date_from,
-        date_to=args.date_to,
-        season_start=args.season_start,
-        season_end=args.season_end,
-        fixed_season=args.fixed_season,
-        source=args.source,
-        custom_thresholds=custom_thresholds,
-        gap_days=args.gap_days,
-        min_season_days=args.min_season_days,
-        soilcp=args.soilcp,
-        soilsat=args.soilsat,
-    )
+    calculate_kwargs = {
+        'crop_name': args.crop,
+        'location_coord': (lat, lon),
+        'date_from': args.date_from,
+        'date_to': args.date_to,
+        'season_start': args.season_start,
+        'season_end': args.season_end,
+        'fixed_season': args.fixed_season,
+        'source': args.source,
+        'custom_thresholds': custom_thresholds,
+        'gap_days': args.gap_days,
+        'min_season_days': args.min_season_days,
+        'soilcp': args.soilcp,
+        'soilsat': args.soilsat,
+    }
+    if args.format == 'json':
+        with redirect_stdout(sys.stderr):
+            result = calculate_hazards(**calculate_kwargs)
+    else:
+        result = calculate_hazards(**calculate_kwargs)
     if args.format == 'json':
         output_str = json.dumps(result, indent=2, default=str)
         print(output_str)

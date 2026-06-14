@@ -384,6 +384,35 @@ def _aggregate_hazard_statuses(bucket: List[Dict], agg: Dict) -> Dict:
         }
     return out
 
+
+def _auto_season_slot_warning(assessments: List[Dict]) -> Optional[str]:
+    counts_by_scenario_year: Dict[str, Dict[int, int]] = defaultdict(dict)
+    for assessment in assessments or []:
+        scenario = assessment.get('scenario')
+        year = assessment.get('year')
+        total = assessment.get('total_seasons_per_year')
+        if isinstance(scenario, str) and isinstance(year, int) and isinstance(total, int):
+            counts_by_scenario_year[scenario][year] = total
+
+    summaries: List[str] = []
+    for scenario, year_counts in sorted(counts_by_scenario_year.items()):
+        observed = set(year_counts.values())
+        if len(observed) <= 1:
+            continue
+        summary = ", ".join(
+            f"{year}:{count}" for year, count in sorted(year_counts.items())
+        )
+        summaries.append(f"{scenario} -> {summary}")
+
+    if not summaries:
+        return None
+    return (
+        "Auto-detected season counts differ across years within scenario, so "
+        "scenario_ensembles by season_number would blend incomparable seasons. "
+        f"Counts by scenario/year: {'; '.join(summaries)}. "
+        "Use --fixed-season for stable ensemble season summaries."
+    )
+
 # Driver
 def calculate_ensemble(crop: str, lat: float, lon: float,
                        start_year: int, end_year: int,
@@ -487,23 +516,28 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
             'hazard_evaluation': _aggregate_hazard_statuses(bucket, agg),
         })
 
-    scenario_ensembles = []
-    summary_buckets: Dict[Tuple[str, int, int], List[Dict]] = defaultdict(list)
-    for r in results:
-        si = r['season_info']
-        sc = r['projection']['scenario']
-        summary_buckets[(sc, si['season_number'], si['total'])].append(r)
+    season_slot_warning = None
+    if mode == 'auto_detect':
+        season_slot_warning = _auto_season_slot_warning(assessments)
 
-    for (sc, sn, total), bucket in sorted(summary_buckets.items()):
-        agg = _avg_stats(bucket)
-        scenario_ensembles.append({
-            'scenario': sc,
-            'season_number': sn,
-            'total_seasons_per_year': total,
-            'n_projections': len(bucket),
-            'season_statistics': agg,
-            'hazard_evaluation': _aggregate_hazard_statuses(bucket, agg),
-        })
+    scenario_ensembles = []
+    if not season_slot_warning:
+        summary_buckets: Dict[Tuple[str, int, int], List[Dict]] = defaultdict(list)
+        for r in results:
+            si = r['season_info']
+            sc = r['projection']['scenario']
+            summary_buckets[(sc, si['season_number'], si['total'])].append(r)
+
+        for (sc, sn, total), bucket in sorted(summary_buckets.items()):
+            agg = _avg_stats(bucket)
+            scenario_ensembles.append({
+                'scenario': sc,
+                'season_number': sn,
+                'total_seasons_per_year': total,
+                'n_projections': len(bucket),
+                'season_statistics': agg,
+                'hazard_evaluation': _aggregate_hazard_statuses(bucket, agg),
+            })
 
     overall_ensemble = None
     unique_season_slots = sorted(
@@ -511,7 +545,9 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
     )
     cross_scenario_rollup_disabled = len(scenarios) > 1
     cross_season_rollup_disabled = len(unique_season_slots) > 1
-    if not cross_scenario_rollup_disabled and not cross_season_rollup_disabled:
+    if (not season_slot_warning
+            and not cross_scenario_rollup_disabled
+            and not cross_season_rollup_disabled):
         overall = _avg_stats(results)
         overall_ensemble = {
             'n_projections': len(results),
@@ -537,16 +573,22 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         'scenario_ensembles': scenario_ensembles,
         'overall_ensemble':   overall_ensemble,
     }
+    warnings: List[str] = []
+    if season_slot_warning:
+        warnings.append(season_slot_warning)
+        out['season_slot_warning'] = season_slot_warning
     if cross_scenario_rollup_disabled:
-        out['warning'] = (
+        warnings.append(
             'Cross-scenario pooled overall ensemble disabled. '
             'Interpret scenario_ensembles and scenario-tagged assessments separately.'
         )
     elif cross_season_rollup_disabled:
-        out['warning'] = (
+        warnings.append(
             'Cross-season pooled overall ensemble disabled. '
             'Interpret scenario_ensembles and assessments by season_number.'
         )
+    if warnings:
+        out['warning'] = " ".join(warnings)
     return out
 
 # Pretty printer (mirrors hazards.py year/season blocks)

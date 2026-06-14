@@ -240,6 +240,23 @@ def _ensemble_average_per_model_ltms(per_model_ltms: List[Dict[str, Any]]
 
     return {'mode': mode, 'windows': windows}
 
+
+def _ensemble_season_slot_warning(
+    per_model_results: List[Tuple[str, Dict[str, Any]]],
+) -> Optional[str]:
+    affected_models = [
+        model for model, result in per_model_results
+        if isinstance(result, dict) and result.get("season_slot_warning")
+    ]
+    if not affected_models:
+        return None
+    return (
+        "One or more per-model auto-detected runs had unstable season-slot counts, "
+        "so ensemble LTM season windows are suppressed in auto mode. "
+        f"Affected models: {', '.join(affected_models)}. "
+        "Use --fixed-season for a stable multi-year seasonal ensemble LTM."
+    )
+
 # Main API
 def analyze_ensemble_nex_gddp(
     location_coord: Tuple[float, float],
@@ -304,6 +321,7 @@ def analyze_ensemble_nex_gddp(
     per_model_ltm_list: List[Dict[str, Any]]     = []  # ordered, used for step 2 below
     per_model_ltm_by_name: Dict[str, Dict[str, Any]] = {}
     per_model_annual:  List[Dict[str, Dict]]     = []
+    per_model_results: List[Tuple[str, Dict[str, Any]]] = []
     models_ok: List[str]            = []
     failed:    List[Dict[str, str]] = []
     for i, model in enumerate(active, 1):
@@ -332,6 +350,7 @@ def analyze_ensemble_nex_gddp(
             per_model_ltm_by_name[model] = ltm_model
             per_model_annual.append(annual)
             models_ok.append(model)
+            per_model_results.append((model, r))
             if verbose:
                 print("    ok")
         except Exception as exc:
@@ -342,8 +361,13 @@ def analyze_ensemble_nex_gddp(
     if not models_ok:
         return {'error': 'All models failed.', 'failed_models': failed}
 
+    season_slot_warning = _ensemble_season_slot_warning(per_model_results)
+
     # STEP 2 of the FUTURE LTM pipeline (cross-model):
-    ltm_summary = _ensemble_average_per_model_ltms(per_model_ltm_list)
+    if season_slot_warning:
+        ltm_summary = {'mode': 'auto', 'windows': [], 'warning': season_slot_warning}
+    else:
+        ltm_summary = _ensemble_average_per_model_ltms(per_model_ltm_list)
 
     season_statistics = _ensemble_seasons(per_model_seasons)
     annual_summary    = _ensemble_annual(per_model_annual)
@@ -371,6 +395,7 @@ def analyze_ensemble_nex_gddp(
         'per_model_ltm':      per_model_ltm_by_name,
         'annual_summary':     annual_summary,
         'coverage_warning':   coverage_warning,
+        'season_slot_warning': season_slot_warning,
         'analysis_date':      datetime.now().isoformat(),
         'methodology':        ('FUTURE LTM SEASON SUMMARY computed as: '
                                'Step 1 -- statistics.ltm_season_summary per model '
@@ -537,6 +562,8 @@ def print_report(result: Dict[str, Any]) -> None:
         print(f"  Failed    : {failed_names}")
     if result.get('coverage_warning'):
         print(f"  Coverage  : [WARN] {result['coverage_warning']}")
+    if result.get('season_slot_warning'):
+        print(f"  Season LTM: [WARN] {result['season_slot_warning']}")
     print(f"  Note      : per-season tables below are OVERALL values "
           f"(ensemble means across {n_ok} models × focal years), "
           f"not per-year repetitions.")

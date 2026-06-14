@@ -3,6 +3,7 @@ import tempfile
 import types
 import unittest
 import json
+import io
 from pathlib import Path
 from unittest import mock
 import pandas as pd
@@ -86,6 +87,38 @@ class HazardThresholdTests(unittest.TestCase):
         finally:
             hazards.calculate_hazards = orig_calculate
             sys.argv = orig_argv
+
+    def test_main_json_routes_progress_text_to_stderr(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        orig_calculate = hazards.calculate_hazards
+        orig_argv = sys.argv[:]
+
+        def fake_calculate(**kwargs):
+            print("progress line from detector")
+            return {"ok": True, "crop": "maize"}
+
+        hazards.calculate_hazards = fake_calculate
+        try:
+            sys.argv = [
+                "hazards.py",
+                "maize",
+                "--location=-1.286,36.817",
+                "--date-from=2020-01-01",
+                "--date-to=2020-12-31",
+                "--format=json",
+            ]
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with mock.patch("sys.stdout", stdout), mock.patch("sys.stderr", stderr):
+                hazards.main()
+        finally:
+            hazards.calculate_hazards = orig_calculate
+            sys.argv = orig_argv
+
+        self.assertIn('"ok": true', stdout.getvalue())
+        self.assertNotIn("progress line from detector", stdout.getvalue())
+        self.assertIn("progress line from detector", stderr.getvalue())
 
     def test_calculate_hazards_disables_ltm_when_auto_detected_season_counts_vary(self):
         import climate_tookit.calculate_hazards.hazards as hazards

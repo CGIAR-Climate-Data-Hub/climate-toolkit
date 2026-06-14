@@ -153,6 +153,34 @@ class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):
             self.assertTrue(output_path.exists())
             self.assertIn("Saved to", stdout.getvalue())
 
+    def test_propagates_per_model_season_slot_warning(self):
+        fake_result = {
+            "season_statistics": [
+                {"year": 2050, "season_number": 1, "precipitation": {"total_mm": 400}}
+            ],
+            "ltm_season_summary": {"mode": "auto", "windows": []},
+            "annual_summary": {"2050": {"annual_rain_mm": 800.0, "is_humid": False}},
+            "season_slot_warning": (
+                "Auto-detected season counts differ across years, "
+                "so LTM season windows by season_number would blend incomparable seasons."
+            ),
+        }
+
+        with mock.patch.object(es, "default_ensemble_models_for_location", return_value=["MRI-ESM2-0"]), \
+             mock.patch.object(es, "analyze_climate_statistics", return_value=fake_result):
+            result = es.analyze_ensemble_nex_gddp(
+                location_coord=(-1.286, 36.817),
+                start_year=2040,
+                end_year=2060,
+                scenario="ssp245",
+                verbose=False,
+            )
+
+        self.assertIn("season_slot_warning", result)
+        self.assertIn("unstable season-slot counts", result["season_slot_warning"])
+        self.assertEqual([], result["ltm_season_summary"]["windows"])
+        self.assertIn("Use --fixed-season", result["ltm_season_summary"]["warning"])
+
 
 if __name__ == "__main__":
     unittest.main()

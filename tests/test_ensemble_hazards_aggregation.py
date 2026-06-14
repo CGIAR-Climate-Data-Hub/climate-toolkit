@@ -261,6 +261,67 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
             [block["season_statistics"]["total_precipitation_mm"] for block in result["scenario_ensembles"]],
         )
 
+    def test_calculate_ensemble_disables_scenario_rollup_when_auto_counts_vary_by_year(self):
+        orig_detect = eh._detect_windows
+        orig_evaluate = eh._evaluate
+
+        def fake_detect(*args, **kwargs):
+            return [
+                {
+                    "start": "2050-03-01",
+                    "end": "2050-05-31",
+                    "season_number": 1,
+                    "year": 2050,
+                    "total": 1,
+                },
+                {
+                    "start": "2051-03-01",
+                    "end": "2051-05-31",
+                    "season_number": 1,
+                    "year": 2051,
+                    "total": 2,
+                },
+                {
+                    "start": "2051-10-01",
+                    "end": "2051-12-15",
+                    "season_number": 2,
+                    "year": 2051,
+                    "total": 2,
+                },
+            ]
+
+        eh._detect_windows = fake_detect
+        eh._evaluate = lambda crop, lat, lon, window, model, scenario, thresholds, soilcp, soilsat: {
+            "season_info": {**window, "length_days": 91},
+            "season_statistics": {
+                "total_precipitation_mm": 600.0,
+                "mean_temperature_c": 24.0,
+            },
+            "hazard_evaluation": {
+                "precipitation": {"value_mm": 600.0, "status": "no_stress"},
+                "temperature": {"value_c": 24.0, "status": "no_stress"},
+            },
+            "projection": {"model": model, "scenario": scenario},
+        }
+        try:
+            result = eh.calculate_ensemble(
+                crop="maize",
+                lat=-1.286,
+                lon=36.817,
+                start_year=2050,
+                end_year=2051,
+                models=["ACCESS-CM2"],
+                scenarios=["ssp245"],
+            )
+        finally:
+            eh._detect_windows = orig_detect
+            eh._evaluate = orig_evaluate
+
+        self.assertIn("season_slot_warning", result)
+        self.assertIn("Auto-detected season counts differ across years within scenario", result["season_slot_warning"])
+        self.assertEqual([], result["scenario_ensembles"])
+        self.assertIsNone(result["overall_ensemble"])
+
     def test_calculate_ensemble_keeps_overall_summary_for_single_scenario(self):
         orig_detect = eh._detect_windows
         orig_evaluate = eh._evaluate
