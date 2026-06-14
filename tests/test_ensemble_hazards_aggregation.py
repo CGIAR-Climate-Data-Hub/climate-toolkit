@@ -366,6 +366,139 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
         self.assertFalse(result["overall_ensemble"]["mixed_scenarios"])
         self.assertNotIn("warning", result)
 
+    def test_calculate_ensemble_carries_water_balance_methodology(self):
+        orig_detect = eh._detect_windows
+        orig_evaluate = eh._evaluate
+        eh._detect_windows = lambda *args, **kwargs: [
+            {
+                "start": "2050-03-01",
+                "end": "2050-05-31",
+                "season_number": 1,
+                "year": 2050,
+                "total": 1,
+            }
+        ]
+
+        eh._evaluate = lambda crop, lat, lon, window, model, scenario, thresholds, soilcp, soilsat: {
+            "season_info": {**window, "length_days": 91},
+            "season_statistics": {
+                "total_precipitation_mm": 600.0,
+                "mean_temperature_c": 24.0,
+                "NDWS": 8,
+                "NDWL0": 1,
+            },
+            "water_balance_methodology": {
+                "threshold_source": "Atlas-inspired provisional day-count bands",
+                "count_window": {
+                    "requested_mode": "crop_active",
+                    "applied_mode": "crop_active",
+                    "counted_days": 70,
+                    "counted_subseasons": 1,
+                },
+            },
+            "hazard_evaluation": {
+                "precipitation": {"value_mm": 600.0, "status": "no_stress"},
+                "temperature": {"value_c": 24.0, "status": "no_stress"},
+                "NDWS": {"value_days": 8, "status": "no_stress"},
+                "NDWL0": {"value_days": 1, "status": "no_stress"},
+            },
+            "projection": {"model": model, "scenario": scenario},
+        }
+        try:
+            result = eh.calculate_ensemble(
+                crop="maize",
+                lat=-1.286,
+                lon=36.817,
+                start_year=2050,
+                end_year=2050,
+                models=["ACCESS-CM2"],
+                scenarios=["ssp245"],
+                fixed_season="03-01:05-31",
+                water_balance_window="crop_active",
+            )
+        finally:
+            eh._detect_windows = orig_detect
+            eh._evaluate = orig_evaluate
+
+        self.assertEqual(
+            "crop_active",
+            result["water_balance_methodology"]["count_window"]["applied_mode"],
+        )
+        self.assertEqual(
+            "crop_active",
+            result["soil_water_balance"]["water_balance_window"],
+        )
+        self.assertEqual(
+            "Atlas-inspired provisional day-count bands",
+            result["scenario_ensembles"][0]["water_balance_methodology"]["threshold_source"],
+        )
+
+    def test_evaluate_reports_perhumid_crop_active_fallback_reason(self):
+        orig_fetch = eh._fetch
+        orig_calc = eh.calculate_season_statistics
+        orig_eval = eh.evaluate_hazard_metrics
+        orig_detect = getattr(eh, "detect_onset_cessation", None)
+        orig_has_fay = eh.HAS_FAY
+
+        dates = eh.pd.date_range("2050-03-01", periods=20, freq="D")
+        eh._fetch = lambda *args, **kwargs: eh.pd.DataFrame(
+            {
+                "date": dates,
+                "precipitation": [12.0] * len(dates),
+                "max_temperature": [29.0] * len(dates),
+                "min_temperature": [22.0] * len(dates),
+                "ET0_mm_day": [4.0] * len(dates),
+            }
+        )
+        eh.calculate_season_statistics = lambda *args, **kwargs: {
+            "total_precipitation_mm": 2200.0,
+            "mean_temperature_c": 25.0,
+            "NDWS": 7,
+            "NDWL0": 81,
+        }
+        eh.evaluate_hazard_metrics = lambda stats, thresholds: {
+            "precipitation": {"value_mm": 2200.0, "status": "no_stress"},
+            "temperature": {"value_c": 25.0, "status": "no_stress"},
+            "NDWS": {"value_days": stats["NDWS"], "status": "no_stress"},
+            "NDWL0": {"value_days": stats["NDWL0"], "status": "extreme_stress"},
+        }
+        eh.detect_onset_cessation = lambda df: (_ for _ in ()).throw(
+            ValueError(
+                "Perhumid location (annual rain=2218mm, low-rain months=0, rainy days=224). "
+                "No clear onset/cessation."
+            )
+        )
+        eh.HAS_FAY = True
+        try:
+            result = eh._evaluate(
+                crop="maize",
+                lat=4.8156,
+                lon=7.0498,
+                w={
+                    "start": "2050-03-01",
+                    "end": "2050-10-31",
+                    "fixed_season": True,
+                    "water_balance_window": "crop_active",
+                    "season_number": 1,
+                    "year": 2050,
+                    "total": 1,
+                },
+                model="ACCESS-CM2",
+                scenario="ssp245",
+                thresholds=eh.resolve_thresholds("Maize"),
+            )
+        finally:
+            eh._fetch = orig_fetch
+            eh.calculate_season_statistics = orig_calc
+            eh.evaluate_hazard_metrics = orig_eval
+            if orig_detect is not None:
+                eh.detect_onset_cessation = orig_detect
+            eh.HAS_FAY = orig_has_fay
+
+        methodology = result["water_balance_methodology"]
+        self.assertEqual("full_window", methodology["count_window"]["applied_mode"])
+        self.assertIn("Perhumid location", " ".join(methodology["warnings"]))
+
     def test_hazard_statuses_come_from_projection_distribution_not_mean_climate(self):
         bucket = [
             {

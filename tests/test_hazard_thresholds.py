@@ -32,6 +32,7 @@ def _install_test_stubs():
 _install_test_stubs()
 
 from climate_tookit.calculate_hazards.hazards import (
+    CROP_ACTIVE_WATER_BALANCE,
     DEFAULT_SOILCP,
     DEFAULT_SOILSAT,
     build_actual_vs_ltm_comparisons,
@@ -466,6 +467,175 @@ class HazardThresholdTests(unittest.TestCase):
 
         self.assertEqual(5, result["season_statistics"]["row_count"])
         self.assertEqual("2020-01-01", result["season_statistics"]["first_date"])
+
+    def test_calculate_hazards_fixed_season_can_count_ndws_on_crop_active_subseasons(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        orig_fixed = hazards.fetch_and_analyze_years_fixed
+        orig_calc_stats = hazards.calculate_season_statistics
+        orig_eval = hazards.evaluate_hazard_metrics
+
+        source_df = hazards.pd.DataFrame(
+            {
+                "date": hazards.pd.to_datetime(
+                    ["2020-01-01", "2020-03-01", "2020-03-15", "2020-04-30", "2020-05-31"]
+                ),
+                "precipitation": [12.0, 4.0, 8.0, 1.0, 0.0],
+                "max_temperature": [27.0, 28.0, 29.0, 30.0, 29.0],
+                "min_temperature": [15.0, 16.0, 17.0, 18.0, 17.0],
+                "ET0_mm_day": [4.0, 4.0, 4.0, 4.0, 4.0],
+            }
+        )
+
+        hazards.fetch_and_analyze_years_fixed = lambda *args, **kwargs: (
+            {
+                2020: [
+                    {
+                        "onset": hazards.pd.Timestamp("2020-03-01"),
+                        "cessation": hazards.pd.Timestamp("2020-05-31"),
+                        "length_days": 92,
+                        "source_df": source_df,
+                        "eto_seasons": [
+                            {
+                                "onset": hazards.pd.Timestamp("2020-03-15"),
+                                "cessation": hazards.pd.Timestamp("2020-04-30"),
+                                "length_days": 47,
+                                "regime": "eto",
+                            }
+                        ],
+                    }
+                ]
+            },
+            {},
+        )
+
+        def fake_calc_stats(df, **kwargs):
+            start = kwargs.get("analysis_start")
+            end = kwargs.get("analysis_end")
+            if start == "2020-03-15" and end == "2020-04-30":
+                return {
+                    "total_precipitation_mm": 40.0,
+                    "mean_temperature_c": 22.0,
+                    "rainy_days": 10,
+                    "dry_days": 37,
+                    "NDWS": 12,
+                    "NDWL0": 1,
+                }
+            return {
+                "total_precipitation_mm": 80.0,
+                "mean_temperature_c": 22.5,
+                "rainy_days": 20,
+                "dry_days": 72,
+                "NDWS": 60,
+                "NDWL0": 6,
+            }
+
+        hazards.calculate_season_statistics = fake_calc_stats
+        hazards.evaluate_hazard_metrics = lambda stats, thresholds: {
+            "precipitation": {"status": "no_stress", "value_mm": stats["total_precipitation_mm"]},
+            "temperature": {"status": "no_stress", "value_c": stats["mean_temperature_c"]},
+            "NDWS": {"status": "no_stress", "value_days": stats["NDWS"]},
+            "NDWL0": {"status": "no_stress", "value_days": stats["NDWL0"]},
+        }
+        try:
+            result = calculate_hazards(
+                crop_name="maize",
+                location_coord=(-1.286, 36.817),
+                date_from="2020-01-01",
+                date_to="2020-12-31",
+                fixed_season="03-01:05-31",
+                source="auto",
+                water_balance_window=CROP_ACTIVE_WATER_BALANCE,
+            )
+        finally:
+            hazards.fetch_and_analyze_years_fixed = orig_fixed
+            hazards.calculate_season_statistics = orig_calc_stats
+            hazards.evaluate_hazard_metrics = orig_eval
+
+        self.assertEqual(12, result["season_statistics"]["NDWS"])
+        self.assertEqual(1, result["season_statistics"]["NDWL0"])
+        methodology = result["water_balance_methodology"]
+        self.assertEqual(
+            CROP_ACTIVE_WATER_BALANCE,
+            methodology["count_window"]["applied_mode"],
+        )
+        self.assertEqual(1, methodology["count_window"]["counted_subseasons"])
+        self.assertEqual(
+            "Atlas-inspired provisional day-count bands",
+            methodology["threshold_source"],
+        )
+
+    def test_calculate_hazards_fixed_season_reports_perhumid_crop_active_fallback(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        orig_fixed = hazards.fetch_and_analyze_years_fixed
+        orig_calc_stats = hazards.calculate_season_statistics
+        orig_eval = hazards.evaluate_hazard_metrics
+
+        source_df = hazards.pd.DataFrame(
+            {
+                "date": hazards.pd.to_datetime(["2020-01-01", "2020-03-01", "2020-06-01", "2020-10-31"]),
+                "precip": [10.0, 12.0, 15.0, 11.0],
+                "tmax": [28.0, 29.0, 28.0, 27.0],
+                "tmin": [21.0, 22.0, 21.0, 21.0],
+                "ET0_mm_day": [4.0, 4.0, 4.0, 4.0],
+            }
+        )
+
+        hazards.fetch_and_analyze_years_fixed = lambda *args, **kwargs: (
+            {
+                2020: [
+                    {
+                        "onset": hazards.pd.Timestamp("2020-03-01"),
+                        "cessation": hazards.pd.Timestamp("2020-10-31"),
+                        "length_days": 245,
+                        "source_df": source_df,
+                        "eto_seasons": [],
+                        "eto_detection_note": (
+                            "Perhumid location (annual rain=2218mm, low-rain months=0, rainy days=224). "
+                            "No clear onset/cessation."
+                        ),
+                    }
+                ]
+            },
+            {},
+        )
+        hazards.calculate_season_statistics = lambda *args, **kwargs: {
+            "total_precipitation_mm": 2200.0,
+            "mean_temperature_c": 25.0,
+            "NDWS": 7,
+            "NDWL0": 81,
+        }
+        hazards.evaluate_hazard_metrics = lambda stats, thresholds: {
+            "precipitation": {"status": "no_stress", "value_mm": stats["total_precipitation_mm"]},
+            "temperature": {"status": "no_stress", "value_c": stats["mean_temperature_c"]},
+            "NDWS": {"status": "no_stress", "value_days": stats["NDWS"]},
+            "NDWL0": {"status": "extreme_stress", "value_days": stats["NDWL0"]},
+        }
+        try:
+            result = calculate_hazards(
+                crop_name="maize",
+                location_coord=(4.8156, 7.0498),
+                date_from="2020-01-01",
+                date_to="2020-12-31",
+                fixed_season="03-01:10-31",
+                source="auto",
+                water_balance_window=CROP_ACTIVE_WATER_BALANCE,
+            )
+        finally:
+            hazards.fetch_and_analyze_years_fixed = orig_fixed
+            hazards.calculate_season_statistics = orig_calc_stats
+            hazards.evaluate_hazard_metrics = orig_eval
+
+        methodology = result["water_balance_methodology"]
+        self.assertEqual(
+            "full_window",
+            methodology["count_window"]["applied_mode"],
+        )
+        self.assertIn(
+            "Perhumid location",
+            " ".join(methodology["warnings"]),
+        )
 
     def test_calculate_hazards_auto_detect_honors_requested_source(self):
         import climate_tookit.calculate_hazards.hazards as hazards
@@ -929,6 +1099,8 @@ class HazardThresholdTests(unittest.TestCase):
 
         self.assertLess(wb.loc[0, "ERATIO"], 1.0)
         self.assertGreater(wb.loc[0, "AVAILABLE_SOIL_WATER_MM"], 0.0)
+        self.assertEqual(10.0, wb.loc[0, "CROP_WATER_REQUIREMENT_MM"])
+        self.assertLess(wb.loc[0, "ACTUAL_CROP_ET_MM"], wb.loc[0, "CROP_WATER_REQUIREMENT_MM"])
 
     def test_calc_water_balance_starts_kc_stages_at_analysis_window_not_spinup_start(self):
         wb = calc_water_balance(
@@ -958,6 +1130,58 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual(1.2, wb.loc[3, "Kc"])
         self.assertEqual(1.2, wb.loc[4, "Kc"])
         self.assertEqual(0.6, wb.loc[5, "Kc"])
+
+    def test_calculate_season_statistics_reports_wrsi_from_shared_water_balance(self):
+        stats = calculate_season_statistics(
+            pd.DataFrame(
+                {
+                    "date": pd.to_datetime(["2020-03-01"]),
+                    "precipitation": [0.0],
+                    "max_temperature": [30.0],
+                    "min_temperature": [20.0],
+                    "ET0_mm_day": [10.0],
+                }
+            ),
+            soilcp=100.0,
+            soilsat=50.0,
+            kc=1.0,
+            kc_init=1.0,
+            kc_mid=1.0,
+            kc_end=1.0,
+            depletion_fraction_p=0.5,
+            init_avail=40.0,
+            analysis_start="2020-03-01",
+            analysis_end="2020-03-01",
+        )
+
+        self.assertEqual(10.0, stats["crop_water_requirement_mm"])
+        self.assertEqual(8.0, stats["actual_crop_et_mm"])
+        self.assertEqual(80.0, stats["WRSI"])
+        self.assertIn("ending_soil_water_mm", stats)
+
+    def test_build_actual_vs_ltm_comparisons_carries_wrsi_metric(self):
+        assessments = [
+            {
+                "season_info": {"year": 2020, "season_number": 1, "total_seasons_per_year": 1},
+                "season_statistics": {"WRSI": 80.0},
+                "hazard_evaluation": {},
+            }
+        ]
+        baseline_ltm = {
+            "per_season": [
+                {
+                    "season_number": 1,
+                    "season_statistics": {"WRSI": 70.0},
+                    "hazard_evaluation": {},
+                }
+            ]
+        }
+
+        comparisons = build_actual_vs_ltm_comparisons(assessments, baseline_ltm)
+
+        self.assertEqual(1, len(comparisons))
+        self.assertEqual(80.0, comparisons[0]["metrics"]["wrsi"]["actual"])
+        self.assertEqual(70.0, comparisons[0]["metrics"]["wrsi"]["baseline_ltm"])
 
     def test_build_actual_vs_ltm_comparisons_matches_season_slot_and_computes_deltas(self):
         thresholds = resolve_thresholds("Maize")

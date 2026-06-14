@@ -46,6 +46,7 @@ from climate_tookit.compare_periods.periods import (
     _diff_raw, _diff_block, _percent_change, _fmt_pct,
     _auto_season_count_guard,
     _diff_spei,
+    _filter_overall_statistics_for_period_compare,
     PRECIP_ONLY, SUPPORTED,
 )
 
@@ -233,7 +234,9 @@ def _build_focal_summary(location:     Tuple[float, float],
         spei_ref_end=spei_ref_end,
     )
 
-    overall = _round(stats.get("overall_statistics", {}), 2)
+    overall = _filter_overall_statistics_for_period_compare(
+        _round(stats.get("overall_statistics", {}), 2)
+    )
 
     seasons = _round(stats.get("season_statistics", []), 2)
     if fixed_season:
@@ -326,7 +329,11 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
                 print(f"    x  focal {model}: {exc}")
             continue
 
-        overalls.append(_round(stats.get("overall_statistics", {}), 2))
+        overalls.append(
+            _filter_overall_statistics_for_period_compare(
+                _round(stats.get("overall_statistics", {}), 2)
+            )
+        )
         seasons = _round(stats.get("season_statistics", []), 2)
         if fixed_season:
             grp: Dict[int, List[Dict]] = {}
@@ -421,7 +428,9 @@ def _diff_focal_vs_ltm(focal:   Dict[str, Any],
     """
     a_lbl, b_lbl = "focal", ltm_label
 
-    ltm_overall  = _future_ltm_from_agg(ensemble.get("overall_statistics", {}), mean_key)
+    ltm_overall = _filter_overall_statistics_for_period_compare(
+        _future_ltm_from_agg(ensemble.get("overall_statistics", {}), mean_key)
+    )
     overall_diff = _diff_value_2level(focal.get("overall", {}), ltm_overall, a_lbl, b_lbl)
 
     ens_season = ensemble.get("season_statistics") or {}
@@ -567,8 +576,12 @@ def _compare_one_model(
                          base.get("raw_climate_summary",  []),
                          drop_temp)
     # 2. overall_statistics -- annualise BOTH sides
-    base_overall  = _annualize(_round(base.get("overall_statistics",  {}), 2), n_base)
-    future_overall = _annualize(_round(future.get("overall_statistics", {}), 2), n_future)
+    base_overall = _filter_overall_statistics_for_period_compare(
+        _annualize(_round(base.get("overall_statistics", {}), 2), n_base)
+    )
+    future_overall = _filter_overall_statistics_for_period_compare(
+        _annualize(_round(future.get("overall_statistics", {}), 2), n_future)
+    )
     overall_diff  = _diff_block(future_overall, base_overall,
                                 "future_avg", "baseline_avg", drop_temp)
     # 3. season_statistics
@@ -914,8 +927,14 @@ def ensemble_compare(
         "per_model_results": per_model,
         "raw_climate_summary": _aggregate_2level(
             [r.get("raw_climate_summary", {}) for r in per_model], round_n=3),
-        "overall_statistics":  _aggregate_2level(
-            [r.get("overall_statistics", {}) for r in per_model]),
+        "overall_statistics": _aggregate_2level(
+            [
+                _filter_overall_statistics_for_period_compare(
+                    r.get("overall_statistics", {})
+                )
+                for r in per_model
+            ]
+        ),
         "season_statistics":   _aggregate_seasons(
             [r.get("season_statistics") for r in per_model]),
         "annual_summary":      _aggregate_annual(

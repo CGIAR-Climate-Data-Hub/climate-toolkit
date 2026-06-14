@@ -37,6 +37,17 @@ ANNUALIZABLE = {
     "et0":           ["total_mm"],
     "water_balance": ["total_balance", "deficit_days", "surplus_days"],
 }
+OVERALL_WATER_BALANCE_EXCLUDED = {
+    "NDWS",
+    "NDWL0",
+    "WRSI",
+    "mean_eratio",
+    "mean_logging_mm",
+    "crop_water_requirement_mm",
+    "actual_crop_et_mm",
+    "ending_soil_water_mm",
+    "runoff_mm",
+}
 PRECIP_ONLY  = {"chirps", "chirps_v2"}
 SUPPORTED    = {"era_5", "agera_5", "chirps+chirts", "chirps_v2+chirts", "nasa_power",
                 "chirps", "chirps_v2", "chirts", "terraclimate", "imerg", "tamsat", "auto"}
@@ -148,6 +159,28 @@ def _annualize(stats: Dict[str, Any], n_years: int) -> Dict[str, Any]:
         annz = ANNUALIZABLE.get(cat, [])
         out[cat] = {m: round(v / n_years, 2) if (m in annz and _is_num(v)) else v
                     for m, v in metrics.items()}
+    return out
+
+
+def _filter_overall_statistics_for_period_compare(stats: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Overall period block should carry annualizable climate normals only.
+
+    Root-zone crop water-balance diagnostics such as NDWS and WRSI stay valid in
+    seasonal/LTM blocks, but become misleading when shown in the whole-period
+    overall block because they are not annualized climate normals.
+    """
+    out: Dict[str, Any] = {}
+    for cat, metrics in (stats or {}).items():
+        if cat != "water_balance" or not isinstance(metrics, dict):
+            out[cat] = metrics
+            continue
+        filtered = {
+            metric: value
+            for metric, value in metrics.items()
+            if metric not in OVERALL_WATER_BALANCE_EXCLUDED
+        }
+        out[cat] = filtered
     return out
 
 def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -372,8 +405,12 @@ def compare(
                          drop_temp)
 
     # 2. overall_statistics (annualise baseline)
-    base_overall  = _annualize(_round(base.get("overall_statistics", {}), 2), n_years)
-    focal_overall = _round(focal.get("overall_statistics", {}), 2)
+    base_overall = _filter_overall_statistics_for_period_compare(
+        _annualize(_round(base.get("overall_statistics", {}), 2), n_years)
+    )
+    focal_overall = _filter_overall_statistics_for_period_compare(
+        _round(focal.get("overall_statistics", {}), 2)
+    )
     overall_diff  = _diff_block(focal_overall, base_overall,
                                 "focal_year", "baseline_avg", drop_temp)
 

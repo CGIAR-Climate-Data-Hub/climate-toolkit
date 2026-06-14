@@ -52,6 +52,75 @@ import climate_tookit.climate_statistics.statistics as stats
 
 
 class StatisticsSourcePolicyTests(unittest.TestCase):
+    def test_overall_statistics_includes_shared_root_zone_metrics(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
+                "precip": [5.0, 0.0],
+                "tmax": [25.0, 26.0],
+                "tmin": [15.0, 16.0],
+                "ET0_mm_day": [4.0, 4.0],
+                "water_balance": [1.0, -4.0],
+            }
+        )
+
+        orig_shared = stats._shared_water_balance_summary
+        stats._shared_water_balance_summary = lambda *args, **kwargs: {
+            "NDWS": 3,
+            "NDWL0": 1,
+            "WRSI": 80.0,
+            "crop_water_requirement_mm": 10.0,
+            "actual_crop_et_mm": 8.0,
+        }
+        try:
+            result = stats.overall_statistics(df)
+        finally:
+            stats._shared_water_balance_summary = orig_shared
+
+        water_balance = result["water_balance"]
+        self.assertEqual(3, water_balance["NDWS"])
+        self.assertEqual(1, water_balance["NDWL0"])
+        self.assertEqual(80.0, water_balance["WRSI"])
+        self.assertEqual(10.0, water_balance["crop_water_requirement_mm"])
+        self.assertEqual(8.0, water_balance["actual_crop_et_mm"])
+
+    def test_season_statistics_includes_shared_root_zone_metrics(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2018-03-01", "2018-03-02", "2018-03-03"]),
+                "precip": [5.0, 0.0, 1.0],
+                "tmax": [25.0, 26.0, 27.0],
+                "tmin": [15.0, 16.0, 17.0],
+                "ET0_mm_day": [4.0, 4.0, 4.0],
+                "water_balance": [1.0, -4.0, -3.0],
+            }
+        )
+        season = {
+            "onset": pd.Timestamp("2018-03-01"),
+            "cessation": pd.Timestamp("2018-03-03"),
+            "length_days": 3,
+        }
+
+        orig_shared = stats._shared_water_balance_summary
+        stats._shared_water_balance_summary = lambda *args, **kwargs: {
+            "NDWS": 2,
+            "NDWL0": 0,
+            "WRSI": 66.7,
+            "crop_water_requirement_mm": 12.0,
+            "actual_crop_et_mm": 8.0,
+        }
+        try:
+            result = stats.season_statistics(df, season)
+        finally:
+            stats._shared_water_balance_summary = orig_shared
+
+        water_balance = result["water_balance"]
+        self.assertEqual(2, water_balance["NDWS"])
+        self.assertEqual(0, water_balance["NDWL0"])
+        self.assertEqual(66.7, water_balance["WRSI"])
+        self.assertEqual(12.0, water_balance["crop_water_requirement_mm"])
+        self.assertEqual(8.0, water_balance["actual_crop_et_mm"])
+
     def test_get_climate_data_paired_mode_merges_precip_and_temperature_sources(self):
         calls = []
 
