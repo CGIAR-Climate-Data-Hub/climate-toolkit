@@ -562,6 +562,8 @@ def _derive_soil_storage_params_from_row(
         (root_depth_row or {}).get("soil_available_water_capacity")
     )
     drainage = _coerce_optional_float((root_depth_row or {}).get("soil_drainage"))
+    field_capacity_source = "soil_grid" if field_capacity is not None else "texture_pedotransfer"
+    wilting_point_source = "soil_grid" if wilting_point is not None else "field_capacity_ratio"
 
     if field_capacity is None:
         texture_bonus = 0.0
@@ -630,9 +632,15 @@ def _derive_soil_storage_params_from_row(
     return {
         "soilcp": round(soilcp, 2),
         "soilsat": round(soilsat, 2),
-        "source": "soil_grid_scaled_hwsd_root_depth",
+        "source": (
+            "soil_grid_scaled_hwsd_root_depth"
+            if field_capacity_source == "soil_grid" and wilting_point_source == "soil_grid"
+            else "soil_grid_texture_pedotransfer_hwsd_root_depth"
+        ),
         "soilcp_source": soilcp_source,
         "soilsat_source": soilsat_source,
+        "field_capacity_source": field_capacity_source,
+        "wilting_point_source": wilting_point_source,
         "field_capacity_fraction": round(field_capacity, 4),
         "wilting_point_fraction": round(wilting_point, 4) if wilting_point is not None else None,
         "saturation_excess_fraction": round(saturation_excess, 4),

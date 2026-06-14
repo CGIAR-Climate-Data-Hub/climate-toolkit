@@ -640,12 +640,37 @@ class HazardThresholdTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(derived)
-        self.assertEqual("soil_grid_scaled_hwsd_root_depth", derived["source"])
+        self.assertEqual(
+            "soil_grid_texture_pedotransfer_hwsd_root_depth",
+            derived["source"],
+        )
         self.assertGreater(derived["soilcp"], DEFAULT_SOILCP)
         self.assertGreater(derived["soilsat"], 20.0)
         self.assertEqual(1.2, derived["root_depth_m"])
         self.assertEqual("min(crop_default,hwsd)", derived["root_depth_source"])
+        self.assertEqual("soil_grid", derived["field_capacity_source"])
+        self.assertEqual("field_capacity_ratio", derived["wilting_point_source"])
         self.assertIsNotNone(derived["taw_mm"])
+
+    def test_derive_soil_storage_params_from_row_marks_pedotransfer_provenance(self):
+        derived = _derive_soil_storage_params_from_row(
+            {
+                "soil_bulk_density": 1.3,
+                "soil_clay_content": 0.32,
+                "soil_sand_content": 0.28,
+                "soil_organic_carbon": 0.02,
+            },
+            root_depth_row={"soil_root_depth": 150},
+            crop_root_depth_m=1.2,
+        )
+
+        self.assertIsNotNone(derived)
+        self.assertEqual(
+            "soil_grid_texture_pedotransfer_hwsd_root_depth",
+            derived["source"],
+        )
+        self.assertEqual("texture_pedotransfer", derived["field_capacity_source"])
+        self.assertEqual("field_capacity_ratio", derived["wilting_point_source"])
 
     def test_calculate_hazards_uses_resolved_soil_parameters_for_ndws(self):
         import climate_tookit.calculate_hazards.hazards as hazards

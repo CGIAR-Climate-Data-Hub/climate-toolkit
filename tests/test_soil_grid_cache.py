@@ -55,7 +55,7 @@ class SoilGridCacheTests(unittest.TestCase):
         ):
             first = SourceData(
                 location_coord=(-1.2860001, 36.8170001),
-                variables=[SoilVariable.bulk_density, SoilVariable.field_capacity],
+                variables=[SoilVariable.bulk_density, SoilVariable.clay_content],
                 source=ClimateDataset.soil_grid,
                 date_from_utc=date(2000, 1, 1),
                 date_to_utc=date(2000, 1, 1),
@@ -65,7 +65,7 @@ class SoilGridCacheTests(unittest.TestCase):
             ).download()
 
             self.assertIn("bulk_density", first.columns)
-            self.assertIn("field_capacity", first.columns)
+            self.assertIn("clay_content", first.columns)
             self.assertGreater(len(remote_calls), 0)
 
             cache_root = Path(tmpdir) / "v1" / "lat_m1p2860_lon_36p8170"

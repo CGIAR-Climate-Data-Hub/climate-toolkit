@@ -152,7 +152,7 @@ class TamsatSettings(BaseModel):
 class SoilGridSettings(BaseModel):
     # Support both single image (backward compatibility) and multiple images
     gee_image: str | None = None
-    gee_images: dict[str, str] | None = None
+    gee_images: dict[str, str | None] | None = None
     cadence: str
     resolution: float
     variable: SoilVariable

@@ -819,12 +819,18 @@ class DownloadData(models.DataDownloadBase):
         ):
 
             if not gee_image:
-                logger.warning(f"No GEE image mapping found for variable '{var_name}'")
+                logger.info(
+                    "No direct GEE image configured for soil variable '%s'; downstream derivation may apply.",
+                    var_name,
+                )
                 continue
 
             mapped_col = getattr(data_settings.variable, var_name, None)
             if not mapped_col:
-                logger.warning(f"No variable mapping found for '{var_name}'")
+                logger.info(
+                    "No direct band mapping configured for soil variable '%s'; downstream derivation may apply.",
+                    var_name,
+                )
                 continue
 
             logger.info(f"Downloading {var_name} from {gee_image}")

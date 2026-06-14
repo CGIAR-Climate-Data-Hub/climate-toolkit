@@ -181,8 +181,8 @@ soil_grid:
     clay_content: OpenLandMap/SOL/SOL_CLAY-WFRACTION_USDA-3A1A1A_M/v02
     sand_content: OpenLandMap/SOL/SOL_SAND-WFRACTION_USDA-3A1A1A_M/v02
     silt_content: projects/soilgrids-isric/silt_mean
-    field_capacity: projects/soilgrids-isric/wv0033
-    wilting_point: projects/soilgrids-isric/wv1500
+    field_capacity: null
+    wilting_point: null
     bulk_density: OpenLandMap/SOL/SOL_BULKDENS-FINEEARTH_USDA-4A1H_M/v02
     ph: OpenLandMap/SOL/SOL_PH-H2O_USDA-4C1A2A_M/v02
     organic_carbon: OpenLandMap/SOL/SOL_ORGANIC-CARBON_USDA-6A1C_M/v02
@@ -194,8 +194,8 @@ soil_grid:
     clay_content: b0
     sand_content: b0
     silt_content: silt_0-5cm_mean
-    field_capacity: wv0033_0-5cm_mean
-    wilting_point: wv1500_0-5cm_mean
+    field_capacity: null
+    wilting_point: null
     bulk_density: b0
     ph: b0
     organic_carbon: b0
