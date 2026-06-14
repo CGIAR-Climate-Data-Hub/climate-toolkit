@@ -50,6 +50,8 @@ from climate_tookit.compare_periods.periods import (
     _seasonal_spei_period_block,
     _merge_seasonal_spei_into_summary,
     _merge_seasonal_spei_into_diff,
+    _merge_period_methodology,
+    _print_methodology_summary,
     PRECIP_ONLY, SUPPORTED,
 )
 
@@ -293,6 +295,75 @@ def _mean_2level(maps: List[Dict[str, Dict[str, Any]]], round_n: int = 2) -> Dic
                     pool.setdefault(outer, {}).setdefault(k, []).append(float(v))
     return {o: {k: round(sum(vs) / len(vs), round_n) for k, vs in inner.items() if vs}
             for o, inner in pool.items()}
+
+
+def _aggregate_methodology_side(summaries: List[Optional[Dict[str, Any]]]) -> Optional[Dict[str, Any]]:
+    clean = [summary for summary in summaries if isinstance(summary, dict)]
+    if not clean:
+        return None
+
+    requested_modes = sorted({
+        mode
+        for summary in clean
+        for mode in (summary.get("requested_modes") or [])
+        if mode
+    })
+    applied_modes = sorted({
+        mode
+        for summary in clean
+        for mode in (summary.get("applied_modes") or [])
+        if mode
+    })
+    days_means = [
+        summary.get("counted_days", {}).get("mean")
+        for summary in clean
+        if _is_num(summary.get("counted_days", {}).get("mean"))
+    ]
+    day_mins = [
+        summary.get("counted_days", {}).get("min")
+        for summary in clean
+        if _is_num(summary.get("counted_days", {}).get("min"))
+    ]
+    day_maxs = [
+        summary.get("counted_days", {}).get("max")
+        for summary in clean
+        if _is_num(summary.get("counted_days", {}).get("max"))
+    ]
+    warnings = []
+    for summary in clean:
+        for warning in summary.get("warnings") or []:
+            if warning and warning not in warnings:
+                warnings.append(warning)
+
+    return {
+        "requested_modes": requested_modes,
+        "applied_modes": applied_modes,
+        "counted_days": {
+            "mean": round(sum(days_means) / len(days_means), 1) if days_means else None,
+            "min": min(day_mins) if day_mins else None,
+            "max": max(day_maxs) if day_maxs else None,
+            "n": len(days_means),
+        },
+        "warnings": warnings,
+    }
+
+
+def _aggregate_period_methodology(
+    summaries: List[Optional[Dict[str, Any]]],
+    left_label: str,
+    right_label: str,
+) -> Optional[Dict[str, Any]]:
+    clean = [summary for summary in summaries if isinstance(summary, dict)]
+    if not clean:
+        return None
+    left = _aggregate_methodology_side([summary.get(left_label) for summary in clean])
+    right = _aggregate_methodology_side([summary.get(right_label) for summary in clean])
+    if not left and not right:
+        return None
+    return {
+        left_label: left,
+        right_label: right,
+    }
 
 def _build_focal_summary_nexgddp(location:     Tuple[float, float],
                                  focal_year:   int,
@@ -626,6 +697,12 @@ def _compare_one_model(
                     "season_number": sn,
                     "n_baseline":    bb["_n"],
                     "n_future":       fb["_n"],
+                    "water_balance_methodology": _merge_period_methodology(
+                        future_grp.get(sn, []),
+                        base_grp.get(sn, []),
+                        "future_avg",
+                        "baseline_avg",
+                    ),
                     "diff":          _diff_block(fb, bb, "future_avg", "baseline_avg",
                                                  drop_temp),
                 })
@@ -636,6 +713,12 @@ def _compare_one_model(
             season_diff = {
                 "n_baseline": bb["_n"],
                 "n_future":    fb["_n"],
+                "water_balance_methodology": _merge_period_methodology(
+                    future_seasons,
+                    base_seasons,
+                    "future_avg",
+                    "baseline_avg",
+                ),
                 "diff":       _diff_block(fb, bb, "future_avg", "baseline_avg",
                                           drop_temp),
             }
@@ -718,20 +801,42 @@ def _aggregate_seasons(per_model: List[Optional[Dict[str, Any]]]) -> Optional[Di
         for s in per_model:
             for w in (s or {}).get("windows", []) or []:
                 sn = w.get("season_number", 1)
-                bucket = win_pool.setdefault(sn, {"label": w.get("window"), "diffs": []})
+                bucket = win_pool.setdefault(
+                    sn,
+                    {"label": w.get("window"), "diffs": [], "methodologies": []},
+                )
                 bucket["diffs"].append(w.get("diff", {}))
+                if w.get("water_balance_methodology"):
+                    bucket["methodologies"].append(w.get("water_balance_methodology"))
         windows = []
         for sn in sorted(win_pool):
             windows.append({
                 "window":        win_pool[sn]["label"],
                 "season_number": sn,
                 "n_models":      len(win_pool[sn]["diffs"]),
+                "water_balance_methodology": _aggregate_period_methodology(
+                    win_pool[sn]["methodologies"],
+                    "future_avg",
+                    "baseline_avg",
+                ),
                 "diff":          _aggregate_2level(win_pool[sn]["diffs"]),
             })
         return {"windows": windows}
 
     diffs = [(s or {}).get("diff", {}) for s in per_model if s]
-    return {"n_models": len(diffs), "diff": _aggregate_2level(diffs)}
+    methodologies = [
+        (s or {}).get("water_balance_methodology")
+        for s in per_model if s
+    ]
+    return {
+        "n_models": len(diffs),
+        "water_balance_methodology": _aggregate_period_methodology(
+            methodologies,
+            "future_avg",
+            "baseline_avg",
+        ),
+        "diff": _aggregate_2level(diffs),
+    }
 
 def _aggregate_annual(per_model: List[Optional[Dict[str, Any]]]) -> Dict[str, Any]:
     """Aggregate annual_summary across models (period future version)."""
@@ -1075,8 +1180,10 @@ def _print_focal_vs_ltm(avl: Dict[str, Any]) -> None:
         if "windows" in season:
             for w in season["windows"]:
                 print(f"\n  Window {w['window']} (season #{w['season_number']})")
+                _print_methodology_summary(w.get("water_balance_methodology"))
                 _print_diff_block(w["diff"])
         else:
+            _print_methodology_summary(season.get("water_balance_methodology"))
             _print_diff_block(season["diff"])
 
     ann = avl.get("annual_summary", {}) or {}
@@ -1142,10 +1249,12 @@ def _print_per_model_breakdown(per_model: List[Dict[str, Any]]) -> None:
                 for w in season.get("windows", []):
                     print(f"    Window {w.get('window')} (season #{w.get('season_number')}, "
                           f"n_baseline={w.get('n_baseline')}, n_future={w.get('n_future')})")
+                    _print_methodology_summary(w.get("water_balance_methodology"))
                     _print_diff_block(w.get("diff", {}))
             elif season.get("diff"):
                 print(f"    (n_baseline={season.get('n_baseline')}, "
                       f"n_future={season.get('n_future')})")
+                _print_methodology_summary(season.get("water_balance_methodology"))
                 _print_diff_block(season["diff"])
 
         arm = (r.get("annual_summary") or {}).get("annual_rain_mm") or {}
@@ -1186,9 +1295,11 @@ def print_report(r: Dict[str, Any]) -> None:
         if "windows" in season:
             for w in season["windows"]:
                 print(f"\n  Window {w['window']} (season #{w['season_number']}, n_models={w['n_models']})")
+                _print_methodology_summary(w.get("water_balance_methodology"))
                 _print_2level(w["diff"])
         else:
             print(f"  (n_models={season['n_models']})")
+            _print_methodology_summary(season.get("water_balance_methodology"))
             _print_2level(season["diff"])
 
     print(f"\n--- 4. ANNUAL SUMMARY (ensemble) ---")

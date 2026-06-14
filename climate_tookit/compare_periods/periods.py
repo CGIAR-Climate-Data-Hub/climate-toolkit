@@ -84,6 +84,13 @@ def _fmt_pct(v: Optional[float]) -> str:
     return f"{v:+.2f}%" if _is_num(v) else "n/a"
 
 
+def _mean(values: List[float], ndigits: int = 1) -> Optional[float]:
+    clean = [float(v) for v in values if _is_num(v)]
+    if not clean:
+        return None
+    return round(sum(clean) / len(clean), ndigits)
+
+
 def _parse_fixed_season_windows(fixed_season: Optional[str]) -> List[Tuple[int, str, Tuple[int, int], Tuple[int, int]]]:
     windows: List[Tuple[int, str, Tuple[int, int], Tuple[int, int]]] = []
     if not fixed_season:
@@ -97,6 +104,101 @@ def _parse_fixed_season_windows(fixed_season: Optional[str]) -> List[Tuple[int, 
         end_md = tuple(int(x) for x in end_str.split("-", 1))
         windows.append((idx, label, start_md, end_md))
     return windows
+
+
+def _summarize_methodology_rows(rows: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    methods = [
+        row.get("water_balance_methodology")
+        for row in rows or []
+        if isinstance(row.get("water_balance_methodology"), dict)
+    ]
+    if not methods:
+        return None
+
+    requested_modes = sorted({
+        method.get("count_window", {}).get("requested_mode")
+        for method in methods
+        if method.get("count_window", {}).get("requested_mode")
+    })
+    applied_modes = sorted({
+        method.get("count_window", {}).get("applied_mode")
+        for method in methods
+        if method.get("count_window", {}).get("applied_mode")
+    })
+    counted_days = [
+        method.get("count_window", {}).get("counted_days")
+        for method in methods
+        if _is_num(method.get("count_window", {}).get("counted_days"))
+    ]
+    counted_subseasons = [
+        method.get("count_window", {}).get("counted_subseasons")
+        for method in methods
+        if _is_num(method.get("count_window", {}).get("counted_subseasons"))
+    ]
+    warnings = []
+    for method in methods:
+        for warning in method.get("warnings") or []:
+            if warning and warning not in warnings:
+                warnings.append(warning)
+
+    return {
+        "requested_modes": requested_modes,
+        "applied_modes": applied_modes,
+        "counted_days": {
+            "mean": _mean(counted_days, 1),
+            "min": min(counted_days) if counted_days else None,
+            "max": max(counted_days) if counted_days else None,
+            "n": len(counted_days),
+        },
+        "counted_subseasons": {
+            "mean": _mean(counted_subseasons, 1),
+            "min": min(counted_subseasons) if counted_subseasons else None,
+            "max": max(counted_subseasons) if counted_subseasons else None,
+            "n": len(counted_subseasons),
+        },
+        "warnings": warnings,
+    }
+
+
+def _merge_period_methodology(
+    left_rows: List[Dict[str, Any]],
+    right_rows: List[Dict[str, Any]],
+    left_label: str,
+    right_label: str,
+) -> Optional[Dict[str, Any]]:
+    left = _summarize_methodology_rows(left_rows)
+    right = _summarize_methodology_rows(right_rows)
+    if not left and not right:
+        return None
+    return {
+        left_label: left,
+        right_label: right,
+    }
+
+
+def _format_methodology_side(label: str, summary: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not summary:
+        return None
+    mode = ",".join(summary.get("applied_modes") or []) or "n/a"
+    days = summary.get("counted_days") or {}
+    day_bits = []
+    if _is_num(days.get("mean")):
+        day_bits.append(f"days_mean={days['mean']:.1f}")
+    if _is_num(days.get("min")) and _is_num(days.get("max")):
+        day_bits.append(f"days_range={int(days['min'])}-{int(days['max'])}")
+    return f"{label}: mode={mode}" + (f" | {' | '.join(day_bits)}" if day_bits else "")
+
+
+def _print_methodology_summary(methodology: Optional[Dict[str, Any]]) -> None:
+    if not methodology:
+        return
+    parts = []
+    for label in ("focal", "baseline_avg", "future_avg", "baseline_ltm", "future_ltm"):
+        formatted = _format_methodology_side(label, methodology.get(label))
+        if formatted:
+            parts.append(formatted)
+    if parts:
+        print(f"    NDWS/WRSI method: {' ; '.join(parts)}")
 
 
 def _month_day_in_window(
@@ -362,6 +464,9 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
     for k, vs in sums.items():
         cat, m = k.split(".", 1)
         out.setdefault(cat, {})[m] = round(sum(vs) / len(vs), 2)
+    methodology = _summarize_methodology_rows(seasons)
+    if methodology:
+        out["water_balance_methodology"] = methodology
     return out
 
 
@@ -605,6 +710,12 @@ def compare(
                     "season_number":  sn,
                     "n_baseline":     bb["_n"],
                     "n_focal":        fb["_n"],
+                    "water_balance_methodology": _merge_period_methodology(
+                        focal_grp.get(sn, []),
+                        base_grp.get(sn, []),
+                        "focal",
+                        "baseline_avg",
+                    ),
                     "diff":           _diff_block(fb, bb, "focal", "baseline_avg",
                                                   drop_temp),
                 })
@@ -615,6 +726,12 @@ def compare(
             season_diff = {
                 "n_baseline": bb["_n"],
                 "n_focal":    fb["_n"],
+                "water_balance_methodology": _merge_period_methodology(
+                    focal_seasons,
+                    base_seasons,
+                    "focal",
+                    "baseline_avg",
+                ),
                 "diff":       _diff_block(fb, bb, "focal_avg", "baseline_avg",
                                           drop_temp),
             }
@@ -702,9 +819,11 @@ def print_report(r: Dict[str, Any]) -> None:
             for w in season["windows"]:
                 print(f"\n  Window {w['window']} (season #{w['season_number']}, "
                       f"n_baseline={w['n_baseline']}, n_focal={w['n_focal']})")
+                _print_methodology_summary(w.get("water_balance_methodology"))
                 _print_block(w["diff"])
         else:
             print(f"  (n_baseline={season['n_baseline']}, n_focal={season['n_focal']})")
+            _print_methodology_summary(season.get("water_balance_methodology"))
             _print_block(season["diff"])
 
     print(f"\n--- 4. ANNUAL SUMMARY ---")
