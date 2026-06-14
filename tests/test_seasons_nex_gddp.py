@@ -3,7 +3,9 @@ import sys
 import tempfile
 import types
 import unittest
+from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 import pandas as pd
 
@@ -299,6 +301,44 @@ class SeasonsNexGddpTests(unittest.TestCase):
         self.assertIn("precip", frame.columns)
         self.assertIn("tmax", frame.columns)
         self.assertIn("tmin", frame.columns)
+
+    def test_fetch_and_analyze_years_prints_historical_cache_note_for_auto(self):
+        orig_fetch = seasons.fetch_full_year_plus_cessation
+        orig_detect = seasons.detect_onset_cessation
+        orig_reassign = seasons.reassign_spillover_seasons
+        orig_dedup = seasons.remove_duplicate_seasons
+        try:
+            seasons.fetch_full_year_plus_cessation = lambda *args, **kwargs: pd.DataFrame(
+                {
+                    "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                    "precip": [1.0, 0.0],
+                    "tmax": [25.0, 26.0],
+                    "tmin": [15.0, 16.0],
+                    "ET0_mm_day": [4.0, 4.0],
+                }
+            )
+            seasons.detect_onset_cessation = lambda df: []
+            seasons.reassign_spillover_seasons = lambda results_dict, **kwargs: results_dict
+            seasons.remove_duplicate_seasons = lambda results_dict: results_dict
+
+            stdout = StringIO()
+            with mock.patch("sys.stdout", stdout):
+                seasons.fetch_and_analyze_years(
+                    -1.286,
+                    36.817,
+                    start_year=2020,
+                    end_year=2020,
+                    source="auto",
+                )
+        finally:
+            seasons.fetch_full_year_plus_cessation = orig_fetch
+            seasons.detect_onset_cessation = orig_detect
+            seasons.reassign_spillover_seasons = orig_reassign
+            seasons.remove_duplicate_seasons = orig_dedup
+
+        rendered = stdout.getvalue()
+        self.assertIn("Historical GEE/Xee fetch note", rendered)
+        self.assertIn("outputs/cache/...", rendered)
 
     def test_fetch_and_analyze_years_forwards_nex_model_and_scenario(self):
         calls = []

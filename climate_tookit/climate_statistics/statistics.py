@@ -33,6 +33,11 @@ import numpy as np
 warnings.filterwarnings("ignore")
 
 try:
+    from ..fetch_data.runtime_notes import build_historical_cache_note
+except ImportError:
+    from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note
+
+try:
     from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
     PREPROCESS_AVAILABLE = True
 except ImportError:
@@ -885,6 +890,13 @@ def analyze_climate_statistics(
         run_label.append(f"temp_source={normalize_climate_dataset_name(temp_source)}")
     if fixed_season:
         run_label.append(f"fixed_season={fixed_season}")
+    cache_note = build_historical_cache_note(
+        source,
+        precip_source=precip_source,
+        temp_source=temp_source,
+    )
+    if cache_note:
+        print(cache_note)
     print(f"Fetching climate data: {fetch_start} → {fetch_end} | "
           f"{' | '.join(run_label)}")
     fetch_started = perf_counter()
@@ -1257,6 +1269,8 @@ def main() -> None:
                             "nasa_power, nex_gddp, auto\n"
                             "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
                             "Recommended direct single-source fallback: agera_5.\n"
+                            "For GEE/Xee-backed historical paths, cold-cache first runs can "
+                            "take noticeably longer than warm-cache reruns.\n"
                             "Incompatible sources are rejected with a clean "
                             "error at runtime."
                         ))

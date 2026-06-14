@@ -399,6 +399,50 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             result["season_statistics"][0]["season_identity"]["experimental_alignment_key"],
         )
 
+    def test_analyze_climate_statistics_prints_historical_cache_note_for_auto(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
+                "precip": [1.0, 0.0],
+                "tmax": [25.0, 26.0],
+                "tmin": [15.0, 16.0],
+                "ET0_mm_day": [4.0, 4.0],
+                "water_balance": [-3.0, -4.0],
+            }
+        )
+
+        orig_get = stats.get_climate_data
+        orig_add_et0 = stats.add_et0
+        orig_wb = stats.calculate_water_balance
+        orig_detect_fixed = stats.detect_seasons_fixed
+        try:
+            stats.get_climate_data = lambda *args, **kwargs: df.copy()
+            stats.add_et0 = lambda frame, lat: frame
+            stats.calculate_water_balance = lambda frame: frame
+            stats.detect_seasons_fixed = lambda frame, fixed_defs, start_year, end_year: (
+                {2018: []},
+                {2018: {"annual_rain_mm": 1.0, "is_humid": False, "low_rain_months": 12, "result_str": "Not humid"}},
+            )
+
+            stdout = StringIO()
+            with mock.patch("sys.stdout", stdout):
+                stats.analyze_climate_statistics(
+                    location_coord=(-1.286, 36.817),
+                    start_year=2018,
+                    end_year=2018,
+                    source="auto",
+                    fixed_season="03-01:05-31",
+                )
+        finally:
+            stats.get_climate_data = orig_get
+            stats.add_et0 = orig_add_et0
+            stats.calculate_water_balance = orig_wb
+            stats.detect_seasons_fixed = orig_detect_fixed
+
+        rendered = stdout.getvalue()
+        self.assertIn("Historical GEE/Xee fetch note", rendered)
+        self.assertIn("outputs/cache/...", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

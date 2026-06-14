@@ -23,6 +23,7 @@ from .gee_xee_batch import (
 )
 from .multi_site import parse_site_spec
 from .nex_gddp_batch import fetch_nex_gddp_batch_data
+from .runtime_notes import build_historical_cache_note
 from .source_data.source_data import SourceData
 from .source_data.sources.xee_common import format_ee_setup_error
 from .transform_data.transform_data import (
@@ -255,10 +256,18 @@ def main():
         default=None,
         help=(
             "Optional project-local cache root. Reuse a stable path such as "
-            "outputs/cache/... for fast repeat runs."
+            "outputs/cache/... for fast repeat runs. If omitted, supported "
+            "sources fall back to their default project-local cache layout."
         ),
     )
-    parser.add_argument("--refresh-cache", action="store_true")
+    parser.add_argument(
+        "--refresh-cache",
+        action="store_true",
+        help=(
+            "Bypass any saved cache files and force a cold fetch. Useful for "
+            "refreshing data, but slower than a warm-cache rerun."
+        ),
+    )
     parser.add_argument(
         "--stage",
         choices=VALID_STAGES,
@@ -320,6 +329,14 @@ def main():
         except ValueError as e:
             print(f"Error: {e}")
             return 1
+
+    cache_note = build_historical_cache_note(
+        args.source,
+        refresh_cache=args.refresh_cache,
+        cache_dir=args.cache_dir,
+    )
+    if cache_note and not args.quiet:
+        print(cache_note)
 
     try:
         df = fetch_data(

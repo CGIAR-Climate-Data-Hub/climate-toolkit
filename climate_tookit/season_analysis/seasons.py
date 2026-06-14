@@ -55,6 +55,7 @@ warnings.filterwarnings("ignore")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fetch_data.preprocess_data.preprocess_data import preprocess_data
+from fetch_data.runtime_notes import build_historical_cache_note
 from fetch_data.source_data.sources.utils.models import (
     ClimateVariable,
     normalize_climate_dataset_name,
@@ -682,6 +683,9 @@ def fetch_and_analyze_years(
     """
     seasons_dict : Dict[int, List[Dict]] = {}
     annual_dict  : Dict[int, Dict]       = {}
+    cache_note = build_historical_cache_note(source)
+    if cache_note:
+        print(cache_note)
 
     for ref_year in range(start_year, end_year + 1):
         print(f"\nAnalyzing ref year {ref_year}")
@@ -769,6 +773,9 @@ def fetch_and_analyze_years_fixed(
     seasons_dict : Dict[int, List[Dict]] = {y: [] for y in range(start_year, end_year + 1)}
     annual_dict  : Dict[int, Dict]       = {}
     force = None if source == "auto" else source
+    cache_note = build_historical_cache_note(source)
+    if cache_note:
+        print(cache_note)
 
     for year in range(start_year, end_year + 1):
         print(f"\nFixed-season year {year} | source={source}")
@@ -1008,6 +1015,7 @@ def main() -> None:
                             "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
                             "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts  [default]\n"
                             "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
+                            "Cold-cache GEE/Xee historical runs can take noticeably longer than warm-cache reruns.\n"
                             "Recommended direct single-source fallback: agera_5."
                         ))
     parser.add_argument('--start-year',   type=int, required=True)

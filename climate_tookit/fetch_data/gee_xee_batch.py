@@ -28,6 +28,7 @@ from .multi_site import (
     site_date_integrity_summary,
 )
 from .preprocess_data.preprocess_data import preprocess_transformed_data
+from .runtime_notes import build_historical_cache_note
 from .source_data.sources.utils.models import ClimateDataset
 from .source_data.sources.utils.settings import Settings, set_logging
 from .source_data.sources.xee_common import (
@@ -860,8 +861,22 @@ def main():
     parser.add_argument("--start", required=True)
     parser.add_argument("--end", required=True)
     parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--cache-dir", default=DEFAULT_BATCH_CACHE_DIR)
-    parser.add_argument("--refresh-cache", action="store_true")
+    parser.add_argument(
+        "--cache-dir",
+        default=DEFAULT_BATCH_CACHE_DIR,
+        help=(
+            "Project-local cache root. Reuse the same path for much faster "
+            "repeat runs."
+        ),
+    )
+    parser.add_argument(
+        "--refresh-cache",
+        action="store_true",
+        help=(
+            "Bypass saved cache files and force a cold fetch. Expect this to "
+            "take longer than a warm-cache rerun."
+        ),
+    )
     parser.add_argument(
         "--stage",
         choices=VALID_STAGES,
@@ -877,6 +892,13 @@ def main():
 
     try:
         sites = [parse_site_spec(raw) for raw in args.site]
+        cache_note = build_historical_cache_note(
+            args.source,
+            refresh_cache=args.refresh_cache,
+            cache_dir=args.cache_dir,
+        )
+        if cache_note and not args.quiet:
+            print(cache_note)
         data_df, summary_df, manifest_df = fetch_gee_xee_batch_data(
             source=args.source,
             sites=sites,
