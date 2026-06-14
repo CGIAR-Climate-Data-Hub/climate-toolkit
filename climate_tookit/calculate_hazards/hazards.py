@@ -260,6 +260,57 @@ def _season_counts_by_year(seasons: List[Dict[str, Any]]) -> Dict[int, int]:
     return counts
 
 
+def build_water_balance_methodology(
+    season_info: Dict[str, Any],
+    soil_parameters: Dict[str, Any],
+    crop_water_balance: Dict[str, Any],
+) -> Dict[str, Any]:
+    notes = [
+        "NDWS counts days where ERATIO < 0.5 after running the crop root-zone water balance.",
+        "NDWL0 counts days where LOGGING > 0 after the same balance.",
+        "These are crop-water-balance diagnostics, not a simple daily precipitation minus ET0 threshold.",
+        "ET0 is derived with the season_analysis Hargreaves implementation when not already present.",
+        "Default hazard day-count thresholds come from the Adaptation Atlas hazards definitions.",
+    ]
+    if season_info.get("method") == "fixed_season":
+        notes.append(
+            "Fixed-season mode counts NDWS and NDWL0 only inside the user-defined window. "
+            "Broad or misaligned windows can inflate counts by including shoulder months."
+        )
+
+    warnings_list = [
+        crop_water_balance.get("warning"),
+        soil_parameters.get("warning"),
+        soil_parameters.get("root_depth_warning"),
+    ]
+    return {
+        "ndws_definition": "Days with ERATIO < 0.5",
+        "ndwl0_definition": "Days with LOGGING > 0",
+        "et0_method": "Hargreaves reference ET0",
+        "analysis_method": season_info.get("method", "unknown"),
+        "analysis_window": {
+            "onset_date": season_info.get("onset_date"),
+            "cessation_date": season_info.get("cessation_date"),
+            "spinup_days": season_info.get("spinup_days"),
+        },
+        "soil_parameters": {
+            "soilcp_mm": soil_parameters.get("soilcp"),
+            "soilsat_mm": soil_parameters.get("soilsat"),
+            "root_depth_m": soil_parameters.get("root_depth_m"),
+        },
+        "crop_parameters": {
+            "kc_init": crop_water_balance.get("kc_init"),
+            "kc_mid": crop_water_balance.get("kc_mid"),
+            "kc_end": crop_water_balance.get("kc_end"),
+            "depletion_fraction_p": crop_water_balance.get("depletion_fraction_p"),
+            "source_doc": crop_water_balance.get("source_doc"),
+        },
+        "threshold_source": "Adaptation Atlas hazards definitions wiki",
+        "notes": notes,
+        "warnings": [item for item in warnings_list if item],
+    }
+
+
 def _auto_ltm_guard_message(assessments: List[Dict[str, Any]]) -> Optional[str]:
     counts: Dict[int, int] = {}
     for assessment in assessments:
@@ -1400,12 +1451,18 @@ def calculate_hazards(
             analysis_end=entry['season_info'].get('cessation_date'),
         )
         hazard_eval = evaluate_hazard_metrics(stats, thresholds)
+        methodology = build_water_balance_methodology(
+            entry['season_info'],
+            soil_parameters,
+            crop_water_balance,
+        )
         assessments.append({
             'crop':              crop_name,
             'location':          {'latitude': lat, 'longitude': lon},
             'season_info':       entry['season_info'],
             'soil_parameters':   soil_parameters,
             'water_balance_parameters': crop_water_balance,
+            'water_balance_methodology': methodology,
             'season_statistics': stats,
             'hazard_evaluation': hazard_eval,
         })
@@ -1418,6 +1475,7 @@ def calculate_hazards(
             'assessments': assessments,
             'soil_parameters': soil_parameters,
             'water_balance_parameters': crop_water_balance,
+            'water_balance_methodology': assessments[0].get('water_balance_methodology'),
             'warning': auto_ltm_guard,
             'baseline_ltm': None,
             'baseline_ltm_comparisons': [],
@@ -1427,6 +1485,7 @@ def calculate_hazards(
         'assessments': assessments,
         'soil_parameters': soil_parameters,
         'water_balance_parameters': crop_water_balance,
+        'water_balance_methodology': assessments[0].get('water_balance_methodology'),
         'baseline_ltm': baseline_ltm,
         'baseline_ltm_comparisons': build_actual_vs_ltm_comparisons(assessments, baseline_ltm),
     }
@@ -1501,6 +1560,8 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
                 print(f"  {'NDWS (water-stress days)':<32} {s['NDWS']:>15.2f}  days")
             if 'NDWL0' in s:
                 print(f"  {'NDWL0 (water-logging days)':<32} {s['NDWL0']:>15.2f}  days")
+            if 'NDWS' in s or 'NDWL0' in s:
+                print("  Note: NDWS/NDWL0 come from the crop water-balance model, not a raw precip-minus-ET0 count.")
 
         h = blk.get('hazard_evaluation', {})
         if h:
@@ -1678,6 +1739,10 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
             print(f"  {'NDWS (water-stress days)':<32} {stats['NDWS']:>15}  days")
         if 'NDWL0' in stats:
             print(f"  {'NDWL0 (water-logging days)':<32} {stats['NDWL0']:>15}  days")
+        if 'NDWS' in stats or 'NDWL0' in stats:
+            print("  Note: NDWS/NDWL0 come from the crop water-balance model, not a raw precip-minus-ET0 count.")
+            if season.get('method') == 'fixed_season':
+                print("  Caution: fixed-season windows can bias counts if they include non-growing shoulder months.")
 
     hazards = result['hazard_evaluation']
     print(f"\n  Hazard Assessment")

@@ -187,6 +187,11 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertIn("Auto-detected season counts differ across years", result["warning"])
         self.assertIsNone(result["baseline_ltm"])
         self.assertEqual([], result["baseline_ltm_comparisons"])
+        self.assertIn("water_balance_methodology", result)
+        self.assertEqual(
+            "rainfall_based",
+            result["water_balance_methodology"]["analysis_method"],
+        )
 
     def test_get_climate_data_for_season_forwards_requested_source(self):
         import climate_tookit.calculate_hazards.hazards as hazards
@@ -375,6 +380,18 @@ class HazardThresholdTests(unittest.TestCase):
             hazards.evaluate_hazard_metrics = orig_eval
 
         self.assertEqual(4, result["season_statistics"]["row_count"])
+        self.assertIn("water_balance_methodology", result)
+        self.assertEqual(
+            "fixed_season",
+            result["water_balance_methodology"]["analysis_method"],
+        )
+        self.assertTrue(
+            any(
+                "Fixed-season mode counts NDWS and NDWL0 only inside the user-defined window"
+                in note
+                for note in result["water_balance_methodology"]["notes"]
+            )
+        )
 
     def test_calculate_hazards_fixed_season_reuses_prefetched_source_df_for_spinup(self):
         import climate_tookit.calculate_hazards.hazards as hazards
