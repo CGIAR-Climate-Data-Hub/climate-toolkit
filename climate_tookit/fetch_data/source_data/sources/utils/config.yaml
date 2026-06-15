@@ -6,6 +6,7 @@ agera_5:
     precipitation: total_precipitation_sum
     max_temperature: temperature_2m_max
     min_temperature: temperature_2m_min
+    mean_temperature: temperature_2m
     humidity: dewpoint_temperature_2m
     wind_speed: u_component_of_wind_10m
     solar_radiation:
@@ -159,6 +160,7 @@ nasa_power:
     precipitation: "PRECTOTCORR"
     max_temperature: "T2M_MAX"
     min_temperature: "T2M_MIN"
+    mean_temperature: "T2M"
   cadence: "daily"
 
 tamsat:

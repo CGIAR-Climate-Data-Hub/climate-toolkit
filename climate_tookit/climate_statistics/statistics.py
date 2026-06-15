@@ -662,7 +662,13 @@ def raw_climate_summary(df: pd.DataFrame) -> List[Dict[str, Any]]:
         })
     return rows
 
-def overall_statistics(df: pd.DataFrame) -> Dict[str, Any]:
+def overall_statistics(
+    df: pd.DataFrame,
+    *,
+    full_df: Optional[pd.DataFrame] = None,
+    analysis_start: Optional[str] = None,
+    analysis_end: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Essential agro metrics for the full period.
     Filtered to remove noisy daily means/medians/stds and duplicate metrics (per the agroecology-priority spec).
@@ -672,7 +678,11 @@ def overall_statistics(df: pd.DataFrame) -> Dict[str, Any]:
     tn  = df['tmin']
     et0 = df['ET0_mm_day'].fillna(0)
     wb  = df['water_balance']
-    shared_wb = _shared_water_balance_summary(df)
+    shared_wb = _shared_water_balance_summary(
+        full_df if full_df is not None else df,
+        analysis_start=analysis_start,
+        analysis_end=analysis_end,
+    )
 
     water_balance_stats = {
         'total_balance': _r(wb.sum(), 1),
@@ -814,6 +824,20 @@ def _format_elapsed(seconds: float) -> str:
         return f"{minutes}m{sec:02d}s"
     hours, minutes = divmod(minutes, 60)
     return f"{hours}h{minutes:02d}m{sec:02d}s"
+
+
+def _derive_year_regime(seasons: List[Dict[str, Any]]) -> str:
+    if not seasons:
+        return "none"
+    if len(seasons) == 1:
+        return str(seasons[0].get("regime", "unimodal"))
+    if len(seasons) == 2:
+        return "bimodal"
+    return "erratic"
+
+
+def _season_heading(season: Dict[str, Any]) -> str:
+    return f"Year {season['year']} | Season {season['season_number']}"
 
 
 def _spei_block(
@@ -968,6 +992,161 @@ def _auto_season_slot_warning(season_results: List[Dict[str, Any]]) -> Optional[
         "Use --fixed-season for stable multi-year seasonal LTM output."
     )
 
+
+def _season_slot_variability(
+    season_results: List[Dict[str, Any]],
+) -> Dict[str, Dict[str, Optional[float]]]:
+    grouped: Dict[int, List[Dict[str, Any]]] = {}
+    for season in season_results or []:
+        sn = season.get("season_number")
+        if isinstance(sn, int):
+            grouped.setdefault(sn, []).append(season)
+
+    out: Dict[str, Dict[str, Optional[float]]] = {}
+    for sn, seasons in sorted(grouped.items()):
+        onset_doys = []
+        length_days = []
+        for season in seasons:
+            onset = pd.to_datetime(season.get("onset"), errors="coerce")
+            if pd.notna(onset):
+                onset_doys.append(float(onset.dayofyear))
+            if _is_num(season.get("length_days")):
+                length_days.append(float(season["length_days"]))
+
+        onset_sd = float(np.std(onset_doys, ddof=0)) if len(onset_doys) >= 2 else 0.0 if onset_doys else None
+        length_sd = float(np.std(length_days, ddof=0)) if len(length_days) >= 2 else 0.0 if length_days else None
+        out[str(sn)] = {
+            "n_years": len(seasons),
+            "onset_sd_days": _r(onset_sd, 1) if onset_sd is not None else None,
+            "length_sd_days": _r(length_sd, 1) if length_sd is not None else None,
+        }
+    return out
+
+
+def _build_season_detection_status(
+    *,
+    fixed_season: Optional[str],
+    start_year: int,
+    end_year: int,
+    annual_summary: Dict[str, Dict[str, Any]],
+    season_results: List[Dict[str, Any]],
+    season_slot_warning: Optional[str],
+) -> Dict[str, Any]:
+    expected_years = max(0, end_year - start_year + 1)
+    counts_by_year: Dict[int, int] = {year: 0 for year in range(start_year, end_year + 1)}
+    regimes_by_year: Dict[int, str] = {}
+    for season in season_results or []:
+        year = season.get("year")
+        if isinstance(year, int):
+            counts_by_year[year] = counts_by_year.get(year, 0) + 1
+            if season.get("year_regime") not in {None, "none"}:
+                regimes_by_year[year] = str(season.get("year_regime"))
+
+    detected_years = sum(1 for count in counts_by_year.values() if count > 0)
+    detected_fraction = (detected_years / expected_years) if expected_years else 0.0
+    skip_reasons = {
+        str(year): info.get("season_skip_reason")
+        for year, info in annual_summary.items()
+        if info.get("season_skip_reason")
+    }
+    variability = _season_slot_variability(season_results)
+
+    reasons: List[str] = []
+    status = "ok"
+
+    if fixed_season:
+        reasons.append("fixed_season_override")
+    else:
+        all_skip_reasons = [str(v).lower() for v in skip_reasons.values()]
+        if expected_years and detected_years == 0:
+            status = "prompt_required"
+            if all_skip_reasons and all("perhumid location" in reason for reason in all_skip_reasons):
+                reasons.append("perhumid_no_clear_onset")
+            else:
+                reasons.append("no_seasons_detected_all_years")
+        elif any(count == 0 for count in counts_by_year.values()) and detected_years > 0:
+            status = "prompt_required"
+            reasons.append("missing_seasons_some_years")
+
+        if season_slot_warning:
+            status = "prompt_required"
+            reasons.append("unstable_season_counts")
+
+        if detected_fraction < 0.6 and status != "prompt_required":
+            status = "prompt_required"
+            reasons.append("low_detected_year_fraction")
+        elif detected_fraction < 0.8 and status == "ok":
+            status = "warn"
+            reasons.append("partial_year_coverage")
+
+        onset_warn = False
+        length_warn = False
+        onset_prompt = False
+        length_prompt = False
+        for metrics in variability.values():
+            onset_sd = metrics.get("onset_sd_days")
+            length_sd = metrics.get("length_sd_days")
+            if onset_sd is not None:
+                if onset_sd > 30:
+                    onset_prompt = True
+                elif onset_sd > 15:
+                    onset_warn = True
+            if length_sd is not None:
+                if length_sd > 30:
+                    length_prompt = True
+                elif length_sd > 15:
+                    length_warn = True
+        if onset_prompt:
+            status = "prompt_required"
+            reasons.append("high_onset_variability")
+        elif onset_warn and status == "ok":
+            status = "warn"
+            reasons.append("moderate_onset_variability")
+        if length_prompt:
+            status = "prompt_required"
+            reasons.append("high_season_length_variability")
+        elif length_warn and status == "ok":
+            status = "warn"
+            reasons.append("moderate_season_length_variability")
+
+        regime_set = {regime for regime in regimes_by_year.values() if regime not in {None, "none"}}
+        if len(regime_set) > 1 and status == "ok":
+            status = "warn"
+            reasons.append("regime_flips_across_years")
+
+        if skip_reasons and status == "ok":
+            status = "warn"
+            reasons.append("season_detection_skips_present")
+
+    reasons = list(dict.fromkeys(reasons))
+    guidance = _season_detection_guidance([
+        (year, reason) for year, reason in skip_reasons.items() if reason
+    ])
+    if not guidance and fixed_season:
+        guidance = ["Using user-supplied fixed seasons. Review windows before comparing across sites or crops."]
+    elif not guidance and status == "warn":
+        guidance = ["Auto season detection completed, but review year-to-year stability before interpreting LTM summaries."]
+    elif not guidance and status == "prompt_required":
+        guidance = ["Auto season detection not reliable enough for direct interpretation. Use --fixed-season or crop-calendar presets."]
+
+    return {
+        "status": status,
+        "reasons": reasons,
+        "human_review_recommended": status in {"warn", "prompt_required"},
+        "calendar_override_recommended": status == "prompt_required",
+        "diagnostics": {
+            "expected_years": expected_years,
+            "detected_years": detected_years,
+            "detected_year_fraction": _r(detected_fraction, 3),
+            "counts_by_year": {str(year): count for year, count in sorted(counts_by_year.items())},
+            "regimes_by_year": {str(year): regime for year, regime in sorted(regimes_by_year.items())},
+            "season_slot_variability": variability,
+            "skip_reasons_by_year": skip_reasons,
+            "season_slot_warning": season_slot_warning,
+        },
+        "guidance": guidance,
+    }
+
 # Season detection on a pre-fetched DataFrame
 def detect_seasons_auto(
     df: pd.DataFrame,
@@ -1007,6 +1186,7 @@ def detect_seasons_auto(
             'is_humid':        humid_info['is_humid'],
             'low_rain_months': humid_info['low_rain_months'],
             'result_str':      humid_info['result_str'],
+            'season_skip_reason': None,
         }
         print(f"    Annual rainfall={annual_rain:.1f} mm | "
               f"{humid_info['result_str']}")
@@ -1014,15 +1194,22 @@ def detect_seasons_auto(
         if len(win) < 30:
             print(f"    Window too short ({len(win)} days)")
             seasons_dict[ref_year] = []
+            annual_dict[ref_year]['season_skip_reason'] = (
+                f"Season detection skipped because the analysis window was too short ({len(win)} days)."
+            )
             continue
         try:
             seasons_dict[ref_year] = detect_onset_cessation(win)
         except ValueError as exc:
             print(f"    Skipped: {exc}")
             seasons_dict[ref_year] = []
+            annual_dict[ref_year]['season_skip_reason'] = str(exc)
         except Exception as exc:
             print(f"    Detection failed: {exc}")
             seasons_dict[ref_year] = []
+            annual_dict[ref_year]['season_skip_reason'] = (
+                f"Season detection failed: {type(exc).__name__}: {exc}"
+            )
 
     # Post-process: reassign spillover & remove duplicates
     cleaned = reassign_spillover_seasons(
@@ -1252,6 +1439,7 @@ def analyze_climate_statistics(
     reduce_started = perf_counter()
     season_results: List[Dict] = []
     for year in sorted(seasons_dict.keys()):
+        year_regime = _derive_year_regime(seasons_dict[year])
         for i, season in enumerate(seasons_dict[year], 1):
             stats = season_statistics(df, season)
             if not stats:
@@ -1259,6 +1447,7 @@ def analyze_climate_statistics(
             stats['year']          = year
             stats['season_number'] = i
             stats['regime']        = season.get('regime', 'auto')
+            stats['year_regime']   = year_regime
             stats['season_identity'] = build_season_identity(
                 stats['onset'],
                 stats['cessation'],
@@ -1276,7 +1465,12 @@ def analyze_climate_statistics(
             sdf = df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)]
             stats['raw_climate_summary'] = raw_climate_summary(sdf)
             if not sdf.empty:
-                stats['overall_statistics'] = overall_statistics(sdf)
+                stats['overall_statistics'] = overall_statistics(
+                    sdf,
+                    full_df=df,
+                    analysis_start=season['onset'],
+                    analysis_end=season['cessation'],
+                )
 
             # ETO sub-seasons inside fixed windows
             sub_results: List[Dict] = []
@@ -1298,6 +1492,8 @@ def analyze_climate_statistics(
             'is_humid':        info.get('is_humid'),
             'low_rain_months': info.get('low_rain_months'),
             'humid_test':      info.get('result_str'),
+            'year_regime':     _derive_year_regime(seasons_dict.get(y, [])),
+            'season_skip_reason': info.get('season_skip_reason'),
         }
         for y, info in annual_dict.items()
     }
@@ -1350,6 +1546,14 @@ def analyze_climate_statistics(
         f"  Completed climate statistics in {_format_elapsed(total_elapsed)} "
         f"(season_rows={len(season_results)}, reduction={_format_elapsed(reduce_elapsed)})"
     )
+    detection_status = _build_season_detection_status(
+        fixed_season=fixed_season,
+        start_year=start_year,
+        end_year=end_year,
+        annual_summary=annual_summary,
+        season_results=season_results,
+        season_slot_warning=season_slot_warning,
+    )
 
     return {
         'location':            {'lat': lat, 'lon': lon},
@@ -1369,6 +1573,12 @@ def analyze_climate_statistics(
         'season_slot_warning': season_slot_warning,
         'coverage_warning':    coverage_warning,
         'annual_summary':      annual_summary,
+        'season_detection_status': detection_status['status'],
+        'season_detection_reasons': detection_status['reasons'],
+        'human_review_recommended': detection_status['human_review_recommended'],
+        'calendar_override_recommended': detection_status['calendar_override_recommended'],
+        'season_detection_guidance': detection_status['guidance'],
+        'season_detection': detection_status,
         'timing':              {
             'fetch_seconds': round(fetch_elapsed, 3),
             'prep_seconds': round(prep_elapsed, 3),
@@ -1394,9 +1604,13 @@ def print_raw_summary_by_season(seasons: List[Dict]) -> None:
     if not seasons:
         print("No seasons detected for this period.")
         return
+    current_year = None
     for s in seasons:
-        regime = s.get('regime', 'auto')
-        print(f"\n  Year {s['year']} | Season {s['season_number']} ({regime})")
+        if s['year'] != current_year:
+            current_year = s['year']
+            if s.get("year_regime") not in {None, "none"}:
+                print(f"\n  Year {current_year} regime: {s['year_regime']}")
+        print(f"\n  {_season_heading(s)}")
         print(f"    {s['onset']} → {s['cessation']}  ({s['length_days']}d)")
         rows = s.get('raw_climate_summary') or []
         if not rows:
@@ -1412,9 +1626,13 @@ def print_overall_by_season(seasons: List[Dict]) -> None:
     if not seasons:
         print("No seasons detected for this period.")
         return
+    current_year = None
     for s in seasons:
-        regime = s.get('regime', 'auto')
-        print(f"\n  Year {s['year']} | Season {s['season_number']} ({regime})")
+        if s['year'] != current_year:
+            current_year = s['year']
+            if s.get("year_regime") not in {None, "none"}:
+                print(f"\n  Year {current_year} regime: {s['year_regime']}")
+        print(f"\n  {_season_heading(s)}")
         print(f"    {s['onset']} → {s['cessation']}  ({s['length_days']}d)")
         stats = s.get('overall_statistics')
         if not stats:
@@ -1444,9 +1662,13 @@ def print_seasons(seasons: List[Dict]) -> None:
         print("No seasons detected for this period.")
         return
 
+    current_year = None
     for s in seasons:
-        regime = s.get('regime', 'auto')
-        print(f"\n  Year {s['year']} | Season {s['season_number']} ({regime})")
+        if s['year'] != current_year:
+            current_year = s['year']
+            if s.get("year_regime") not in {None, "none"}:
+                print(f"\n  Year {current_year} regime: {s['year_regime']}")
+        print(f"\n  {_season_heading(s)}")
         print(f"    {s['onset']} → {s['cessation']}  ({s['length_days']}d)")
         p = s['precipitation']
         t = s['temperature']
@@ -1580,11 +1802,64 @@ def _ltm_header(result: Dict[str, Any]) -> str:
     end          = (result.get('period') or {}).get('end_year',   0)
     start        = (result.get('period') or {}).get('start_year', 0)
     baseline_end = BASELINE_DEFAULT_PERIOD[1]
+    source_label = "paired" if result.get("source") == PAIRED_SOURCE_SENTINEL else "single-source"
     if start > baseline_end:
-        return "FUTURE LTM SEASON SUMMARY (single-source)"
+        return f"FUTURE LTM SEASON SUMMARY ({source_label})"
     if end <= baseline_end:
-        return "BASELINE LTM SEASON SUMMARY (single-source)"
-    return "LTM SEASON SUMMARY (single-source)"
+        return f"BASELINE LTM SEASON SUMMARY ({source_label})"
+    return f"LTM SEASON SUMMARY ({source_label})"
+
+
+def _season_detection_guidance(notes: List[Tuple[str, str]]) -> List[str]:
+    guidance: List[str] = []
+    for _, reason in notes:
+        reason_lc = str(reason).lower()
+        if "perhumid location" in reason_lc or "no clear onset/cessation" in reason_lc:
+            guidance.append(
+                "Auto onset/cessation not suitable for this climate window. "
+                "Use --fixed-season or crop-calendar presets for seasonal interpretation."
+            )
+        elif "too short" in reason_lc:
+            guidance.append(
+                "Analysis window too short for season detection. Expand year coverage or use --fixed-season."
+            )
+        elif "failed" in reason_lc:
+            guidance.append(
+                "Season detection failed. Review inputs, then retry with --fixed-season if seasonal summaries are still needed."
+            )
+        else:
+            guidance.append(
+                "Auto season detection needs review. Consider --fixed-season or crop-calendar preset."
+            )
+    return list(dict.fromkeys(guidance))
+
+
+def print_season_detection_notes(result: Dict[str, Any]) -> None:
+    annual = result.get('annual_summary') or {}
+    detection = result.get("season_detection") or {}
+    notes = []
+    for year, info in sorted(annual.items()):
+        reason = info.get('season_skip_reason')
+        if reason:
+            notes.append((year, reason))
+    status = detection.get("status")
+    reasons = detection.get("reasons") or []
+    guidance = detection.get("guidance") or []
+    if not notes and (not status or (status == "ok" and not reasons and not guidance)):
+        return
+    print("\n" + "=" * 70)
+    print("SEASON DETECTION NOTES")
+    print("=" * 70)
+    if status:
+        print(f"status: {status}")
+    if reasons:
+        print(f"reasons: {', '.join(reasons)}")
+    for year, reason in notes:
+        print(f"{year}: {reason}")
+    if guidance:
+        print("\nRecommended next step(s):")
+        for item in guidance:
+            print(f"- {item}")
 
 def print_pandas(result: Dict[str, Any]) -> None:
     if 'error' in result:
@@ -1603,6 +1878,8 @@ def print_pandas(result: Dict[str, Any]) -> None:
         print(f"Scenario : {result['scenario']}")
     if result.get('coverage_warning'):
         print(f"Coverage : [WARN] {result['coverage_warning']}")
+    if result.get('season_detection_status'):
+        print(f"Season detect : {result['season_detection_status']}")
     if result.get('season_slot_warning'):
         print(f"Season LTM: [WARN] {result['season_slot_warning']}")
 
@@ -1611,6 +1888,7 @@ def print_pandas(result: Dict[str, Any]) -> None:
     print_seasons(result['season_statistics'])
     print_ltm_by_season(result.get('ltm_season_summary', {}),
                         header=_ltm_header(result))
+    print_season_detection_notes(result)
     print_annual(result['annual_summary'])
     spei = result.get("spei")
     if spei:

@@ -45,6 +45,8 @@ from climate_tookit.compare_periods.periods import (
     _annualize, _agg_seasons, _round,
     _diff_raw, _diff_block, _percent_change, _fmt_pct,
     _auto_season_count_guard,
+    _compare_season_detection_summary,
+    _compare_season_detection_guard,
     _diff_spei,
     _filter_overall_statistics_for_period_compare,
     _seasonal_spei_period_block,
@@ -52,6 +54,7 @@ from climate_tookit.compare_periods.periods import (
     _merge_seasonal_spei_into_diff,
     _merge_period_methodology,
     _print_methodology_summary,
+    _print_season_detection_summary,
     PRECIP_ONLY, SUPPORTED,
 )
 
@@ -223,16 +226,23 @@ def _build_focal_summary(location:     Tuple[float, float],
                           focal_year:  int,
                           focal_source: str,
                           fixed_season: Optional[str],
+                          precip_source: Optional[str] = None,
+                          temp_source: Optional[str] = None,
                           spei_scale_months: Optional[int] = None,
                           spei_fit: str = "ub-pwm",
                           spei_ref_start: Optional[str] = None,
                           spei_ref_end: Optional[str] = None) -> Dict[str, Any]:
     """Fetch one observed year and reduce it to comparable season-summary values."""
     fs_kw = {"fixed_season": fixed_season} if fixed_season else {}
+    paired_kw = {}
+    if precip_source:
+        paired_kw["precip_source"] = precip_source
+    if temp_source:
+        paired_kw["temp_source"] = temp_source
     stats = analyze_climate_statistics(
         location_coord=location,
         start_year=focal_year, end_year=focal_year,
-        source=focal_source, **fs_kw,
+        source=focal_source, **fs_kw, **paired_kw,
         spei_scale_months=spei_scale_months,
         spei_fit=spei_fit,
         spei_ref_start=spei_ref_start,
@@ -269,12 +279,18 @@ def _build_focal_summary(location:     Tuple[float, float],
     return {
         "focal_year":  focal_year,
         "source":       focal_source,
+        "precip_source": precip_source,
+        "temp_source": temp_source,
         "overall":      overall,
         "seasons":      season_summary,
         "spei":         stats.get("spei"),
         "annual_rain":  ann.get("annual_rain_mm"),
         "is_humid":     ann.get("is_humid"),
         "humid_test":   ann.get("humid_test"),
+        "season_detection_status": stats.get("season_detection_status"),
+        "season_detection_reasons": stats.get("season_detection_reasons"),
+        "season_detection_guidance": stats.get("season_detection_guidance"),
+        "season_detection": stats.get("season_detection"),
     }
 
 def _season_block(seasons: List[Dict]) -> Dict[str, Any]:
@@ -501,6 +517,39 @@ def _aggregate_simple_spei_blocks(blocks: List[Dict[str, Any]]) -> Optional[Dict
         "monthly_series": monthly_rows,
     }
 
+
+def _aggregate_compare_season_detection(per_model: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    summaries = [
+        r.get("season_detection")
+        for r in per_model
+        if isinstance(r, dict) and isinstance(r.get("season_detection"), dict)
+    ]
+    if not summaries:
+        return None
+    statuses = [summary.get("compare_status") for summary in summaries if summary.get("compare_status")]
+    counts: Dict[str, int] = {}
+    for status in statuses:
+        counts[status] = counts.get(status, 0) + 1
+    guidance = list(dict.fromkeys([
+        item
+        for summary in summaries
+        for item in (summary.get("guidance") or [])
+    ]))
+    if counts.get("prompt_required"):
+        compare_status = "prompt_required"
+    elif counts.get("warn"):
+        compare_status = "warn"
+    else:
+        compare_status = "ok"
+    return {
+        "compare_status": compare_status,
+        "counts_by_status": counts,
+        "n_models": len(summaries),
+        "human_review_recommended": compare_status in {"warn", "prompt_required"},
+        "fixed_season_recommended": compare_status == "prompt_required",
+        "guidance": guidance,
+    }
+
 def _diff_focal_vs_ltm(focal:   Dict[str, Any],
                         ensemble: Dict[str, Any],
                         mean_key: str,
@@ -657,6 +706,14 @@ def _compare_one_model(
                 f"({future_start}-{future_end}): {future['error']}"
             )
         }
+    season_detection = _compare_season_detection_summary(
+        base,
+        future,
+        fixed_season,
+    )
+    season_detection_error = _compare_season_detection_guard(season_detection)
+    if season_detection_error:
+        return {"error": season_detection_error, "season_detection": season_detection}
     # 1. raw_climate_summary -- already period-wide means/min/max/std
     raw_diff = _diff_raw(future.get("raw_climate_summary", []),
                          base.get("raw_climate_summary",  []),
@@ -678,7 +735,7 @@ def _compare_one_model(
         if not fixed_season:
             auto_guard_error = _auto_season_count_guard(base_seasons, future_seasons)
             if auto_guard_error:
-                return {"error": auto_guard_error}
+                return {"error": auto_guard_error, "season_detection": season_detection}
         if fixed_season:
             labels = [w.strip() for w in fixed_season.split(",")]
             base_grp:  Dict[int, List[Dict]] = {}
@@ -747,6 +804,7 @@ def _compare_one_model(
         "fixed_season":         fixed_season,
         "spei_scale_months":    spei_scale_months,
         "temperature_excluded": drop_temp,
+        "season_detection":     season_detection,
         "raw_climate_summary":  raw_diff,
         "overall_statistics":   overall_diff,
         "season_statistics":    season_diff,
@@ -1076,6 +1134,7 @@ def ensemble_compare(
         ),
         "season_statistics":   _aggregate_seasons(
             [r.get("season_statistics") for r in per_model]),
+        "season_detection":    _aggregate_compare_season_detection(per_model),
         "annual_summary":      _aggregate_annual(
             [r.get("annual_summary") for r in per_model]),
         "spei":               _aggregate_spei_diff(per_model),
@@ -1266,6 +1325,7 @@ def _print_per_model_breakdown(per_model: List[Dict[str, Any]]) -> None:
 def print_report(r: Dict[str, Any]) -> None:
     if "error" in r:
         print(f"\nError: {r['error']}")
+        _print_season_detection_summary(r.get("season_detection"))
         for f in r.get("failed_models", []):
             print(f"  - {f['model']}: {f['error']}")
         return
@@ -1279,6 +1339,7 @@ def print_report(r: Dict[str, Any]) -> None:
     print(f"  Δ        : future_ltm - baseline_ltm")
     if r["models_failed"]:
         print(f"  Failed   : {', '.join(f['model'] for f in r['models_failed'])}")
+    _print_season_detection_summary(r.get("season_detection"))
 
     _print_per_model_breakdown(r.get("per_model_results", []))
 
@@ -1425,6 +1486,10 @@ def main() -> None:
                    help=f"Source for --focal-year. Defaults to 'nex_gddp' (focal year "
                         f"drawn from the ensemble itself). External: "
                         f"{', '.join(sorted(SUPPORTED))}")
+    p.add_argument("--focal-precip-source", default=None,
+                   help="Required when --focal-source=paired. Example: chirps_v2 or chirps_v3_daily_rnl.")
+    p.add_argument("--focal-temp-source", default=None,
+                   help="Required when --focal-source=paired. Example: agera5 or era5.")
     p.add_argument("--output",         default=None, help="Save JSON result to this path")
     p.add_argument("--spei-scale-months", type=int, default=None,
                    help="Optional SPEI scale in months for baseline/future/focal comparisons.")
@@ -1454,6 +1519,10 @@ def main() -> None:
             and args.focal_source.lower() not in SUPPORTED):
         print(f"Error: --focal-source '{args.focal_source}' not supported. "
               f"Use 'nex_gddp' or one of: {', '.join(sorted(SUPPORTED))}"); sys.exit(1)
+    if (args.focal_source and args.focal_source.lower() == "paired"
+            and (not args.focal_precip_source or not args.focal_temp_source)):
+        print("Error: --focal-source=paired requires both --focal-precip-source and --focal-temp-source.")
+        sys.exit(1)
 
     raw_scenarios = [s.strip() for s in args.scenarios.split(",") if s.strip()]
     scenarios: List[str] = []
@@ -1485,12 +1554,31 @@ def main() -> None:
             focal_year=args.focal_year,
             focal_source=args.focal_source,
             fixed_season=args.fixed_season,
+            precip_source=args.focal_precip_source,
+            temp_source=args.focal_temp_source,
             spei_scale_months=args.spei_scale_months,
             spei_fit=args.spei_fit,
             spei_ref_start=args.spei_ref_start,
             spei_ref_end=args.spei_ref_end,
         )
         focal_prefetch_seconds = perf_counter() - focal_started
+        if (isinstance(focal_summary, dict)
+                and not args.fixed_season
+                and focal_summary.get("season_detection_status") == "prompt_required"):
+            print(
+                "Error: focal-year season detection not reliable enough for ensemble focal-vs-LTM comparison. "
+                "Re-run with --fixed-season."
+            )
+            print(f"  Focal season detect : {focal_summary.get('season_detection_status')}")
+            reasons = focal_summary.get("season_detection_reasons") or []
+            if reasons:
+                print(f"    reasons: {', '.join(reasons)}")
+            guidance = focal_summary.get("season_detection_guidance") or []
+            if guidance:
+                print("    guidance:")
+                for item in guidance:
+                    print(f"      - {item}")
+            sys.exit(1)
 
     all_results: Dict[str, Any] = {}
     any_ok = False
