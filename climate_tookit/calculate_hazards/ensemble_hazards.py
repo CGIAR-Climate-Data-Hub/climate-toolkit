@@ -20,7 +20,7 @@ import argparse
 from collections import Counter, defaultdict
 from datetime import datetime, date
 from statistics import mean
-from typing import Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional
 
 import pandas as pd
 
@@ -46,6 +46,7 @@ try:
         resolve_thresholds,
         resolve_crop_water_balance_params,
         _shift_iso_date,
+        _print_hazard_season_detection_summary,
     )
 except ImportError:
     try:
@@ -70,6 +71,7 @@ except ImportError:
             resolve_thresholds,
             resolve_crop_water_balance_params,
             _shift_iso_date,
+            _print_hazard_season_detection_summary,
         )
     except ImportError:
         HERE = os.path.dirname(os.path.abspath(__file__))
@@ -96,6 +98,7 @@ except ImportError:
             resolve_thresholds,
             resolve_crop_water_balance_params,
             _shift_iso_date,
+            _print_hazard_season_detection_summary,
         )
 
 PREPROCESS_AVAILABLE = False
@@ -484,6 +487,62 @@ def _auto_season_slot_warning(assessments: List[Dict]) -> Optional[str]:
         "Use --fixed-season for stable ensemble season summaries."
     )
 
+
+def _build_ensemble_hazard_season_detection(
+    *,
+    mode: str,
+    warning: Optional[str],
+    assessments: List[Dict],
+) -> Dict[str, Any]:
+    counts_by_scenario_year: Dict[str, Dict[str, int]] = defaultdict(dict)
+    for assessment in assessments or []:
+        scenario = assessment.get("scenario")
+        year = assessment.get("year")
+        total = assessment.get("total_seasons_per_year")
+        if isinstance(scenario, str) and isinstance(year, int) and isinstance(total, int):
+            counts_by_scenario_year[scenario][str(year)] = total
+
+    if warning:
+        return {
+            "status": "prompt_required",
+            "reasons": ["unstable_season_counts"],
+            "human_review_recommended": True,
+            "calendar_override_recommended": True,
+            "guidance": [
+                "Auto season detection is not stable enough for comparable ensemble hazard summaries. Use --fixed-season."
+            ],
+            "details": {
+                "mode": mode,
+                "counts_by_scenario_year": dict(counts_by_scenario_year),
+                "warning": warning,
+            },
+        }
+
+    if mode == "fixed_season":
+        return {
+            "status": "ok",
+            "reasons": ["fixed_season_override"],
+            "human_review_recommended": False,
+            "calendar_override_recommended": False,
+            "guidance": [],
+            "details": {
+                "mode": mode,
+                "counts_by_scenario_year": dict(counts_by_scenario_year),
+            },
+        }
+
+    return {
+        "status": "ok",
+        "reasons": [],
+        "human_review_recommended": False,
+        "calendar_override_recommended": False,
+        "guidance": [],
+        "details": {
+            "mode": mode,
+            "counts_by_scenario_year": dict(counts_by_scenario_year),
+        },
+    }
+
 # Driver
 def calculate_ensemble(crop: str, lat: float, lon: float,
                        start_year: int, end_year: int,
@@ -598,6 +657,11 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
     season_slot_warning = None
     if mode == 'auto_detect':
         season_slot_warning = _auto_season_slot_warning(assessments)
+    season_detection = _build_ensemble_hazard_season_detection(
+        mode=mode,
+        warning=season_slot_warning,
+        assessments=assessments,
+    )
 
     scenario_ensembles = []
     if not season_slot_warning:
@@ -658,6 +722,7 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         'assessments':       assessments,
         'scenario_ensembles': scenario_ensembles,
         'overall_ensemble':   overall_ensemble,
+        'season_detection':   season_detection,
     }
     warnings: List[str] = []
     if season_slot_warning:
@@ -906,6 +971,7 @@ def _print_overall_summary(summary: Dict, multi_scenario: bool) -> None:
 def print_results(r: Dict) -> None:
     if 'error' in r:
         print(f"\nError: {r['error']}")
+        _print_hazard_season_detection_summary(r.get('season_detection'))
         return
 
     crop = r['crop']
@@ -923,6 +989,7 @@ def print_results(r: Dict) -> None:
     print(f"  Models:            {nm}")
     print(f"  Scenarios:         {', '.join(r['scenarios'])}")
     print(f"  Total projections: {r['n_total_projections']}")
+    _print_hazard_season_detection_summary(r.get('season_detection'))
 
     for a in r['assessments']:
         _print_block(a, crop, lat, lon, mode, nm, ns)

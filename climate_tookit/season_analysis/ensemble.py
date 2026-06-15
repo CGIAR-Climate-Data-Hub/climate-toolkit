@@ -479,6 +479,7 @@ def run_ensemble(lat, lon, start_year, end_year, scenarios, models, fixed_arg=No
                 'analysis_date':  datetime.now().isoformat(),
                 'diagnostics':    diagnostics,
             },
+            'season_detection': _season_detection_summary(mode, diagnostics),
         }
         if verbose:
             print(f"\n  Ensemble: {ok}/{len(models)} models succeeded")
@@ -509,6 +510,66 @@ def _aggregate_skip_info(per_model: List[Dict]) -> Dict[str, Any]:
         'no_season_model_years': no_season_total,
         'perhumid_by_year':      perhumid_by_year,
     }
+
+
+def _season_detection_summary(mode: str, diagnostics: Dict[str, Any]) -> Dict[str, Any]:
+    if mode == 'fixed':
+        return {
+            'status': 'ok',
+            'reasons': ['fixed_season_override'],
+            'human_review_recommended': False,
+            'calendar_override_recommended': False,
+            'guidance': [],
+            'details': diagnostics or {},
+        }
+    perhumid = int((diagnostics or {}).get('perhumid_model_years', 0) or 0)
+    no_season = int((diagnostics or {}).get('no_season_model_years', 0) or 0)
+    if perhumid or no_season:
+        reasons = []
+        guidance = []
+        if perhumid:
+            reasons.append('perhumid_no_clear_onset')
+            guidance.append(
+                'Some model-years are too humid/perhumid for onset-cessation detection. Use --fixed-season for stable ensemble summaries.'
+            )
+        if no_season:
+            reasons.append('no_seasons_detected_some_model_years')
+            guidance.append(
+                'Some model-years produced no usable season detection. Review output and prefer --fixed-season when comparisons matter.'
+            )
+        return {
+            'status': 'warn',
+            'reasons': reasons,
+            'human_review_recommended': True,
+            'calendar_override_recommended': False,
+            'guidance': list(dict.fromkeys(guidance)),
+            'details': diagnostics or {},
+        }
+    return {
+        'status': 'ok',
+        'reasons': [],
+        'human_review_recommended': False,
+        'calendar_override_recommended': False,
+        'guidance': [],
+        'details': diagnostics or {},
+    }
+
+
+def _print_season_detection_summary(summary: Dict[str, Any]) -> None:
+    if not summary:
+        return
+    status = summary.get('status')
+    reasons = summary.get('reasons') or []
+    guidance = summary.get('guidance') or []
+    if not status or (status == 'ok' and not reasons and not guidance):
+        return
+    print(f"Season detect: {status}")
+    if reasons:
+        print(f"  reasons: {', '.join(reasons)}")
+    if guidance:
+        print("  guidance:")
+        for item in guidance:
+            print(f"    - {item}")
 
 # Pretty printer (mirrors seasons.py print_summary exactly, averaged)
 def _mm(v):  return f"{v:.1f} mm" if v is not None else "n/a"
@@ -602,6 +663,7 @@ def print_summary(results):
         print(f"averaged over the period, then averaged across "
               f"{ens['n_models']} model(s).")
         print('━' * 70)
+        _print_season_detection_summary(payload.get('season_detection') or {})
         if mode == 'auto' and (diag.get('perhumid_model_years') or diag.get('no_season_model_years')):
             ph = diag.get('perhumid_model_years', 0)
             ns = diag.get('no_season_model_years', 0)

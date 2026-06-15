@@ -257,6 +257,74 @@ def _ensemble_season_slot_warning(
         "Use --fixed-season for a stable multi-year seasonal ensemble LTM."
     )
 
+
+def _aggregate_ensemble_season_detection(
+    per_model_results: List[Tuple[str, Dict[str, Any]]],
+) -> Optional[Dict[str, Any]]:
+    summaries = []
+    for model, result in per_model_results:
+        detection = (result or {}).get("season_detection")
+        if isinstance(detection, dict):
+            summaries.append((model, detection))
+    if not summaries:
+        return None
+
+    counts: Dict[str, int] = {}
+    model_statuses: Dict[str, str] = {}
+    guidance: List[str] = []
+    model_reasons: Dict[str, List[str]] = {}
+    for model, detection in summaries:
+        status = detection.get("status")
+        if status:
+            counts[status] = counts.get(status, 0) + 1
+            model_statuses[model] = status
+        reasons = detection.get("reasons") or []
+        if reasons:
+            model_reasons[model] = reasons
+        for item in detection.get("guidance") or []:
+            if item and item not in guidance:
+                guidance.append(item)
+
+    if counts.get("prompt_required"):
+        compare_status = "prompt_required"
+    elif counts.get("warn"):
+        compare_status = "warn"
+    else:
+        compare_status = "ok"
+
+    return {
+        "compare_status": compare_status,
+        "counts_by_status": counts,
+        "n_models": len(summaries),
+        "human_review_recommended": compare_status in {"warn", "prompt_required"},
+        "fixed_season_recommended": compare_status == "prompt_required",
+        "guidance": guidance,
+        "baseline": {
+            "status": compare_status,
+            "reasons": [],
+        },
+        "focal": {},
+        "model_statuses": model_statuses,
+        "model_reasons": model_reasons,
+    }
+
+
+def _print_ensemble_season_detection_summary(summary: Optional[Dict[str, Any]]) -> None:
+    if not summary:
+        return
+    print(f"  Season detect : {summary.get('compare_status', 'n/a')}")
+    counts = summary.get("counts_by_status") or {}
+    if counts:
+        counts_text = ", ".join(
+            f"{status}={count}" for status, count in sorted(counts.items())
+        )
+        print(f"    model_statuses={counts_text}")
+    guidance = summary.get("guidance") or []
+    if guidance:
+        print("    guidance:")
+        for item in guidance:
+            print(f"      - {item}")
+
 # Main API
 def analyze_ensemble_nex_gddp(
     location_coord: Tuple[float, float],
@@ -324,6 +392,7 @@ def analyze_ensemble_nex_gddp(
     per_model_results: List[Tuple[str, Dict[str, Any]]] = []
     models_ok: List[str]            = []
     failed:    List[Dict[str, str]] = []
+    attempted_results: List[Tuple[str, Dict[str, Any]]] = []
     for i, model in enumerate(active, 1):
         if verbose:
             print(f"\n  [{i:02d}/{len(active):02d}] {model}", flush=True)
@@ -336,6 +405,7 @@ def analyze_ensemble_nex_gddp(
                 model=model, scenario=scenario,
                 extra_months=extra_months,
             )
+            attempted_results.append((model, r))
             seasons    = r.get('season_statistics') or []
             ltm_model  = r.get('ltm_season_summary') or {}  
             annual     = r.get('annual_summary') or {}
@@ -358,8 +428,14 @@ def analyze_ensemble_nex_gddp(
             if verbose:
                 print(f"    x  {exc}")
 
+    season_detection = _aggregate_ensemble_season_detection(attempted_results)
+
     if not models_ok:
-        return {'error': 'All models failed.', 'failed_models': failed}
+        return {
+            'error': 'All models failed.',
+            'failed_models': failed,
+            'season_detection': season_detection,
+        }
 
     season_slot_warning = _ensemble_season_slot_warning(per_model_results)
 
@@ -394,6 +470,7 @@ def analyze_ensemble_nex_gddp(
         'ltm_season_summary': ltm_summary,
         'per_model_ltm':      per_model_ltm_by_name,
         'annual_summary':     annual_summary,
+        'season_detection':   season_detection,
         'coverage_warning':   coverage_warning,
         'season_slot_warning': season_slot_warning,
         'analysis_date':      datetime.now().isoformat(),
@@ -540,6 +617,7 @@ def print_report(result: Dict[str, Any]) -> None:
     """Render the ensemble result with the same section layout as statistics.print_pandas."""
     if 'error' in result:
         print(f"\nError: {result['error']}")
+        _print_ensemble_season_detection_summary(result.get('season_detection'))
         for f in result.get('failed_models', []) or []:
             print(f"  - {f.get('model')}: {f.get('error')}")
         return
@@ -564,6 +642,7 @@ def print_report(result: Dict[str, Any]) -> None:
         print(f"  Coverage  : [WARN] {result['coverage_warning']}")
     if result.get('season_slot_warning'):
         print(f"  Season LTM: [WARN] {result['season_slot_warning']}")
+    _print_ensemble_season_detection_summary(result.get('season_detection'))
     print(f"  Note      : per-season tables below are OVERALL values "
           f"(ensemble means across {n_ok} models × focal years), "
           f"not per-year repetitions.")
