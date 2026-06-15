@@ -140,6 +140,96 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertIn("--- 5. SPEI (monthly/period summary, not seasonal) ---", rendered)
         self.assertIn("2019-01-01", rendered)
 
+    def test_ensemble_print_report_hides_per_model_breakdown_in_compact_mode(self):
+        payload = {
+            "baseline_period": "1995-2013",
+            "future_period": "2041-2060",
+            "scenario": "ssp245",
+            "n_models_ok": 2,
+            "models_failed": [],
+            "crop_name": "maize",
+            "calendar_source": "ggcmi",
+            "calendar_system": "rf",
+            "season_detection": {"compare_status": "ok", "baseline": {}, "focal": {}, "guidance": []},
+            "per_model_results": [
+                {
+                    "_model": "ACCESS-CM2",
+                    "overall_statistics": {"precipitation": {"total_mm": {"future_avg": 10.0, "baseline_avg": 9.0, "diff": 1.0, "pct": 11.11}}},
+                    "annual_summary": {"annual_rain_mm": {"future": 10.0, "baseline_avg": 9.0, "diff": 1.0, "pct": 11.11}},
+                }
+            ],
+            "raw_climate_summary": {"precipitation": {"mean": {"future_ltm_ensemble_mean": 1.0, "baseline_ltm_ensemble_mean": 0.9, "diff_ensemble_mean": 0.1, "pct_ensemble_mean": 11.11}}},
+            "overall_statistics": {"precipitation": {"total_mm": {"future_avg_ensemble_mean": 10.0, "baseline_avg_ensemble_mean": 9.0, "diff_ensemble_mean": 1.0, "pct_ensemble_mean": 11.11}}},
+            "season_statistics": None,
+            "annual_summary": {
+                "annual_rain_mm_future": {"mean": 10.0},
+                "annual_rain_mm_baseline": {"mean": 9.0},
+                "annual_rain_mm_diff": {"mean": 1.0},
+                "annual_rain_mm_pct": {"mean": 11.11},
+                "humid_future": "0/2 (0.0%)",
+                "humid_baseline": "0/2 (0.0%)",
+            },
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            ep.print_report(payload, detailed=False)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("ENSEMBLE: Baseline LTM 1995-2013 vs Future LTM 2041-2060", rendered)
+        self.assertNotIn("PER-MODEL BREAKDOWN", rendered)
+        self.assertNotIn("RAW CLIMATE SUMMARY", rendered)
+        self.assertIn("OVERALL STATISTICS", rendered)
+
+    def test_print_report_error_renders_season_detection_details(self):
+        payload = {
+            "error": "Auto season detection not reliable enough.",
+            "season_detection": {
+                "compare_status": "prompt_required",
+                "baseline": {
+                    "status": "prompt_required",
+                    "reasons": ["perhumid_no_clear_onset"],
+                    "details": {
+                        "diagnostics": {
+                            "counts_by_year": {"2020": 0},
+                            "skip_reasons_by_year": {
+                                "2020": "Perhumid location. No clear onset/cessation."
+                            },
+                        }
+                    },
+                },
+                "focal": {
+                    "status": "prompt_required",
+                    "reasons": ["no_seasons_detected_all_years"],
+                    "details": {
+                        "diagnostics": {
+                            "counts_by_year": {"2021": 0},
+                        }
+                    },
+                },
+                "guidance": ["Use --fixed-season."],
+            },
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("baseline_counts=2020:0", rendered)
+        self.assertIn("baseline_notes:", rendered)
+        self.assertIn("Perhumid location. No clear onset/cessation.", rendered)
+        self.assertIn("focal_counts=2021:0", rendered)
+        self.assertIn("Use --fixed-season.", rendered)
+
     def test_main_accepts_json_format_and_creates_output_directory(self):
         orig_compare = cp.compare
         orig_argv = sys.argv[:]
@@ -251,6 +341,55 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual("1991-01-01", calls[0]["spei_ref_start"])
         self.assertEqual("2020-12-31", calls[0]["spei_ref_end"])
         self.assertEqual(3, result["spei_scale_months"])
+
+    def test_compare_forwards_calendar_preset_args_and_carries_usage_flags(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(**kwargs):
+            calls.append(kwargs)
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "calendar_preset_used": True,
+                "calendar_preset": {
+                    "calendar_source": "ggcmi_phase3",
+                    "crop_name": "Maize",
+                    "calendar_system": "rf",
+                    "fixed_season": "03-11:06-13",
+                },
+                "season_detection_status": "ok",
+                "season_detection_reasons": ["calendar_preset_fallback_applied", "fixed_season_override"],
+                "season_detection_guidance": [],
+                "season_detection": {"status": "ok", "reasons": []},
+            }
+
+        orig = cp.analyze_climate_statistics
+        cp.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = cp.compare(
+                location=(-1.286, 36.817),
+                baseline_start=2018,
+                baseline_end=2019,
+                focal_year=2020,
+                source="paired",
+                precip_source="chirps_v2",
+                temp_source="agera_5",
+                crop_name="maize",
+                calendar_source="ggcmi",
+                calendar_system="rf",
+            )
+        finally:
+            cp.analyze_climate_statistics = orig
+
+        self.assertEqual(2, len(calls))
+        self.assertEqual("maize", calls[0]["crop_name"])
+        self.assertEqual("ggcmi", calls[0]["calendar_source"])
+        self.assertEqual("rf", calls[0]["calendar_system"])
+        self.assertTrue(result["baseline_calendar_preset_used"])
+        self.assertTrue(result["focal_calendar_preset_used"])
+        self.assertEqual("ggcmi_phase3", result["baseline_calendar_preset"]["calendar_source"])
 
     def test_compare_computes_spei_monthly_and_summary_diffs(self):
         orig = cp.analyze_climate_statistics
@@ -498,7 +637,7 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             ep._compare_one_model(
                 location=(-1.286, 36.817),
                 baseline_start=1991,
-                baseline_end=2020,
+                baseline_end=2014,
                 future_start=2040,
                 future_end=2060,
                 fixed_season=None,
@@ -510,7 +649,7 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
 
         self.assertEqual(
             [
-                (1991, 2020, "nex_gddp", "ACCESS-CM2", "historical"),
+                (1991, 2014, "nex_gddp", "ACCESS-CM2", "historical"),
                 (2040, 2060, "nex_gddp", "ACCESS-CM2", "ssp245"),
             ],
             calls,
@@ -552,7 +691,7 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             result = ep._compare_one_model(
                 location=(-1.286, 36.817),
                 baseline_start=1991,
-                baseline_end=2020,
+                baseline_end=2014,
                 future_start=2040,
                 future_end=2060,
                 fixed_season="03-01:05-31",
@@ -680,7 +819,7 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             result = ep._compare_one_model(
                 location=(-1.286, 36.817),
                 baseline_start=1991,
-                baseline_end=2020,
+                baseline_end=2014,
                 future_start=2040,
                 future_end=2060,
                 fixed_season="03-01:05-31",
@@ -692,7 +831,7 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
 
         self.assertEqual(
             [
-                (1991, 2020, "nex_gddp", "ACCESS-CM2", "historical"),
+                (1991, 2014, "nex_gddp", "ACCESS-CM2", "historical"),
                 (2040, 2060, "nex_gddp", "ACCESS-CM2", "ssp245"),
             ],
             calls,
@@ -728,7 +867,7 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             result = ep._compare_one_model(
                 location=(-1.286, 36.817),
                 baseline_start=1991,
-                baseline_end=2020,
+                baseline_end=2014,
                 future_start=2040,
                 future_end=2060,
                 fixed_season="03-01:05-31",
@@ -1086,6 +1225,63 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertIn("error", result)
         self.assertIn("Single-year NEX-GDDP baseline/future comparisons are not allowed", result["error"])
 
+    def test_ensemble_compare_rejects_historical_baseline_after_2014(self):
+        result = ep.ensemble_compare(
+            location=(-1.286, 36.817),
+            baseline_start=1991,
+            baseline_end=2020,
+            future_start=2041,
+            future_end=2060,
+            scenario="ssp245",
+            verbose=False,
+        )
+
+        self.assertIn("error", result)
+        self.assertIn("2014-12-31", result["error"])
+        self.assertIn("Use historical baseline years ending no later than 2014", result["error"])
+
+    def test_ensemble_compare_rejects_year_crossing_ggcmi_historical_boundary_once(self):
+        orig_resolve = ep.resolve_calendar_preset
+        orig_filter = ep._filter_models
+        orig_compare = ep._compare_one_model
+        calls = []
+
+        ep.resolve_calendar_preset = lambda lat, lon, crop_name, system="rf": {
+            "calendar_source": "ggcmi_phase3",
+            "crop_name": "Maize",
+            "calendar_system": system,
+            "fixed_season": "10-22:01-09",
+        }
+        ep._filter_models = lambda location, models, exclude_models: ["ACCESS-CM2"]
+        ep._compare_one_model = lambda **kwargs: calls.append(kwargs) or {
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": [],
+            "annual_summary": {},
+        }
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1995,
+                baseline_end=2014,
+                future_start=2041,
+                future_end=2060,
+                scenario="ssp245",
+                crop_name="maize",
+                calendar_source="ggcmi",
+                calendar_system="rf",
+                verbose=False,
+            )
+        finally:
+            ep.resolve_calendar_preset = orig_resolve
+            ep._filter_models = orig_filter
+            ep._compare_one_model = orig_compare
+
+        self.assertIn("error", result)
+        self.assertIn("10-22:01-09", result["error"])
+        self.assertIn("--baseline-end=2013", result["error"])
+        self.assertEqual([], calls)
+
     def test_compare_one_model_rejects_single_year_periods_before_fetch(self):
         calls = []
 
@@ -1164,6 +1360,142 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertIn("error", result)
         self.assertIn("Auto-detected season counts differ", result["error"])
         self.assertIn("Re-run with --fixed-season", result["error"])
+
+    def test_compare_one_model_forwards_calendar_preset_args(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(**kwargs):
+            calls.append(kwargs)
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "calendar_preset_used": True,
+                "calendar_preset": {
+                    "calendar_source": "ggcmi_phase3",
+                    "crop_name": "Maize",
+                    "calendar_system": "rf",
+                    "fixed_season": "03-11:06-13",
+                },
+                "season_detection_status": "ok",
+                "season_detection_reasons": ["calendar_preset_fallback_applied", "fixed_season_override"],
+                "season_detection_guidance": [],
+                "season_detection": {"status": "ok", "reasons": []},
+            }
+
+        orig = ep.analyze_climate_statistics
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                fixed_season=None,
+                model="ACCESS-CM2",
+                scenario="ssp245",
+                crop_name="maize",
+                calendar_source="ggcmi",
+                calendar_system="rf",
+            )
+        finally:
+            ep.analyze_climate_statistics = orig
+
+        self.assertEqual(2, len(calls))
+        self.assertEqual("maize", calls[0]["crop_name"])
+        self.assertEqual("ggcmi", calls[0]["calendar_source"])
+        self.assertEqual("rf", calls[0]["calendar_system"])
+        self.assertTrue(result["baseline_calendar_preset_used"])
+        self.assertTrue(result["future_calendar_preset_used"])
+
+    def test_build_focal_summary_forwards_calendar_preset_args(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(**kwargs):
+            calls.append(kwargs)
+            return {
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {
+                    "2020": {
+                        "annual_rain_mm": 700.0,
+                        "is_humid": False,
+                        "humid_test": "Not humid",
+                    }
+                },
+                "calendar_preset_used": True,
+                "calendar_preset": {
+                    "calendar_source": "ggcmi_phase3",
+                    "crop_name": "Maize",
+                    "calendar_system": "rf",
+                    "fixed_season": "03-11:06-13",
+                },
+                "season_detection_status": "ok",
+                "season_detection_reasons": ["calendar_preset_fallback_applied", "fixed_season_override"],
+                "season_detection_guidance": [],
+                "season_detection": {"status": "ok", "reasons": []},
+                "spei": None,
+            }
+
+        orig = ep.analyze_climate_statistics
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = ep._build_focal_summary(
+                location=(-1.286, 36.817),
+                focal_year=2020,
+                focal_source="paired",
+                fixed_season=None,
+                precip_source="chirps_v2",
+                temp_source="agera_5",
+                crop_name="maize",
+                calendar_source="ggcmi",
+                calendar_system="rf",
+            )
+        finally:
+            ep.analyze_climate_statistics = orig
+
+        self.assertEqual(1, len(calls))
+        self.assertEqual("maize", calls[0]["crop_name"])
+        self.assertEqual("ggcmi", calls[0]["calendar_source"])
+        self.assertEqual("rf", calls[0]["calendar_system"])
+        self.assertTrue(result["calendar_preset_used"])
+        self.assertEqual("ggcmi_phase3", result["calendar_preset"]["calendar_source"])
+
+    def test_ensemble_compare_carries_calendar_request_fields(self):
+        orig_filter = ep._filter_models
+        orig_compare = ep._compare_one_model
+        ep._filter_models = lambda location, models, exclude_models: ["ACCESS-CM2"]
+        ep._compare_one_model = lambda **kwargs: {
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": [],
+            "annual_summary": {},
+            "crop_name": kwargs.get("crop_name"),
+            "calendar_source": kwargs.get("calendar_source"),
+            "calendar_system": kwargs.get("calendar_system"),
+        }
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                scenario="ssp245",
+                crop_name="maize",
+                calendar_source="ggcmi",
+                calendar_system="rf",
+                verbose=False,
+            )
+        finally:
+            ep._filter_models = orig_filter
+            ep._compare_one_model = orig_compare
+
+        self.assertEqual("maize", result["crop_name"])
+        self.assertEqual("ggcmi", result["calendar_source"])
+        self.assertEqual("rf", result["calendar_system"])
 
     def test_diff_block_uses_baseline_magnitude_for_negative_values(self):
         result = cp._diff_block(
@@ -1357,6 +1689,57 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         rendered = stdout.getvalue()
         self.assertIn("NDWS/WRSI method:", rendered)
         self.assertIn("mode=full_window", rendered)
+
+    def test_print_report_renders_calendar_fallback_summary(self):
+        payload = {
+            "focal_year": 2020,
+            "baseline_period": "2018-2019",
+            "source": "paired",
+            "precip_source": "chirps_v2",
+            "temp_source": "agera_5",
+            "crop_name": "maize",
+            "calendar_source": "ggcmi",
+            "calendar_system": "rf",
+            "baseline_calendar_preset_used": True,
+            "baseline_calendar_preset": {
+                "calendar_source": "ggcmi_phase3",
+                "crop_name": "Maize",
+                "calendar_system": "rf",
+                "fixed_season": "03-11:06-13",
+            },
+            "focal_calendar_preset_used": True,
+            "focal_calendar_preset": {
+                "calendar_source": "ggcmi_phase3",
+                "crop_name": "Maize",
+                "calendar_system": "rf",
+                "fixed_season": "03-11:06-13",
+            },
+            "fixed_season": None,
+            "temperature_excluded": False,
+            "season_detection": {
+                "compare_status": "ok",
+                "baseline": {"status": "ok", "reasons": ["calendar_preset_fallback_applied"]},
+                "focal": {"status": "ok", "reasons": ["calendar_preset_fallback_applied"]},
+                "guidance": [],
+            },
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": None,
+            "annual_summary": {},
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("Calendar req. : ggcmi | system=rf", rendered)
+        self.assertIn("Baseline cal. : ggcmi_phase3 | crop=Maize | system=rf | fixed=03-11:06-13", rendered)
+        self.assertIn("Focal cal.    : ggcmi_phase3 | crop=Maize | system=rf | fixed=03-11:06-13", rendered)
 
     def test_ensemble_aggregate_seasons_carries_methodology_summary(self):
         aggregated = ep._aggregate_seasons([

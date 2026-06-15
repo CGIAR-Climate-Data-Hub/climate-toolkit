@@ -30,6 +30,7 @@ project_root = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, project_root)
 
 from climate_tookit.climate_statistics.statistics import analyze_climate_statistics
+from climate_tookit.crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES
 
 CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance", "spei"]
 ANNUALIZABLE = {
@@ -669,6 +670,9 @@ def compare(
     fixed_season:   Optional[str] = None,
     precip_source:  Optional[str] = None,
     temp_source:    Optional[str] = None,
+    crop_name:      Optional[str] = None,
+    calendar_source: Optional[str] = None,
+    calendar_system: str = "rf",
     spei_scale_months: Optional[int] = None,
     spei_fit: str = "ub-pwm",
     spei_ref_start: Optional[str] = None,
@@ -686,6 +690,14 @@ def compare(
                 "Source 'paired' requires both --precip-source and --temp-source."
             )
         }
+    calendar_system = str(calendar_system).lower()
+    if calendar_system not in CALENDAR_SYSTEM_CHOICES:
+        return {
+            "error": (
+                f"Invalid calendar_system '{calendar_system}'. "
+                f"Choose from {', '.join(CALENDAR_SYSTEM_CHOICES)}."
+            )
+        }
 
     n_years   = baseline_end - baseline_start + 1
     drop_temp = source.lower() in PRECIP_ONLY and source.lower() != "paired"
@@ -695,6 +707,11 @@ def compare(
         paired_kw["precip_source"] = precip_source
     if temp_source:
         paired_kw["temp_source"] = temp_source
+    calendar_kw = {
+        "crop_name": crop_name,
+        "calendar_source": calendar_source,
+        "calendar_system": calendar_system,
+    }
     spei_kw   = (
         {
             "spei_scale_months": spei_scale_months,
@@ -710,7 +727,7 @@ def compare(
         base = analyze_climate_statistics(
             location_coord=location,
             start_year=baseline_start, end_year=baseline_end,
-            source=source, **fs_kw, **paired_kw, **spei_kw)
+            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw)
     except Exception as exc:
         return {
             "error": (
@@ -731,7 +748,7 @@ def compare(
         focal = analyze_climate_statistics(
             location_coord=location,
             start_year=focal_year, end_year=focal_year,
-            source=source, **fs_kw, **paired_kw, **spei_kw)
+            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw)
     except Exception as exc:
         return {
             "error": (
@@ -853,6 +870,13 @@ def compare(
         "fixed_season":         fixed_season,
         "precip_source":        precip_source,
         "temp_source":          temp_source,
+        "crop_name":            crop_name,
+        "calendar_source":      calendar_source,
+        "calendar_system":      calendar_system,
+        "baseline_calendar_preset_used": bool(base.get("calendar_preset_used")),
+        "baseline_calendar_preset": base.get("calendar_preset"),
+        "focal_calendar_preset_used": bool(focal.get("calendar_preset_used")),
+        "focal_calendar_preset": focal.get("calendar_preset"),
         "spei_scale_months":    spei_scale_months,
         "spei_fit":             spei_fit if spei_scale_months is not None else None,
         "temperature_excluded": drop_temp,
@@ -884,6 +908,22 @@ def _print_block(diff: Dict[str, Any]) -> None:
 def _print_season_detection_summary(summary: Optional[Dict[str, Any]]) -> None:
     if not summary:
         return
+
+    def _print_details(label: str, payload: Dict[str, Any]) -> None:
+        details = (payload or {}).get("details") or {}
+        diagnostics = details.get("diagnostics") or {}
+        counts = diagnostics.get("counts_by_year") or {}
+        if counts:
+            counts_text = ", ".join(
+                f"{year}:{count}" for year, count in sorted(counts.items())
+            )
+            print(f"    {label}_counts={counts_text}")
+        skips = diagnostics.get("skip_reasons_by_year") or {}
+        if skips:
+            print(f"    {label}_notes:")
+            for year, note in sorted(skips.items()):
+                print(f"      - {year}: {note}")
+
     print(f"  Season detect : {summary.get('compare_status', 'n/a')}")
     baseline = summary.get("baseline") or {}
     focal = summary.get("focal") or {}
@@ -901,6 +941,8 @@ def _print_season_detection_summary(summary: Optional[Dict[str, Any]]) -> None:
             if focal.get("reasons") else ""
         )
     )
+    _print_details("baseline", baseline)
+    _print_details("focal", focal)
     guidance = summary.get("guidance") or []
     if guidance:
         print("    guidance:")
@@ -921,6 +963,29 @@ def print_report(r: Dict[str, Any]) -> None:
         print(f"  Paired        : precip={r.get('precip_source')} | temp={r.get('temp_source')}")
     if r.get("fixed_season"):
         print(f"  Fixed seasons : {r['fixed_season']}")
+    if r.get("crop_name"):
+        print(f"  Crop          : {r['crop_name']}")
+    if r.get("calendar_source"):
+        print(f"  Calendar req. : {r['calendar_source']} | system={r.get('calendar_system')}")
+    if r.get("baseline_calendar_preset_used") or r.get("focal_calendar_preset_used"):
+        baseline_preset = r.get("baseline_calendar_preset") or {}
+        focal_preset = r.get("focal_calendar_preset") or {}
+        if baseline_preset:
+            print(
+                "  Baseline cal. : "
+                f"{baseline_preset.get('calendar_source')} | "
+                f"crop={baseline_preset.get('crop_name')} | "
+                f"system={baseline_preset.get('calendar_system')} | "
+                f"fixed={baseline_preset.get('fixed_season')}"
+            )
+        if focal_preset:
+            print(
+                "  Focal cal.    : "
+                f"{focal_preset.get('calendar_source')} | "
+                f"crop={focal_preset.get('crop_name')} | "
+                f"system={focal_preset.get('calendar_system')} | "
+                f"fixed={focal_preset.get('fixed_season')}"
+            )
     if r.get("temperature_excluded"):
         print("  [!] precipitation-only source -- temperature excluded.")
     _print_season_detection_summary(r.get("season_detection"))
@@ -1011,6 +1076,12 @@ def main() -> None:
                    help="Required with --source=paired. Example: chirps_v2, chirps_v3_daily_rnl, imerg.")
     p.add_argument("--temp-source", default=None,
                    help="Required with --source=paired. Example: agera5, era5, nasa_power.")
+    p.add_argument("--crop", default=None,
+                   help="Optional crop used when requesting external calendar presets such as GGCMI.")
+    p.add_argument("--calendar-source", choices=["ggcmi"], default=None,
+                   help="Optional crop-calendar preset source to use if auto season detection is not reliable.")
+    p.add_argument("--calendar-system", choices=list(CALENDAR_SYSTEM_CHOICES), default="rf",
+                   help="Crop-calendar system when --calendar-source is used.")
     p.add_argument("--spei-scale-months", type=int, default=None,
                    help="Optional SPEI scale in months to compare alongside other statistics.")
     p.add_argument("--spei-fit", choices=["ub-pwm", "empirical"], default="ub-pwm",
@@ -1044,6 +1115,9 @@ def main() -> None:
         fixed_season=args.fixed_season,
         precip_source=args.precip_source,
         temp_source=args.temp_source,
+        crop_name=args.crop,
+        calendar_source=args.calendar_source,
+        calendar_system=args.calendar_system,
         spei_scale_months=args.spei_scale_months,
         spei_fit=args.spei_fit,
         spei_ref_start=args.spei_ref_start,

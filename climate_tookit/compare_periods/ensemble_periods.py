@@ -24,7 +24,7 @@ import json
 import logging
 import argparse
 import statistics as pystat
-from datetime import datetime
+from datetime import datetime, date
 from time import perf_counter
 from typing import Dict, Any, Tuple, List, Optional
 
@@ -39,6 +39,7 @@ sys.path.insert(0, project_root)
 from climate_tookit.climate_statistics.statistics import analyze_climate_statistics
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
+    _validate_period_against_scenario,
     default_ensemble_models_for_location,
 )
 from climate_tookit.compare_periods.periods import (
@@ -57,6 +58,7 @@ from climate_tookit.compare_periods.periods import (
     _print_season_detection_summary,
     PRECIP_ONLY, SUPPORTED,
 )
+from climate_tookit.crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES, resolve_calendar_preset
 
 SSP_SCENARIOS: List[str] = ["ssp126", "ssp245", "ssp585", "historical"]
 SCENARIO_ALIASES: Dict[str, str] = {
@@ -125,6 +127,7 @@ def _validate_nex_periods(
     baseline_end: int,
     future_start: int,
     future_end: int,
+    scenario: str,
 ) -> Optional[str]:
     """NEX-GDDP baseline-vs-future compare needs multi-year periods on both sides."""
     if baseline_end < baseline_start:
@@ -141,7 +144,43 @@ def _validate_nex_periods(
             f"future={future_start}-{future_end} ({future_years} year(s)). "
             "Single-year NEX-GDDP baseline/future comparisons are not allowed."
         )
+    try:
+        _validate_period_against_scenario(
+            "historical",
+            date(baseline_start, 1, 1),
+            date(baseline_end, 12, 31),
+        )
+    except ValueError as exc:
+        return (
+            f"Invalid NEX-GDDP baseline period {baseline_start}-{baseline_end}: {exc} "
+            "Use historical baseline years ending no later than 2014."
+        )
+    try:
+        _validate_period_against_scenario(
+            str(scenario),
+            date(future_start, 1, 1),
+            date(future_end, 12, 31),
+        )
+    except ValueError as exc:
+        return (
+            f"Invalid NEX-GDDP future period {future_start}-{future_end} for scenario={scenario}: {exc}"
+        )
     return None
+
+
+def _has_year_crossing_window(fixed_season: Optional[str]) -> bool:
+    if not fixed_season:
+        return False
+    for raw in str(fixed_season).split(","):
+        token = raw.strip()
+        if not token:
+            continue
+        start_str, end_str = token.split(":")
+        start_md = tuple(int(x) for x in start_str.split("-", 1))
+        end_md = tuple(int(x) for x in end_str.split("-", 1))
+        if end_md < start_md:
+            return True
+    return False
 
 # Local replacement for periods._diff_annual: future is now a period, not a year.
 def _diff_annual_period(future_ann:    Dict[str, Dict],
@@ -228,6 +267,10 @@ def _build_focal_summary(location:     Tuple[float, float],
                           fixed_season: Optional[str],
                           precip_source: Optional[str] = None,
                           temp_source: Optional[str] = None,
+                          crop_name: Optional[str] = None,
+                          calendar_source: Optional[str] = None,
+                          calendar_system: str = "rf",
+                          diagnostic_verbose: bool = False,
                           spei_scale_months: Optional[int] = None,
                           spei_fit: str = "ub-pwm",
                           spei_ref_start: Optional[str] = None,
@@ -239,14 +282,20 @@ def _build_focal_summary(location:     Tuple[float, float],
         paired_kw["precip_source"] = precip_source
     if temp_source:
         paired_kw["temp_source"] = temp_source
+    calendar_kw = {
+        "crop_name": crop_name,
+        "calendar_source": calendar_source,
+        "calendar_system": calendar_system,
+    }
     stats = analyze_climate_statistics(
         location_coord=location,
         start_year=focal_year, end_year=focal_year,
-        source=focal_source, **fs_kw, **paired_kw,
+        source=focal_source, **fs_kw, **paired_kw, **calendar_kw,
         spei_scale_months=spei_scale_months,
         spei_fit=spei_fit,
         spei_ref_start=spei_ref_start,
         spei_ref_end=spei_ref_end,
+        verbose=diagnostic_verbose,
     )
 
     overall = _filter_overall_statistics_for_period_compare(
@@ -281,6 +330,11 @@ def _build_focal_summary(location:     Tuple[float, float],
         "source":       focal_source,
         "precip_source": precip_source,
         "temp_source": temp_source,
+        "crop_name": crop_name,
+        "calendar_source": calendar_source,
+        "calendar_system": calendar_system,
+        "calendar_preset_used": stats.get("calendar_preset_used"),
+        "calendar_preset": stats.get("calendar_preset"),
         "overall":      overall,
         "seasons":      season_summary,
         "spei":         stats.get("spei"),
@@ -385,9 +439,13 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
                                  focal_year:   int,
                                  fixed_season: Optional[str],
                                  scenario:     str,
+                                 crop_name: Optional[str] = None,
+                                 calendar_source: Optional[str] = None,
+                                 calendar_system: str = "rf",
                                  models:         Optional[List[str]] = None,
                                  exclude_models: Optional[List[str]] = None,
                                  verbose:        bool = True,
+                                 diagnostic_verbose: bool = False,
                                  spei_scale_months: Optional[int] = None,
                                  spei_fit: str = "ub-pwm",
                                  spei_ref_start: Optional[str] = None,
@@ -399,6 +457,11 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
     canon  = _normalize_scenario(scenario) or scenario
     active = _filter_models(location, models, exclude_models)
     fs_kw  = {"fixed_season": fixed_season} if fixed_season else {}
+    calendar_kw = {
+        "crop_name": crop_name,
+        "calendar_source": calendar_source,
+        "calendar_system": calendar_system,
+    }
 
     overalls:   List[Dict[str, Any]] = []
     win_blocks: Dict[int, List[Dict[str, Any]]] = {}
@@ -406,17 +469,19 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
     spei_blocks: List[Dict[str, Any]] = []
     rains:      List[float] = []
     humid_count = humid_total = 0
+    calendar_presets: List[Dict[str, Any]] = []
 
     for model in active:
         try:
             stats = analyze_climate_statistics(
                 location_coord=location,
                 start_year=focal_year, end_year=focal_year,
-                source="nex_gddp", model=model, scenario=canon, **fs_kw,
+                source="nex_gddp", model=model, scenario=canon, **fs_kw, **calendar_kw,
                 spei_scale_months=spei_scale_months,
                 spei_fit=spei_fit,
                 spei_ref_start=spei_ref_start,
                 spei_ref_end=spei_ref_end,
+                verbose=diagnostic_verbose,
             )
         except Exception as exc:
             if verbose:
@@ -449,6 +514,8 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
         ann = (stats.get("annual_summary", {}) or {}).get(str(focal_year), {}) or {}
         if stats.get("spei"):
             spei_blocks.append(stats["spei"])
+        if stats.get("calendar_preset"):
+            calendar_presets.append(stats["calendar_preset"])
         if _is_num(ann.get("annual_rain_mm")):
             rains.append(float(ann["annual_rain_mm"]))
         if ann.get("is_humid") is not None:
@@ -472,6 +539,11 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
     return {
         "focal_year":  focal_year,
         "source":      f"nex_gddp ensemble ({len(overalls)} models, {canon})",
+        "crop_name": crop_name,
+        "calendar_source": calendar_source,
+        "calendar_system": calendar_system,
+        "calendar_preset_used": bool(calendar_presets),
+        "calendar_preset": calendar_presets[0] if calendar_presets else None,
         "overall":     _mean_2level(overalls),
         "seasons":     season_summary,
         "spei":        focal_spei,
@@ -647,6 +719,10 @@ def _compare_one_model(
     fixed_season:   Optional[str],
     model:          str,
     scenario:       str,
+    crop_name: Optional[str] = None,
+    calendar_source: Optional[str] = None,
+    calendar_system: str = "rf",
+    diagnostic_verbose: bool = False,
     spei_scale_months: Optional[int] = None,
     spei_fit: str = "ub-pwm",
     spei_ref_start: Optional[str] = None,
@@ -659,7 +735,7 @@ def _compare_one_model(
     comparable on a per-year basis.
     """
     period_error = _validate_nex_periods(
-        baseline_start, baseline_end, future_start, future_end
+        baseline_start, baseline_end, future_start, future_end, scenario
     )
     if period_error:
         return {"error": period_error}
@@ -668,6 +744,11 @@ def _compare_one_model(
     n_future   = future_end    - future_start    + 1
     drop_temp = "nex_gddp" in PRECIP_ONLY  # NEX-GDDP carries tas, so False
     fs_kw     = {"fixed_season": fixed_season} if fixed_season else {}
+    calendar_kw = {
+        "crop_name": crop_name,
+        "calendar_source": calendar_source,
+        "calendar_system": calendar_system,
+    }
     spei_kw = (
         {
             "spei_scale_months": spei_scale_months,
@@ -683,7 +764,8 @@ def _compare_one_model(
         start_year=baseline_start, end_year=baseline_end,
         source="nex_gddp",
         model=model, scenario="historical",
-        **fs_kw, **spei_kw,
+        **fs_kw, **calendar_kw, **spei_kw,
+        verbose=diagnostic_verbose,
     )
     if isinstance(base, dict) and base.get("error"):
         return {
@@ -697,7 +779,8 @@ def _compare_one_model(
         start_year=future_start, end_year=future_end,
         source="nex_gddp",
         model=model, scenario=scenario,
-        **fs_kw, **spei_kw,
+        **fs_kw, **calendar_kw, **spei_kw,
+        verbose=diagnostic_verbose,
     )
     if isinstance(future, dict) and future.get("error"):
         return {
@@ -802,6 +885,13 @@ def _compare_one_model(
         "model":                model,
         "scenario":             scenario,
         "fixed_season":         fixed_season,
+        "crop_name":            crop_name,
+        "calendar_source":      calendar_source,
+        "calendar_system":      calendar_system,
+        "baseline_calendar_preset_used": bool(base.get("calendar_preset_used")),
+        "baseline_calendar_preset": base.get("calendar_preset"),
+        "future_calendar_preset_used": bool(future.get("calendar_preset_used")),
+        "future_calendar_preset": future.get("calendar_preset"),
         "spei_scale_months":    spei_scale_months,
         "temperature_excluded": drop_temp,
         "season_detection":     season_detection,
@@ -996,10 +1086,14 @@ def ensemble_compare(
     future_end:      int,
     scenario:       str = "ssp245",
     fixed_season:   Optional[str] = None,
+    crop_name: Optional[str] = None,
+    calendar_source: Optional[str] = None,
+    calendar_system: str = "rf",
     models:         Optional[List[str]] = None,
     exclude_models: Optional[List[str]] = None,
     focal_summary: Optional[Dict[str, Any]] = None,
     verbose:        bool = True,
+    diagnostic_verbose: bool = False,
     spei_scale_months: Optional[int] = None,
     spei_fit: str = "ub-pwm",
     spei_ref_start: Optional[str] = None,
@@ -1010,7 +1104,7 @@ def ensemble_compare(
     All data (baseline + future) comes from NEX-GDDP, so each model is compared against its own historical run. Returns one ensemble-shaped result.
     """
     period_error = _validate_nex_periods(
-        baseline_start, baseline_end, future_start, future_end
+        baseline_start, baseline_end, future_start, future_end, scenario
     )
     if period_error:
         return {"error": period_error}
@@ -1020,6 +1114,40 @@ def ensemble_compare(
         return {"error": (f"scenario '{scenario}' not recognised. "
                           f"Accepted: {sorted(SCENARIO_ALIASES)}")}
     scenario = canon
+    calendar_system = str(calendar_system).lower()
+    if calendar_system not in CALENDAR_SYSTEM_CHOICES:
+        return {
+            "error": (
+                f"Invalid calendar_system '{calendar_system}'. "
+                f"Choose from {', '.join(CALENDAR_SYSTEM_CHOICES)}."
+            )
+        }
+    if (
+        not fixed_season
+        and crop_name
+        and calendar_source == "ggcmi"
+        and baseline_end >= 2014
+    ):
+        try:
+            preset = resolve_calendar_preset(
+                location[0],
+                location[1],
+                crop_name,
+                system=calendar_system,
+            )
+        except Exception as exc:
+            return {"error": f"Calendar preset lookup failed: {exc}"}
+        if _has_year_crossing_window(preset.get("fixed_season")):
+            return {
+                "error": (
+                    "GGCMI preset for this crop/location is year-crossing "
+                    f"({preset.get('fixed_season')}), so NEX-GDDP historical baseline "
+                    f"{baseline_start}-{baseline_end} would need post-2014 tail data that "
+                    "does not exist. Re-run with --baseline-end=2013, or provide a "
+                    "non-year-crossing --fixed-season."
+                ),
+                "calendar_preset": preset,
+            }
 
     active = _filter_models(location, models, exclude_models)
     if not active:
@@ -1057,6 +1185,10 @@ def ensemble_compare(
                 fixed_season=fixed_season,
                 model=model,
                 scenario=scenario,
+                crop_name=crop_name,
+                calendar_source=calendar_source,
+                calendar_system=calendar_system,
+                diagnostic_verbose=diagnostic_verbose,
                 spei_scale_months=spei_scale_months,
                 spei_fit=spei_fit,
                 spei_ref_start=spei_ref_start,
@@ -1118,6 +1250,9 @@ def ensemble_compare(
         "baseline_years":  baseline_end - baseline_start + 1,
         "scenario":        scenario,
         "fixed_season":    fixed_season,
+        "crop_name":       crop_name,
+        "calendar_source": calendar_source,
+        "calendar_system": calendar_system,
         "models_used":     [r["_model"] for r in per_model],
         "models_failed":   failed,
         "n_models_ok":     len(per_model),
@@ -1322,7 +1457,7 @@ def _print_per_model_breakdown(per_model: List[Dict[str, Any]]) -> None:
                   f"baseline={arm['baseline_avg']:.1f} mm | "
                   f"Δ={arm.get('diff', 0):+.1f} ({_fmt_pct(arm.get('pct'))})")
 
-def print_report(r: Dict[str, Any]) -> None:
+def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
     if "error" in r:
         print(f"\nError: {r['error']}")
         _print_season_detection_summary(r.get("season_detection"))
@@ -1337,15 +1472,21 @@ def print_report(r: Dict[str, Any]) -> None:
     print(f"  Scenario : {r['scenario']}")
     print(f"  Models ok: {r['n_models_ok']}/{n_total}")
     print(f"  Δ        : future_ltm - baseline_ltm")
+    if r.get("crop_name"):
+        print(f"  Crop     : {r['crop_name']}")
+    if r.get("calendar_source"):
+        print(f"  Calendar : {r['calendar_source']} | system={r.get('calendar_system')}")
     if r["models_failed"]:
         print(f"  Failed   : {', '.join(f['model'] for f in r['models_failed'])}")
     _print_season_detection_summary(r.get("season_detection"))
 
-    _print_per_model_breakdown(r.get("per_model_results", []))
+    if detailed:
+        _print_per_model_breakdown(r.get("per_model_results", []))
 
-    print(f"\n--- 1. RAW CLIMATE SUMMARY (ensemble) ---")
-    _print_2level(r.get("raw_climate_summary", {}),
-                  outer_label="Variable", inner_label="Stat", precision=3)
+    if detailed:
+        print(f"\n--- 1. RAW CLIMATE SUMMARY (ensemble) ---")
+        _print_2level(r.get("raw_climate_summary", {}),
+                      outer_label="Variable", inner_label="Stat", precision=3)
 
     print(f"\n--- 2. OVERALL STATISTICS (ensemble, both periods annualised) ---")
     _print_2level(r.get("overall_statistics", {}))
@@ -1393,7 +1534,7 @@ def print_report(r: Dict[str, Any]) -> None:
                 f"Δ={summary.get('diff'):+.3f}"
             )
         monthly = spei.get("monthly") or []
-        if monthly:
+        if detailed and monthly:
             rows = []
             for row in monthly:
                 rows.append({
@@ -1476,6 +1617,12 @@ def main() -> None:
                          "  Single        : '03-01:05-31'\n"
                          "  Two seasons   : '03-01:05-31,10-01:12-15'\n"
                          "  Year-crossing : '11-01:02-28'"))
+    p.add_argument("--crop", default=None,
+                   help="Optional crop used when requesting external calendar presets such as GGCMI.")
+    p.add_argument("--calendar-source", choices=["ggcmi"], default=None,
+                   help="Optional crop-calendar preset source to use if auto season detection is not reliable.")
+    p.add_argument("--calendar-system", choices=list(CALENDAR_SYSTEM_CHOICES), default="rf",
+                   help="Crop-calendar system when --calendar-source is used.")
     p.add_argument("--models",         help="Comma-separated subset of models")
     p.add_argument("--exclude-models", help="Comma-separated models to exclude")
     p.add_argument("--list-models",    action="store_true")
@@ -1500,6 +1647,8 @@ def main() -> None:
     p.add_argument("--spei-ref-end", default=None,
                    help="Optional SPEI reference-period end date.")
     p.add_argument("--quiet",          action="store_true")
+    p.add_argument("--verbose",        action="store_true",
+                   help="Show detailed per-year season diagnostics and full per-model report.")
     args = p.parse_args()
 
     try:
@@ -1556,10 +1705,14 @@ def main() -> None:
             fixed_season=args.fixed_season,
             precip_source=args.focal_precip_source,
             temp_source=args.focal_temp_source,
+            crop_name=args.crop,
+            calendar_source=args.calendar_source,
+            calendar_system=args.calendar_system,
             spei_scale_months=args.spei_scale_months,
             spei_fit=args.spei_fit,
             spei_ref_start=args.spei_ref_start,
             spei_ref_end=args.spei_ref_end,
+            diagnostic_verbose=args.verbose,
         )
         focal_prefetch_seconds = perf_counter() - focal_started
         if (isinstance(focal_summary, dict)
@@ -1593,9 +1746,13 @@ def main() -> None:
                 focal_year=args.focal_year,
                 fixed_season=args.fixed_season,
                 scenario=scenario,
+                crop_name=args.crop,
+                calendar_source=args.calendar_source,
+                calendar_system=args.calendar_system,
                 models=models,
                 exclude_models=exclude,
                 verbose=not args.quiet,
+                diagnostic_verbose=args.verbose,
                 spei_scale_months=args.spei_scale_months,
                 spei_fit=args.spei_fit,
                 spei_ref_start=args.spei_ref_start,
@@ -1609,17 +1766,24 @@ def main() -> None:
             future_end=args.future_end,
             scenario=scenario,
             fixed_season=args.fixed_season,
+            crop_name=args.crop,
+            calendar_source=args.calendar_source,
+            calendar_system=args.calendar_system,
             models=models,
             exclude_models=exclude,
             focal_summary=scenario_focal,
             verbose=not args.quiet,
+            diagnostic_verbose=args.verbose,
             spei_scale_months=args.spei_scale_months,
             spei_fit=args.spei_fit,
             spei_ref_start=args.spei_ref_start,
             spei_ref_end=args.spei_ref_end,
         )
         all_results[scenario] = result
-        print_report(result)
+        try:
+            print_report(result, detailed=args.verbose)
+        except TypeError:
+            print_report(result)
         if "error" not in result:
             any_ok = True
 
