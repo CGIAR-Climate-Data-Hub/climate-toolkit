@@ -478,6 +478,121 @@ def _auto_ltm_guard_message(assessments: List[Dict[str, Any]]) -> Optional[str]:
     )
 
 
+def _hazard_season_detection_summary(
+    *,
+    status: str,
+    reasons: List[str],
+    guidance: Optional[List[str]] = None,
+    details: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    guidance = guidance or []
+    details = details or {}
+    return {
+        "status": status,
+        "reasons": list(dict.fromkeys(reasons)),
+        "human_review_recommended": status in {"warn", "prompt_required"},
+        "calendar_override_recommended": status == "prompt_required",
+        "guidance": list(dict.fromkeys(guidance)),
+        "details": details,
+    }
+
+
+def _build_hazard_season_detection_from_assessments(
+    assessments: List[Dict[str, Any]],
+    *,
+    warning: Optional[str] = None,
+) -> Dict[str, Any]:
+    methods = {
+        (assessment.get("season_info") or {}).get("method")
+        for assessment in assessments or []
+        if (assessment.get("season_info") or {}).get("method")
+    }
+    counts_by_year: Dict[str, int] = {}
+    for assessment in assessments or []:
+        info = assessment.get("season_info") or {}
+        year = info.get("year")
+        if isinstance(year, int):
+            key = str(year)
+            counts_by_year[key] = counts_by_year.get(key, 0) + 1
+
+    if warning:
+        return _hazard_season_detection_summary(
+            status="prompt_required",
+            reasons=["unstable_season_counts"],
+            guidance=[
+                "Auto season detection is not stable enough for a comparable hazards baseline. Use --fixed-season."
+            ],
+            details={
+                "methods": sorted(method for method in methods if method),
+                "counts_by_year": counts_by_year,
+                "warning": warning,
+            },
+        )
+
+    if "fixed_season" in methods:
+        return _hazard_season_detection_summary(
+            status="ok",
+            reasons=["fixed_season_override"],
+            guidance=[],
+            details={"methods": sorted(method for method in methods if method)},
+        )
+    if "user_provided" in methods:
+        return _hazard_season_detection_summary(
+            status="ok",
+            reasons=["user_provided_dates"],
+            guidance=[],
+            details={"methods": sorted(method for method in methods if method)},
+        )
+    return _hazard_season_detection_summary(
+        status="ok",
+        reasons=[],
+        guidance=[],
+        details={
+            "methods": sorted(method for method in methods if method),
+            "counts_by_year": counts_by_year,
+        },
+    )
+
+
+def _build_hazard_season_detection_error(
+    *,
+    reason: str,
+    message: str,
+    details: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    guidance_map = {
+        "season_detection_failed": [
+            "Review source data and detection prerequisites, then retry. If seasonal interpretation is still needed, use --fixed-season."
+        ],
+        "no_seasons_detected_all_years": [
+            "Auto season detection did not find usable seasons. Provide --season-start/--season-end or use --fixed-season."
+        ],
+    }
+    return _hazard_season_detection_summary(
+        status="prompt_required",
+        reasons=[reason],
+        guidance=guidance_map.get(reason, []),
+        details={"message": message, **(details or {})},
+    )
+
+
+def _print_hazard_season_detection_summary(summary: Optional[Dict[str, Any]]) -> None:
+    if not summary:
+        return
+    status = summary.get("status")
+    reasons = summary.get("reasons") or []
+    guidance = summary.get("guidance") or []
+    if not status or (status == "ok" and not reasons and not guidance):
+        return
+    print(f"  Season detect : {status}")
+    if reasons:
+        print(f"    reasons: {', '.join(reasons)}")
+    if guidance:
+        print("    guidance:")
+        for item in guidance:
+            print(f"      - {item}")
+
+
 def _validate_source_window(source: str, end_year: int) -> None:
     source_lc = (source or 'auto').lower()
     if source_lc in {'chirps+chirts', 'chirps_v2+chirts'} and end_year > 2016:
@@ -1590,17 +1705,29 @@ def calculate_hazards(
         if not any(seasons_dict.values()):
             detection_errors = _extract_detection_errors(annual_dict)
             if detection_errors:
+                season_detection = _build_hazard_season_detection_error(
+                    reason="season_detection_failed",
+                    message=detection_errors[0],
+                    details={"source": detection_source},
+                )
                 return {
                     'error': (
                         'Growing-season detection failed before season identification: '
                         f'{detection_errors[0]}'
-                    )
+                    ),
+                    'season_detection': season_detection,
                 }
+            season_detection = _build_hazard_season_detection_error(
+                reason="no_seasons_detected_all_years",
+                message="No growing season detected.",
+                details={"source": detection_source},
+            )
             return {
                 'error': (
                     'No growing season detected. '
                     'Provide --season-start/--season-end or --fixed-season.'
-                )
+                ),
+                'season_detection': season_detection,
             }
         all_results = []
         for year, seasons in sorted(seasons_dict.items()):
@@ -1686,7 +1813,9 @@ def calculate_hazards(
         })
     # Single season -> flat dict; multiple -> wrapped list with Baseline LTM
     if len(assessments) == 1:
-        return assessments[0]
+        out = assessments[0]
+        out['season_detection'] = _build_hazard_season_detection_from_assessments(assessments)
+        return out
     auto_ltm_guard = _auto_ltm_guard_message(assessments)
     if auto_ltm_guard:
         return {
@@ -1695,6 +1824,10 @@ def calculate_hazards(
             'water_balance_parameters': crop_water_balance,
             'water_balance_methodology': assessments[0].get('water_balance_methodology'),
             'warning': auto_ltm_guard,
+            'season_detection': _build_hazard_season_detection_from_assessments(
+                assessments,
+                warning=auto_ltm_guard,
+            ),
             'baseline_ltm': None,
             'baseline_ltm_comparisons': [],
         }
@@ -1704,6 +1837,7 @@ def calculate_hazards(
         'soil_parameters': soil_parameters,
         'water_balance_parameters': crop_water_balance,
         'water_balance_methodology': assessments[0].get('water_balance_methodology'),
+        'season_detection': _build_hazard_season_detection_from_assessments(assessments),
         'baseline_ltm': baseline_ltm,
         'baseline_ltm_comparisons': build_actual_vs_ltm_comparisons(assessments, baseline_ltm),
     }
@@ -1860,6 +1994,7 @@ def _print_actual_vs_ltm_comparisons(comparisons: List[Dict[str, Any]]) -> None:
 def print_hazard_results(result: Dict[str, Any]) -> None:
     # Multi-season wrapper, label each block as "Year YYYY – Season X of Y" when available
     if 'assessments' in result:
+        _print_hazard_season_detection_summary(result.get('season_detection'))
         total = len(result['assessments'])
         for i, a in enumerate(result['assessments'], 1):
             print(f"\n{'─'*70}")
@@ -1883,6 +2018,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
 
     if 'error' in result:
         print(f"\nError: {result['error']}")
+        _print_hazard_season_detection_summary(result.get('season_detection'))
         if 'available_crops' in result:
             print(f"Available crops: {', '.join(result['available_crops'])}")
         return
@@ -1891,6 +2027,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
     print(f"  CROP HAZARD ASSESSMENT: {result['crop'].upper()}")
     print(f"{'='*70}")
     print(f"  Location: {result['location']['latitude']:.4f}, {result['location']['longitude']:.4f}")
+    _print_hazard_season_detection_summary(result.get('season_detection'))
 
     season = result['season_info']
     print(f"\n  Season Information")
