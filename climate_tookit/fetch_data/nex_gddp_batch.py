@@ -50,7 +50,7 @@ from .source_data.sources.xee_common import (
     infer_ee_project_id,
     initialize_earth_engine as initialize_earth_engine_session,
 )
-from .source_data.sources.utils.models import ClimateVariable
+from .source_data.sources.utils.models import ClimateVariable, parse_variable_token
 from .source_data.sources.utils.settings import Settings, set_logging
 from .transform_data.transform_data import default_variables, load_variable_mappings
 
@@ -821,11 +821,10 @@ def _parse_variables(raw: str | None):
         return None
     resolved = []
     for token in raw.split(","):
-        token = token.strip()
-        if hasattr(ClimateVariable, token):
-            resolved.append(getattr(ClimateVariable, token))
-        else:
-            raise ValueError(f"Unknown climate variable '{token}'")
+        variable = parse_variable_token(token)
+        if not isinstance(variable, ClimateVariable):
+            raise ValueError(f"Unknown climate variable '{token.strip()}'")
+        resolved.append(variable)
     return resolved
 
 

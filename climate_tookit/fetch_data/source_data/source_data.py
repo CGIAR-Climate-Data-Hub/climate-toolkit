@@ -19,6 +19,8 @@ from .sources.utils.models import (
     ClimateVariable,
     SoilVariable,
     Location,
+    normalize_climate_dataset_name,
+    parse_variable_token,
 )
 from .sources.utils.settings import Settings
 
@@ -192,16 +194,13 @@ def main():
 
     variables = []
     for v in args.variables.split(','):
-        v = v.strip()
-        if hasattr(ClimateVariable, v):
-            variables.append(getattr(ClimateVariable, v))
-        elif hasattr(SoilVariable, v):
-            variables.append(getattr(SoilVariable, v))
-        else:
-            print(f"Error: Unknown variable '{v}'")
+        try:
+            variables.append(parse_variable_token(v))
+        except ValueError:
+            print(f"Error: Unknown variable '{v.strip()}'")
             return 1
 
-    source = getattr(ClimateDataset, args.source, None)
+    source = getattr(ClimateDataset, normalize_climate_dataset_name(args.source), None)
     if not source:
         print(f"Error: Unknown source '{args.source}'")
         return 1

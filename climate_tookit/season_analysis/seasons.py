@@ -924,6 +924,15 @@ def fetch_and_analyze_years_fixed(
 # Summary printer
 def _fmt(v, suffix=""): return f"{v}{suffix}" if v is not None else "n/a"
 
+def _derive_year_regime_from_seasons(seasons):
+    if not seasons:
+        return "none"
+    if len(seasons) == 1:
+        return str(seasons[0].get("regime", "unimodal"))
+    if len(seasons) == 2:
+        return "bimodal"
+    return "erratic"
+
 def print_summary(
     seasons_dict : Dict[int, List[Dict]],
     annual_dict  : Dict[int, Dict],
@@ -946,8 +955,9 @@ def print_summary(
         ann       = annual_dict.get(year, {})
         ann_rain  = ann.get('annual_rain_mm')
         humid_str = ann.get('result_str')
+        year_regime = _derive_year_regime_from_seasons(seasons)
 
-        print(f"\nYear {year}: {len(seasons)} season(s)")
+        print(f"\nYear {year}: {len(seasons)} season(s) | year_regime={year_regime}")
 
         for i, s in enumerate(seasons, 1):
             onset = pd.to_datetime(s['onset']).strftime('%Y-%m-%d')
@@ -955,7 +965,7 @@ def print_summary(
                      if s.get('cessation') else 'open')
             print(
                 f"\n  Season {i}: {onset} → {cess} | "
-                f"{s['regime']} | {s['length_days']}d"
+                f"{s['length_days']}d"
             )
             print(f"    Total rainfall : {_fmt(s.get('total_rainfall_mm'), ' mm')}")
             print(f"    Rainy days     : {_fmt(s.get('rainy_days'), ' days')}  (precip ≥ 1 mm)")
@@ -991,6 +1001,7 @@ def print_summary(
             ) or ("n/a" if eto_seasons is not None else "")
             rows.append({
                 'year':                year,
+                'year_regime':         year_regime,
                 'season_number':       i,
                 'onset':               onset,
                 'cessation':           cess,

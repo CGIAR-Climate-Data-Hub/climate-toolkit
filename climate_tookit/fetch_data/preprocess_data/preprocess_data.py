@@ -173,7 +173,15 @@ def preprocess_transformed_data(
         cleaned_df,
         group_columns=group_columns,
         verbose=verbose,
-    ).round(2)
+    )
+
+    # Round climate values for readability, but preserve coordinate precision.
+    roundable_columns = [
+        column
+        for column in final_df.select_dtypes(include=[np.number]).columns
+        if column not in {"lat", "lon"}
+    ]
+    final_df[roundable_columns] = final_df[roundable_columns].round(2)
     return final_df
 
 
