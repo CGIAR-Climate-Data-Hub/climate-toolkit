@@ -21,6 +21,14 @@ from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
 import json
 import argparse
+from climate_tookit.crop_calendar.registry import (
+    normalize_crop_name,
+    threshold_supported_crop_names,
+)
+from climate_tookit.crop_calendar.ggcmi import (
+    CALENDAR_SYSTEM_CHOICES,
+    resolve_calendar_preset,
+)
 from climate_tookit.season_analysis.season_identity import build_season_identity
 
 current_dir  = os.path.dirname(os.path.abspath(__file__)) 
@@ -56,6 +64,9 @@ try:
         detect_onset_cessation,
         fetch_and_analyze_years,
         fetch_and_analyze_years_fixed,
+        fetch_master_range_with_tail,
+        analyze_years_auto_on_prefetched_df,
+        analyze_years_fixed_on_prefetched_df,
         parse_fixed_seasons,
     )
     SEASON_ANALYSIS_AVAILABLE = True
@@ -220,7 +231,7 @@ def _merge_threshold_groups(base: Dict[str, Dict[str, Tuple]], override: Dict[st
     return merged
 
 def resolve_thresholds(crop_name: str, custom_thresholds: Optional[Dict[str, Dict[str, Tuple]]] = None) -> Dict[str, Dict[str, Tuple]]:
-    thresholds = _merge_threshold_groups(CROP_THRESHOLDS[crop_name], ATLAS_HAZARD_INDEX_THRESHOLDS)
+    thresholds = _merge_threshold_groups(CROP_THRESHOLDS.get(crop_name, {}), ATLAS_HAZARD_INDEX_THRESHOLDS)
     if custom_thresholds:
         thresholds = _merge_threshold_groups(thresholds, custom_thresholds)
     return thresholds
@@ -514,6 +525,14 @@ def _build_hazard_season_detection_from_assessments(
         if isinstance(year, int):
             key = str(year)
             counts_by_year[key] = counts_by_year.get(key, 0) + 1
+    calendar_preset = next(
+        (
+            (assessment.get("season_info") or {}).get("calendar_preset")
+            for assessment in assessments or []
+            if (assessment.get("season_info") or {}).get("calendar_preset_fallback")
+        ),
+        None,
+    )
 
     if warning:
         return _hazard_season_detection_summary(
@@ -529,6 +548,17 @@ def _build_hazard_season_detection_from_assessments(
             },
         )
 
+    if calendar_preset:
+        return _hazard_season_detection_summary(
+            status="ok",
+            reasons=["calendar_preset_fallback_applied", "fixed_season_override"],
+            guidance=[],
+            details={
+                "methods": sorted(method for method in methods if method),
+                "counts_by_year": counts_by_year,
+                "calendar_preset": calendar_preset,
+            },
+        )
     if "fixed_season" in methods:
         return _hazard_season_detection_summary(
             status="ok",
@@ -562,10 +592,10 @@ def _build_hazard_season_detection_error(
 ) -> Dict[str, Any]:
     guidance_map = {
         "season_detection_failed": [
-            "Review source data and detection prerequisites, then retry. If seasonal interpretation is still needed, use --fixed-season."
+            "Review source data and detection prerequisites, then retry. If seasonal interpretation is still needed, use --fixed-season or retry with --calendar-source ggcmi."
         ],
         "no_seasons_detected_all_years": [
-            "Auto season detection did not find usable seasons. Provide --season-start/--season-end or use --fixed-season."
+            "Auto season detection did not find usable seasons. Provide --season-start/--season-end, use --fixed-season, or retry with --calendar-source ggcmi."
         ],
     }
     return _hazard_season_detection_summary(
@@ -587,10 +617,37 @@ def _print_hazard_season_detection_summary(summary: Optional[Dict[str, Any]]) ->
     print(f"  Season detect : {status}")
     if reasons:
         print(f"    reasons: {', '.join(reasons)}")
+    preset = (summary.get("details") or {}).get("calendar_preset")
+    if preset:
+        print(
+            "    calendar: "
+            f"{preset.get('calendar_source')} | "
+            f"crop={preset.get('crop_name')} | "
+            f"system={preset.get('calendar_system')} | "
+            f"fixed={preset.get('fixed_season')}"
+        )
     if guidance:
         print("    guidance:")
         for item in guidance:
             print(f"      - {item}")
+
+
+def _resolve_calendar_preset_request(
+    *,
+    lat: float,
+    lon: float,
+    crop_name: Optional[str],
+    calendar_source: Optional[str],
+    calendar_system: str,
+) -> Optional[Dict[str, Any]]:
+    if not crop_name or not calendar_source:
+        return None
+    source = str(calendar_source).lower()
+    if source != "ggcmi":
+        raise ValueError(
+            f"Unsupported calendar source: {calendar_source}. Available: ggcmi"
+        )
+    return resolve_calendar_preset(lat, lon, crop_name, system=calendar_system)
 
 
 def _validate_source_window(source: str, end_year: int) -> None:
@@ -1575,18 +1632,32 @@ def calculate_hazards(
     soilsat:           float          = DEFAULT_SOILSAT,
     spinup_days:       int            = DEFAULT_SPINUP_DAYS,
     water_balance_window: str         = FULL_WINDOW_WATER_BALANCE,
+    calendar_source:   Optional[str]  = None,
+    calendar_system:   str            = "rf",
 ) -> Dict[str, Any]:
 
     lat, lon = location_coord
+    calendar_system = str(calendar_system).lower()
+    if calendar_system not in CALENDAR_SYSTEM_CHOICES:
+        return {
+            "error": (
+                f"Invalid calendar_system '{calendar_system}'. "
+                f"Choose from {', '.join(CALENDAR_SYSTEM_CHOICES)}."
+            )
+        }
     try:
         water_balance_window = _normalize_water_balance_window_mode(water_balance_window)
     except ValueError as exc:
         return {"error": str(exc)}
-    crop_normalized = crop_name.capitalize()
-    if crop_normalized not in CROP_THRESHOLDS and not custom_thresholds:
+    try:
+        crop_normalized = normalize_crop_name(
+            crop_name,
+            require_hazard_thresholds=not custom_thresholds,
+        )
+    except ValueError as exc:
         return {
-            'error':           f'Unknown crop: {crop_name}. Available: {", ".join(CROP_THRESHOLDS.keys())}',
-            'available_crops': list(CROP_THRESHOLDS.keys()),
+            'error': str(exc),
+            'available_crops': threshold_supported_crop_names(),
         }
     thresholds = resolve_thresholds(crop_normalized, custom_thresholds)
     crop_water_balance = resolve_crop_water_balance_params(crop_normalized)
@@ -1595,6 +1666,18 @@ def calculate_hazards(
         _validate_source_window(source, requested_end_year)
     except ValueError as exc:
         return {'error': str(exc)}
+    try:
+        requested_calendar_preset = _resolve_calendar_preset_request(
+            lat=lat,
+            lon=lon,
+            crop_name=crop_normalized,
+            calendar_source=calendar_source,
+            calendar_system=calendar_system,
+        )
+    except ValueError as exc:
+        return {"error": str(exc)}
+    calendar_preset_used = False
+    applied_calendar_preset: Optional[Dict[str, Any]] = None
     soil_parameters = _resolve_soil_storage_params(
         lat,
         lon,
@@ -1699,9 +1782,25 @@ def calculate_hazards(
             print(f"Climate data source: {detection_source}")
         start_year = datetime.fromisoformat(date_from).year
         end_year   = datetime.fromisoformat(date_to).year
-        seasons_dict, annual_dict = fetch_and_analyze_years(
-            lat, lon, start_year=start_year, end_year=end_year, source=detection_source
-        )
+        auto_master_df = None
+        if requested_calendar_preset:
+            auto_master_df = fetch_master_range_with_tail(
+                lat,
+                lon,
+                start_year,
+                end_year,
+                source=detection_source,
+            )
+            seasons_dict, annual_dict = analyze_years_auto_on_prefetched_df(
+                auto_master_df,
+                lat,
+                start_year,
+                end_year,
+            )
+        else:
+            seasons_dict, annual_dict = fetch_and_analyze_years(
+                lat, lon, start_year=start_year, end_year=end_year, source=detection_source
+            )
         if not any(seasons_dict.values()):
             detection_errors = _extract_detection_errors(annual_dict)
             if detection_errors:
@@ -1717,18 +1816,38 @@ def calculate_hazards(
                     ),
                     'season_detection': season_detection,
                 }
-            season_detection = _build_hazard_season_detection_error(
-                reason="no_seasons_detected_all_years",
-                message="No growing season detected.",
-                details={"source": detection_source},
-            )
-            return {
-                'error': (
-                    'No growing season detected. '
-                    'Provide --season-start/--season-end or --fixed-season.'
-                ),
-                'season_detection': season_detection,
-            }
+            if requested_calendar_preset and auto_master_df is not None:
+                print(
+                    "  Auto season detection not reliable enough. "
+                    f"Applying {requested_calendar_preset['calendar_source']} preset "
+                    f"for crop={requested_calendar_preset['crop_name']} "
+                    f"system={requested_calendar_preset['calendar_system']} "
+                    f"-> {requested_calendar_preset['fixed_season']}"
+                )
+                fixed_defs = parse_fixed_seasons(requested_calendar_preset["fixed_season"])
+                seasons_dict, annual_dict = analyze_years_fixed_on_prefetched_df(
+                    auto_master_df,
+                    fixed_defs,
+                    start_year,
+                    end_year,
+                )
+                calendar_preset_used = True
+                applied_calendar_preset = dict(requested_calendar_preset)
+                applied_calendar_preset["fallback_from_auto_status"] = "prompt_required"
+            else:
+                season_detection = _build_hazard_season_detection_error(
+                    reason="no_seasons_detected_all_years",
+                    message="No growing season detected.",
+                    details={"source": detection_source},
+                )
+                return {
+                    'error': (
+                        'No growing season detected. '
+                        'Provide --season-start/--season-end, use --fixed-season, '
+                        'or retry with --calendar-source ggcmi.'
+                    ),
+                    'season_detection': season_detection,
+                }
         all_results = []
         for year, seasons in sorted(seasons_dict.items()):
             num_seasons_per_year = len(seasons)
@@ -1753,14 +1872,33 @@ def calculate_hazards(
                     'total_seasons_per_year': num_seasons_per_year,
                     'source':                 detection_source,
                 })
-                df = get_climate_data_for_season(
-                    lat,
-                    lon,
-                    fetch_start,
-                    s_end,
-                    source=detection_source,
-                )
+                if calendar_preset_used:
+                    season_info['method'] = 'fixed_season'
+                    season_info['calendar_preset_fallback'] = True
+                    season_info['calendar_preset'] = applied_calendar_preset
+                    df = _slice_prefetched_window(s.get('source_df'), fetch_start, s_end)
+                    if df is None:
+                        df = _slice_prefetched_window(s.get('window_df'), fetch_start, s_end)
+                    if df is None:
+                        df = get_climate_data_for_season(
+                            lat,
+                            lon,
+                            fetch_start,
+                            s_end,
+                            source=detection_source,
+                        )
+                else:
+                    df = get_climate_data_for_season(
+                        lat,
+                        lon,
+                        fetch_start,
+                        s_end,
+                        source=detection_source,
+                    )
                 all_results.append({'season_info': season_info, 'df': df})
+                if calendar_preset_used:
+                    all_results[-1]["eto_seasons"] = s.get("eto_seasons") or []
+                    all_results[-1]["eto_detection_note"] = s.get("eto_detection_note")
     else:
         return {
             'error': (
@@ -1815,6 +1953,11 @@ def calculate_hazards(
     if len(assessments) == 1:
         out = assessments[0]
         out['season_detection'] = _build_hazard_season_detection_from_assessments(assessments)
+        out['calendar_source'] = calendar_source
+        out['calendar_system'] = calendar_system
+        out['calendar_preset_requested'] = requested_calendar_preset
+        out['calendar_preset_used'] = calendar_preset_used
+        out['calendar_preset'] = applied_calendar_preset
         return out
     auto_ltm_guard = _auto_ltm_guard_message(assessments)
     if auto_ltm_guard:
@@ -1828,6 +1971,11 @@ def calculate_hazards(
                 assessments,
                 warning=auto_ltm_guard,
             ),
+            'calendar_source': calendar_source,
+            'calendar_system': calendar_system,
+            'calendar_preset_requested': requested_calendar_preset,
+            'calendar_preset_used': calendar_preset_used,
+            'calendar_preset': applied_calendar_preset,
             'baseline_ltm': None,
             'baseline_ltm_comparisons': [],
         }
@@ -1838,6 +1986,11 @@ def calculate_hazards(
         'water_balance_parameters': crop_water_balance,
         'water_balance_methodology': assessments[0].get('water_balance_methodology'),
         'season_detection': _build_hazard_season_detection_from_assessments(assessments),
+        'calendar_source': calendar_source,
+        'calendar_system': calendar_system,
+        'calendar_preset_requested': requested_calendar_preset,
+        'calendar_preset_used': calendar_preset_used,
+        'calendar_preset': applied_calendar_preset,
         'baseline_ltm': baseline_ltm,
         'baseline_ltm_comparisons': build_actual_vs_ltm_comparisons(assessments, baseline_ltm),
     }
@@ -2152,7 +2305,7 @@ def main() -> None:
     )
     parser.add_argument(
         'crop', type=str,
-        help='Crop name: Maize | Beans | Rice | Sorghum | Millet | Groundnuts | Cassava',
+        help=f"Crop name with hazard thresholds. Available: {' | '.join(threshold_supported_crop_names())}",
     )
     parser.add_argument('--location',  type=str, required=True,
                         help='Coordinates as "lat,lon"  e.g. "-1.286,36.817"')
@@ -2199,6 +2352,18 @@ def main() -> None:
             "Note: auto-detection (no --season-* flag) now honors this source\n"
             "      setting instead of forcing chirps_v2+chirts."
         ),
+    )
+    parser.add_argument(
+        '--calendar-source',
+        choices=['ggcmi'],
+        default=None,
+        help='Optional crop-calendar preset source to use if auto season detection is not reliable.',
+    )
+    parser.add_argument(
+        '--calendar-system',
+        choices=list(CALENDAR_SYSTEM_CHOICES),
+        default='rf',
+        help='Crop-calendar system when --calendar-source is used.',
     )
     parser.add_argument('--gap-days',        type=int, default=30,
                         help='Dry-day gap used to end auto-detected season (default: 30)')
@@ -2252,6 +2417,8 @@ def main() -> None:
         'soilcp': args.soilcp,
         'soilsat': args.soilsat,
         'water_balance_window': args.water_balance_window,
+        'calendar_source': args.calendar_source,
+        'calendar_system': args.calendar_system,
     }
     if args.format == 'json':
         with redirect_stdout(sys.stderr):

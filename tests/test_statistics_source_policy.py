@@ -273,6 +273,247 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertIn("Climate data fetch failed", result["error"])
         self.assertIn("No data returned from source 'era_5'", result["error"])
 
+    def test_analyze_climate_statistics_uses_ggcmi_fallback_when_auto_detection_prompts_review(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01", "2020-01-02", "2021-01-01", "2021-01-02"]),
+                "precip": [1.0, 0.0, 2.0, 0.0],
+                "tmax": [25.0, 26.0, 27.0, 28.0],
+                "tmin": [15.0, 16.0, 17.0, 18.0],
+                "humidity": [70.0, 72.0, 74.0, 76.0],
+                "solar_radiation": [200.0, 205.0, 210.0, 215.0],
+                "wind_speed": [1.0, 1.1, 1.2, 1.3],
+            }
+        )
+
+        orig_get = stats.get_climate_data
+        orig_add_et0 = stats.add_et0
+        orig_calc_wb = stats.calculate_water_balance
+        orig_detect_auto = stats.detect_seasons_auto
+        orig_detect_fixed = stats.detect_seasons_fixed
+        orig_season_stats = stats.season_statistics
+        orig_raw = stats.raw_climate_summary
+        orig_overall = stats.overall_statistics
+        orig_ltm = stats.ltm_season_summary
+        orig_preset = stats.resolve_calendar_preset
+
+        stats.get_climate_data = lambda *args, **kwargs: frame.copy()
+        stats.add_et0 = lambda df, lat: df.assign(ET0_mm_day=0.0)
+        stats.calculate_water_balance = lambda df: df.assign(water_balance=0.0)
+        stats.detect_seasons_auto = lambda *args, **kwargs: (
+            {2020: [], 2021: []},
+            {
+                2020: {
+                    "annual_rain_mm": 100.0,
+                    "is_humid": False,
+                    "low_rain_months": 6,
+                    "result_str": "Not humid",
+                    "season_skip_reason": "Perhumid location. No clear onset/cessation.",
+                },
+                2021: {
+                    "annual_rain_mm": 110.0,
+                    "is_humid": False,
+                    "low_rain_months": 6,
+                    "result_str": "Not humid",
+                    "season_skip_reason": "Perhumid location. No clear onset/cessation.",
+                },
+            },
+        )
+        stats.detect_seasons_fixed = lambda df, fixed_defs, start_year, end_year, **kwargs: (
+            {
+                2020: [{"onset": pd.Timestamp("2020-03-01"), "cessation": pd.Timestamp("2020-05-31"), "length_days": 92, "regime": "fixed", "eto_seasons": []}],
+                2021: [{"onset": pd.Timestamp("2021-03-01"), "cessation": pd.Timestamp("2021-05-31"), "length_days": 92, "regime": "fixed", "eto_seasons": []}],
+            },
+            {
+                2020: {"annual_rain_mm": 100.0, "is_humid": False, "low_rain_months": 6, "result_str": "Not humid"},
+                2021: {"annual_rain_mm": 110.0, "is_humid": False, "low_rain_months": 6, "result_str": "Not humid"},
+            },
+        )
+        stats.season_statistics = lambda df, season: {
+            "onset": pd.to_datetime(season["onset"]).strftime("%Y-%m-%d"),
+            "cessation": pd.to_datetime(season["cessation"]).strftime("%Y-%m-%d"),
+            "length_days": int(season["length_days"]),
+            "precipitation": {"total_mm": 100.0, "max_daily": 10.0, "rainy_days": 20, "intensity": 5.0},
+            "temperature": {"mean_tmax": 25.0, "mean_tmin": 15.0, "mean_tavg": 20.0, "max_tmax": 30.0, "min_tmin": 10.0},
+            "water_balance": {"total_balance": -10.0, "deficit_days": 5, "surplus_days": 10, "stress_ratio": 0.2},
+        }
+        stats.raw_climate_summary = lambda df: []
+        stats.overall_statistics = lambda *args, **kwargs: {
+            "total_days": 1,
+            "precipitation": {"total_mm": 1.0, "rainy_days": 1, "dry_days": 0, "max_daily": 1.0},
+            "temperature": {"mean_tmax": 25.0, "mean_tmin": 15.0, "mean_tavg": 20.0, "max_tmax": 25.0, "min_tmin": 15.0},
+            "et0": {"total_mm": 0.0},
+            "water_balance": {"total_balance": 0.0, "deficit_days": 0, "surplus_days": 0, "max_deficit": 0.0, "max_surplus": 0.0},
+        }
+        stats.ltm_season_summary = lambda season_results, fixed_season=None: {
+            "mode": "fixed" if fixed_season else "auto",
+            "windows": [{"window": fixed_season or "auto", "season_number": 1, "n_years": 2, "years": [2020, 2021]}],
+        }
+        stats.resolve_calendar_preset = lambda lat, lon, crop_name, system="rf": {
+            "calendar_source": "ggcmi_phase3",
+            "crop_name": "Maize",
+            "calendar_system": system,
+            "fixed_season": "03-01:05-31",
+            "fixed_season_tokens": ["03-01:05-31"],
+            "matched_lat": -1.25,
+            "matched_lon": 36.75,
+            "distance_deg": 0.08,
+            "systems_included": ["rf"],
+            "calendar_rows": [],
+        }
+        try:
+            result = stats.analyze_climate_statistics(
+                location_coord=(-1.286, 36.817),
+                start_year=2020,
+                end_year=2021,
+                source="paired",
+                precip_source="chirps_v2",
+                temp_source="agera_5",
+                crop_name="maize",
+                calendar_source="ggcmi",
+                calendar_system="rf",
+            )
+        finally:
+            stats.get_climate_data = orig_get
+            stats.add_et0 = orig_add_et0
+            stats.calculate_water_balance = orig_calc_wb
+            stats.detect_seasons_auto = orig_detect_auto
+            stats.detect_seasons_fixed = orig_detect_fixed
+            stats.season_statistics = orig_season_stats
+            stats.raw_climate_summary = orig_raw
+            stats.overall_statistics = orig_overall
+            stats.ltm_season_summary = orig_ltm
+            stats.resolve_calendar_preset = orig_preset
+
+        self.assertTrue(result["calendar_preset_used"])
+        self.assertTrue(result["calendar_preset_fallback"])
+        self.assertEqual("fixed", result["mode"])
+        self.assertEqual("03-01:05-31", result["fixed_season"])
+        self.assertEqual("calendar_preset_fallback_applied", result["season_detection_reasons"][0])
+        self.assertIn("crop-calendar preset", result["season_detection_guidance"][0])
+        self.assertIn("03-01:05-31", result["season_detection_guidance"][0])
+
+    def test_analyze_climate_statistics_rejects_nex_historical_window_after_2014(self):
+        result = stats.analyze_climate_statistics(
+            location_coord=(-1.286, 36.817),
+            start_year=1991,
+            end_year=2020,
+            source="nex_gddp",
+            model="MRI-ESM2-0",
+            scenario="historical",
+        )
+
+        self.assertIn("error", result)
+        self.assertIn("2014-12-31", result["error"])
+
+    def test_analyze_climate_statistics_uses_direct_calendar_mode_for_nex_historical_2014_edge(self):
+        fetch_calls = []
+        frame = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["1995-01-01", "2014-03-01", "2014-06-13", "2014-12-31"]),
+                "precip": [1.0, 2.0, 0.0, 0.0],
+                "tmax": [25.0, 26.0, 27.0, 28.0],
+                "tmin": [15.0, 16.0, 17.0, 18.0],
+                "humidity": [70.0, 72.0, 74.0, 76.0],
+                "solar_radiation": [200.0, 205.0, 210.0, 215.0],
+                "wind_speed": [1.0, 1.1, 1.2, 1.3],
+            }
+        )
+
+        orig_get = stats.get_climate_data
+        orig_add_et0 = stats.add_et0
+        orig_calc_wb = stats.calculate_water_balance
+        orig_detect_fixed = stats.detect_seasons_fixed
+        orig_detect_auto = stats.detect_seasons_auto
+        orig_season_stats = stats.season_statistics
+        orig_raw = stats.raw_climate_summary
+        orig_overall = stats.overall_statistics
+        orig_ltm = stats.ltm_season_summary
+        orig_preset = stats.resolve_calendar_preset
+
+        def fake_get(*args, **kwargs):
+            fetch_calls.append((args[2], args[3], kwargs.get("source"), kwargs.get("scenario")))
+            return frame.copy()
+
+        stats.get_climate_data = fake_get
+        stats.add_et0 = lambda df, lat: df.assign(ET0_mm_day=0.0)
+        stats.calculate_water_balance = lambda df: df.assign(water_balance=0.0)
+        stats.detect_auto = lambda *args, **kwargs: self.fail("auto detect should be skipped")
+        stats.detect_seasons_auto = lambda *args, **kwargs: self.fail("auto detect should be skipped")
+        stats.detect_seasons_fixed = lambda df, fixed_defs, start_year, end_year, **kwargs: (
+            {
+                1995: [{"onset": pd.Timestamp("1995-03-01"), "cessation": pd.Timestamp("1995-06-13"), "length_days": 105, "regime": "fixed", "eto_seasons": []}],
+                2014: [{"onset": pd.Timestamp("2014-03-01"), "cessation": pd.Timestamp("2014-06-13"), "length_days": 105, "regime": "fixed", "eto_seasons": []}],
+            },
+            {
+                1995: {"annual_rain_mm": 100.0, "is_humid": False, "low_rain_months": 6, "result_str": "Not humid"},
+                2014: {"annual_rain_mm": 110.0, "is_humid": False, "low_rain_months": 6, "result_str": "Not humid"},
+            },
+        )
+        stats.season_statistics = lambda df, season: {
+            "onset": pd.to_datetime(season["onset"]).strftime("%Y-%m-%d"),
+            "cessation": pd.to_datetime(season["cessation"]).strftime("%Y-%m-%d"),
+            "length_days": int(season["length_days"]),
+            "precipitation": {"total_mm": 100.0},
+            "temperature": {"mean_tavg": 20.0},
+            "water_balance": {"total_balance": -10.0},
+        }
+        stats.raw_climate_summary = lambda df: []
+        stats.overall_statistics = lambda *args, **kwargs: {
+            "total_days": 1,
+            "precipitation": {"total_mm": 1.0, "rainy_days": 1, "dry_days": 0, "max_daily": 1.0},
+            "temperature": {"mean_tmax": 25.0, "mean_tmin": 15.0, "mean_tavg": 20.0, "max_tmax": 25.0, "min_tmin": 15.0},
+            "et0": {"total_mm": 0.0},
+            "water_balance": {"total_balance": 0.0, "deficit_days": 0, "surplus_days": 0, "max_deficit": 0.0, "max_surplus": 0.0},
+        }
+        stats.ltm_season_summary = lambda season_results, fixed_season=None: {
+            "mode": "fixed",
+            "windows": [{"window": fixed_season, "season_number": 1, "n_years": 2, "years": [1995, 2014]}],
+        }
+        stats.resolve_calendar_preset = lambda lat, lon, crop_name, system="rf": {
+            "calendar_source": "ggcmi_phase3",
+            "crop_name": "Maize",
+            "calendar_system": system,
+            "fixed_season": "03-01:06-13",
+            "fixed_season_tokens": ["03-01:06-13"],
+            "matched_lat": -1.25,
+            "matched_lon": 36.75,
+            "distance_deg": 0.08,
+            "systems_included": ["rf"],
+            "calendar_rows": [],
+        }
+        try:
+            result = stats.analyze_climate_statistics(
+                location_coord=(-1.286, 36.817),
+                start_year=1995,
+                end_year=2014,
+                source="nex_gddp",
+                model="MRI-ESM2-0",
+                scenario="historical",
+                crop_name="maize",
+                calendar_source="ggcmi",
+                calendar_system="rf",
+            )
+        finally:
+            stats.get_climate_data = orig_get
+            stats.add_et0 = orig_add_et0
+            stats.calculate_water_balance = orig_calc_wb
+            stats.detect_seasons_fixed = orig_detect_fixed
+            stats.detect_seasons_auto = orig_detect_auto
+            stats.season_statistics = orig_season_stats
+            stats.raw_climate_summary = orig_raw
+            stats.overall_statistics = orig_overall
+            stats.ltm_season_summary = orig_ltm
+            stats.resolve_calendar_preset = orig_preset
+
+        self.assertNotIn("error", result)
+        self.assertEqual("2014-12-31", fetch_calls[0][1])
+        self.assertTrue(result["calendar_preset_used"])
+        self.assertEqual("fixed", result["mode"])
+        self.assertEqual("calendar_preset_direct_applied", result["season_detection_reasons"][0])
+        self.assertIn("crop-calendar preset", result["season_detection_guidance"][0])
+        self.assertIn("03-01:06-13", result["season_detection_guidance"][0])
+
     def test_cli_json_error_saves_error_report_not_success_banner(self):
         with TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "stats_error.json"
@@ -350,7 +591,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             stats.get_climate_data = lambda *args, **kwargs: df.copy()
             stats.add_et0 = lambda frame, lat: frame
             stats.calculate_water_balance = lambda frame: frame
-            stats.detect_seasons_fixed = lambda frame, fixed_defs, start_year, end_year: (
+            stats.detect_seasons_fixed = lambda frame, fixed_defs, start_year, end_year, **kwargs: (
                 {2018: []},
                 {2018: {"annual_rain_mm": 365.0, "is_humid": False, "low_rain_months": 12, "result_str": "Not humid"}},
             )
@@ -502,7 +743,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             stats.get_climate_data = lambda *args, **kwargs: df.copy()
             stats.add_et0 = lambda frame, lat: frame
             stats.calculate_water_balance = lambda frame: frame
-            stats.detect_seasons_fixed = lambda frame, fixed_defs, start_year, end_year: (
+            stats.detect_seasons_fixed = lambda frame, fixed_defs, start_year, end_year, **kwargs: (
                 {2018: [fixed_parent]},
                 {
                     2018: {
@@ -583,7 +824,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             stats.get_climate_data = lambda *args, **kwargs: df.copy()
             stats.add_et0 = lambda frame, lat: frame
             stats.calculate_water_balance = lambda frame: frame
-            stats.detect_seasons_auto = lambda frame, lat, start_year, end_year: (auto_seasons, annual_dict)
+            stats.detect_seasons_auto = lambda frame, lat, start_year, end_year, **kwargs: (auto_seasons, annual_dict)
 
             result = stats.analyze_climate_statistics(
                 location_coord=(-1.286, 36.817),
@@ -625,7 +866,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             stats.get_climate_data = lambda *args, **kwargs: df.copy()
             stats.add_et0 = lambda frame, lat: frame
             stats.calculate_water_balance = lambda frame: frame
-            stats.detect_seasons_fixed = lambda frame, fixed_defs, start_year, end_year: (
+            stats.detect_seasons_fixed = lambda frame, fixed_defs, start_year, end_year, **kwargs: (
                 {2018: []},
                 {2018: {"annual_rain_mm": 1.0, "is_humid": False, "low_rain_months": 12, "result_str": "Not humid"}},
             )

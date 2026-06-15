@@ -741,9 +741,101 @@ class HazardThresholdTests(unittest.TestCase):
             hazards.fetch_and_analyze_years = orig_detect
 
         self.assertEqual(
-            "No growing season detected. Provide --season-start/--season-end or --fixed-season.",
+            "No growing season detected. Provide --season-start/--season-end, use --fixed-season, or retry with --calendar-source ggcmi.",
             result["error"],
         )
+
+    def test_calculate_hazards_auto_detect_uses_ggcmi_fallback_when_requested(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        orig_resolve_calendar = hazards.resolve_calendar_preset
+        orig_fetch_master = hazards.fetch_master_range_with_tail
+        orig_auto_prefetched = hazards.analyze_years_auto_on_prefetched_df
+        orig_fixed_prefetched = hazards.analyze_years_fixed_on_prefetched_df
+        orig_calc_stats = hazards.calculate_season_statistics
+        orig_eval = hazards.evaluate_hazard_metrics
+        orig_resolve_soil = hazards._resolve_soil_storage_params
+        orig_window_fetch = hazards.get_climate_data_for_season
+
+        master_df = hazards.pd.DataFrame(
+            {
+                "date": hazards.pd.to_datetime(["2020-01-01", "2020-03-11", "2020-06-13"]),
+                "precipitation": [0.0, 10.0, 0.0],
+                "max_temperature": [28.0, 29.0, 30.0],
+                "min_temperature": [16.0, 17.0, 18.0],
+                "ET0_mm_day": [4.0, 4.0, 4.0],
+            }
+        )
+
+        hazards.resolve_calendar_preset = lambda lat, lon, crop_name, system="rf": {
+            "calendar_source": "ggcmi_phase3",
+            "crop_name": "Maize",
+            "calendar_system": system,
+            "fixed_season": "03-11:06-13",
+        }
+        hazards.fetch_master_range_with_tail = lambda *args, **kwargs: master_df
+        hazards.analyze_years_auto_on_prefetched_df = lambda *args, **kwargs: ({2020: []}, {})
+        hazards.analyze_years_fixed_on_prefetched_df = lambda *args, **kwargs: (
+            {
+                2020: [
+                    {
+                        "onset": hazards.pd.Timestamp("2020-03-11"),
+                        "cessation": hazards.pd.Timestamp("2020-06-13"),
+                        "length_days": 95,
+                        "regime": "fixed",
+                        "source_df": master_df,
+                        "window_df": master_df,
+                        "eto_seasons": [],
+                        "eto_detection_note": "none detected",
+                    }
+                ]
+            },
+            {2020: {"annual_rain_mm": 800.0, "is_humid": False, "low_rain_months": 4, "result_str": "Not humid"}},
+        )
+        hazards.calculate_season_statistics = lambda *args, **kwargs: {
+            "total_precipitation_mm": 10.0,
+            "mean_temperature_c": 22.5,
+        }
+        hazards.evaluate_hazard_metrics = lambda stats, thresholds: {
+            "precipitation": {"status": "no_stress", "value_mm": stats["total_precipitation_mm"]},
+            "temperature": {"status": "no_stress", "value_c": stats["mean_temperature_c"]},
+        }
+        hazards._resolve_soil_storage_params = lambda *args, **kwargs: {
+            "soilcp": 100.0,
+            "soilsat": 50.0,
+            "source": "stub",
+        }
+        hazards.get_climate_data_for_season = lambda *args, **kwargs: self.fail(
+            "fallback path should reuse prefetched master dataframe"
+        )
+        try:
+            result = calculate_hazards(
+                crop_name="maize",
+                location_coord=(-1.286, 36.817),
+                date_from="2020-01-01",
+                date_to="2020-12-31",
+                source="auto",
+                calendar_source="ggcmi",
+                calendar_system="rf",
+            )
+        finally:
+            hazards.resolve_calendar_preset = orig_resolve_calendar
+            hazards.fetch_master_range_with_tail = orig_fetch_master
+            hazards.analyze_years_auto_on_prefetched_df = orig_auto_prefetched
+            hazards.analyze_years_fixed_on_prefetched_df = orig_fixed_prefetched
+            hazards.calculate_season_statistics = orig_calc_stats
+            hazards.evaluate_hazard_metrics = orig_eval
+            hazards._resolve_soil_storage_params = orig_resolve_soil
+            hazards.get_climate_data_for_season = orig_window_fetch
+
+        self.assertNotIn("error", result)
+        self.assertTrue(result["calendar_preset_used"])
+        self.assertEqual("ggcmi_phase3", result["calendar_preset"]["calendar_source"])
+        self.assertEqual(
+            ["calendar_preset_fallback_applied", "fixed_season_override"],
+            result["season_detection"]["reasons"],
+        )
+        self.assertEqual("fixed_season", result["season_info"]["method"])
 
     def test_calculate_hazards_auto_detect_surfaces_detection_fetch_error(self):
         import climate_tookit.calculate_hazards.hazards as hazards

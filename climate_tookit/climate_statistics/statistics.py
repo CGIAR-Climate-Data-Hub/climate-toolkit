@@ -40,6 +40,31 @@ except ImportError:
     from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note
 
 try:
+    from ..crop_calendar.ggcmi import (
+        CALENDAR_SYSTEM_CHOICES,
+        resolve_calendar_preset,
+    )
+    CROP_CALENDAR_AVAILABLE = True
+except ImportError:
+    try:
+        from climate_tookit.crop_calendar.ggcmi import (
+            CALENDAR_SYSTEM_CHOICES,
+            resolve_calendar_preset,
+        )
+        CROP_CALENDAR_AVAILABLE = True
+    except ImportError:
+        CALENDAR_SYSTEM_CHOICES = ("rf", "ir", "both")
+        CROP_CALENDAR_AVAILABLE = False
+
+try:
+    from ..fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
+except ImportError:
+    try:
+        from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
+    except ImportError:
+        _validate_period_against_scenario = None
+
+try:
     from ..climatology import compute_monthly_spei
     SPEI_AVAILABLE = True
 except ImportError:
@@ -216,6 +241,25 @@ def _validate_nex_ltm_period(
             f"Got {start_year}-{end_year} ({years_span} year(s)). "
             "Single-year NEX-GDDP future/baseline summary runs are not allowed here."
         )
+    return None
+
+
+def _validate_nex_requested_period(
+    source: str,
+    start_year: int,
+    end_year: int,
+    scenario: Optional[str],
+) -> Optional[str]:
+    if source != "nex_gddp" or not scenario or _validate_period_against_scenario is None:
+        return None
+    try:
+        _validate_period_against_scenario(
+            str(scenario),
+            date(start_year, 1, 1),
+            date(end_year, 12, 31),
+        )
+    except ValueError as exc:
+        return str(exc)
     return None
 
 
@@ -497,7 +541,8 @@ def get_climate_data(
 
     # Resolve source -> raw DataFrame
     if precip_lc and temp_lc:
-        print(f"  [source] paired precip={precip_lc} + temp={temp_lc}")
+        if verbose:
+            print(f"  [source] paired precip={precip_lc} + temp={temp_lc}")
         df = _fetch_paired_sources(
             lat,
             lon,
@@ -509,10 +554,12 @@ def get_climate_data(
             scenario=scenario,
         )
     elif source_lc == 'auto':
-        print("  [source] auto -> chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts")
+        if verbose:
+            print("  [source] auto -> chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts")
         df = _fetch_auto(lat, lon, date_from, date_to)
     elif source_lc in {'chirps+chirts', 'chirps_v2+chirts'}:
-        print("  [source] CHIRPS v2 + CHIRTS")
+        if verbose:
+            print("  [source] CHIRPS v2 + CHIRTS")
         df = _fetch_chirps_chirts(lat, lon, date_from, date_to)
     else:
         df = _call_preprocess(source_lc, lat, lon, date_from, date_to, model, scenario)
@@ -1153,6 +1200,7 @@ def detect_seasons_auto(
     lat: float,
     start_year: int,
     end_year: int,
+    verbose: bool = False,
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
     Mirrors seasons.fetch_and_analyze_years() but operates on the *master* DataFrame already in memory (no re-fetching).
@@ -1166,7 +1214,8 @@ def detect_seasons_auto(
     annual_dict:  Dict[int, Dict]       = {}
 
     for ref_year in range(start_year, end_year + 1):
-        print(f"\n  Auto-detecting seasons for {ref_year}")
+        if verbose:
+            print(f"\n  Auto-detecting seasons for {ref_year}")
         win_start = pd.Timestamp(f"{ref_year}-01-01")
         win_end   = pd.Timestamp(f"{ref_year + 1}-06-30")
         win = (df[(df['date'] >= win_start) & (df['date'] <= win_end)]
@@ -1188,24 +1237,28 @@ def detect_seasons_auto(
             'result_str':      humid_info['result_str'],
             'season_skip_reason': None,
         }
-        print(f"    Annual rainfall={annual_rain:.1f} mm | "
-              f"{humid_info['result_str']}")
+        if verbose:
+            print(f"    Annual rainfall={annual_rain:.1f} mm | "
+                  f"{humid_info['result_str']}")
 
         if len(win) < 30:
-            print(f"    Window too short ({len(win)} days)")
+            if verbose:
+                print(f"    Window too short ({len(win)} days)")
             seasons_dict[ref_year] = []
             annual_dict[ref_year]['season_skip_reason'] = (
                 f"Season detection skipped because the analysis window was too short ({len(win)} days)."
             )
             continue
         try:
-            seasons_dict[ref_year] = detect_onset_cessation(win)
+            seasons_dict[ref_year] = detect_onset_cessation(win, verbose=verbose)
         except ValueError as exc:
-            print(f"    Skipped: {exc}")
+            if verbose:
+                print(f"    Skipped: {exc}")
             seasons_dict[ref_year] = []
             annual_dict[ref_year]['season_skip_reason'] = str(exc)
         except Exception as exc:
-            print(f"    Detection failed: {exc}")
+            if verbose:
+                print(f"    Detection failed: {exc}")
             seasons_dict[ref_year] = []
             annual_dict[ref_year]['season_skip_reason'] = (
                 f"Season detection failed: {type(exc).__name__}: {exc}"
@@ -1213,9 +1266,9 @@ def detect_seasons_auto(
 
     # Post-process: reassign spillover & remove duplicates
     cleaned = reassign_spillover_seasons(
-        seasons_dict, lat=lat, start_year=start_year, end_year=end_year
+        seasons_dict, lat=lat, start_year=start_year, end_year=end_year, verbose=verbose
     )
-    final = remove_duplicate_seasons(cleaned)
+    final = remove_duplicate_seasons(cleaned, verbose=verbose)
     final_annual = {
         y: annual_dict.get(y, {}) for y in range(start_year, end_year + 1)
     }
@@ -1226,6 +1279,7 @@ def detect_seasons_fixed(
     fixed_defs: List[Dict],
     start_year: int,
     end_year: int,
+    verbose: bool = False,
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
     Mirrors seasons.fetch_and_analyze_years_fixed() on the master DataFrame.
@@ -1242,7 +1296,8 @@ def detect_seasons_fixed(
     annual_dict: Dict[int, Dict] = {}
 
     for year in range(start_year, end_year + 1):
-        print(f"\n  Fixed-season analysis for {year}")
+        if verbose:
+            print(f"\n  Fixed-season analysis for {year}")
         yr_df = df[df['date'].dt.year == year]
         if yr_df.empty:
             annual_dict[year] = {}
@@ -1257,8 +1312,9 @@ def detect_seasons_fixed(
             'low_rain_months': humid_info['low_rain_months'],
             'result_str':      humid_info['result_str'],
         }
-        print(f"    Annual rainfall={annual_rain:.1f} mm | "
-              f"{humid_info['result_str']}")
+        if verbose:
+            print(f"    Annual rainfall={annual_rain:.1f} mm | "
+                  f"{humid_info['result_str']}")
         for sd in fixed_defs:
             (o_m, o_d) = sd['onset_md']
             (c_m, c_d) = sd['cessation_md']
@@ -1267,7 +1323,8 @@ def detect_seasons_fixed(
                 onset_date = date(year, o_m, o_d)
                 cess_date  = date(cess_year, c_m, c_d)
             except ValueError as exc:
-                print(f"    [WARN] Invalid date: {exc}")
+                if verbose:
+                    print(f"    [WARN] Invalid date: {exc}")
                 continue
 
             length_days = (cess_date - onset_date).days + 1
@@ -1279,15 +1336,18 @@ def detect_seasons_fixed(
                          .copy().reset_index(drop=True))
             eto_subs: List[Dict] = []
             if len(window_df) < 14:
-                print(f"    [ETO] {onset_date} → {cess_date}: "
-                      f"window too short ({len(window_df)} days)")
+                if verbose:
+                    print(f"    [ETO] {onset_date} → {cess_date}: "
+                          f"window too short ({len(window_df)} days)")
             else:
                 try:
-                    eto_subs = detect_onset_cessation(window_df)
+                    eto_subs = detect_onset_cessation(window_df, verbose=verbose)
                 except ValueError as exc:
-                    print(f"    [ETO] {onset_date} → {cess_date}: {exc}")
+                    if verbose:
+                        print(f"    [ETO] {onset_date} → {cess_date}: {exc}")
                 except Exception as exc:
-                    print(f"    [ETO] {onset_date} → {cess_date} failed: {exc}")
+                    if verbose:
+                        print(f"    [ETO] {onset_date} → {cess_date} failed: {exc}")
             seasons_dict[year].append({
                 'onset':       pd.Timestamp(onset_date),
                 'cessation':   pd.Timestamp(cess_date),
@@ -1295,10 +1355,99 @@ def detect_seasons_fixed(
                 'regime':      'fixed',
                 'eto_seasons': eto_subs,
             })
-            print(f"    Fixed window: {onset_date} → {cess_date}{cross} "
-                  f"({length_days}d) | ETO sub-seasons={len(eto_subs)}")
+            if verbose:
+                print(f"    Fixed window: {onset_date} → {cess_date}{cross} "
+                      f"({length_days}d) | ETO sub-seasons={len(eto_subs)}")
 
     return seasons_dict, annual_dict
+
+
+def _annual_summary_from_detection(
+    annual_dict: Dict[int, Dict[str, Any]],
+    seasons_dict: Dict[int, List[Dict[str, Any]]],
+) -> Dict[str, Dict[str, Any]]:
+    return {
+        str(y): {
+            'annual_rain_mm':  info.get('annual_rain_mm'),
+            'is_humid':        info.get('is_humid'),
+            'low_rain_months': info.get('low_rain_months'),
+            'humid_test':      info.get('result_str'),
+            'year_regime':     _derive_year_regime(seasons_dict.get(y, [])),
+            'season_skip_reason': info.get('season_skip_reason'),
+        }
+        for y, info in annual_dict.items()
+    }
+
+
+def _compile_season_results(
+    df: pd.DataFrame,
+    seasons_dict: Dict[int, List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    season_results: List[Dict[str, Any]] = []
+    for year in sorted(seasons_dict.keys()):
+        year_regime = _derive_year_regime(seasons_dict[year])
+        for i, season in enumerate(seasons_dict[year], 1):
+            stats = season_statistics(df, season)
+            if not stats:
+                continue
+            stats['year'] = year
+            stats['season_number'] = i
+            stats['regime'] = season.get('regime', 'auto')
+            stats['year_regime'] = year_regime
+            stats['season_identity'] = build_season_identity(
+                stats['onset'],
+                stats['cessation'],
+                length_days=stats.get('length_days'),
+                regime=season.get('regime', 'auto'),
+                season_number=i,
+                total_seasons_per_year=len(seasons_dict[year]),
+            )
+
+            onset_ts = pd.to_datetime(season['onset'])
+            cess_ts = (
+                pd.to_datetime(season['cessation'])
+                if season.get('cessation') is not None
+                else df['date'].iloc[-1]
+            )
+            sdf = df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)]
+            stats['raw_climate_summary'] = raw_climate_summary(sdf)
+            if not sdf.empty:
+                stats['overall_statistics'] = overall_statistics(
+                    sdf,
+                    full_df=df,
+                    analysis_start=season['onset'],
+                    analysis_end=season['cessation'],
+                )
+
+            sub_results: List[Dict] = []
+            for es in (season.get('eto_seasons') or []):
+                ssub = season_statistics(sdf, es)
+                if ssub:
+                    ssub['regime'] = es.get('regime', 'eto')
+                    sub_results.append(ssub)
+            if sub_results or season.get('eto_seasons') is not None:
+                stats['eto_sub_seasons'] = sub_results
+
+            season_results.append(stats)
+    return season_results
+
+
+def _resolve_calendar_preset_request(
+    *,
+    lat: float,
+    lon: float,
+    crop_name: Optional[str],
+    calendar_source: Optional[str],
+    calendar_system: str,
+) -> Optional[Dict[str, Any]]:
+    if not crop_name or not calendar_source:
+        return None
+    if not CROP_CALENDAR_AVAILABLE:
+        raise ValueError("Crop calendar helpers unavailable in this environment.")
+    source = str(calendar_source).lower()
+    if source != "ggcmi":
+        raise ValueError(f"Unsupported calendar source: {calendar_source}. Available: ggcmi")
+    return resolve_calendar_preset(lat, lon, crop_name, system=calendar_system)
 
 # Orchestrator
 def analyze_climate_statistics(
@@ -1335,6 +1484,14 @@ def analyze_climate_statistics(
     """
     lat, lon = location_coord
     run_started = perf_counter()
+    calendar_system = str(calendar_system).lower()
+    if calendar_system not in CALENDAR_SYSTEM_CHOICES:
+        return {
+            "error": (
+                f"Invalid calendar_system '{calendar_system}'. "
+                f"Choose from {', '.join(CALENDAR_SYSTEM_CHOICES)}."
+            )
+        }
     pair_error = _validate_paired_sources(precip_source, temp_source, start_year, end_year)
     if pair_error:
         return {'error': pair_error}
@@ -1345,12 +1502,53 @@ def analyze_climate_statistics(
     period_error = _validate_nex_ltm_period(source, start_year, end_year)
     if period_error:
         return {'error': period_error}
+    nex_scenario_error = _validate_nex_requested_period(
+        source,
+        start_year,
+        end_year,
+        scenario,
+    )
+    if nex_scenario_error:
+        return {'error': nex_scenario_error}
+
+    requested_calendar_preset: Optional[Dict[str, Any]] = None
+    if crop_name or calendar_source:
+        try:
+            requested_calendar_preset = _resolve_calendar_preset_request(
+                lat=lat,
+                lon=lon,
+                crop_name=crop_name,
+                calendar_source=calendar_source,
+                calendar_system=calendar_system,
+            )
+        except ValueError as exc:
+            return {'error': str(exc)}
 
     # Decide fetch window (mirror seasons.py's tail logic)
     fixed_defs: Optional[List[Dict]] = None
+    direct_calendar_preset = False
+    if (
+        source == 'nex_gddp'
+        and str(scenario).lower() == 'historical'
+        and not fixed_season
+        and requested_calendar_preset
+        and end_year >= 2014
+    ):
+        fixed_season = requested_calendar_preset['fixed_season']
+        fixed_defs = parse_fixed_seasons(fixed_season)
+        if any(sd['cessation_md'] < sd['onset_md'] for sd in fixed_defs):
+            return {
+                'error': (
+                    "NEX-GDDP historical auto/calendar mode cannot use a year-crossing "
+                    "season window that needs post-2014 tail data. "
+                    "Use a non-year-crossing fixed season or shorten the baseline window."
+                )
+            }
+        direct_calendar_preset = True
     tail_extension_years = 0
     if fixed_season:
-        fixed_defs = parse_fixed_seasons(fixed_season)
+        if fixed_defs is None:
+            fixed_defs = parse_fixed_seasons(fixed_season)
         if any(sd['cessation_md'] < sd['onset_md'] for sd in fixed_defs):
             tail_extension_years = 1
     else:
@@ -1370,6 +1568,17 @@ def analyze_climate_statistics(
     else:
         fetch_end = f"{end_year}-12-31"
 
+    if source == 'nex_gddp' and scenario and _validate_period_against_scenario is not None:
+        fetch_end_date = pd.Timestamp(fetch_end).date()
+        try:
+            _validate_period_against_scenario(
+                str(scenario),
+                date(start_year, 1, 1),
+                fetch_end_date,
+            )
+        except ValueError as exc:
+            return {'error': str(exc)}
+
     run_label = [f"source={source}"]
     if model:
         run_label.append(f"model={model}")
@@ -1383,6 +1592,12 @@ def analyze_climate_statistics(
         run_label.append("station_override=on")
     if fixed_season:
         run_label.append(f"fixed_season={fixed_season}")
+    if requested_calendar_preset:
+        run_label.append(
+            f"calendar_preset={requested_calendar_preset['calendar_source']}"
+            f":{requested_calendar_preset['crop_name']}"
+            f":{requested_calendar_preset['calendar_system']}"
+        )
     cache_note = build_historical_cache_note(
         source,
         precip_source=precip_source,
@@ -1390,6 +1605,14 @@ def analyze_climate_statistics(
     )
     if cache_note:
         print(cache_note)
+    if direct_calendar_preset:
+        print(
+            "NEX-GDDP historical auto tail would cross into post-2014 dates. "
+            f"Applying {requested_calendar_preset['calendar_source']} preset directly "
+            f"for crop={requested_calendar_preset['crop_name']} "
+            f"system={requested_calendar_preset['calendar_system']} "
+            f"-> {requested_calendar_preset['fixed_season']}"
+        )
     print(f"Fetching climate data: {fetch_start} → {fetch_end} | "
           f"{' | '.join(run_label)}")
     fetch_started = perf_counter()
@@ -1426,77 +1649,20 @@ def analyze_climate_statistics(
     detect_started = perf_counter()
     if fixed_season:
         seasons_dict, annual_dict = detect_seasons_fixed(
-            df, fixed_defs, start_year, end_year
+            df, fixed_defs, start_year, end_year, verbose=verbose
         )
     else:
         seasons_dict, annual_dict = detect_seasons_auto(
-            df, lat, start_year, end_year
+            df, lat, start_year, end_year, verbose=verbose
         )
     detect_elapsed = perf_counter() - detect_started
     print(f"  Season detection completed in {_format_elapsed(detect_elapsed)}")
 
     # Per-season block (computed against the FULL df so year-crossing seasons have access to days beyond Dec 31). Raw and overall stats are computed per season only; no full-period view is produced.
     reduce_started = perf_counter()
-    season_results: List[Dict] = []
-    for year in sorted(seasons_dict.keys()):
-        year_regime = _derive_year_regime(seasons_dict[year])
-        for i, season in enumerate(seasons_dict[year], 1):
-            stats = season_statistics(df, season)
-            if not stats:
-                continue
-            stats['year']          = year
-            stats['season_number'] = i
-            stats['regime']        = season.get('regime', 'auto')
-            stats['year_regime']   = year_regime
-            stats['season_identity'] = build_season_identity(
-                stats['onset'],
-                stats['cessation'],
-                length_days=stats.get('length_days'),
-                regime=season.get('regime', 'auto'),
-                season_number=i,
-                total_seasons_per_year=len(seasons_dict[year]),
-            )
-
-            # Slice once and attach the raw + overall views to this season
-            onset_ts = pd.to_datetime(season['onset'])
-            cess_ts  = (pd.to_datetime(season['cessation'])
-                        if season.get('cessation') is not None
-                        else df['date'].iloc[-1])
-            sdf = df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)]
-            stats['raw_climate_summary'] = raw_climate_summary(sdf)
-            if not sdf.empty:
-                stats['overall_statistics'] = overall_statistics(
-                    sdf,
-                    full_df=df,
-                    analysis_start=season['onset'],
-                    analysis_end=season['cessation'],
-                )
-
-            # ETO sub-seasons inside fixed windows
-            sub_results: List[Dict] = []
-            for es in (season.get('eto_seasons') or []):
-                # Reuse the parent fixed-window slice so open ETO sub-seasons
-                # cannot silently extend to the full fetched dataset tail.
-                ssub = season_statistics(sdf, es)
-                if ssub:
-                    ssub['regime'] = es.get('regime', 'eto')
-                    sub_results.append(ssub)
-            if sub_results or season.get('eto_seasons') is not None:
-                stats['eto_sub_seasons'] = sub_results
-
-            season_results.append(stats)
+    season_results: List[Dict] = _compile_season_results(df, seasons_dict)
     reduce_elapsed = perf_counter() - reduce_started
-    annual_summary = {
-        str(y): {
-            'annual_rain_mm':  info.get('annual_rain_mm'),
-            'is_humid':        info.get('is_humid'),
-            'low_rain_months': info.get('low_rain_months'),
-            'humid_test':      info.get('result_str'),
-            'year_regime':     _derive_year_regime(seasons_dict.get(y, [])),
-            'season_skip_reason': info.get('season_skip_reason'),
-        }
-        for y, info in annual_dict.items()
-    }
+    annual_summary = _annual_summary_from_detection(annual_dict, seasons_dict)
 
     # Period-wide views (whole years start_year..end_year, excluding the fetchtail).
     period_df = df[(df['date'] >= pd.Timestamp(f"{start_year}-01-01")) &
@@ -1541,11 +1707,6 @@ def analyze_climate_statistics(
         )
         print(f"\n  [WARN] {coverage_warning}")
 
-    total_elapsed = perf_counter() - run_started
-    print(
-        f"  Completed climate statistics in {_format_elapsed(total_elapsed)} "
-        f"(season_rows={len(season_results)}, reduction={_format_elapsed(reduce_elapsed)})"
-    )
     detection_status = _build_season_detection_status(
         fixed_season=fixed_season,
         start_year=start_year,
@@ -1555,16 +1716,110 @@ def analyze_climate_statistics(
         season_slot_warning=season_slot_warning,
     )
 
+    calendar_preset_used = direct_calendar_preset
+    calendar_preset_fallback = False
+    applied_calendar_preset: Optional[Dict[str, Any]] = (
+        dict(requested_calendar_preset) if direct_calendar_preset and requested_calendar_preset else None
+    )
+    applied_fixed_season = fixed_season
+    applied_mode = 'fixed' if fixed_season else 'auto'
+    if applied_calendar_preset is not None:
+        applied_calendar_preset['direct_applied_reason'] = 'nex_historical_tail_unavailable'
+        detection_status['reasons'] = [
+            'calendar_preset_direct_applied',
+            *[r for r in detection_status['reasons'] if r != 'fixed_season_override'],
+            'fixed_season_override',
+        ]
+        detection_status['guidance'] = [
+            "Season windows were taken from the requested crop-calendar preset "
+            f"({applied_calendar_preset['calendar_source']} | "
+            f"crop={applied_calendar_preset['crop_name']} | "
+            f"system={applied_calendar_preset['calendar_system']} | "
+            f"fixed={applied_calendar_preset['fixed_season']}). "
+            "Review before comparing across sites or crops."
+        ]
+
+    if (
+        not fixed_season
+        and requested_calendar_preset
+        and detection_status['status'] == 'prompt_required'
+    ):
+        print(
+            "  Auto season detection not reliable enough. "
+            f"Applying {requested_calendar_preset['calendar_source']} preset "
+            f"for crop={requested_calendar_preset['crop_name']} "
+            f"system={requested_calendar_preset['calendar_system']} "
+            f"-> {requested_calendar_preset['fixed_season']}"
+        )
+        preset_started = perf_counter()
+        fallback_fixed_defs = parse_fixed_seasons(requested_calendar_preset['fixed_season'])
+        seasons_dict, annual_dict = detect_seasons_fixed(
+            df,
+            fallback_fixed_defs,
+            start_year,
+            end_year,
+        )
+        reduce_started = perf_counter()
+        season_results = _compile_season_results(df, seasons_dict)
+        reduce_elapsed = perf_counter() - reduce_started
+        annual_summary = _annual_summary_from_detection(annual_dict, seasons_dict)
+        season_slot_warning = None
+        ltm = ltm_season_summary(season_results, requested_calendar_preset['fixed_season'])
+        detection_status = _build_season_detection_status(
+            fixed_season=requested_calendar_preset['fixed_season'],
+            start_year=start_year,
+            end_year=end_year,
+            annual_summary=annual_summary,
+            season_results=season_results,
+            season_slot_warning=season_slot_warning,
+        )
+        detection_status['reasons'] = [
+            'calendar_preset_fallback_applied',
+            *[r for r in detection_status['reasons'] if r != 'fixed_season_override'],
+            'fixed_season_override',
+        ]
+        detection_status['guidance'] = [
+            "Auto season detection was not reliable enough, so season windows "
+            "were taken from the requested crop-calendar preset "
+            f"({requested_calendar_preset['calendar_source']} | "
+            f"crop={requested_calendar_preset['crop_name']} | "
+            f"system={requested_calendar_preset['calendar_system']} | "
+            f"fixed={requested_calendar_preset['fixed_season']}). "
+            "Review before comparing across sites or crops."
+        ]
+        calendar_preset_used = True
+        calendar_preset_fallback = True
+        applied_calendar_preset = dict(requested_calendar_preset)
+        applied_calendar_preset['fallback_from_auto_status'] = 'prompt_required'
+        applied_calendar_preset['fallback_elapsed_seconds'] = round(
+            perf_counter() - preset_started, 3
+        )
+        applied_fixed_season = requested_calendar_preset['fixed_season']
+        applied_mode = 'fixed'
+
+    total_elapsed = perf_counter() - run_started
+    print(
+        f"  Completed climate statistics in {_format_elapsed(total_elapsed)} "
+        f"(season_rows={len(season_results)}, reduction={_format_elapsed(reduce_elapsed)})"
+    )
+
     return {
         'location':            {'lat': lat, 'lon': lon},
         'period':              {'start_year': start_year, 'end_year': end_year},
         'source':              source,
-        'mode':                'fixed' if fixed_season else 'auto',
-        'fixed_season':        fixed_season,
+        'mode':                applied_mode,
+        'fixed_season':        applied_fixed_season,
         'model':               model,
         'scenario':            scenario,
         'precip_source':       normalize_climate_dataset_name(precip_source),
         'temp_source':         normalize_climate_dataset_name(temp_source),
+        'crop_name':           crop_name,
+        'calendar_source':     calendar_source,
+        'calendar_system':     calendar_system,
+        'calendar_preset_requested': requested_calendar_preset,
+        'calendar_preset_used': calendar_preset_used,
+        'calendar_preset_fallback': calendar_preset_fallback,
+        'calendar_preset':     applied_calendar_preset,
         'raw_climate_summary': raw_period,
         'overall_statistics':  overall_period,
         'season_statistics':   season_results,
@@ -1872,6 +2127,15 @@ def print_pandas(result: Dict[str, Any]) -> None:
     print(f"Source   : {result['source']}  | mode={result['mode']}")
     if result.get('fixed_season'):
         print(f"Fixed    : {result['fixed_season']}")
+    if result.get('calendar_preset_used') and result.get('calendar_preset'):
+        preset = result['calendar_preset']
+        print(
+            "Calendar : "
+            f"{preset.get('calendar_source')} | crop={preset.get('crop_name')} | "
+            f"system={preset.get('calendar_system')} | "
+            f"matched=({preset.get('matched_lat'):.2f},{preset.get('matched_lon'):.2f}) | "
+            f"distance={preset.get('distance_deg'):.3f}°"
+        )
     if result.get('model'):
         print(f"Model    : {result['model']}")
     if result.get('scenario'):
@@ -1992,6 +2256,8 @@ def main() -> None:
                         help='Directory for default JSON output (default: cwd)')
     parser.add_argument('--no-save', action='store_true',
                         help='Skip saving the JSON output')
+    parser.add_argument('--verbose', action='store_true',
+                        help='Show detailed season-detection diagnostics and per-year logs.')
 
     args = parser.parse_args()
 
