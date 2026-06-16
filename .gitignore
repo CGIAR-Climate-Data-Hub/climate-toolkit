@@ -19,3 +19,4 @@ tests/__pycache__/
 local
 .vscode/
 outputs/
+climate_stats_*.json
