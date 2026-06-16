@@ -273,7 +273,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertIn("Climate data fetch failed", result["error"])
         self.assertIn("No data returned from source 'era_5'", result["error"])
 
-    def test_analyze_climate_statistics_uses_ggcmi_fallback_when_auto_detection_prompts_review(self):
+    def test_analyze_climate_statistics_uses_requested_ggcmi_calendar_directly(self):
         frame = pd.DataFrame(
             {
                 "date": pd.to_datetime(["2020-01-01", "2020-01-02", "2021-01-01", "2021-01-02"]),
@@ -386,10 +386,10 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             stats.resolve_calendar_preset = orig_preset
 
         self.assertTrue(result["calendar_preset_used"])
-        self.assertTrue(result["calendar_preset_fallback"])
+        self.assertFalse(result["calendar_preset_fallback"])
         self.assertEqual("fixed", result["mode"])
         self.assertEqual("03-01:05-31", result["fixed_season"])
-        self.assertEqual("calendar_preset_fallback_applied", result["season_detection_reasons"][0])
+        self.assertEqual("calendar_preset_direct_requested", result["season_detection_reasons"][0])
         self.assertIn("crop-calendar preset", result["season_detection_guidance"][0])
         self.assertIn("03-01:05-31", result["season_detection_guidance"][0])
 
@@ -405,6 +405,113 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
 
         self.assertIn("error", result)
         self.assertIn("2014-12-31", result["error"])
+
+    def test_analyze_climate_statistics_uses_requested_calendar_directly_without_auto(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01", "2020-03-01", "2020-05-31", "2021-12-31"]),
+                "precip": [1.0, 2.0, 0.0, 0.0],
+                "tmax": [25.0, 26.0, 27.0, 28.0],
+                "tmin": [15.0, 16.0, 17.0, 18.0],
+                "humidity": [70.0, 72.0, 74.0, 76.0],
+                "solar_radiation": [200.0, 205.0, 210.0, 215.0],
+                "wind_speed": [1.0, 1.1, 1.2, 1.3],
+            }
+        )
+
+        orig_get = stats.get_climate_data
+        orig_add_et0 = stats.add_et0
+        orig_calc_wb = stats.calculate_water_balance
+        orig_detect_fixed = stats.detect_seasons_fixed
+        orig_detect_auto = stats.detect_seasons_auto
+        orig_season_stats = stats.season_statistics
+        orig_raw = stats.raw_climate_summary
+        orig_overall = stats.overall_statistics
+        orig_ltm = stats.ltm_season_summary
+        orig_preset = stats.resolve_calendar_preset
+        fixed_kwargs_seen = []
+
+        stats.get_climate_data = lambda *args, **kwargs: frame.copy()
+        stats.add_et0 = lambda df, lat: df.assign(ET0_mm_day=0.0)
+        stats.calculate_water_balance = lambda df: df.assign(water_balance=0.0)
+        stats.detect_seasons_auto = lambda *args, **kwargs: self.fail("auto detect should be skipped")
+        def fake_detect_fixed(df, fixed_defs, start_year, end_year, **kwargs):
+            fixed_kwargs_seen.append(kwargs)
+            return (
+                {
+                    2020: [{"onset": pd.Timestamp("2020-03-01"), "cessation": pd.Timestamp("2020-05-31"), "length_days": 92, "regime": "fixed", "eto_seasons": None}],
+                    2021: [{"onset": pd.Timestamp("2021-03-01"), "cessation": pd.Timestamp("2021-05-31"), "length_days": 92, "regime": "fixed", "eto_seasons": None}],
+                },
+                {
+                    2020: {"annual_rain_mm": 100.0, "is_humid": False, "low_rain_months": 6, "result_str": "Not humid"},
+                    2021: {"annual_rain_mm": 110.0, "is_humid": False, "low_rain_months": 6, "result_str": "Not humid"},
+                },
+            )
+        stats.detect_seasons_fixed = fake_detect_fixed
+        stats.season_statistics = lambda df, season: {
+            "onset": pd.to_datetime(season["onset"]).strftime("%Y-%m-%d"),
+            "cessation": pd.to_datetime(season["cessation"]).strftime("%Y-%m-%d"),
+            "length_days": int(season["length_days"]),
+            "precipitation": {"total_mm": 100.0},
+            "temperature": {"mean_tavg": 20.0},
+            "water_balance": {"total_balance": -10.0},
+        }
+        stats.raw_climate_summary = lambda df: []
+        stats.overall_statistics = lambda *args, **kwargs: {
+            "total_days": 1,
+            "precipitation": {"total_mm": 1.0, "rainy_days": 1, "dry_days": 0, "max_daily": 1.0},
+            "temperature": {"mean_tmax": 25.0, "mean_tmin": 15.0, "mean_tavg": 20.0, "max_tmax": 25.0, "min_tmin": 15.0},
+            "et0": {"total_mm": 0.0},
+            "water_balance": {"total_balance": 0.0, "deficit_days": 0, "surplus_days": 0, "max_deficit": 0.0, "max_surplus": 0.0},
+        }
+        stats.ltm_season_summary = lambda season_results, fixed_season=None: {
+            "mode": "fixed",
+            "windows": [{"window": fixed_season, "season_number": 1, "n_years": 2, "years": [2020, 2021]}],
+        }
+        stats.resolve_calendar_preset = lambda lat, lon, crop_name, system="rf": {
+            "calendar_source": "ggcmi_phase3",
+            "crop_name": "Maize",
+            "calendar_system": system,
+            "fixed_season": "03-01:05-31",
+            "fixed_season_tokens": ["03-01:05-31"],
+            "matched_lat": -1.25,
+            "matched_lon": 36.75,
+            "distance_deg": 0.08,
+            "systems_included": ["rf"],
+            "calendar_rows": [],
+        }
+        try:
+            result = stats.analyze_climate_statistics(
+                location_coord=(-1.286, 36.817),
+                start_year=2020,
+                end_year=2021,
+                source="paired",
+                precip_source="chirps_v2",
+                temp_source="agera_5",
+                crop_name="maize",
+                calendar_source="ggcmi",
+                calendar_system="rf",
+            )
+        finally:
+            stats.get_climate_data = orig_get
+            stats.add_et0 = orig_add_et0
+            stats.calculate_water_balance = orig_calc_wb
+            stats.detect_seasons_fixed = orig_detect_fixed
+            stats.detect_seasons_auto = orig_detect_auto
+            stats.season_statistics = orig_season_stats
+            stats.raw_climate_summary = orig_raw
+            stats.overall_statistics = orig_overall
+            stats.ltm_season_summary = orig_ltm
+            stats.resolve_calendar_preset = orig_preset
+
+        self.assertNotIn("error", result)
+        self.assertTrue(result["calendar_preset_used"])
+        self.assertFalse(result["calendar_preset_fallback"])
+        self.assertEqual("fixed", result["mode"])
+        self.assertEqual("03-01:05-31", result["fixed_season"])
+        self.assertEqual("calendar_preset_direct_requested", result["season_detection_reasons"][0])
+        self.assertEqual("user_requested_calendar_preset", result["calendar_preset"]["direct_applied_reason"])
+        self.assertFalse(fixed_kwargs_seen[0]["include_eto_subseasons"])
 
     def test_analyze_climate_statistics_uses_direct_calendar_mode_for_nex_historical_2014_edge(self):
         fetch_calls = []

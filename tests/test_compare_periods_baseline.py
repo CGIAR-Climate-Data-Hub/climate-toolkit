@@ -185,6 +185,82 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertNotIn("RAW CLIMATE SUMMARY", rendered)
         self.assertIn("OVERALL STATISTICS", rendered)
 
+    def test_run_stats_call_suppresses_inner_stdout_in_compact_mode(self):
+        orig = ep.analyze_climate_statistics
+
+        def fake_analyze_climate_statistics(**kwargs):
+            print("Fetching climate data: noisy inner log")
+            return {"overall_statistics": {}, "season_statistics": [], "annual_summary": {}}
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            sys.stdout = stdout
+            ep._run_stats_call(diagnostic_verbose=False, location_coord=(-1.286, 36.817))
+        finally:
+            sys.stdout = orig_stdout
+            ep.analyze_climate_statistics = orig
+
+        self.assertNotIn("Fetching climate data", stdout.getvalue())
+
+    def test_run_stats_call_preserves_inner_stdout_in_verbose_mode(self):
+        orig = ep.analyze_climate_statistics
+
+        def fake_analyze_climate_statistics(**kwargs):
+            print("Fetching climate data: verbose inner log")
+            return {"overall_statistics": {}, "season_statistics": [], "annual_summary": {}}
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            sys.stdout = stdout
+            ep._run_stats_call(diagnostic_verbose=True, location_coord=(-1.286, 36.817))
+        finally:
+            sys.stdout = orig_stdout
+            ep.analyze_climate_statistics = orig
+
+        self.assertIn("Fetching climate data", stdout.getvalue())
+
+    def test_spread_includes_ipcc_style_likely_percentiles(self):
+        spread = ep._spread([1.0, 2.0, 3.0, 4.0, 5.0])
+        self.assertIn("p17", spread)
+        self.assertIn("p83", spread)
+        self.assertAlmostEqual(1.68, spread["p17"], places=2)
+        self.assertAlmostEqual(4.32, spread["p83"], places=2)
+
+    def test_print_2level_renders_delta_uncertainty_columns(self):
+        payload = {
+            "precipitation": {
+                "total_mm": {
+                    "future_avg_ensemble_mean": 10.0,
+                    "baseline_avg_ensemble_mean": 8.0,
+                    "diff_ensemble_mean": 2.0,
+                    "pct_ensemble_mean": 25.0,
+                    "model_spread": {
+                        "future_avg": {"std": 1.1, "p17": 8.5, "p83": 11.5},
+                        "baseline_avg": {"std": 0.9, "p17": 7.2, "p83": 8.8},
+                        "diff": {"std": 0.7, "p17": 1.2, "p83": 2.8},
+                        "pct": {"std": 5.0, "p17": 15.0, "p83": 35.0},
+                    },
+                }
+            }
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            ep._print_2level(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("σΔ", rendered)
+        self.assertIn("Likely Δ", rendered)
+        self.assertIn("[1.20, 2.80]", rendered)
+
     def test_print_report_error_renders_season_detection_details(self):
         payload = {
             "error": "Auto season detection not reliable enough.",

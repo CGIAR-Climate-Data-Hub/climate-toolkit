@@ -23,7 +23,9 @@ import math
 import json
 import logging
 import argparse
+import io
 import statistics as pystat
+from contextlib import redirect_stdout
 from datetime import datetime, date
 from time import perf_counter
 from typing import Dict, Any, Tuple, List, Optional
@@ -97,12 +99,24 @@ def _format_elapsed(seconds: float) -> str:
     hours, minutes = divmod(minutes, 60)
     return f"{hours}h{minutes:02d}m{sec:02d}s"
 
+
+def _run_stats_call(
+    *,
+    diagnostic_verbose: bool,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    kwargs.setdefault("verbose", diagnostic_verbose)
+    if diagnostic_verbose:
+        return analyze_climate_statistics(**kwargs)
+    with redirect_stdout(io.StringIO()):
+        return analyze_climate_statistics(**kwargs)
+
 def _spread(values: List[float]) -> Dict[str, Any]:
     """Cross-model spread for one numeric vector."""
     clean = [float(v) for v in values if _is_num(v)]
     if not clean:
         return {"n": 0, "mean": None, "std": None, "min": None, "max": None,
-                "p10": None, "p90": None}
+                "p10": None, "p90": None, "p17": None, "p83": None}
     return {
         "n":    len(clean),
         "mean": round(pystat.mean(clean), 2),
@@ -111,6 +125,8 @@ def _spread(values: List[float]) -> Dict[str, Any]:
         "max":  round(max(clean), 2),
         "p10":  _percentile(clean, 10),
         "p90":  _percentile(clean, 90),
+        "p17":  _percentile(clean, 17),
+        "p83":  _percentile(clean, 83),
     }
 
 def _filter_models(location_coord: Tuple[float, float],
@@ -287,7 +303,8 @@ def _build_focal_summary(location:     Tuple[float, float],
         "calendar_source": calendar_source,
         "calendar_system": calendar_system,
     }
-    stats = analyze_climate_statistics(
+    stats = _run_stats_call(
+        diagnostic_verbose=diagnostic_verbose,
         location_coord=location,
         start_year=focal_year, end_year=focal_year,
         source=focal_source, **fs_kw, **paired_kw, **calendar_kw,
@@ -473,7 +490,8 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
 
     for model in active:
         try:
-            stats = analyze_climate_statistics(
+            stats = _run_stats_call(
+                diagnostic_verbose=diagnostic_verbose,
                 location_coord=location,
                 start_year=focal_year, end_year=focal_year,
                 source="nex_gddp", model=model, scenario=canon, **fs_kw, **calendar_kw,
@@ -759,13 +777,13 @@ def _compare_one_model(
         if spei_scale_months is not None else {}
     )
 
-    base = analyze_climate_statistics(
+    base = _run_stats_call(
+        diagnostic_verbose=diagnostic_verbose,
         location_coord=location,
         start_year=baseline_start, end_year=baseline_end,
         source="nex_gddp",
         model=model, scenario="historical",
         **fs_kw, **calendar_kw, **spei_kw,
-        verbose=diagnostic_verbose,
     )
     if isinstance(base, dict) and base.get("error"):
         return {
@@ -774,13 +792,13 @@ def _compare_one_model(
                 f"({baseline_start}-{baseline_end}): {base['error']}"
             )
         }
-    future = analyze_climate_statistics(
+    future = _run_stats_call(
+        diagnostic_verbose=diagnostic_verbose,
         location_coord=location,
         start_year=future_start, end_year=future_end,
         source="nex_gddp",
         model=model, scenario=scenario,
         **fs_kw, **calendar_kw, **spei_kw,
-        verbose=diagnostic_verbose,
     )
     if isinstance(future, dict) and future.get("error"):
         return {
@@ -932,11 +950,21 @@ def _aggregate_2level(per_model: List[Dict[str, Dict[str, Dict[str, Any]]]],
                 for k, vs in vecs.items() if vs
             }
             entry["model_spread"] = {
-                "diff": _spread(vecs.get("diff", [])),
-                "pct":  _spread(vecs.get("pct", [])),
+                k: _spread(vs)
+                for k, vs in vecs.items() if vs
             }
             out[outer][inner] = entry
     return out
+
+
+def _fmt_likely_range(spread: Optional[Dict[str, Any]], precision: int = 2) -> str:
+    if not isinstance(spread, dict):
+        return "n/a"
+    low = spread.get("p17")
+    high = spread.get("p83")
+    if not (_is_num(low) and _is_num(high)):
+        return "n/a"
+    return f"[{low:.{precision}f}, {high:.{precision}f}]"
 
 def _aggregate_seasons(per_model: List[Optional[Dict[str, Any]]]) -> Optional[Dict[str, Any]]:
     """Aggregate season_statistics across models (handles both lumped and windowed)."""
@@ -1319,6 +1347,7 @@ def _print_2level(agg: Dict[str, Any],
     for outer, inner_dict in agg.items():
         for inner, vals in inner_dict.items():
             row = {outer_label: outer, inner_label: inner}
+            spread = vals.get("model_spread") or {}
             for k, v in vals.items():
                 if k == "model_spread" or not _is_num(v):
                     continue
@@ -1329,6 +1358,13 @@ def _print_2level(agg: Dict[str, Any],
                     row["Δ%"] = _fmt_pct(v)
                 else:
                     row[relabel.get(short, short)] = f"{v:.{precision}f}"
+            diff_spread = spread.get("diff")
+            if isinstance(diff_spread, dict):
+                if _is_num(diff_spread.get("std")):
+                    row["σΔ"] = f"{diff_spread['std']:.{precision}f}"
+                likely = _fmt_likely_range(diff_spread, precision=precision)
+                if likely != "n/a":
+                    row["Likely Δ"] = likely
             rows.append(row)
     print(pd.DataFrame(rows).to_string(index=False))
 
@@ -1472,6 +1508,7 @@ def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
     print(f"  Scenario : {r['scenario']}")
     print(f"  Models ok: {r['n_models_ok']}/{n_total}")
     print(f"  Δ        : future_ltm - baseline_ltm")
+    print(f"  Uncertainty: σΔ=inter-model SD of Δ | Likely Δ=p17–p83 across models")
     if r.get("crop_name"):
         print(f"  Crop     : {r['crop_name']}")
     if r.get("calendar_source"):
