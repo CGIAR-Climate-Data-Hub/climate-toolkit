@@ -461,6 +461,21 @@ def _classify_overlap_confidence(overlap_days: int) -> str:
     return "very_low"
 
 
+def _classify_annual_overlap_confidence(
+    overlap_days: int,
+    coverage_ratio: float | None,
+) -> str:
+    if coverage_ratio is None:
+        return "very_low"
+    if overlap_days >= 330 and coverage_ratio >= 0.9:
+        return "high"
+    if overlap_days >= 180 and coverage_ratio >= 0.5:
+        return "medium"
+    if overlap_days >= 90 and coverage_ratio >= 0.25:
+        return "low"
+    return "very_low"
+
+
 def _build_overlap_warning(
     *,
     station_id: str,
@@ -476,6 +491,25 @@ def _build_overlap_warning(
         f"Low overlap for station={station_id} source={grid_source} "
         f"variable={variable}: {overlap_days} day(s) "
         f"(confidence={confidence}; recommended >= {min_overlap_days})."
+    )
+
+
+def _build_annual_overlap_warning(
+    *,
+    station_id: str,
+    grid_source: str,
+    variable: str,
+    overlap_days: int,
+    coverage_ratio: float | None,
+    confidence_class: str,
+) -> str | None:
+    if confidence_class in {"high", "medium"}:
+        return None
+    coverage_text = "n/a" if coverage_ratio is None else f"{float(coverage_ratio):.2f}"
+    return (
+        f"Low annual coverage for station={station_id} source={grid_source} "
+        f"variable={variable}: overlap_days={overlap_days}, coverage_ratio={coverage_text} "
+        f"(confidence={confidence_class}; annual totals are descriptive only)."
     )
 
 
@@ -614,6 +648,8 @@ def _annotate_annual_overlap_summary(
         metric_row["overlap_days"] = 0
         metric_row["calendar_span_days"] = 0
         metric_row["coverage_ratio"] = None
+        metric_row["confidence_class"] = "very_low"
+        metric_row["low_confidence"] = True
         metric_row["confidence_note"] = "no overlap"
         return metric_row
     working["date"] = pd.to_datetime(working["date"])
@@ -623,13 +659,43 @@ def _annotate_annual_overlap_summary(
     metric_row["overlap_days"] = overlap_days
     metric_row["calendar_span_days"] = calendar_span_days
     metric_row["coverage_ratio"] = None if coverage_ratio is None else round(coverage_ratio, 4)
-    if overlap_days >= 330 and coverage_ratio is not None and coverage_ratio >= 0.9:
+    confidence_class = _classify_annual_overlap_confidence(overlap_days, coverage_ratio)
+    metric_row["confidence_class"] = confidence_class
+    metric_row["low_confidence"] = confidence_class in {"low", "very_low"}
+    if confidence_class == "high":
         metric_row["confidence_note"] = "suitable for annual interpretation"
-    elif overlap_days >= 180 and coverage_ratio is not None and coverage_ratio >= 0.5:
+    elif confidence_class == "medium":
         metric_row["confidence_note"] = "partial-year overlap; interpret cautiously"
     else:
         metric_row["confidence_note"] = "sparse overlap; descriptive only"
     return metric_row
+
+
+def _summarize_confidence(
+    *,
+    daily_rows: list[dict[str, Any]],
+    annual_rows: list[dict[str, Any]],
+    pooled_daily_rows: list[dict[str, Any]],
+    pooled_annual_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    def _bucket(rows: list[dict[str, Any]]) -> dict[str, int]:
+        counts = {"high": 0, "medium": 0, "low": 0, "very_low": 0}
+        for row in rows:
+            token = str(row.get("confidence_class") or "").strip().lower()
+            if token in counts:
+                counts[token] += 1
+        counts["total"] = sum(counts.values())
+        counts["low_confidence"] = int(
+            sum(1 for row in rows if bool(row.get("low_confidence")))
+        )
+        return counts
+
+    return {
+        "daily": _bucket(daily_rows),
+        "annual": _bucket(annual_rows),
+        "pooled_daily": _bucket(pooled_daily_rows),
+        "pooled_annual": _bucket(pooled_annual_rows),
+    }
 
 
 def _normalize_grid_sources(grid_sources: list[str] | None) -> list[str]:
@@ -1091,6 +1157,37 @@ def _augment_station_frame_with_candidate_metadata(
     return frame
 
 
+def _selection_reason_from_row(
+    row,
+    *,
+    variable_name: str,
+    selection_mode: str,
+) -> str:
+    selection_status = str(row.get("selection_status") or "n/a")
+    threshold_status = str(row.get("threshold_status") or "n/a")
+    threshold_used = row.get("selection_threshold_used")
+    rank = row.get("selection_rank")
+    pass_fields = row.get("fields_passing_threshold")
+    fail_fields = row.get("fields_failing_threshold")
+
+    parts = [f"mode={selection_mode}", f"status={selection_status}"]
+    if threshold_status and threshold_status != "n/a":
+        parts.append(f"threshold={threshold_status}")
+    if rank is not None and not pd.isna(rank):
+        parts.append(f"rank={int(rank)}")
+    if threshold_used is not None and not pd.isna(threshold_used):
+        parts.append(f"min_ratio={float(threshold_used):.2f}")
+
+    if isinstance(pass_fields, (list, tuple, set)) and pass_fields:
+        parts.append("pass=" + ",".join(str(item) for item in pass_fields))
+    if isinstance(fail_fields, (list, tuple, set)) and fail_fields:
+        parts.append("fail=" + ",".join(str(item) for item in fail_fields))
+
+    if variable_name != "all_variables":
+        parts.append(f"selected_for={variable_name}")
+    return " | ".join(parts)
+
+
 def _split_station_frame_payloads(
     station_frame: pd.DataFrame,
     *,
@@ -1365,6 +1462,11 @@ def _build_station_compare_payloads(
                     "selection_threshold_used": None if pd.isna(first.get("selection_threshold_used")) else float(first.get("selection_threshold_used")),
                     "threshold_status": first.get("threshold_status"),
                     "selection_rank": None if pd.isna(first.get("selection_rank")) else int(first.get("selection_rank")),
+                    "selection_reason": _selection_reason_from_row(
+                        first,
+                        variable_name="all_variables",
+                        selection_mode=selection_mode,
+                    ),
                 }
             )
         return payloads, warnings, selected_station_map
@@ -1399,6 +1501,19 @@ def _build_station_compare_payloads(
             warnings.append(
                 f"No station selected for variable '{variable_name}': {exc}"
             )
+            selected_station_map.append(
+                {
+                    "variable": variable_name,
+                    "station_id": None,
+                    "station_name": None,
+                    "distance_km": None,
+                    "elevation_diff_m": None,
+                    "selection_status": "unavailable",
+                    "selection_threshold_used": None,
+                    "threshold_status": "unavailable",
+                    "selection_reason": str(exc),
+                }
+            )
             continue
 
         _compare_log(
@@ -1418,6 +1533,11 @@ def _build_station_compare_payloads(
                 "selection_status": candidate.get("selection_status"),
                 "selection_threshold_used": None if pd.isna(candidate.get("selection_threshold_used")) else float(candidate.get("selection_threshold_used")),
                 "threshold_status": candidate.get("threshold_status"),
+                "selection_reason": _selection_reason_from_row(
+                    candidate,
+                    variable_name=variable_name,
+                    selection_mode=selection_mode,
+                ),
             }
         )
         station_frame = download_station_data(
@@ -1688,18 +1808,56 @@ def render_compare_report(result: dict[str, Any]) -> str:
     if result.get("selected_stations_by_variable"):
         lines.extend(["", "Selected stations by variable"])
         for row in result["selected_stations_by_variable"]:
+            if not row.get("station_id"):
+                lines.append(
+                    f"- {row['variable']}: no station selected | reason={row.get('selection_reason', 'n/a')}"
+                )
+                continue
             rank_label = (
                 f" [rank {row.get('selection_rank')}]"
                 if row.get("selection_rank") is not None
                 else ""
             )
-            lines.append(
+            lines.extend(
+                [
+                    (
                 f"- {row['variable']}{rank_label}: "
                 f"{row.get('station_id')} | {row.get('station_name') or 'unknown'} | "
                 f"distance={_format_optional_number(row.get('distance_km'))} km | "
                 f"elev_diff={_format_optional_number(row.get('elevation_diff_m'), 1)} m | "
                 f"selection={row.get('selection_status', 'n/a')}"
+                    ),
+                    f"  reason={row.get('selection_reason', 'n/a')}",
+                ]
             )
+    if result.get("confidence_summary"):
+        confidence = result["confidence_summary"]
+        lines.extend(
+            [
+                "",
+                "Confidence summary",
+                (
+                    f"- daily: high={confidence['daily']['high']} medium={confidence['daily']['medium']} "
+                    f"low={confidence['daily']['low']} very_low={confidence['daily']['very_low']} "
+                    f"(low_confidence={confidence['daily']['low_confidence']})"
+                ),
+                (
+                    f"- annual: high={confidence['annual']['high']} medium={confidence['annual']['medium']} "
+                    f"low={confidence['annual']['low']} very_low={confidence['annual']['very_low']} "
+                    f"(low_confidence={confidence['annual']['low_confidence']})"
+                ),
+                (
+                    f"- pooled_daily: high={confidence['pooled_daily']['high']} medium={confidence['pooled_daily']['medium']} "
+                    f"low={confidence['pooled_daily']['low']} very_low={confidence['pooled_daily']['very_low']} "
+                    f"(low_confidence={confidence['pooled_daily']['low_confidence']})"
+                ),
+                (
+                    f"- pooled_annual: high={confidence['pooled_annual']['high']} medium={confidence['pooled_annual']['medium']} "
+                    f"low={confidence['pooled_annual']['low']} very_low={confidence['pooled_annual']['very_low']} "
+                    f"(low_confidence={confidence['pooled_annual']['low_confidence']})"
+                ),
+            ]
+        )
     if result.get("candidate_review_artifacts"):
         artifacts = result["candidate_review_artifacts"]
         lines.extend(
@@ -2130,6 +2288,16 @@ def compare_station_to_grids(
                         metric_row=annual_metric,
                     )
                     annual_metrics_rows.append(annual_metric)
+                    annual_warning = _build_annual_overlap_warning(
+                        station_id=str(station_meta["station_id"]),
+                        grid_source=grid_source,
+                        variable=variable_name,
+                        overlap_days=int(annual_metric["overlap_days"]),
+                        coverage_ratio=annual_metric.get("coverage_ratio"),
+                        confidence_class=str(annual_metric.get("confidence_class") or "very_low"),
+                    )
+                    if annual_warning and annual_warning not in warnings:
+                        warnings.append(annual_warning)
                 if variable_name == "precipitation" and XCLIM_AVAILABLE:
                     xclim_readiness = assess_xclim_precip_annual_readiness(
                         overlap,
@@ -2292,6 +2460,12 @@ def compare_station_to_grids(
         seasonal_metrics_rows=seasonal_metrics_rows,
         annual_metrics_rows=annual_metrics_rows,
     )
+    confidence_summary = _summarize_confidence(
+        daily_rows=metrics_rows,
+        annual_rows=annual_metrics_rows,
+        pooled_daily_rows=pooled_daily_metrics,
+        pooled_annual_rows=pooled_annual_metrics,
+    )
     _compare_log(
         verbose,
         f"Compare complete | station_metrics={len(metrics_rows)} | "
@@ -2323,6 +2497,7 @@ def compare_station_to_grids(
         "grid_fetch_summary": grid_fetch_summary,
         "grid_failures": grid_failures,
         "warnings": warnings,
+        "confidence_summary": confidence_summary,
         "metrics": metrics_rows,
         "monthly_metrics": monthly_metrics_rows,
         "seasonal_metrics": seasonal_metrics_rows,
