@@ -12,7 +12,7 @@ sparse point workloads?
 
 Project:
 
-- `ee-peetmate`
+- `your-ee-project-id`
 
 Dataset path:
 

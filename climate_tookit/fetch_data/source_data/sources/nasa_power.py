@@ -225,7 +225,12 @@ class DownloadData(models.DataDownloadBase):
             params.append("PRECTOTCORR")
 
         # T2M covers temperature (we'll use specific max/min if available)
-        if 'max_temperature' in var_names or 'min_temperature' in var_names or 'temperature' in var_names:
+        if (
+            'max_temperature' in var_names
+            or 'min_temperature' in var_names
+            or 'mean_temperature' in var_names
+            or 'temperature' in var_names
+        ):
             params.append("T2M")
             params.append("T2M_MAX") 
             params.append("T2M_MIN") 
@@ -323,7 +328,9 @@ class DownloadData(models.DataDownloadBase):
                             data_by_date[dt]["min_temperature"] = val
                             available_vars.add("min_temperature")
                         elif var_code == "T2M":
-                            # Only use T2M if we don't have T2M_MAX/MIN
+                            data_by_date[dt]["mean_temperature"] = val
+                            available_vars.add("mean_temperature")
+                            # Only use T2M as fallback if we don't have T2M_MAX/MIN
                             if "max_temperature" not in data_by_date[dt]:
                                 data_by_date[dt]["max_temperature"] = val
                             if "min_temperature" not in data_by_date[dt]:

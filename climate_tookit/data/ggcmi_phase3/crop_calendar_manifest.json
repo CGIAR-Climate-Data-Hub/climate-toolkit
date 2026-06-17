@@ -1,0 +1,42 @@
+{
+  "dataset": "GGCMI Phase 3 crop calendar",
+  "source_record_url": "https://zenodo.org/records/5062513",
+  "article_url": "https://www.nature.com/articles/s43016-021-00400-y",
+  "license": "CC-BY-4.0",
+  "notes": [
+    "Packaged point-extraction asset derived from published GGCMI Phase 3 gridded NetCDF files.",
+    "Preserves rainfed and irrigated calendars separately.",
+    "Preserves separate rice seasons and season_area_fraction where provided."
+  ],
+  "format": "parquet",
+  "row_count": 2623970,
+  "crop_count": 19,
+  "systems": [
+    "ir",
+    "rf"
+  ],
+  "season_ids": [
+    1,
+    2
+  ],
+  "columns": [
+    "crop_code",
+    "crop_name",
+    "system",
+    "season_id",
+    "is_multi_season_crop",
+    "lat",
+    "lon",
+    "planting_day",
+    "maturity_day",
+    "growing_season_length_days",
+    "data_source_used_code",
+    "data_source_used_label",
+    "season_area_fraction",
+    "calendar_version",
+    "source_record_url"
+  ],
+  "calendar_versions": [
+    "1.01"
+  ]
+}

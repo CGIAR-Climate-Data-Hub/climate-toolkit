@@ -30,16 +30,29 @@ project_root = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, project_root)
 
 from climate_tookit.climate_statistics.statistics import analyze_climate_statistics
+from climate_tookit.crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES
 
-CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance"]
+CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance", "spei"]
 ANNUALIZABLE = {
     "precipitation": ["total_mm", "rainy_days", "dry_days"],
     "et0":           ["total_mm"],
     "water_balance": ["total_balance", "deficit_days", "surplus_days"],
 }
+OVERALL_WATER_BALANCE_EXCLUDED = {
+    "NDWS",
+    "NDWL0",
+    "WRSI",
+    "mean_eratio",
+    "mean_logging_mm",
+    "crop_water_requirement_mm",
+    "actual_crop_et_mm",
+    "ending_soil_water_mm",
+    "runoff_mm",
+}
 PRECIP_ONLY  = {"chirps", "chirps_v2"}
 SUPPORTED    = {"era_5", "agera_5", "chirps+chirts", "chirps_v2+chirts", "nasa_power",
-                "chirps", "chirps_v2", "chirts", "terraclimate", "imerg", "tamsat", "auto"}
+                "chirps", "chirps_v2", "chirts", "terraclimate", "imerg", "tamsat", "auto",
+                "paired"}
 
 # helpers
 def _is_num(x: Any) -> bool:
@@ -72,6 +85,337 @@ def _percent_change(diff: float, baseline: float) -> Optional[float]:
 def _fmt_pct(v: Optional[float]) -> str:
     return f"{v:+.2f}%" if _is_num(v) else "n/a"
 
+
+def _mean(values: List[float], ndigits: int = 1) -> Optional[float]:
+    clean = [float(v) for v in values if _is_num(v)]
+    if not clean:
+        return None
+    return round(sum(clean) / len(clean), ndigits)
+
+
+def _parse_fixed_season_windows(fixed_season: Optional[str]) -> List[Tuple[int, str, Tuple[int, int], Tuple[int, int]]]:
+    windows: List[Tuple[int, str, Tuple[int, int], Tuple[int, int]]] = []
+    if not fixed_season:
+        return windows
+    for idx, raw in enumerate(fixed_season.split(","), start=1):
+        label = raw.strip()
+        if not label:
+            continue
+        start_str, end_str = label.split(":")
+        start_md = tuple(int(x) for x in start_str.split("-", 1))
+        end_md = tuple(int(x) for x in end_str.split("-", 1))
+        windows.append((idx, label, start_md, end_md))
+    return windows
+
+
+def _summarize_methodology_rows(rows: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    methods = [
+        row.get("water_balance_methodology")
+        for row in rows or []
+        if isinstance(row.get("water_balance_methodology"), dict)
+    ]
+    if not methods:
+        return None
+
+    requested_modes = sorted({
+        method.get("count_window", {}).get("requested_mode")
+        for method in methods
+        if method.get("count_window", {}).get("requested_mode")
+    })
+    applied_modes = sorted({
+        method.get("count_window", {}).get("applied_mode")
+        for method in methods
+        if method.get("count_window", {}).get("applied_mode")
+    })
+    counted_days = [
+        method.get("count_window", {}).get("counted_days")
+        for method in methods
+        if _is_num(method.get("count_window", {}).get("counted_days"))
+    ]
+    counted_subseasons = [
+        method.get("count_window", {}).get("counted_subseasons")
+        for method in methods
+        if _is_num(method.get("count_window", {}).get("counted_subseasons"))
+    ]
+    warnings = []
+    for method in methods:
+        for warning in method.get("warnings") or []:
+            if warning and warning not in warnings:
+                warnings.append(warning)
+
+    return {
+        "requested_modes": requested_modes,
+        "applied_modes": applied_modes,
+        "counted_days": {
+            "mean": _mean(counted_days, 1),
+            "min": min(counted_days) if counted_days else None,
+            "max": max(counted_days) if counted_days else None,
+            "n": len(counted_days),
+        },
+        "counted_subseasons": {
+            "mean": _mean(counted_subseasons, 1),
+            "min": min(counted_subseasons) if counted_subseasons else None,
+            "max": max(counted_subseasons) if counted_subseasons else None,
+            "n": len(counted_subseasons),
+        },
+        "warnings": warnings,
+    }
+
+
+def _merge_period_methodology(
+    left_rows: List[Dict[str, Any]],
+    right_rows: List[Dict[str, Any]],
+    left_label: str,
+    right_label: str,
+) -> Optional[Dict[str, Any]]:
+    left = _summarize_methodology_rows(left_rows)
+    right = _summarize_methodology_rows(right_rows)
+    if not left and not right:
+        return None
+    return {
+        left_label: left,
+        right_label: right,
+    }
+
+
+def _format_methodology_side(label: str, summary: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not summary:
+        return None
+    mode = ",".join(summary.get("applied_modes") or []) or "n/a"
+    days = summary.get("counted_days") or {}
+    day_bits = []
+    if _is_num(days.get("mean")):
+        day_bits.append(f"days_mean={days['mean']:.1f}")
+    if _is_num(days.get("min")) and _is_num(days.get("max")):
+        day_bits.append(f"days_range={int(days['min'])}-{int(days['max'])}")
+    return f"{label}: mode={mode}" + (f" | {' | '.join(day_bits)}" if day_bits else "")
+
+
+def _print_methodology_summary(methodology: Optional[Dict[str, Any]]) -> None:
+    if not methodology:
+        return
+    parts = []
+    for label in ("focal", "baseline_avg", "future_avg", "baseline_ltm", "future_ltm"):
+        formatted = _format_methodology_side(label, methodology.get(label))
+        if formatted:
+            parts.append(formatted)
+    if parts:
+        print(f"    NDWS/WRSI method: {' ; '.join(parts)}")
+
+
+def _month_day_in_window(
+    month: int,
+    day: int,
+    start_md: Tuple[int, int],
+    end_md: Tuple[int, int],
+) -> bool:
+    current = (month, day)
+    if start_md <= end_md:
+        return start_md <= current <= end_md
+    return current >= start_md or current <= end_md
+
+
+def _seasonal_spei_period_block(
+    spei_block: Optional[Dict[str, Any]],
+    fixed_season: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    if not (spei_block and fixed_season):
+        return None
+    windows = _parse_fixed_season_windows(fixed_season)
+    if not windows:
+        return None
+
+    pool: Dict[int, Dict[str, Any]] = {
+        sn: {"window": label, "season_number": sn, "values": []}
+        for sn, label, _, _ in windows
+    }
+    for row in spei_block.get("monthly_series") or []:
+        date_str = row.get("date")
+        value = row.get("spei")
+        if not (_is_num(value) and isinstance(date_str, str) and len(date_str) >= 10):
+            continue
+        try:
+            month = int(date_str[5:7])
+            day = int(date_str[8:10])
+        except ValueError:
+            continue
+        for sn, label, start_md, end_md in windows:
+            if _month_day_in_window(month, day, start_md, end_md):
+                pool[sn]["values"].append(float(value))
+                break
+
+    out_windows = []
+    for sn, label, _, _ in windows:
+        values = pool[sn]["values"]
+        if not values:
+            continue
+        out_windows.append({
+            "window": label,
+            "season_number": sn,
+            "n_months": len(values),
+            "block": {
+                "spei": {
+                    "mean_spei": round(sum(values) / len(values), 3),
+                }
+            },
+        })
+    return {"windows": out_windows} if out_windows else None
+
+
+def _merge_seasonal_spei_into_summary(
+    season_summary: Optional[Dict[str, Any]],
+    spei_summary: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not spei_summary:
+        return season_summary
+    if not season_summary:
+        season_summary = {"windows": []}
+
+    if "windows" in spei_summary:
+        existing = {
+            w.get("season_number", 1): w
+            for w in season_summary.get("windows", [])
+        }
+        for sw in spei_summary.get("windows", []):
+            sn = sw.get("season_number", 1)
+            target = existing.get(sn)
+            if target is None:
+                target = {
+                    "window": sw.get("window"),
+                    "season_number": sn,
+                    "block": {},
+                }
+                season_summary.setdefault("windows", []).append(target)
+                existing[sn] = target
+            target.setdefault("block", {}).update(sw.get("block", {}))
+            if sw.get("n_months") is not None:
+                target["spei_n_months"] = sw.get("n_months")
+        if "windows" in season_summary:
+            season_summary["windows"] = sorted(
+                season_summary["windows"],
+                key=lambda w: w.get("season_number", 1),
+            )
+        return season_summary
+
+    season_summary.setdefault("block", {}).update(spei_summary.get("block", {}))
+    return season_summary
+
+
+def _merge_seasonal_spei_into_diff(
+    season_diff: Optional[Dict[str, Any]],
+    a_spei: Optional[Dict[str, Any]],
+    b_spei: Optional[Dict[str, Any]],
+    a_lbl: str,
+    b_lbl: str,
+) -> Optional[Dict[str, Any]]:
+    if not (a_spei and b_spei):
+        return season_diff
+    if not season_diff:
+        season_diff = {"windows": []}
+
+    a_by_sn = {
+        w.get("season_number", 1): w.get("block", {})
+        for w in a_spei.get("windows", [])
+    }
+    b_by_sn = {
+        w.get("season_number", 1): w.get("block", {})
+        for w in b_spei.get("windows", [])
+    }
+    all_sns = sorted(set(a_by_sn) | set(b_by_sn))
+    if "windows" not in season_diff:
+        season_diff["windows"] = []
+    existing = {
+        w.get("season_number", 1): w
+        for w in season_diff.get("windows", [])
+    }
+    labels = {
+        w.get("season_number", 1): w.get("window")
+        for w in (a_spei.get("windows", []) + b_spei.get("windows", []))
+    }
+    for sn in all_sns:
+        diff_block = _diff_block(a_by_sn.get(sn, {}), b_by_sn.get(sn, {}), a_lbl, b_lbl)
+        if not diff_block:
+            continue
+        target = existing.get(sn)
+        if target is None:
+            target = {
+                "window": labels.get(sn, f"window_{sn}"),
+                "season_number": sn,
+                "n_baseline": 0,
+                "n_focal": 0,
+                "diff": {},
+            }
+            season_diff["windows"].append(target)
+            existing[sn] = target
+        target.setdefault("diff", {}).update(diff_block)
+    season_diff["windows"] = sorted(
+        season_diff["windows"],
+        key=lambda w: w.get("season_number", 1),
+    )
+    return season_diff
+
+
+def _diff_spei(
+    focal_spei: Optional[Dict[str, Any]],
+    baseline_spei: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not (focal_spei and baseline_spei):
+        return None
+    focal_series = focal_spei.get("monthly_series") or []
+    baseline_series = baseline_spei.get("monthly_series") or []
+    focal_cfg = focal_spei.get("config") or {}
+    baseline_cfg = baseline_spei.get("config") or {}
+
+    baseline_by_month: Dict[int, List[float]] = {}
+    for row in baseline_series:
+        month = row.get("month")
+        value = row.get("spei")
+        if isinstance(month, int) and _is_num(value):
+            baseline_by_month.setdefault(month, []).append(float(value))
+
+    windows = []
+    for row in focal_series:
+        month = row.get("month")
+        focal_value = row.get("spei")
+        if not (isinstance(month, int) and _is_num(focal_value)):
+            continue
+        base_vals = baseline_by_month.get(month) or []
+        if not base_vals:
+            continue
+        baseline_avg = sum(base_vals) / len(base_vals)
+        diff = float(focal_value) - baseline_avg
+        windows.append({
+            "date": row.get("date"),
+            "month": month,
+            "focal_spei": round(float(focal_value), 3),
+            "baseline_avg_spei": round(baseline_avg, 3),
+            "diff": round(diff, 3),
+            "pct": None,
+        })
+
+    focal_vals = [float(row["spei"]) for row in focal_series if _is_num(row.get("spei"))]
+    base_vals = [float(row["spei"]) for row in baseline_series if _is_num(row.get("spei"))]
+    summary = None
+    if focal_vals and base_vals:
+        focal_avg = sum(focal_vals) / len(focal_vals)
+        base_avg = sum(base_vals) / len(base_vals)
+        diff = focal_avg - base_avg
+        summary = {
+            "focal_avg_spei": round(focal_avg, 3),
+            "baseline_avg_spei": round(base_avg, 3),
+            "diff": round(diff, 3),
+            "pct": None,
+        }
+
+    return {
+        "config": {
+            "focal": focal_cfg,
+            "baseline": baseline_cfg,
+        },
+        "summary": summary,
+        "monthly": windows,
+    }
+
 def _annualize(stats: Dict[str, Any], n_years: int) -> Dict[str, Any]:
     """Period totals -> per-year averages. Means/maxes/mins untouched."""
     if n_years <= 0:
@@ -84,6 +428,28 @@ def _annualize(stats: Dict[str, Any], n_years: int) -> Dict[str, Any]:
         annz = ANNUALIZABLE.get(cat, [])
         out[cat] = {m: round(v / n_years, 2) if (m in annz and _is_num(v)) else v
                     for m, v in metrics.items()}
+    return out
+
+
+def _filter_overall_statistics_for_period_compare(stats: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Overall period block should carry annualizable climate normals only.
+
+    Root-zone crop water-balance diagnostics such as NDWS and WRSI stay valid in
+    seasonal/LTM blocks, but become misleading when shown in the whole-period
+    overall block because they are not annualized climate normals.
+    """
+    out: Dict[str, Any] = {}
+    for cat, metrics in (stats or {}).items():
+        if cat != "water_balance" or not isinstance(metrics, dict):
+            out[cat] = metrics
+            continue
+        filtered = {
+            metric: value
+            for metric, value in metrics.items()
+            if metric not in OVERALL_WATER_BALANCE_EXCLUDED
+        }
+        out[cat] = filtered
     return out
 
 def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -100,6 +466,9 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
     for k, vs in sums.items():
         cat, m = k.split(".", 1)
         out.setdefault(cat, {})[m] = round(sum(vs) / len(vs), 2)
+    methodology = _summarize_methodology_rows(seasons)
+    if methodology:
+        out["water_balance_methodology"] = methodology
     return out
 
 
@@ -143,6 +512,78 @@ def _auto_season_count_guard(
         "Re-run with --fixed-season for a stable comparison."
     )
 
+
+def _compare_season_detection_summary(
+    base: Dict[str, Any],
+    focal: Dict[str, Any],
+    fixed_season: Optional[str],
+) -> Dict[str, Any]:
+    baseline_status = base.get("season_detection_status")
+    focal_status = focal.get("season_detection_status")
+    baseline_reasons = base.get("season_detection_reasons") or []
+    focal_reasons = focal.get("season_detection_reasons") or []
+    baseline_guidance = base.get("season_detection_guidance") or []
+    focal_guidance = focal.get("season_detection_guidance") or []
+
+    needs_prompt = (
+        not fixed_season and
+        (baseline_status == "prompt_required" or focal_status == "prompt_required")
+    )
+    has_warning = (
+        not fixed_season and
+        (baseline_status == "warn" or focal_status == "warn")
+    )
+    combined_guidance = list(dict.fromkeys([
+        *baseline_guidance,
+        *focal_guidance,
+    ]))
+
+    return {
+        "baseline": {
+            "status": baseline_status,
+            "reasons": baseline_reasons,
+            "guidance": baseline_guidance,
+            "details": base.get("season_detection"),
+        },
+        "focal": {
+            "status": focal_status,
+            "reasons": focal_reasons,
+            "guidance": focal_guidance,
+            "details": focal.get("season_detection"),
+        },
+        "compare_status": (
+            "prompt_required" if needs_prompt
+            else "warn" if has_warning
+            else "ok"
+        ),
+        "human_review_recommended": needs_prompt or has_warning,
+        "fixed_season_recommended": needs_prompt,
+        "guidance": combined_guidance,
+    }
+
+
+def _compare_season_detection_guard(summary: Dict[str, Any]) -> Optional[str]:
+    if summary.get("compare_status") != "prompt_required":
+        return None
+    baseline = summary.get("baseline") or {}
+    focal = summary.get("focal") or {}
+    baseline_bits = []
+    focal_bits = []
+    if baseline.get("status"):
+        baseline_bits.append(f"status={baseline['status']}")
+    if baseline.get("reasons"):
+        baseline_bits.append(f"reasons={','.join(baseline['reasons'])}")
+    if focal.get("status"):
+        focal_bits.append(f"status={focal['status']}")
+    if focal.get("reasons"):
+        focal_bits.append(f"reasons={','.join(focal['reasons'])}")
+    return (
+        "Auto season detection not reliable enough for compare_periods at this location/window. "
+        f"Baseline[{'; '.join(baseline_bits) or 'n/a'}]. "
+        f"Focal[{'; '.join(focal_bits) or 'n/a'}]. "
+        "Re-run with --fixed-season for stable seasonal comparison."
+    )
+
 def _diff_block(a: Dict, b: Dict, a_lbl: str, b_lbl: str,
                 drop_temp: bool = False) -> Dict[str, Any]:
     """Diff two category-keyed blocks: {category: {metric: {a_lbl, b_lbl, diff, pct}}}"""
@@ -159,7 +600,7 @@ def _diff_block(a: Dict, b: Dict, a_lbl: str, b_lbl: str,
             if not (_is_num(av) and _is_num(bv)):
                 continue
             d = av - bv
-            p = _percent_change(d, bv)
+            p = None if cat == "spei" else _percent_change(d, bv)
             cat_out[m] = {a_lbl:    round(av, 2), b_lbl:    round(bv, 2),
                           "diff":   round(d,  2),
                           "pct":    round(p,  2) if _is_num(p) else None}
@@ -227,6 +668,15 @@ def compare(
     focal_year:     int,
     source:         str,
     fixed_season:   Optional[str] = None,
+    precip_source:  Optional[str] = None,
+    temp_source:    Optional[str] = None,
+    crop_name:      Optional[str] = None,
+    calendar_source: Optional[str] = None,
+    calendar_system: str = "rf",
+    spei_scale_months: Optional[int] = None,
+    spei_fit: str = "ub-pwm",
+    spei_ref_start: Optional[str] = None,
+    spei_ref_end: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run statistics.py for baseline + focal, diff the four sections."""
     if source.lower() not in SUPPORTED:
@@ -234,17 +684,50 @@ def compare(
                          f"Use one of: {', '.join(sorted(SUPPORTED))}"}
     if baseline_end < baseline_start:
         return {"error": "baseline_end must be >= baseline_start"}
+    if source.lower() == "paired" and (not precip_source or not temp_source):
+        return {
+            "error": (
+                "Source 'paired' requires both --precip-source and --temp-source."
+            )
+        }
+    calendar_system = str(calendar_system).lower()
+    if calendar_system not in CALENDAR_SYSTEM_CHOICES:
+        return {
+            "error": (
+                f"Invalid calendar_system '{calendar_system}'. "
+                f"Choose from {', '.join(CALENDAR_SYSTEM_CHOICES)}."
+            )
+        }
 
     n_years   = baseline_end - baseline_start + 1
-    drop_temp = source.lower() in PRECIP_ONLY
+    drop_temp = source.lower() in PRECIP_ONLY and source.lower() != "paired"
     fs_kw     = {"fixed_season": fixed_season} if fixed_season else {}
+    paired_kw = {}
+    if precip_source:
+        paired_kw["precip_source"] = precip_source
+    if temp_source:
+        paired_kw["temp_source"] = temp_source
+    calendar_kw = {
+        "crop_name": crop_name,
+        "calendar_source": calendar_source,
+        "calendar_system": calendar_system,
+    }
+    spei_kw   = (
+        {
+            "spei_scale_months": spei_scale_months,
+            "spei_fit": spei_fit,
+            "spei_ref_start": spei_ref_start,
+            "spei_ref_end": spei_ref_end,
+        }
+        if spei_scale_months is not None else {}
+    )
 
     print(f"\nFetching baseline {baseline_start}-{baseline_end} | source={source}")
     try:
         base = analyze_climate_statistics(
             location_coord=location,
             start_year=baseline_start, end_year=baseline_end,
-            source=source, **fs_kw)
+            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw)
     except Exception as exc:
         return {
             "error": (
@@ -265,7 +748,7 @@ def compare(
         focal = analyze_climate_statistics(
             location_coord=location,
             start_year=focal_year, end_year=focal_year,
-            source=source, **fs_kw)
+            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw)
     except Exception as exc:
         return {
             "error": (
@@ -281,13 +764,22 @@ def compare(
             )
         }
 
+    season_detection = _compare_season_detection_summary(
+        base,
+        focal,
+        fixed_season,
+    )
+    season_detection_error = _compare_season_detection_guard(season_detection)
+    if season_detection_error:
+        return {"error": season_detection_error, "season_detection": season_detection}
+
     if not fixed_season:
         auto_guard_error = _auto_season_count_guard(
             base.get("season_statistics", []),
             focal.get("season_statistics", []),
         )
         if auto_guard_error:
-            return {"error": auto_guard_error}
+            return {"error": auto_guard_error, "season_detection": season_detection}
 
     # 1. raw_climate_summary
     raw_diff = _diff_raw(focal.get("raw_climate_summary", []),
@@ -295,8 +787,12 @@ def compare(
                          drop_temp)
 
     # 2. overall_statistics (annualise baseline)
-    base_overall  = _annualize(_round(base.get("overall_statistics", {}), 2), n_years)
-    focal_overall = _round(focal.get("overall_statistics", {}), 2)
+    base_overall = _filter_overall_statistics_for_period_compare(
+        _annualize(_round(base.get("overall_statistics", {}), 2), n_years)
+    )
+    focal_overall = _filter_overall_statistics_for_period_compare(
+        _round(focal.get("overall_statistics", {}), 2)
+    )
     overall_diff  = _diff_block(focal_overall, base_overall,
                                 "focal_year", "baseline_avg", drop_temp)
 
@@ -326,6 +822,12 @@ def compare(
                     "season_number":  sn,
                     "n_baseline":     bb["_n"],
                     "n_focal":        fb["_n"],
+                    "water_balance_methodology": _merge_period_methodology(
+                        focal_grp.get(sn, []),
+                        base_grp.get(sn, []),
+                        "focal",
+                        "baseline_avg",
+                    ),
                     "diff":           _diff_block(fb, bb, "focal", "baseline_avg",
                                                   drop_temp),
                 })
@@ -336,24 +838,54 @@ def compare(
             season_diff = {
                 "n_baseline": bb["_n"],
                 "n_focal":    fb["_n"],
+                "water_balance_methodology": _merge_period_methodology(
+                    focal_seasons,
+                    base_seasons,
+                    "focal",
+                    "baseline_avg",
+                ),
                 "diff":       _diff_block(fb, bb, "focal_avg", "baseline_avg",
                                           drop_temp),
             }
+    season_diff = _merge_seasonal_spei_into_diff(
+        season_diff,
+        _seasonal_spei_period_block(focal.get("spei"), fixed_season),
+        _seasonal_spei_period_block(base.get("spei"), fixed_season),
+        "focal",
+        "baseline_avg",
+    )
     # 4. annual_summary
     annual_diff = _diff_annual(focal.get("annual_summary", {}),
                                base.get("annual_summary",  {}),
                                focal_year)
+    spei_diff = _diff_spei(
+        focal.get("spei"),
+        base.get("spei"),
+    )
     return {
         "focal_year":           focal_year,
         "baseline_period":      f"{baseline_start}-{baseline_end}",
         "baseline_years":       n_years,
         "source":               source,
         "fixed_season":         fixed_season,
+        "precip_source":        precip_source,
+        "temp_source":          temp_source,
+        "crop_name":            crop_name,
+        "calendar_source":      calendar_source,
+        "calendar_system":      calendar_system,
+        "baseline_calendar_preset_used": bool(base.get("calendar_preset_used")),
+        "baseline_calendar_preset": base.get("calendar_preset"),
+        "focal_calendar_preset_used": bool(focal.get("calendar_preset_used")),
+        "focal_calendar_preset": focal.get("calendar_preset"),
+        "spei_scale_months":    spei_scale_months,
+        "spei_fit":             spei_fit if spei_scale_months is not None else None,
         "temperature_excluded": drop_temp,
+        "season_detection":     season_detection,
         "raw_climate_summary":  raw_diff,
         "overall_statistics":   overall_diff,
         "season_statistics":    season_diff,
         "annual_summary":       annual_diff,
+        "spei":                 spei_diff,
     }
 
 #  printing 
@@ -372,19 +904,91 @@ def _print_block(diff: Dict[str, Any]) -> None:
             rows.append(row)
     print(pd.DataFrame(rows).to_string(index=False))
 
+
+def _print_season_detection_summary(summary: Optional[Dict[str, Any]]) -> None:
+    if not summary:
+        return
+
+    def _print_details(label: str, payload: Dict[str, Any]) -> None:
+        details = (payload or {}).get("details") or {}
+        diagnostics = details.get("diagnostics") or {}
+        counts = diagnostics.get("counts_by_year") or {}
+        if counts:
+            counts_text = ", ".join(
+                f"{year}:{count}" for year, count in sorted(counts.items())
+            )
+            print(f"    {label}_counts={counts_text}")
+        skips = diagnostics.get("skip_reasons_by_year") or {}
+        if skips:
+            print(f"    {label}_notes:")
+            for year, note in sorted(skips.items()):
+                print(f"      - {year}: {note}")
+
+    print(f"  Season detect : {summary.get('compare_status', 'n/a')}")
+    baseline = summary.get("baseline") or {}
+    focal = summary.get("focal") or {}
+    print(
+        f"    baseline={baseline.get('status', 'n/a')}"
+        + (
+            f" [{', '.join(baseline.get('reasons') or [])}]"
+            if baseline.get("reasons") else ""
+        )
+    )
+    print(
+        f"    focal={focal.get('status', 'n/a')}"
+        + (
+            f" [{', '.join(focal.get('reasons') or [])}]"
+            if focal.get("reasons") else ""
+        )
+    )
+    _print_details("baseline", baseline)
+    _print_details("focal", focal)
+    guidance = summary.get("guidance") or []
+    if guidance:
+        print("    guidance:")
+        for item in guidance:
+            print(f"      - {item}")
+
 def print_report(r: Dict[str, Any]) -> None:
     if "error" in r:
         print(f"\nError: {r['error']}")
+        _print_season_detection_summary(r.get("season_detection"))
         return
 
     print(f"\n{'=' * 60}")
     print(f"COMPARISON: focal {r['focal_year']} vs baseline {r['baseline_period']}")
     print(f"{'=' * 60}")
     print(f"  Source        : {r['source']}")
+    if r.get("source") == "paired":
+        print(f"  Paired        : precip={r.get('precip_source')} | temp={r.get('temp_source')}")
     if r.get("fixed_season"):
         print(f"  Fixed seasons : {r['fixed_season']}")
+    if r.get("crop_name"):
+        print(f"  Crop          : {r['crop_name']}")
+    if r.get("calendar_source"):
+        print(f"  Calendar req. : {r['calendar_source']} | system={r.get('calendar_system')}")
+    if r.get("baseline_calendar_preset_used") or r.get("focal_calendar_preset_used"):
+        baseline_preset = r.get("baseline_calendar_preset") or {}
+        focal_preset = r.get("focal_calendar_preset") or {}
+        if baseline_preset:
+            print(
+                "  Baseline cal. : "
+                f"{baseline_preset.get('calendar_source')} | "
+                f"crop={baseline_preset.get('crop_name')} | "
+                f"system={baseline_preset.get('calendar_system')} | "
+                f"fixed={baseline_preset.get('fixed_season')}"
+            )
+        if focal_preset:
+            print(
+                "  Focal cal.    : "
+                f"{focal_preset.get('calendar_source')} | "
+                f"crop={focal_preset.get('crop_name')} | "
+                f"system={focal_preset.get('calendar_system')} | "
+                f"fixed={focal_preset.get('fixed_season')}"
+            )
     if r.get("temperature_excluded"):
         print("  [!] precipitation-only source -- temperature excluded.")
+    _print_season_detection_summary(r.get("season_detection"))
 
     print(f"\n--- 1. RAW CLIMATE SUMMARY ---")
     raw = r.get("raw_climate_summary", {})
@@ -409,9 +1013,11 @@ def print_report(r: Dict[str, Any]) -> None:
             for w in season["windows"]:
                 print(f"\n  Window {w['window']} (season #{w['season_number']}, "
                       f"n_baseline={w['n_baseline']}, n_focal={w['n_focal']})")
+                _print_methodology_summary(w.get("water_balance_methodology"))
                 _print_block(w["diff"])
         else:
             print(f"  (n_baseline={season['n_baseline']}, n_focal={season['n_focal']})")
+            _print_methodology_summary(season.get("water_balance_methodology"))
             _print_block(season["diff"])
 
     print(f"\n--- 4. ANNUAL SUMMARY ---")
@@ -429,6 +1035,30 @@ def print_report(r: Dict[str, Any]) -> None:
               f"baseline={hs.get('baseline_humid', 'n/a')}")
         if hs.get("focal_humid_test"):
             print(f"                    test: {hs['focal_humid_test']}")
+
+    spei = r.get("spei")
+    if spei:
+        print(f"\n--- 5. SPEI (monthly/period summary, not seasonal) ---")
+        summary = spei.get("summary") or {}
+        if summary:
+            print(
+                f"  Mean SPEI       : focal={summary['focal_avg_spei']:.3f} | "
+                f"baseline_avg={summary['baseline_avg_spei']:.3f} | "
+                f"Δ={summary['diff']:+.3f}"
+            )
+        monthly = spei.get("monthly") or []
+        if monthly:
+            rows = []
+            for row in monthly:
+                rows.append({
+                    "date": row["date"],
+                    "month": row["month"],
+                    "focal_spei": f"{row['focal_spei']:.3f}",
+                    "baseline_avg_spei": f"{row['baseline_avg_spei']:.3f}",
+                    "Δ": f"{row['diff']:+.3f}",
+                    "Δ%": _fmt_pct(row.get("pct")),
+                })
+            print(pd.DataFrame(rows).to_string(index=False))
     print()
 
 # CLI 
@@ -442,6 +1072,24 @@ def main() -> None:
     p.add_argument("--focal-year",     type=int, required=True)
     p.add_argument("--source", required=True,
                    help=f"One of: {', '.join(sorted(SUPPORTED))}")
+    p.add_argument("--precip-source", default=None,
+                   help="Required with --source=paired. Example: chirps_v2, chirps_v3_daily_rnl, imerg.")
+    p.add_argument("--temp-source", default=None,
+                   help="Required with --source=paired. Example: agera5, era5, nasa_power.")
+    p.add_argument("--crop", default=None,
+                   help="Optional crop used when requesting external calendar presets such as GGCMI.")
+    p.add_argument("--calendar-source", choices=["ggcmi"], default=None,
+                   help="Optional crop-calendar preset source to use if auto season detection is not reliable.")
+    p.add_argument("--calendar-system", choices=list(CALENDAR_SYSTEM_CHOICES), default="rf",
+                   help="Crop-calendar system when --calendar-source is used.")
+    p.add_argument("--spei-scale-months", type=int, default=None,
+                   help="Optional SPEI scale in months to compare alongside other statistics.")
+    p.add_argument("--spei-fit", choices=["ub-pwm", "empirical"], default="ub-pwm",
+                   help="SPEI fitting method when --spei-scale-months is used.")
+    p.add_argument("--spei-ref-start", default=None,
+                   help="Optional SPEI reference-period start date, e.g. 1991-01-01.")
+    p.add_argument("--spei-ref-end", default=None,
+                   help="Optional SPEI reference-period end date, e.g. 2020-12-31.")
     p.add_argument("--format", choices=["pandas", "json"], default="pandas",
                    help="Output format: human-readable table view or raw JSON.")
     p.add_argument("--fixed-season", default=None,
@@ -465,6 +1113,15 @@ def main() -> None:
         focal_year=args.focal_year,
         source=args.source,
         fixed_season=args.fixed_season,
+        precip_source=args.precip_source,
+        temp_source=args.temp_source,
+        crop_name=args.crop,
+        calendar_source=args.calendar_source,
+        calendar_system=args.calendar_system,
+        spei_scale_months=args.spei_scale_months,
+        spei_fit=args.spei_fit,
+        spei_ref_start=args.spei_ref_start,
+        spei_ref_end=args.spei_ref_end,
     )
     rendered = json.dumps(result, indent=2, default=str)
     if args.format == "json":

@@ -5,8 +5,8 @@ Retrieves crop hazard indices at a specific location by:
 2. Calculating total precipitation and average temperature for the season
 3. Evaluating crop-specific hazard thresholds
 4. Analyzing dry spell patterns
-5. Deriving soil-water hazards (NDWS, NDWL0) from a running soil water balance following the Adaptation Atlas method (ERATIO < 0.5 for NDWS;
-   LOGGING > 0 for NDWL0)
+5. Deriving soil-water diagnostics from an Atlas-inspired running soil water balance
+   (ERATIO < 0.5 for NDWS; LOGGING > 0 for NDWL0; seasonal WRSI from AET:CWR)
 
 Dependencies: pandas, season_analysis.seasons module
 """
@@ -21,6 +21,14 @@ from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
 import json
 import argparse
+from climate_tookit.crop_calendar.registry import (
+    normalize_crop_name,
+    threshold_supported_crop_names,
+)
+from climate_tookit.crop_calendar.ggcmi import (
+    CALENDAR_SYSTEM_CHOICES,
+    resolve_calendar_preset,
+)
 from climate_tookit.season_analysis.season_identity import build_season_identity
 
 current_dir  = os.path.dirname(os.path.abspath(__file__)) 
@@ -56,6 +64,9 @@ try:
         detect_onset_cessation,
         fetch_and_analyze_years,
         fetch_and_analyze_years_fixed,
+        fetch_master_range_with_tail,
+        analyze_years_auto_on_prefetched_df,
+        analyze_years_fixed_on_prefetched_df,
         parse_fixed_seasons,
     )
     SEASON_ANALYSIS_AVAILABLE = True
@@ -100,7 +111,7 @@ CROP_THRESHOLDS = {
 # - FAO-56 Crop evapotranspiration guidance for Kc / rooting-depth methodology
 # - conservative agronomic defaults for these crop classes pending crop-by-crop
 #   line-level FAO/AquaCrop validation in package docs
-# Generic hazard-index thresholds from Adaptation Atlas hazard definitions wiki.
+# Atlas-inspired starter hazard-index thresholds.
 ATLAS_HAZARD_INDEX_THRESHOLDS = {
     'NDD': {
         'no_stress': (None, 15),
@@ -188,11 +199,21 @@ HAZARD_EVAL_SPECS = {
 
 HAZARD_PRINT_ORDER = ['precipitation', 'temperature', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0']
 
+FULL_WINDOW_WATER_BALANCE = "full_window"
+CROP_ACTIVE_WATER_BALANCE = "crop_active"
+WATER_BALANCE_WINDOW_CHOICES = (
+    FULL_WINDOW_WATER_BALANCE,
+    CROP_ACTIVE_WATER_BALANCE,
+)
+
 COMPARISON_METRIC_SPECS = [
     ('total_precipitation_mm', 'total_mm', 'Total Precipitation', 'mm'),
     ('mean_temperature_c', 'mean_tavg', 'TAVG', 'deg C'),
     ('min_tmin_c', 'min_tmin', 'Min Tmin', 'deg C'),
     ('max_tmax_c', 'max_tmax', 'Max Tmax', 'deg C'),
+    ('crop_water_requirement_mm', 'crop_water_requirement_mm', 'Crop Water Requirement', 'mm'),
+    ('actual_crop_et_mm', 'actual_crop_et_mm', 'Actual Crop ET', 'mm'),
+    ('WRSI', 'wrsi', 'WRSI', '%'),
     ('NTx35', 'NTx35', 'NTx35', 'days'),
     ('NTx40', 'NTx40', 'NTx40', 'days'),
     ('NDD', 'NDD', 'NDD', 'days'),
@@ -210,7 +231,7 @@ def _merge_threshold_groups(base: Dict[str, Dict[str, Tuple]], override: Dict[st
     return merged
 
 def resolve_thresholds(crop_name: str, custom_thresholds: Optional[Dict[str, Dict[str, Tuple]]] = None) -> Dict[str, Dict[str, Tuple]]:
-    thresholds = _merge_threshold_groups(CROP_THRESHOLDS[crop_name], ATLAS_HAZARD_INDEX_THRESHOLDS)
+    thresholds = _merge_threshold_groups(CROP_THRESHOLDS.get(crop_name, {}), ATLAS_HAZARD_INDEX_THRESHOLDS)
     if custom_thresholds:
         thresholds = _merge_threshold_groups(thresholds, custom_thresholds)
     return thresholds
@@ -260,6 +281,193 @@ def _season_counts_by_year(seasons: List[Dict[str, Any]]) -> Dict[int, int]:
     return counts
 
 
+def _normalize_water_balance_window_mode(mode: Optional[str]) -> str:
+    normalized = (mode or FULL_WINDOW_WATER_BALANCE).strip().lower()
+    if normalized not in WATER_BALANCE_WINDOW_CHOICES:
+        raise ValueError(
+            "water_balance_window must be one of "
+            f"{', '.join(WATER_BALANCE_WINDOW_CHOICES)}"
+        )
+    return normalized
+
+
+def _inclusive_day_count(start_date: Optional[str], end_date: Optional[str]) -> Optional[int]:
+    if not start_date or not end_date:
+        return None
+    return (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days + 1
+
+
+def _valid_eto_subseasons(eto_seasons: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    valid: List[Dict[str, Any]] = []
+    for season in eto_seasons or []:
+        onset = season.get("onset")
+        cessation = season.get("cessation")
+        if onset is None or cessation is None:
+            continue
+        valid.append(season)
+    return valid
+
+
+def _apply_water_balance_window_mode(
+    base_stats: Dict[str, Any],
+    df: pd.DataFrame,
+    season_info: Dict[str, Any],
+    soil_parameters: Dict[str, Any],
+    crop_water_balance: Dict[str, Any],
+    water_balance_window: str = FULL_WINDOW_WATER_BALANCE,
+    eto_seasons: Optional[List[Dict[str, Any]]] = None,
+    eto_detection_note: Optional[str] = None,
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    requested_mode = _normalize_water_balance_window_mode(water_balance_window)
+    full_window_days = _inclusive_day_count(
+        season_info.get("onset_date"),
+        season_info.get("cessation_date"),
+    )
+    metadata = {
+        "requested_window_mode": requested_mode,
+        "applied_window_mode": FULL_WINDOW_WATER_BALANCE,
+        "counted_days": full_window_days,
+        "counted_subseasons": 0,
+        "fallback_reason": None,
+        "warnings": [],
+    }
+    if "NDWS" not in base_stats and "NDWL0" not in base_stats:
+        metadata["applied_window_mode"] = "unavailable"
+        metadata["counted_days"] = None
+        metadata["warnings"].append(
+            "NDWS/NDWL0 unavailable because precipitation or ET0 inputs were missing."
+        )
+        return base_stats, metadata
+    if season_info.get("method") != "fixed_season" or requested_mode == FULL_WINDOW_WATER_BALANCE:
+        return base_stats, metadata
+
+    valid_subseasons = _valid_eto_subseasons(eto_seasons)
+    if not valid_subseasons:
+        metadata["fallback_reason"] = (
+            eto_detection_note or "No closed ETO sub-season detected within fixed window."
+        )
+        metadata["warnings"].append(
+            "Requested crop-active NDWS window, but "
+            f"{metadata['fallback_reason']} "
+            "Falling back to full fixed window."
+        )
+        return base_stats, metadata
+
+    ndws_total = 0
+    ndwl0_total = 0
+    counted_days = 0
+    for sub_season in valid_subseasons:
+        sub_stats = calculate_season_statistics(
+            df,
+            soilcp=soil_parameters["soilcp"],
+            soilsat=soil_parameters["soilsat"],
+            kc=float(crop_water_balance.get("kc_mid", 1.0)),
+            kc_init=float(crop_water_balance.get("kc_init", crop_water_balance.get("kc_mid", 1.0))),
+            kc_mid=float(crop_water_balance.get("kc_mid", 1.0)),
+            kc_end=float(crop_water_balance.get("kc_end", crop_water_balance.get("kc_mid", 1.0))),
+            depletion_fraction_p=float(
+                crop_water_balance.get("depletion_fraction_p", DEFAULT_DEPLETION_FRACTION_P)
+            ),
+            analysis_start=pd.to_datetime(sub_season["onset"]).strftime("%Y-%m-%d"),
+            analysis_end=pd.to_datetime(sub_season["cessation"]).strftime("%Y-%m-%d"),
+        )
+        ndws_total += int(sub_stats.get("NDWS", 0))
+        ndwl0_total += int(sub_stats.get("NDWL0", 0))
+        counted_days += int(
+            _inclusive_day_count(
+                pd.to_datetime(sub_season["onset"]).strftime("%Y-%m-%d"),
+                pd.to_datetime(sub_season["cessation"]).strftime("%Y-%m-%d"),
+            )
+            or 0
+        )
+
+    adjusted = dict(base_stats)
+    adjusted["NDWS"] = ndws_total
+    adjusted["NDWL0"] = ndwl0_total
+    metadata["applied_window_mode"] = CROP_ACTIVE_WATER_BALANCE
+    metadata["counted_days"] = counted_days
+    metadata["counted_subseasons"] = len(valid_subseasons)
+    return adjusted, metadata
+
+
+def build_water_balance_methodology(
+    season_info: Dict[str, Any],
+    soil_parameters: Dict[str, Any],
+    crop_water_balance: Dict[str, Any],
+    count_window: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    count_window = count_window or {
+        "requested_window_mode": FULL_WINDOW_WATER_BALANCE,
+        "applied_window_mode": FULL_WINDOW_WATER_BALANCE,
+        "counted_days": _inclusive_day_count(
+            season_info.get("onset_date"),
+            season_info.get("cessation_date"),
+        ),
+        "counted_subseasons": 0,
+        "fallback_reason": None,
+        "warnings": [],
+    }
+    notes = [
+        "NDWS counts days where ERATIO < 0.5 after running the crop root-zone water balance.",
+        "NDWL0 counts days where LOGGING > 0 after the same balance.",
+        "WRSI is calculated as seasonal actual crop ET divided by seasonal crop water requirement, expressed as a percentage.",
+        "These are crop-water-balance diagnostics, not a simple daily precipitation minus ET0 threshold.",
+        "ET0 is derived with the season_analysis Hargreaves implementation when not already present.",
+        "Hazard day-count bands are Atlas-inspired starter thresholds, not peer-reviewed validation targets.",
+    ]
+    if season_info.get("method") == "fixed_season":
+        if count_window.get("applied_window_mode") == CROP_ACTIVE_WATER_BALANCE:
+            notes.append(
+                "Fixed-season mode counted NDWS and NDWL0 only within detected ETO sub-seasons inside the user-defined window."
+            )
+        else:
+            notes.append(
+                "Fixed-season mode counts NDWS and NDWL0 only inside the user-defined window. "
+                "Broad or misaligned windows can inflate counts by including shoulder months."
+            )
+
+    warnings_list = [
+        crop_water_balance.get("warning"),
+        soil_parameters.get("warning"),
+        soil_parameters.get("root_depth_warning"),
+        count_window.get("fallback_reason"),
+        *(count_window.get("warnings") or []),
+    ]
+    return {
+        "ndws_definition": "Days with ERATIO < 0.5",
+        "ndwl0_definition": "Days with LOGGING > 0",
+        "wrsi_definition": "100 * seasonal actual crop ET / seasonal crop water requirement",
+        "et0_method": "Hargreaves reference ET0",
+        "analysis_method": season_info.get("method", "unknown"),
+        "analysis_window": {
+            "onset_date": season_info.get("onset_date"),
+            "cessation_date": season_info.get("cessation_date"),
+            "spinup_days": season_info.get("spinup_days"),
+        },
+        "soil_parameters": {
+            "soilcp_mm": soil_parameters.get("soilcp"),
+            "soilsat_mm": soil_parameters.get("soilsat"),
+            "root_depth_m": soil_parameters.get("root_depth_m"),
+        },
+        "count_window": {
+            "requested_mode": count_window.get("requested_window_mode"),
+            "applied_mode": count_window.get("applied_window_mode"),
+            "counted_days": count_window.get("counted_days"),
+            "counted_subseasons": count_window.get("counted_subseasons"),
+        },
+        "crop_parameters": {
+            "kc_init": crop_water_balance.get("kc_init"),
+            "kc_mid": crop_water_balance.get("kc_mid"),
+            "kc_end": crop_water_balance.get("kc_end"),
+            "depletion_fraction_p": crop_water_balance.get("depletion_fraction_p"),
+            "source_doc": crop_water_balance.get("source_doc"),
+        },
+        "threshold_source": "Atlas-inspired provisional day-count bands",
+        "notes": notes,
+        "warnings": [item for item in warnings_list if item],
+    }
+
+
 def _auto_ltm_guard_message(assessments: List[Dict[str, Any]]) -> Optional[str]:
     counts: Dict[int, int] = {}
     for assessment in assessments:
@@ -279,6 +487,167 @@ def _auto_ltm_guard_message(assessments: List[Dict[str, Any]]) -> Optional[str]:
         f"Counts by year: {summary}. "
         "Use --fixed-season for a stable multi-year hazards baseline."
     )
+
+
+def _hazard_season_detection_summary(
+    *,
+    status: str,
+    reasons: List[str],
+    guidance: Optional[List[str]] = None,
+    details: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    guidance = guidance or []
+    details = details or {}
+    return {
+        "status": status,
+        "reasons": list(dict.fromkeys(reasons)),
+        "human_review_recommended": status in {"warn", "prompt_required"},
+        "calendar_override_recommended": status == "prompt_required",
+        "guidance": list(dict.fromkeys(guidance)),
+        "details": details,
+    }
+
+
+def _build_hazard_season_detection_from_assessments(
+    assessments: List[Dict[str, Any]],
+    *,
+    warning: Optional[str] = None,
+) -> Dict[str, Any]:
+    methods = {
+        (assessment.get("season_info") or {}).get("method")
+        for assessment in assessments or []
+        if (assessment.get("season_info") or {}).get("method")
+    }
+    counts_by_year: Dict[str, int] = {}
+    for assessment in assessments or []:
+        info = assessment.get("season_info") or {}
+        year = info.get("year")
+        if isinstance(year, int):
+            key = str(year)
+            counts_by_year[key] = counts_by_year.get(key, 0) + 1
+    calendar_preset = next(
+        (
+            (assessment.get("season_info") or {}).get("calendar_preset")
+            for assessment in assessments or []
+            if (assessment.get("season_info") or {}).get("calendar_preset_fallback")
+        ),
+        None,
+    )
+
+    if warning:
+        return _hazard_season_detection_summary(
+            status="prompt_required",
+            reasons=["unstable_season_counts"],
+            guidance=[
+                "Auto season detection is not stable enough for a comparable hazards baseline. Use --fixed-season."
+            ],
+            details={
+                "methods": sorted(method for method in methods if method),
+                "counts_by_year": counts_by_year,
+                "warning": warning,
+            },
+        )
+
+    if calendar_preset:
+        return _hazard_season_detection_summary(
+            status="ok",
+            reasons=["calendar_preset_fallback_applied", "fixed_season_override"],
+            guidance=[],
+            details={
+                "methods": sorted(method for method in methods if method),
+                "counts_by_year": counts_by_year,
+                "calendar_preset": calendar_preset,
+            },
+        )
+    if "fixed_season" in methods:
+        return _hazard_season_detection_summary(
+            status="ok",
+            reasons=["fixed_season_override"],
+            guidance=[],
+            details={"methods": sorted(method for method in methods if method)},
+        )
+    if "user_provided" in methods:
+        return _hazard_season_detection_summary(
+            status="ok",
+            reasons=["user_provided_dates"],
+            guidance=[],
+            details={"methods": sorted(method for method in methods if method)},
+        )
+    return _hazard_season_detection_summary(
+        status="ok",
+        reasons=[],
+        guidance=[],
+        details={
+            "methods": sorted(method for method in methods if method),
+            "counts_by_year": counts_by_year,
+        },
+    )
+
+
+def _build_hazard_season_detection_error(
+    *,
+    reason: str,
+    message: str,
+    details: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    guidance_map = {
+        "season_detection_failed": [
+            "Review source data and detection prerequisites, then retry. If seasonal interpretation is still needed, use --fixed-season or retry with --calendar-source ggcmi."
+        ],
+        "no_seasons_detected_all_years": [
+            "Auto season detection did not find usable seasons. Provide --season-start/--season-end, use --fixed-season, or retry with --calendar-source ggcmi."
+        ],
+    }
+    return _hazard_season_detection_summary(
+        status="prompt_required",
+        reasons=[reason],
+        guidance=guidance_map.get(reason, []),
+        details={"message": message, **(details or {})},
+    )
+
+
+def _print_hazard_season_detection_summary(summary: Optional[Dict[str, Any]]) -> None:
+    if not summary:
+        return
+    status = summary.get("status")
+    reasons = summary.get("reasons") or []
+    guidance = summary.get("guidance") or []
+    if not status or (status == "ok" and not reasons and not guidance):
+        return
+    print(f"  Season detect : {status}")
+    if reasons:
+        print(f"    reasons: {', '.join(reasons)}")
+    preset = (summary.get("details") or {}).get("calendar_preset")
+    if preset:
+        print(
+            "    calendar: "
+            f"{preset.get('calendar_source')} | "
+            f"crop={preset.get('crop_name')} | "
+            f"system={preset.get('calendar_system')} | "
+            f"fixed={preset.get('fixed_season')}"
+        )
+    if guidance:
+        print("    guidance:")
+        for item in guidance:
+            print(f"      - {item}")
+
+
+def _resolve_calendar_preset_request(
+    *,
+    lat: float,
+    lon: float,
+    crop_name: Optional[str],
+    calendar_source: Optional[str],
+    calendar_system: str,
+) -> Optional[Dict[str, Any]]:
+    if not crop_name or not calendar_source:
+        return None
+    source = str(calendar_source).lower()
+    if source != "ggcmi":
+        raise ValueError(
+            f"Unsupported calendar source: {calendar_source}. Available: ggcmi"
+        )
+    return resolve_calendar_preset(lat, lon, crop_name, system=calendar_system)
 
 
 def _validate_source_window(source: str, end_year: int) -> None:
@@ -843,7 +1212,8 @@ def calc_water_balance(
     frame with per-day columns including ERATIO (stress coefficient / AET:PET
     ratio relative to crop demand), LOGGING, RUNOFF, Kc, and available soil
     water. PET is taken from `ET0_mm_day`; actual crop demand is
-    ERATIO * Kc * PET.
+    ERATIO * Kc * PET. Also returns seasonal-accounting helpers for WRSI:
+    CROP_WATER_REQUIREMENT_MM and ACTUAL_CROP_ET_MM.
     """
     precip_col = next(
         (c for c in ['precipitation', 'precip', 'total_precipitation'] if c in df.columns),
@@ -884,6 +1254,7 @@ def calc_water_balance(
     depletion_fraction_p = min(max(float(depletion_fraction_p), 0.05), 0.95)
 
     eratios, loggings, runoffs, availabilities, depletions = [], [], [], [], []
+    crop_water_requirements, actual_crop_ets = [], []
     avail = min(max(float(init_avail), 0.0), float(soilcp))
     raw_mm = float(soilcp) * depletion_fraction_p
     critical_band = max((1.0 - depletion_fraction_p) * float(soilcp), 1e-6)
@@ -895,7 +1266,8 @@ def calc_water_balance(
         else:
             eratio = max(avail / critical_band, 0.0)
         eratio = min(eratio, 1.0)
-        demand = eratio * float(kc_day) * float(e)
+        crop_water_requirement = float(kc_day) * float(e)
+        demand = eratio * crop_water_requirement
 
         result  = avail + float(r) - demand
         logging = min(max(result - soilcp, 0.0), soilsat)
@@ -907,15 +1279,65 @@ def calc_water_balance(
         runoffs.append(runoff)
         availabilities.append(avail)
         depletions.append(max(float(soilcp) - avail, 0.0))
+        crop_water_requirements.append(crop_water_requirement)
+        actual_crop_ets.append(demand)
 
     out['ERATIO']  = eratios
     out['LOGGING'] = loggings
     out['RUNOFF']  = runoffs
     out['Kc'] = kc_series
+    out['CROP_WATER_REQUIREMENT_MM'] = crop_water_requirements
+    out['ACTUAL_CROP_ET_MM'] = actual_crop_ets
     out['RAW_MM'] = raw_mm
     out['AVAILABLE_SOIL_WATER_MM'] = availabilities
     out['DEPLETION_MM'] = depletions
     return out
+
+
+def summarize_water_balance(
+    wb: pd.DataFrame,
+    *,
+    wrsi_floor: float = 0.0,
+    wrsi_ceiling: float = 100.0,
+) -> Dict[str, Any]:
+    if wb is None or wb.empty:
+        return {}
+
+    summary: Dict[str, Any] = {}
+    if 'ERATIO' in wb.columns:
+        eratio = wb['ERATIO'].dropna()
+        if not eratio.empty:
+            summary['NDWS'] = int((eratio < 0.5).sum())
+            summary['mean_eratio'] = float(eratio.mean())
+    if 'LOGGING' in wb.columns:
+        logging = wb['LOGGING'].dropna()
+        if not logging.empty:
+            summary['NDWL0'] = int((logging > 0).sum())
+            summary['mean_logging_mm'] = float(logging.mean())
+
+    crop_water_requirement = None
+    if 'CROP_WATER_REQUIREMENT_MM' in wb.columns:
+        crop_water_requirement = float(wb['CROP_WATER_REQUIREMENT_MM'].fillna(0).sum())
+        summary['crop_water_requirement_mm'] = crop_water_requirement
+    actual_crop_et = None
+    if 'ACTUAL_CROP_ET_MM' in wb.columns:
+        actual_crop_et = float(wb['ACTUAL_CROP_ET_MM'].fillna(0).sum())
+        summary['actual_crop_et_mm'] = actual_crop_et
+
+    if (
+        crop_water_requirement is not None
+        and actual_crop_et is not None
+        and crop_water_requirement > 0
+    ):
+        wrsi = 100.0 * actual_crop_et / crop_water_requirement
+        summary['WRSI'] = round(min(max(wrsi, wrsi_floor), wrsi_ceiling), 2)
+
+    if 'AVAILABLE_SOIL_WATER_MM' in wb.columns and not wb['AVAILABLE_SOIL_WATER_MM'].empty:
+        summary['ending_soil_water_mm'] = float(wb['AVAILABLE_SOIL_WATER_MM'].iloc[-1])
+    if 'RUNOFF' in wb.columns:
+        summary['runoff_mm'] = float(wb['RUNOFF'].fillna(0).sum())
+
+    return summary
 
 # Season statistics
 def calculate_season_statistics(
@@ -992,9 +1414,10 @@ def calculate_season_statistics(
         stats['NTx35']              = int((tmax >= 35).sum())
         stats['NTx40']              = int((tmax >= 40).sum())
 
-    # Soil-water hazard counts derived from a running soil water balance (Adaptation Atlas method), NOT a naive daily precip - ET0 comparison.
+    # Soil-water diagnostics derived from shared running root-zone water balance.
     #   NDWS  = days the crop cannot meet half its evaporative demand (ERATIO < 0.5)
     #   NDWL0 = days soil water exceeds field capacity (LOGGING > 0)
+    #   WRSI  = seasonal actual crop ET / crop water requirement * 100
     if p is not None and 'ET0_mm_day' in working.columns:
         wb = calc_water_balance(
             working,
@@ -1011,10 +1434,7 @@ def calculate_season_statistics(
         )
         if analysis_mask is not None:
             wb = wb.loc[analysis_mask]
-        eratio  = wb['ERATIO']
-        logging = wb['LOGGING']
-        stats['NDWS']  = int((eratio < 0.5).sum())
-        stats['NDWL0'] = int((logging > 0).sum())
+        stats.update(summarize_water_balance(wb))
     return stats
 
 def evaluate_threshold(value: float, thresholds: Dict[str, Tuple]) -> str:
@@ -1051,6 +1471,7 @@ _LTM_SCALAR_KEYS = (
     'rainy_days', 'dry_days', 'NDD',
     'mean_temperature_c', 'mean_tmax_c', 'mean_tmin_c',
     'max_temperature_c', 'min_temperature_c', 'max_tmax_c', 'min_tmin_c',
+    'crop_water_requirement_mm', 'actual_crop_et_mm', 'ending_soil_water_mm', 'WRSI',
     'NTx35', 'NTx40', 'NDWS', 'NDWL0',
 )
 
@@ -1124,6 +1545,7 @@ def compute_ltm_baseline(
             'n_seasons_averaged':     len(bucket),
             'years_covered':          years,
             'mean_length_days':       round(sum(lengths) / len(lengths), 1) if lengths else None,
+            'water_balance_methodology': bucket[0].get('water_balance_methodology'),
             'season_statistics':      agg,
             'hazard_evaluation':      hazard_eval,
         })
@@ -1132,6 +1554,7 @@ def compute_ltm_baseline(
         'crop':            crop_name,
         'n_total_seasons': len(assessments),
         'baseline_method': 'long_term_mean',
+        'water_balance_methodology': assessments[0].get('water_balance_methodology') if assessments else None,
         'per_season':      ltm_blocks,
     }
 
@@ -1208,14 +1631,33 @@ def calculate_hazards(
     soilcp:            float          = DEFAULT_SOILCP,
     soilsat:           float          = DEFAULT_SOILSAT,
     spinup_days:       int            = DEFAULT_SPINUP_DAYS,
+    water_balance_window: str         = FULL_WINDOW_WATER_BALANCE,
+    calendar_source:   Optional[str]  = None,
+    calendar_system:   str            = "rf",
 ) -> Dict[str, Any]:
 
     lat, lon = location_coord
-    crop_normalized = crop_name.capitalize()
-    if crop_normalized not in CROP_THRESHOLDS and not custom_thresholds:
+    calendar_system = str(calendar_system).lower()
+    if calendar_system not in CALENDAR_SYSTEM_CHOICES:
         return {
-            'error':           f'Unknown crop: {crop_name}. Available: {", ".join(CROP_THRESHOLDS.keys())}',
-            'available_crops': list(CROP_THRESHOLDS.keys()),
+            "error": (
+                f"Invalid calendar_system '{calendar_system}'. "
+                f"Choose from {', '.join(CALENDAR_SYSTEM_CHOICES)}."
+            )
+        }
+    try:
+        water_balance_window = _normalize_water_balance_window_mode(water_balance_window)
+    except ValueError as exc:
+        return {"error": str(exc)}
+    try:
+        crop_normalized = normalize_crop_name(
+            crop_name,
+            require_hazard_thresholds=not custom_thresholds,
+        )
+    except ValueError as exc:
+        return {
+            'error': str(exc),
+            'available_crops': threshold_supported_crop_names(),
         }
     thresholds = resolve_thresholds(crop_normalized, custom_thresholds)
     crop_water_balance = resolve_crop_water_balance_params(crop_normalized)
@@ -1224,6 +1666,18 @@ def calculate_hazards(
         _validate_source_window(source, requested_end_year)
     except ValueError as exc:
         return {'error': str(exc)}
+    try:
+        requested_calendar_preset = _resolve_calendar_preset_request(
+            lat=lat,
+            lon=lon,
+            crop_name=crop_normalized,
+            calendar_source=calendar_source,
+            calendar_system=calendar_system,
+        )
+    except ValueError as exc:
+        return {"error": str(exc)}
+    calendar_preset_used = False
+    applied_calendar_preset: Optional[Dict[str, Any]] = None
     soil_parameters = _resolve_soil_storage_params(
         lat,
         lon,
@@ -1313,6 +1767,8 @@ def calculate_hazards(
                         source=source,
                     )
                 all_results.append({'season_info': season_info, 'df': df})
+                all_results[-1]["eto_seasons"] = s.get("eto_seasons") or []
+                all_results[-1]["eto_detection_note"] = s.get("eto_detection_note")
         if not all_results:
             return {'error': 'No seasons produced by fixed-season mode for the given date range.'}
 
@@ -1326,24 +1782,72 @@ def calculate_hazards(
             print(f"Climate data source: {detection_source}")
         start_year = datetime.fromisoformat(date_from).year
         end_year   = datetime.fromisoformat(date_to).year
-        seasons_dict, annual_dict = fetch_and_analyze_years(
-            lat, lon, start_year=start_year, end_year=end_year, source=detection_source
-        )
+        auto_master_df = None
+        if requested_calendar_preset:
+            auto_master_df = fetch_master_range_with_tail(
+                lat,
+                lon,
+                start_year,
+                end_year,
+                source=detection_source,
+            )
+            seasons_dict, annual_dict = analyze_years_auto_on_prefetched_df(
+                auto_master_df,
+                lat,
+                start_year,
+                end_year,
+            )
+        else:
+            seasons_dict, annual_dict = fetch_and_analyze_years(
+                lat, lon, start_year=start_year, end_year=end_year, source=detection_source
+            )
         if not any(seasons_dict.values()):
             detection_errors = _extract_detection_errors(annual_dict)
             if detection_errors:
+                season_detection = _build_hazard_season_detection_error(
+                    reason="season_detection_failed",
+                    message=detection_errors[0],
+                    details={"source": detection_source},
+                )
                 return {
                     'error': (
                         'Growing-season detection failed before season identification: '
                         f'{detection_errors[0]}'
-                    )
+                    ),
+                    'season_detection': season_detection,
                 }
-            return {
-                'error': (
-                    'No growing season detected. '
-                    'Provide --season-start/--season-end or --fixed-season.'
+            if requested_calendar_preset and auto_master_df is not None:
+                print(
+                    "  Auto season detection not reliable enough. "
+                    f"Applying {requested_calendar_preset['calendar_source']} preset "
+                    f"for crop={requested_calendar_preset['crop_name']} "
+                    f"system={requested_calendar_preset['calendar_system']} "
+                    f"-> {requested_calendar_preset['fixed_season']}"
                 )
-            }
+                fixed_defs = parse_fixed_seasons(requested_calendar_preset["fixed_season"])
+                seasons_dict, annual_dict = analyze_years_fixed_on_prefetched_df(
+                    auto_master_df,
+                    fixed_defs,
+                    start_year,
+                    end_year,
+                )
+                calendar_preset_used = True
+                applied_calendar_preset = dict(requested_calendar_preset)
+                applied_calendar_preset["fallback_from_auto_status"] = "prompt_required"
+            else:
+                season_detection = _build_hazard_season_detection_error(
+                    reason="no_seasons_detected_all_years",
+                    message="No growing season detected.",
+                    details={"source": detection_source},
+                )
+                return {
+                    'error': (
+                        'No growing season detected. '
+                        'Provide --season-start/--season-end, use --fixed-season, '
+                        'or retry with --calendar-source ggcmi.'
+                    ),
+                    'season_detection': season_detection,
+                }
         all_results = []
         for year, seasons in sorted(seasons_dict.items()):
             num_seasons_per_year = len(seasons)
@@ -1368,14 +1872,33 @@ def calculate_hazards(
                     'total_seasons_per_year': num_seasons_per_year,
                     'source':                 detection_source,
                 })
-                df = get_climate_data_for_season(
-                    lat,
-                    lon,
-                    fetch_start,
-                    s_end,
-                    source=detection_source,
-                )
+                if calendar_preset_used:
+                    season_info['method'] = 'fixed_season'
+                    season_info['calendar_preset_fallback'] = True
+                    season_info['calendar_preset'] = applied_calendar_preset
+                    df = _slice_prefetched_window(s.get('source_df'), fetch_start, s_end)
+                    if df is None:
+                        df = _slice_prefetched_window(s.get('window_df'), fetch_start, s_end)
+                    if df is None:
+                        df = get_climate_data_for_season(
+                            lat,
+                            lon,
+                            fetch_start,
+                            s_end,
+                            source=detection_source,
+                        )
+                else:
+                    df = get_climate_data_for_season(
+                        lat,
+                        lon,
+                        fetch_start,
+                        s_end,
+                        source=detection_source,
+                    )
                 all_results.append({'season_info': season_info, 'df': df})
+                if calendar_preset_used:
+                    all_results[-1]["eto_seasons"] = s.get("eto_seasons") or []
+                    all_results[-1]["eto_detection_note"] = s.get("eto_detection_note")
     else:
         return {
             'error': (
@@ -1399,26 +1922,60 @@ def calculate_hazards(
             analysis_start=entry['season_info'].get('onset_date'),
             analysis_end=entry['season_info'].get('cessation_date'),
         )
+        stats, count_window = _apply_water_balance_window_mode(
+            stats,
+            entry["df"],
+            entry["season_info"],
+            soil_parameters,
+            crop_water_balance,
+            water_balance_window=water_balance_window,
+            eto_seasons=entry.get("eto_seasons"),
+            eto_detection_note=entry.get("eto_detection_note"),
+        )
         hazard_eval = evaluate_hazard_metrics(stats, thresholds)
+        methodology = build_water_balance_methodology(
+            entry['season_info'],
+            soil_parameters,
+            crop_water_balance,
+            count_window=count_window,
+        )
         assessments.append({
             'crop':              crop_name,
             'location':          {'latitude': lat, 'longitude': lon},
             'season_info':       entry['season_info'],
             'soil_parameters':   soil_parameters,
             'water_balance_parameters': crop_water_balance,
+            'water_balance_methodology': methodology,
             'season_statistics': stats,
             'hazard_evaluation': hazard_eval,
         })
     # Single season -> flat dict; multiple -> wrapped list with Baseline LTM
     if len(assessments) == 1:
-        return assessments[0]
+        out = assessments[0]
+        out['season_detection'] = _build_hazard_season_detection_from_assessments(assessments)
+        out['calendar_source'] = calendar_source
+        out['calendar_system'] = calendar_system
+        out['calendar_preset_requested'] = requested_calendar_preset
+        out['calendar_preset_used'] = calendar_preset_used
+        out['calendar_preset'] = applied_calendar_preset
+        return out
     auto_ltm_guard = _auto_ltm_guard_message(assessments)
     if auto_ltm_guard:
         return {
             'assessments': assessments,
             'soil_parameters': soil_parameters,
             'water_balance_parameters': crop_water_balance,
+            'water_balance_methodology': assessments[0].get('water_balance_methodology'),
             'warning': auto_ltm_guard,
+            'season_detection': _build_hazard_season_detection_from_assessments(
+                assessments,
+                warning=auto_ltm_guard,
+            ),
+            'calendar_source': calendar_source,
+            'calendar_system': calendar_system,
+            'calendar_preset_requested': requested_calendar_preset,
+            'calendar_preset_used': calendar_preset_used,
+            'calendar_preset': applied_calendar_preset,
             'baseline_ltm': None,
             'baseline_ltm_comparisons': [],
         }
@@ -1427,6 +1984,13 @@ def calculate_hazards(
         'assessments': assessments,
         'soil_parameters': soil_parameters,
         'water_balance_parameters': crop_water_balance,
+        'water_balance_methodology': assessments[0].get('water_balance_methodology'),
+        'season_detection': _build_hazard_season_detection_from_assessments(assessments),
+        'calendar_source': calendar_source,
+        'calendar_system': calendar_system,
+        'calendar_preset_requested': requested_calendar_preset,
+        'calendar_preset_used': calendar_preset_used,
+        'calendar_preset': applied_calendar_preset,
         'baseline_ltm': baseline_ltm,
         'baseline_ltm_comparisons': build_actual_vs_ltm_comparisons(assessments, baseline_ltm),
     }
@@ -1489,10 +2053,16 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
             print(f"  {'Min Tmin':<32} {s.get('min_tmin_c', s.get('min_temperature_c', 0)):>15.2f}  deg C")
 
         # New hazard counts
-        has_counts = any(k in s for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0'))
+        has_counts = any(k in s for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
         if has_counts:
             print(f"\n  Hazard Indices (LTM means)")
             print(f"  {'─'*66}")
+            if 'WRSI' in s:
+                print(f"  {'WRSI (seasonal satisfaction)':<32} {s['WRSI']:>15.2f}  %")
+            if 'crop_water_requirement_mm' in s:
+                print(f"  {'Crop Water Requirement':<32} {s['crop_water_requirement_mm']:>15.2f}  mm")
+            if 'actual_crop_et_mm' in s:
+                print(f"  {'Actual Crop ET':<32} {s['actual_crop_et_mm']:>15.2f}  mm")
             if 'NTx35' in s:
                 print(f"  {'NTx35 (days Tmax > 35C)':<32} {s['NTx35']:>15.2f}  days")
             if 'NTx40' in s:
@@ -1501,6 +2071,12 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
                 print(f"  {'NDWS (water-stress days)':<32} {s['NDWS']:>15.2f}  days")
             if 'NDWL0' in s:
                 print(f"  {'NDWL0 (water-logging days)':<32} {s['NDWL0']:>15.2f}  days")
+            if 'NDWS' in s or 'NDWL0' in s:
+                print("  Note: NDWS/NDWL0 come from the crop water-balance model, not a raw precip-minus-ET0 count.")
+                methodology = blk.get('water_balance_methodology') or ltm.get('water_balance_methodology') or {}
+                count_window = methodology.get("count_window") or {}
+                if count_window.get("applied_mode") == CROP_ACTIVE_WATER_BALANCE:
+                    print("  Count window: crop-active ETO sub-season(s) inside fixed window.")
 
         h = blk.get('hazard_evaluation', {})
         if h:
@@ -1571,6 +2147,7 @@ def _print_actual_vs_ltm_comparisons(comparisons: List[Dict[str, Any]]) -> None:
 def print_hazard_results(result: Dict[str, Any]) -> None:
     # Multi-season wrapper, label each block as "Year YYYY – Season X of Y" when available
     if 'assessments' in result:
+        _print_hazard_season_detection_summary(result.get('season_detection'))
         total = len(result['assessments'])
         for i, a in enumerate(result['assessments'], 1):
             print(f"\n{'─'*70}")
@@ -1594,6 +2171,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
 
     if 'error' in result:
         print(f"\nError: {result['error']}")
+        _print_hazard_season_detection_summary(result.get('season_detection'))
         if 'available_crops' in result:
             print(f"Available crops: {', '.join(result['available_crops'])}")
         return
@@ -1602,6 +2180,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
     print(f"  CROP HAZARD ASSESSMENT: {result['crop'].upper()}")
     print(f"{'='*70}")
     print(f"  Location: {result['location']['latitude']:.4f}, {result['location']['longitude']:.4f}")
+    _print_hazard_season_detection_summary(result.get('season_detection'))
 
     season = result['season_info']
     print(f"\n  Season Information")
@@ -1662,12 +2241,18 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
         print(f"  {'Min Tmin (Minimum Recorded)':<32} {stats['min_temperature_c']:>15.2f}  deg C")
 
     # Hazard index counts (NTx35, NTx40, NDD, NDWS, NDWL0)
-    has_counts = any(k in stats for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0'))
+    has_counts = any(k in stats for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
     if has_counts:
         print(f"\n  Hazard Index Counts")
         print(f"  {'─'*66}")
         print(f"  {'Index':<32} {'Value':>15}  Unit")
         print(f"  {'─'*32} {'─'*15}  {'─'*10}")
+        if 'WRSI' in stats:
+            print(f"  {'WRSI (seasonal satisfaction)':<32} {stats['WRSI']:>15}  %")
+        if 'crop_water_requirement_mm' in stats:
+            print(f"  {'Crop Water Requirement':<32} {stats['crop_water_requirement_mm']:>15.2f}  mm")
+        if 'actual_crop_et_mm' in stats:
+            print(f"  {'Actual Crop ET':<32} {stats['actual_crop_et_mm']:>15.2f}  mm")
         if 'NTx35' in stats:
             print(f"  {'NTx35 (days Tmax > 35C)':<32} {stats['NTx35']:>15}  days")
         if 'NTx40' in stats:
@@ -1678,6 +2263,14 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
             print(f"  {'NDWS (water-stress days)':<32} {stats['NDWS']:>15}  days")
         if 'NDWL0' in stats:
             print(f"  {'NDWL0 (water-logging days)':<32} {stats['NDWL0']:>15}  days")
+        if 'NDWS' in stats or 'NDWL0' in stats:
+            print("  Note: NDWS/NDWL0 come from the crop water-balance model, not a raw precip-minus-ET0 count.")
+            methodology = result.get("water_balance_methodology") or {}
+            count_window = methodology.get("count_window") or {}
+            if count_window.get("applied_mode") == CROP_ACTIVE_WATER_BALANCE:
+                print("  Count window: crop-active ETO sub-season(s) inside fixed window.")
+            elif season.get('method') == 'fixed_season':
+                print("  Caution: fixed-season windows can bias counts if they include non-growing shoulder months.")
 
     hazards = result['hazard_evaluation']
     print(f"\n  Hazard Assessment")
@@ -1712,7 +2305,7 @@ def main() -> None:
     )
     parser.add_argument(
         'crop', type=str,
-        help='Crop name: Maize | Beans | Rice | Sorghum | Millet | Groundnuts | Cassava',
+        help=f"Crop name with hazard thresholds. Available: {' | '.join(threshold_supported_crop_names())}",
     )
     parser.add_argument('--location',  type=str, required=True,
                         help='Coordinates as "lat,lon"  e.g. "-1.286,36.817"')
@@ -1760,6 +2353,18 @@ def main() -> None:
             "      setting instead of forcing chirps_v2+chirts."
         ),
     )
+    parser.add_argument(
+        '--calendar-source',
+        choices=['ggcmi'],
+        default=None,
+        help='Optional crop-calendar preset source to use if auto season detection is not reliable.',
+    )
+    parser.add_argument(
+        '--calendar-system',
+        choices=list(CALENDAR_SYSTEM_CHOICES),
+        default='rf',
+        help='Crop-calendar system when --calendar-source is used.',
+    )
     parser.add_argument('--gap-days',        type=int, default=30,
                         help='Dry-day gap used to end auto-detected season (default: 30)')
     parser.add_argument('--min-season-days', type=int, default=30,
@@ -1770,6 +2375,16 @@ def main() -> None:
     parser.add_argument('--soilsat', type=float, default=DEFAULT_SOILSAT,
                         help=f'Extra soil water from field capacity to saturation, mm '
                              f'(water-balance NDWL0; default: {DEFAULT_SOILSAT})')
+    parser.add_argument(
+        '--water-balance-window',
+        choices=list(WATER_BALANCE_WINDOW_CHOICES),
+        default=FULL_WINDOW_WATER_BALANCE,
+        help=(
+            "How to count NDWS/NDWL0 within fixed-season runs.\n"
+            "  full_window  -- use full fixed window [default]\n"
+            "  crop_active  -- use detected ETO sub-season(s) inside fixed window when available\n"
+        ),
+    )
     parser.add_argument('--format',          choices=['json', 'text'], default='text',
                         help='Output format (default: text)')
     parser.add_argument('--thresholds-file', type=str, default=None,
@@ -1801,6 +2416,9 @@ def main() -> None:
         'min_season_days': args.min_season_days,
         'soilcp': args.soilcp,
         'soilsat': args.soilsat,
+        'water_balance_window': args.water_balance_window,
+        'calendar_source': args.calendar_source,
+        'calendar_system': args.calendar_system,
     }
     if args.format == 'json':
         with redirect_stdout(sys.stderr):

@@ -187,10 +187,10 @@ If you want cache reuse across sessions, pass a stable project-local
 - All configuration values (e.g., API keys) are managed via `.env` using `python-dotenv`.
 - Modular dataset handlers are found in `climate_tookit/fetch_data/source_data/sources/`, each with `DownloadData` classes.
 - Common utilities like enums and settings are stored in `climate_tookit/fetch_data/source_data/sources/utils/`.
-- NEX-GDDP real-access R&D note: [analysis/nex_gddp_access_rnd.md](/Users/pstewarda/Documents/rprojects/climate-toolkit/analysis/nex_gddp_access_rnd.md)
+- NEX-GDDP real-access R&D note: `analysis/nex_gddp_access_rnd.md`
 - `nex_gddp` now uses real Earth Engine/Xee retrieval. It requires Earth Engine auth plus `GCP_PROJECT_ID`.
 - Current `nex_gddp` Earth Engine backend uses dataset version `1.1`. Future `1.2` sourcing is tracked as follow-up work, not current runtime behavior.
-- Arid-region NEX rainfall-spike warning rationale and literature links are documented in [analysis/nex_gddp_access_rnd.md](/Users/pstewarda/Documents/rprojects/climate-toolkit/analysis/nex_gddp_access_rnd.md).
+- Arid-region NEX rainfall-spike warning rationale and literature links are documented in `analysis/nex_gddp_access_rnd.md`.
 
 
 ### Solution Architecture
@@ -412,7 +412,8 @@ We welcome PRs and suggestions!
 1. Fork the repo
 2. Work in a feature branch
 3. Follow module layout and formatting
-4. Submit a pull request with a clear description
+4. Submit a pull request with a clear description using the repository PR template
+5. Complete every applicable PR template section, especially problem statement, implementation notes, data/auth/runtime notes, testing, and related issues
 
 ---
 

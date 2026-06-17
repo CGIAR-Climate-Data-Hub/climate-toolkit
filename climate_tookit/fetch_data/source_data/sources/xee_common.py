@@ -59,7 +59,7 @@ def format_ee_setup_error(exc: Exception) -> str:
         return (
             "Earth Engine project ID missing. Set GCP_PROJECT_ID "
             "(or GOOGLE_CLOUD_PROJECT / EE_PROJECT_ID) and retry. "
-            "Example: export GCP_PROJECT_ID=ee-peetmate"
+            "Example: export GCP_PROJECT_ID=your-ee-project-id"
         )
     lowered = message.lower()
     if (

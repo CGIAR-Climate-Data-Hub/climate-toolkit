@@ -32,6 +32,7 @@ class ClimateVariable(BaseModel):
     precipitation: VariableMeta | None = None
     max_temperature: VariableMeta | None = None
     min_temperature: VariableMeta | None = None
+    mean_temperature: VariableMeta | None = None
     humidity: VariableMeta | None = None
     wind_speed: VariableMeta | None = None
     solar_radiation: VariableMeta | None = None

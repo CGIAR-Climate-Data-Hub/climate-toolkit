@@ -37,6 +37,7 @@ from .source_data.sources.utils.models import (
     ClimateVariable,
     SoilVariable,
     normalize_climate_dataset_name,
+    parse_variable_token,
     source_date_coverage_error,
 )
 from .source_data.sources.utils.settings import Settings
@@ -128,7 +129,7 @@ def fetch_data(
         try:
             dataset = ClimateDataset[source_name]
         except KeyError:
-            raise ValueError(f"Unknown source '{source}'")
+            raise ValueError(f"Unknown source '{source_name}'")
 
         if dataset not in SUPPORTED_GEE_XEE_BATCH_SOURCES:
             supported = ", ".join(sorted(item.name for item in SUPPORTED_GEE_XEE_BATCH_SOURCES))
@@ -138,7 +139,7 @@ def fetch_data(
             )
 
         data_df, _, _ = fetch_gee_xee_batch_data(
-            source=source,
+            source=source_name,
             sites=sites,
             sites_csv=sites_csv,
             variables=variables,
@@ -159,7 +160,7 @@ def fetch_data(
         try:
             dataset = ClimateDataset[source_name]
         except KeyError:
-            raise ValueError(f"Unknown source '{source}'")
+            raise ValueError(f"Unknown source '{source_name}'")
 
         client = SourceData(
             location_coord=location_coord,
@@ -179,7 +180,7 @@ def fetch_data(
 
     if stage == "transformed":
         return transform_data(
-            source=source,
+            source=source_name,
             location_coord=location_coord,
             variables=variables,
             date_from=date_from,
@@ -194,7 +195,7 @@ def fetch_data(
         )
     # preprocessed (default)
     return preprocess_data(
-        source=source,
+        source=source_name,
         location_coord=location_coord,
         variables=variables,
         date_from=date_from,
@@ -223,13 +224,7 @@ def parse_variables(raw):
         return None
     variables = []
     for v in raw.split(","):
-        v = v.strip()
-        if hasattr(ClimateVariable, v):
-            variables.append(getattr(ClimateVariable, v))
-        elif hasattr(SoilVariable, v):
-            variables.append(getattr(SoilVariable, v))
-        else:
-            raise ValueError(f"Unknown variable '{v}'")
+        variables.append(parse_variable_token(v))
     return variables
 
 def main():
