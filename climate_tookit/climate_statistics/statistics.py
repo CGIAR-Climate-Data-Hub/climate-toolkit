@@ -2288,8 +2288,6 @@ def main() -> None:
                         help='Optional SPEI reference-period start date, e.g. 1991-01-01')
     parser.add_argument('--spei-ref-end', default=None,
                         help='Optional SPEI reference-period end date, e.g. 2020-12-31')
-    parser.add_argument('--verbose', action='store_true',
-                        help='Print extra runtime detail')
     parser.add_argument('--format', choices=['json', 'pandas'],
                         default='pandas',
                         help='Output format (default: pandas)')
