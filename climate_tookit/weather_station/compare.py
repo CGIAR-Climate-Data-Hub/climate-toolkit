@@ -1091,6 +1091,37 @@ def _augment_station_frame_with_candidate_metadata(
     return frame
 
 
+def _selection_reason_from_row(
+    row,
+    *,
+    variable_name: str,
+    selection_mode: str,
+) -> str:
+    selection_status = str(row.get("selection_status") or "n/a")
+    threshold_status = str(row.get("threshold_status") or "n/a")
+    threshold_used = row.get("selection_threshold_used")
+    rank = row.get("selection_rank")
+    pass_fields = row.get("fields_passing_threshold")
+    fail_fields = row.get("fields_failing_threshold")
+
+    parts = [f"mode={selection_mode}", f"status={selection_status}"]
+    if threshold_status and threshold_status != "n/a":
+        parts.append(f"threshold={threshold_status}")
+    if rank is not None and not pd.isna(rank):
+        parts.append(f"rank={int(rank)}")
+    if threshold_used is not None and not pd.isna(threshold_used):
+        parts.append(f"min_ratio={float(threshold_used):.2f}")
+
+    if isinstance(pass_fields, (list, tuple, set)) and pass_fields:
+        parts.append("pass=" + ",".join(str(item) for item in pass_fields))
+    if isinstance(fail_fields, (list, tuple, set)) and fail_fields:
+        parts.append("fail=" + ",".join(str(item) for item in fail_fields))
+
+    if variable_name != "all_variables":
+        parts.append(f"selected_for={variable_name}")
+    return " | ".join(parts)
+
+
 def _split_station_frame_payloads(
     station_frame: pd.DataFrame,
     *,
@@ -1365,6 +1396,11 @@ def _build_station_compare_payloads(
                     "selection_threshold_used": None if pd.isna(first.get("selection_threshold_used")) else float(first.get("selection_threshold_used")),
                     "threshold_status": first.get("threshold_status"),
                     "selection_rank": None if pd.isna(first.get("selection_rank")) else int(first.get("selection_rank")),
+                    "selection_reason": _selection_reason_from_row(
+                        first,
+                        variable_name="all_variables",
+                        selection_mode=selection_mode,
+                    ),
                 }
             )
         return payloads, warnings, selected_station_map
@@ -1399,6 +1435,19 @@ def _build_station_compare_payloads(
             warnings.append(
                 f"No station selected for variable '{variable_name}': {exc}"
             )
+            selected_station_map.append(
+                {
+                    "variable": variable_name,
+                    "station_id": None,
+                    "station_name": None,
+                    "distance_km": None,
+                    "elevation_diff_m": None,
+                    "selection_status": "unavailable",
+                    "selection_threshold_used": None,
+                    "threshold_status": "unavailable",
+                    "selection_reason": str(exc),
+                }
+            )
             continue
 
         _compare_log(
@@ -1418,6 +1467,11 @@ def _build_station_compare_payloads(
                 "selection_status": candidate.get("selection_status"),
                 "selection_threshold_used": None if pd.isna(candidate.get("selection_threshold_used")) else float(candidate.get("selection_threshold_used")),
                 "threshold_status": candidate.get("threshold_status"),
+                "selection_reason": _selection_reason_from_row(
+                    candidate,
+                    variable_name=variable_name,
+                    selection_mode=selection_mode,
+                ),
             }
         )
         station_frame = download_station_data(
@@ -1688,17 +1742,27 @@ def render_compare_report(result: dict[str, Any]) -> str:
     if result.get("selected_stations_by_variable"):
         lines.extend(["", "Selected stations by variable"])
         for row in result["selected_stations_by_variable"]:
+            if not row.get("station_id"):
+                lines.append(
+                    f"- {row['variable']}: no station selected | reason={row.get('selection_reason', 'n/a')}"
+                )
+                continue
             rank_label = (
                 f" [rank {row.get('selection_rank')}]"
                 if row.get("selection_rank") is not None
                 else ""
             )
-            lines.append(
+            lines.extend(
+                [
+                    (
                 f"- {row['variable']}{rank_label}: "
                 f"{row.get('station_id')} | {row.get('station_name') or 'unknown'} | "
                 f"distance={_format_optional_number(row.get('distance_km'))} km | "
                 f"elev_diff={_format_optional_number(row.get('elevation_diff_m'), 1)} m | "
                 f"selection={row.get('selection_status', 'n/a')}"
+                    ),
+                    f"  reason={row.get('selection_reason', 'n/a')}",
+                ]
             )
     if result.get("candidate_review_artifacts"):
         artifacts = result["candidate_review_artifacts"]

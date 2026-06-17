@@ -934,9 +934,142 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertEqual(2, len(result["selected_stations_by_variable"]))
         self.assertEqual("RAIN001", result["selected_stations_by_variable"][0]["station_id"])
         self.assertEqual("TMIN001", result["selected_stations_by_variable"][1]["station_id"])
+        self.assertIn("selected_for=precipitation", result["selected_stations_by_variable"][0]["selection_reason"])
+        self.assertIn("selected_for=min_temperature", result["selected_stations_by_variable"][1]["selection_reason"])
         self.assertEqual(2, len(result["station_summary"]))
         metric_variables = sorted(row["variable"] for row in result["metrics"])
         self.assertEqual(["min_temperature", "precipitation"], metric_variables)
+
+    def test_compare_station_to_grids_best_per_variable_records_missing_variable_reason(self):
+        precip_candidate = pd.DataFrame(
+            {
+                "station_source": ["ghcn_daily"],
+                "station_id": ["RAIN001"],
+                "station_name": ["Rain Station"],
+                "distance_km": [5.0],
+                "elevation_diff_m": [10.0],
+                "selection_status": ["strict"],
+                "selection_threshold_used": [0.7],
+                "threshold_status": ["strict_all_fields"],
+                "fields_passing_threshold": [["precipitation"]],
+                "fields_failing_threshold": [[]],
+            }
+        )
+        station_frames = {
+            ("RAIN001", "precipitation"): pd.DataFrame(
+                {
+                    "date": pd.date_range("2020-01-01", periods=2, freq="D"),
+                    "station_id": ["RAIN001", "RAIN001"],
+                    "station_name": ["Rain Station", "Rain Station"],
+                    "station_source": ["ghcn_daily", "ghcn_daily"],
+                    "station_lat": [-1.20, -1.20],
+                    "station_lon": [36.70, 36.70],
+                    "station_distance_km": [5.0, 5.0],
+                    "station_elevation_m": [1700.0, 1700.0],
+                    "precipitation": [1.0, 2.0],
+                }
+            ),
+        }
+        grid_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=2, freq="D"),
+                "precipitation": [1.5, 1.0],
+            }
+        )
+
+        orig_list = station_compare.list_ghcn_station_candidates
+        orig_download = station_compare.download_station_data
+        orig_fetch_grid = station_compare._fetch_grid_source
+
+        def _fake_list(**kwargs):
+            variable = kwargs["variables"][0]
+            if variable == ClimateVariable.precipitation:
+                return precip_candidate.copy()
+            return pd.DataFrame()
+
+        def _fake_download(**kwargs):
+            variable = kwargs["variables"][0].name
+            return station_frames[(kwargs["station_id"], variable)].copy()
+
+        station_compare.list_ghcn_station_candidates = _fake_list
+        station_compare.download_station_data = _fake_download
+        station_compare._fetch_grid_source = lambda **kwargs: grid_frame.copy()
+        try:
+            result = station_compare.compare_station_to_grids(
+                station_source="ghcn_daily",
+                station_coord=(-1.286, 36.817),
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 2),
+                grid_sources=["nasa_power"],
+                variables=[
+                    ClimateVariable.precipitation,
+                    ClimateVariable.min_temperature,
+                ],
+                selection_strategy="best_per_variable",
+                disable_completeness_guard=True,
+                verbose=False,
+            )
+        finally:
+            station_compare.list_ghcn_station_candidates = orig_list
+            station_compare.download_station_data = orig_download
+            station_compare._fetch_grid_source = orig_fetch_grid
+
+        missing = [
+            row for row in result["selected_stations_by_variable"]
+            if row["variable"] == "min_temperature"
+        ][0]
+        self.assertIsNone(missing["station_id"])
+        self.assertEqual("unavailable", missing["selection_status"])
+        self.assertIn("No candidate station found", missing["selection_reason"])
+        self.assertTrue(any("No station selected for variable 'min_temperature'" in warning for warning in result["warnings"]))
+
+    def test_render_compare_report_shows_selection_reasons(self):
+        result = {
+            "anchor_location": {"lat": -1.286, "lon": 36.817},
+            "date_from": "2020-01-01",
+            "date_to": "2020-01-02",
+            "selection_strategy": "best_per_variable",
+            "grid_sources": ["nasa_power"],
+            "station_summary": [],
+            "selected_stations_by_variable": [
+                {
+                    "variable": "precipitation",
+                    "station_id": "RAIN001",
+                    "station_name": "Rain Station",
+                    "distance_km": 5.0,
+                    "elevation_diff_m": 10.0,
+                    "selection_status": "strict",
+                    "selection_reason": "mode=auto | status=strict | selected_for=precipitation",
+                },
+                {
+                    "variable": "min_temperature",
+                    "station_id": None,
+                    "station_name": None,
+                    "distance_km": None,
+                    "elevation_diff_m": None,
+                    "selection_status": "unavailable",
+                    "selection_reason": "No candidate station found for variable 'min_temperature'.",
+                },
+            ],
+            "candidate_review_artifacts": None,
+            "grid_failures": [],
+            "grid_source_metadata": [],
+            "use_case_rankings": [],
+            "warnings": [],
+            "metrics": [],
+            "monthly_metrics": [],
+            "seasonal_metrics": [],
+            "annual_metrics": [],
+            "xclim_precip_indices": [],
+            "pooled_daily_metrics": [],
+            "pooled_monthly_metrics": [],
+            "pooled_seasonal_metrics": [],
+            "pooled_annual_metrics": [],
+            "overall_metrics": [],
+        }
+        rendered = station_compare.render_compare_report(result)
+        self.assertIn("reason=mode=auto | status=strict | selected_for=precipitation", rendered)
+        self.assertIn("min_temperature: no station selected | reason=No candidate station found", rendered)
 
     def test_compare_station_to_grids_auto_multi_station_splits_payloads(self):
         station_frame = pd.DataFrame(
