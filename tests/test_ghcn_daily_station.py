@@ -1218,6 +1218,8 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertEqual("high", result["confidence_class"])
         self.assertFalse(result["low_confidence"])
         self.assertEqual("suitable for annual interpretation", result["confidence_note"])
+        self.assertEqual("descriptive_only", result["window_status"])
+        self.assertAlmostEqual(1.0, result["window_years"], places=1)
 
     def test_annotate_annual_overlap_summary_assigns_very_low_confidence(self):
         overlap = pd.DataFrame(
@@ -1236,6 +1238,24 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertEqual("very_low", result["confidence_class"])
         self.assertTrue(result["low_confidence"])
         self.assertEqual("sparse overlap; descriptive only", result["confidence_note"])
+        self.assertEqual("descriptive_only", result["window_status"])
+
+    def test_annotate_annual_overlap_summary_assigns_period_average_window(self):
+        overlap = pd.DataFrame(
+            {
+                "date": pd.date_range("2010-01-01", "2020-12-31", freq="D"),
+                "precipitation_station": 1.0,
+                "precipitation_grid": 1.0,
+            }
+        )
+        metric_row = {"variable": "precipitation"}
+        result = station_compare._annotate_annual_overlap_summary(
+            overlap,
+            variable="precipitation",
+            metric_row=metric_row,
+        )
+        self.assertEqual("period_average", result["window_status"])
+        self.assertGreaterEqual(result["window_years"], 10.0)
 
     def test_render_compare_report_shows_confidence_summary(self):
         result = {
@@ -1272,6 +1292,62 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertIn("Confidence summary", rendered)
         self.assertIn("daily: high=1 medium=0 low=0 very_low=1", rendered)
         self.assertIn("pooled_annual: high=0 medium=0 low=1 very_low=0", rendered)
+
+    def test_render_compare_report_shows_window_status_summary(self):
+        result = {
+            "anchor_location": {"lat": -1.286, "lon": 36.817},
+            "date_from": "2010-01-01",
+            "date_to": "2020-12-31",
+            "selection_strategy": "all_vars_single_station",
+            "grid_sources": ["nasa_power"],
+            "station_summary": [],
+            "selected_stations_by_variable": [],
+            "candidate_review_artifacts": None,
+            "grid_failures": [],
+            "grid_source_metadata": [],
+            "use_case_rankings": [],
+            "warnings": [],
+            "confidence_summary": {
+                "daily": {"high": 0, "medium": 0, "low": 0, "very_low": 0, "total": 0, "low_confidence": 0},
+                "annual": {"high": 0, "medium": 0, "low": 0, "very_low": 0, "total": 0, "low_confidence": 0},
+                "pooled_daily": {"high": 0, "medium": 0, "low": 0, "very_low": 0, "total": 0, "low_confidence": 0},
+                "pooled_annual": {"high": 0, "medium": 0, "low": 0, "very_low": 0, "total": 0, "low_confidence": 0},
+            },
+            "window_status_summary": {
+                "annual": {
+                    "descriptive_only": 1,
+                    "screening_only": 0,
+                    "preliminary_ranking": 0,
+                    "period_average": 2,
+                    "near_climatology": 0,
+                    "climatology_grade": 0,
+                    "total": 3,
+                },
+                "pooled_annual": {
+                    "descriptive_only": 0,
+                    "screening_only": 0,
+                    "preliminary_ranking": 1,
+                    "period_average": 0,
+                    "near_climatology": 0,
+                    "climatology_grade": 0,
+                    "total": 1,
+                },
+            },
+            "metrics": [],
+            "monthly_metrics": [],
+            "seasonal_metrics": [],
+            "annual_metrics": [],
+            "xclim_precip_indices": [],
+            "pooled_daily_metrics": [],
+            "pooled_monthly_metrics": [],
+            "pooled_seasonal_metrics": [],
+            "pooled_annual_metrics": [],
+            "overall_metrics": [],
+        }
+        rendered = station_compare.render_compare_report(result)
+        self.assertIn("Window status summary", rendered)
+        self.assertIn("annual: descriptive_only=1 screening_only=0 preliminary_ranking=0 period_average=2", rendered)
+        self.assertIn("pooled_annual: descriptive_only=0 screening_only=0 preliminary_ranking=1", rendered)
 
     def test_get_climate_data_applies_custom_station_override(self):
         stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")

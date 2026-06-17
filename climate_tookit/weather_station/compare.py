@@ -380,6 +380,8 @@ def _render_annual_core_table(rows: list[dict[str, Any]]) -> str:
         "grid_source",
         "variable",
         "overlap_days",
+        "window_years",
+        "window_status",
         "coverage_ratio",
         "annual_flag",
         "bias",
@@ -390,7 +392,7 @@ def _render_annual_core_table(rows: list[dict[str, Any]]) -> str:
     return _render_display_table(
         frame,
         columns=preferred,
-        maxcolwidths=[14, 12, 18, 10, 10, 12, 10, 10, 10, 10],
+        maxcolwidths=[14, 12, 18, 10, 9, 18, 10, 12, 10, 10, 10, 10],
     )
 
 
@@ -476,6 +478,21 @@ def _classify_annual_overlap_confidence(
     return "very_low"
 
 
+def _classify_window_status(calendar_span_days: int) -> tuple[float, str, str]:
+    years = max(float(calendar_span_days) / 365.25, 0.0)
+    if years < 2.0:
+        return years, "descriptive_only", "below minimum screening window (<2 years)"
+    if years < 5.0:
+        return years, "screening_only", "usable for rough screening only (2-<5 years)"
+    if years < 10.0:
+        return years, "preliminary_ranking", "usable for preliminary product ranking (5-<10 years)"
+    if years < 20.0:
+        return years, "period_average", "acceptable for period-average comparison (10-<20 years)"
+    if years < 30.0:
+        return years, "near_climatology", "strong for climatology-style comparison, but not full 30-year normal"
+    return years, "climatology_grade", "meets 30-year climatology-grade window"
+
+
 def _build_overlap_warning(
     *,
     station_id: str,
@@ -511,6 +528,31 @@ def _build_annual_overlap_warning(
         f"variable={variable}: overlap_days={overlap_days}, coverage_ratio={coverage_text} "
         f"(confidence={confidence_class}; annual totals are descriptive only)."
     )
+
+
+def _build_window_status_warning(
+    *,
+    station_id: str,
+    grid_source: str,
+    variable: str,
+    window_status: str,
+    window_years: float,
+) -> str | None:
+    if window_status in {"period_average", "near_climatology", "climatology_grade"}:
+        return None
+    if variable == "precipitation" and window_status == "preliminary_ranking":
+        return (
+            f"Short rainfall comparison window for station={station_id} source={grid_source} "
+            f"variable={variable}: {window_years:.1f} years "
+            f"(window_status={window_status}; use caution for ranking rainfall products)."
+        )
+    if window_status in {"descriptive_only", "screening_only"}:
+        return (
+            f"Short comparison window for station={station_id} source={grid_source} "
+            f"variable={variable}: {window_years:.1f} years "
+            f"(window_status={window_status})."
+        )
+    return None
 
 
 def _aggregate_series(
@@ -656,9 +698,13 @@ def _annotate_annual_overlap_summary(
     overlap_days = int(len(working))
     calendar_span_days = int((working["date"].max() - working["date"].min()).days) + 1
     coverage_ratio = None if calendar_span_days <= 0 else float(overlap_days / calendar_span_days)
+    window_years, window_status, window_note = _classify_window_status(calendar_span_days)
     metric_row["overlap_days"] = overlap_days
     metric_row["calendar_span_days"] = calendar_span_days
     metric_row["coverage_ratio"] = None if coverage_ratio is None else round(coverage_ratio, 4)
+    metric_row["window_years"] = round(window_years, 2)
+    metric_row["window_status"] = window_status
+    metric_row["window_note"] = window_note
     confidence_class = _classify_annual_overlap_confidence(overlap_days, coverage_ratio)
     metric_row["confidence_class"] = confidence_class
     metric_row["low_confidence"] = confidence_class in {"low", "very_low"}
@@ -694,6 +740,35 @@ def _summarize_confidence(
         "daily": _bucket(daily_rows),
         "annual": _bucket(annual_rows),
         "pooled_daily": _bucket(pooled_daily_rows),
+        "pooled_annual": _bucket(pooled_annual_rows),
+    }
+
+
+def _summarize_window_status(
+    *,
+    annual_rows: list[dict[str, Any]],
+    pooled_annual_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    statuses = [
+        "descriptive_only",
+        "screening_only",
+        "preliminary_ranking",
+        "period_average",
+        "near_climatology",
+        "climatology_grade",
+    ]
+
+    def _bucket(rows: list[dict[str, Any]]) -> dict[str, int]:
+        counts = {status: 0 for status in statuses}
+        for row in rows:
+            token = str(row.get("window_status") or "").strip().lower()
+            if token in counts:
+                counts[token] += 1
+        counts["total"] = sum(counts.values())
+        return counts
+
+    return {
+        "annual": _bucket(annual_rows),
         "pooled_annual": _bucket(pooled_annual_rows),
     }
 
@@ -1858,6 +1933,26 @@ def render_compare_report(result: dict[str, Any]) -> str:
                 ),
             ]
         )
+    if result.get("window_status_summary"):
+        summary = result["window_status_summary"]
+        annual = summary["annual"]
+        pooled = summary["pooled_annual"]
+        lines.extend(
+            [
+                "",
+                "Window status summary",
+                (
+                    f"- annual: descriptive_only={annual['descriptive_only']} screening_only={annual['screening_only']} "
+                    f"preliminary_ranking={annual['preliminary_ranking']} period_average={annual['period_average']} "
+                    f"near_climatology={annual['near_climatology']} climatology_grade={annual['climatology_grade']}"
+                ),
+                (
+                    f"- pooled_annual: descriptive_only={pooled['descriptive_only']} screening_only={pooled['screening_only']} "
+                    f"preliminary_ranking={pooled['preliminary_ranking']} period_average={pooled['period_average']} "
+                    f"near_climatology={pooled['near_climatology']} climatology_grade={pooled['climatology_grade']}"
+                ),
+            ]
+        )
     if result.get("candidate_review_artifacts"):
         artifacts = result["candidate_review_artifacts"]
         lines.extend(
@@ -2298,6 +2393,15 @@ def compare_station_to_grids(
                     )
                     if annual_warning and annual_warning not in warnings:
                         warnings.append(annual_warning)
+                    window_warning = _build_window_status_warning(
+                        station_id=str(station_meta["station_id"]),
+                        grid_source=grid_source,
+                        variable=variable_name,
+                        window_status=str(annual_metric.get("window_status") or ""),
+                        window_years=float(annual_metric.get("window_years") or 0.0),
+                    )
+                    if window_warning and window_warning not in warnings:
+                        warnings.append(window_warning)
                 if variable_name == "precipitation" and XCLIM_AVAILABLE:
                     xclim_readiness = assess_xclim_precip_annual_readiness(
                         overlap,
@@ -2466,6 +2570,10 @@ def compare_station_to_grids(
         pooled_daily_rows=pooled_daily_metrics,
         pooled_annual_rows=pooled_annual_metrics,
     )
+    window_status_summary = _summarize_window_status(
+        annual_rows=annual_metrics_rows,
+        pooled_annual_rows=pooled_annual_metrics,
+    )
     _compare_log(
         verbose,
         f"Compare complete | station_metrics={len(metrics_rows)} | "
@@ -2498,6 +2606,7 @@ def compare_station_to_grids(
         "grid_failures": grid_failures,
         "warnings": warnings,
         "confidence_summary": confidence_summary,
+        "window_status_summary": window_status_summary,
         "metrics": metrics_rows,
         "monthly_metrics": monthly_metrics_rows,
         "seasonal_metrics": seasonal_metrics_rows,
