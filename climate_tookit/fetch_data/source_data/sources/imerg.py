@@ -1,5 +1,16 @@
-"""This module handles the downloading of climate data from the Global
-Precipitation Measurement (GPM) mission's IMERG dataset hosted by NASA.
+"""Legacy IMERG downloader kept only for historical reference.
+
+Active toolkit IMERG path is GEE/Xee-backed:
+- `ClimateDataset.imerg` dispatches through `source_data.py`
+- single-site extraction uses `sources.gee_xee.DownloadData`
+- persistent chunk caching lives in `gee_xee_batch.py`
+
+This module is inactive in current package flow and should not be extended for
+new work unless toolkit intentionally returns to direct NASA IMERG downloads.
+
+Historical note:
+This module handled downloading climate data from Global Precipitation
+Measurement (GPM) mission IMERG dataset hosted by NASA.
 
 ref: https://disc.gsfc.nasa.gov/information/howto?keywords=IMERG&title=How%20to%20Read%20IMERG%20Data%20Using%20Python
 
@@ -90,4 +101,7 @@ class DownloadData(models.DataDownloadBase):
         raise NotImplementedError
 
     def download_variables(self):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "Legacy IMERG downloader inactive. Active toolkit IMERG path uses "
+            "GEE/Xee adapter via SourceData(ClimateDataset.imerg)."
+        )

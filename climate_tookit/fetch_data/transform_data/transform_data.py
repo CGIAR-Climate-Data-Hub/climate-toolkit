@@ -116,6 +116,16 @@ def default_variables():
     ]
 
 
+def default_variables_for_source(source_name: str):
+    if normalize_climate_dataset_name(source_name) in {"ghcn_daily", "gsod"}:
+        return [
+            ClimateVariable.precipitation,
+            ClimateVariable.max_temperature,
+            ClimateVariable.min_temperature,
+        ]
+    return default_variables()
+
+
 def transform_data(
     source: str,
     location_coord=None,
@@ -128,6 +138,7 @@ def transform_data(
     verbose=True,
     cache_dir=None,
     refresh_cache=False,
+    station_id=None,
 ):
     """Download and transform climate data using SourceData + variable mappings."""
 
@@ -147,10 +158,10 @@ def transform_data(
     )
     if input_errors:
         raise ValueError(" | ".join(input_errors))
-    variables = variables or default_variables()
+    source_name = normalize_climate_dataset_name(source)
+    variables = variables or default_variables_for_source(source_name)
     date_from = date_from or date.today()
     date_to = date_to or date.today()
-    source_name = normalize_climate_dataset_name(source)
 
     try:
         dataset = ClimateDataset[source_name]
@@ -169,6 +180,7 @@ def transform_data(
         verbose=verbose,
         cache_dir=cache_dir,
         refresh_cache=refresh_cache,
+        station_id=station_id,
     )
 
     raw_df = src.download()

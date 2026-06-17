@@ -5,6 +5,7 @@ source_mappings:
     total_precipitation_sum: precipitation
     temperature_2m_max: max_temperature
     temperature_2m_min: min_temperature
+    temperature_2m: mean_temperature
     humidity: humidity
     wind_speed: wind_speed
     surface_solar_radiation_downwards_sum: solar_radiation
@@ -53,6 +54,10 @@ source_mappings:
     precipitation: precipitation
     max_temperature: max_temperature
     min_temperature: min_temperature
+    mean_temperature: mean_temperature
+    humidity: humidity
+    wind_speed: wind_speed
+    solar_radiation: solar_radiation
   
   tamsat:
     rfe: precipitation
@@ -73,3 +78,18 @@ source_mappings:
     AWC: soil_available_water_capacity
     DRAINAGE: soil_drainage
     BULK_DENSITY: soil_bulk_density
+
+  ghcn_daily:
+    PRCP: precipitation
+    TMAX: max_temperature
+    TMIN: min_temperature
+    TAVG: mean_temperature
+    AWND: wind_speed
+    RHAV: humidity
+
+  gsod:
+    MAX: max_temperature
+    MIN: min_temperature
+    PRCP: precipitation
+    TEMP: mean_temperature
+    WDSP: wind_speed

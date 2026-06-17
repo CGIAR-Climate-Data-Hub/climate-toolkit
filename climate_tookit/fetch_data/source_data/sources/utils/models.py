@@ -20,6 +20,7 @@ class ClimateVariable(Enum):
     rainfall = auto()
     max_temperature = auto()
     min_temperature = auto()
+    mean_temperature = auto()
     precipitation = auto()
     wind_speed = auto()
     solar_radiation = auto()
@@ -61,6 +62,8 @@ class ClimateDataset(Enum):
     chirts = auto()
     soil_grid = auto()
     hwsd = auto()
+    ghcn_daily = auto()
+    gsod = auto()
 
 
 class Cadence(Enum):
@@ -133,6 +136,16 @@ class DataDownloadBase(ABC):
 
 LEGACY_SOURCE_ALIASES = {
     "chirps": "chirps_v2",
+    "agera5": "agera_5",
+    "era5": "era_5",
+    "nasapower": "nasa_power",
+    "power": "nasa_power",
+    "nexgddp": "nex_gddp",
+    "soilgrids": "soil_grid",
+    "ghcn": "ghcn_daily",
+    "ghcnd": "ghcn_daily",
+    "ghcn_daily": "ghcn_daily",
+    "gsod": "gsod",
 }
 
 SOURCE_DATE_LIMITS = {
@@ -156,6 +169,45 @@ def accepted_climate_dataset_names() -> list[str]:
     names = {dataset.name for dataset in ClimateDataset}
     names.update(LEGACY_SOURCE_ALIASES.keys())
     return sorted(names)
+
+
+CLIMATE_VARIABLE_ALIASES = {
+    "rain": "precipitation",
+    "rainfall": "precipitation",
+    "precip": "precipitation",
+    "prcp": "precipitation",
+    "tmax": "max_temperature",
+    "maximum_temperature": "max_temperature",
+    "tmin": "min_temperature",
+    "minimum_temperature": "min_temperature",
+    "tavg": "mean_temperature",
+    "tmean": "mean_temperature",
+    "average_temperature": "mean_temperature",
+    "avg_temperature": "mean_temperature",
+    "relative_humidity": "humidity",
+    "rh": "humidity",
+    "windspeed": "wind_speed",
+    "wind": "wind_speed",
+    "solar": "solar_radiation",
+    "radiation": "solar_radiation",
+}
+
+
+def canonical_climate_variable_name(name: str) -> str:
+    token = str(name).strip().lower()
+    return CLIMATE_VARIABLE_ALIASES.get(token, token)
+
+
+def parse_variable_token(name: str):
+    climate_name = canonical_climate_variable_name(name)
+    if hasattr(ClimateVariable, climate_name):
+        return getattr(ClimateVariable, climate_name)
+
+    soil_name = str(name).strip().lower()
+    if hasattr(SoilVariable, soil_name):
+        return getattr(SoilVariable, soil_name)
+
+    raise ValueError(f"Unknown variable '{name}'")
 
 
 def _coerce_date(value: date | datetime | None) -> date | None:

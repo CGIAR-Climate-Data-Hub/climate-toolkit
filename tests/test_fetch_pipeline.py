@@ -44,6 +44,7 @@ from climate_tookit.fetch_data.gee_xee_batch import (
     _requested_band_names as batch_requested_band_names,
 )
 from climate_tookit.fetch_data.source_data.source_data import SourceData
+from climate_tookit.fetch_data.transform_data.transform_data import transform_data
 from climate_tookit.fetch_data.source_data.sources.gee import DownloadData as GeeDownloadData
 from climate_tookit.fetch_data.source_data.sources.gee_xee import (
     DownloadData as GeeXeeDownloadData,
@@ -95,6 +96,39 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertAlmostEqual(27.0, converted.loc[0, "max_temperature"], places=6)
         self.assertAlmostEqual(17.0, converted.loc[0, "min_temperature"], places=6)
         self.assertAlmostEqual(5.0, converted.loc[0, "precipitation"], places=6)
+
+    def test_apply_unit_conversions_scales_imerg_daily_depth(self):
+        raw_df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                "precipitation": [10.0, 4.0],
+            }
+        )
+
+        converted = apply_unit_conversions(raw_df, source="imerg", verbose=True)
+
+        self.assertAlmostEqual(5.0, converted.loc[0, "precipitation"], places=6)
+        self.assertAlmostEqual(2.0, converted.loc[1, "precipitation"], places=6)
+
+    def test_apply_unit_conversions_for_gsod(self):
+        raw_df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01"]),
+                "precipitation": [1.0],
+                "max_temperature": [86.0],
+                "min_temperature": [68.0],
+                "mean_temperature": [77.0],
+                "wind_speed": [10.0],
+            }
+        )
+
+        converted = apply_unit_conversions(raw_df, source="gsod", verbose=True)
+
+        self.assertAlmostEqual(25.4, converted.loc[0, "precipitation"], places=6)
+        self.assertAlmostEqual(30.0, converted.loc[0, "max_temperature"], places=6)
+        self.assertAlmostEqual(20.0, converted.loc[0, "min_temperature"], places=6)
+        self.assertAlmostEqual(25.0, converted.loc[0, "mean_temperature"], places=6)
+        self.assertAlmostEqual(5.14444, converted.loc[0, "wind_speed"], places=5)
 
     def test_era5_wind_speed_uses_both_components_and_returns_scalar_speed(self):
         settings = Settings.load()
@@ -352,6 +386,54 @@ class FetchPipelineTests(unittest.TestCase):
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
 
+    def test_imerg_dispatches_to_gee_xee_adapter(self):
+        src = SourceData(
+            location_coord=(-1.286, 36.817),
+            variables=[ClimateVariable.precipitation],
+            source=ClimateDataset.imerg,
+            date_from_utc=date(2020, 1, 1),
+            date_to_utc=date(2020, 1, 2),
+            settings=Settings.load(),
+        )
+
+        self.assertEqual(
+            type(src.client).__module__,
+            "climate_tookit.fetch_data.source_data.sources.gee_xee",
+        )
+        self.assertEqual(type(src.client).__name__, "DownloadData")
+
+    def test_nasa_power_dispatches_verbose_and_cache_settings(self):
+        calls = []
+
+        class NASAStub:
+            def __init__(self, **kwargs):
+                calls.append(kwargs)
+
+            def download_variables(self):
+                return pd.DataFrame()
+
+        with mock.patch(
+            "climate_tookit.fetch_data.source_data.source_data.DownloadNASA",
+            NASAStub,
+        ):
+            src = SourceData(
+                location_coord=(-1.286, 36.817),
+                variables=[ClimateVariable.precipitation],
+                source=ClimateDataset.nasa_power,
+                date_from_utc=date(2020, 1, 1),
+                date_to_utc=date(2020, 1, 2),
+                settings=Settings.load(),
+                verbose=False,
+                cache_dir="outputs/cache/power",
+                refresh_cache=True,
+            )
+
+        self.assertIsInstance(src.client, NASAStub)
+        self.assertEqual(len(calls), 1)
+        self.assertFalse(calls[0]["verbose"])
+        self.assertEqual("outputs/cache/power", calls[0]["cache_dir"])
+        self.assertTrue(calls[0]["refresh_cache"])
+
     def test_soil_grid_stays_on_direct_gee_adapter(self):
         src = SourceData(
             location_coord=(-1.286, 36.817),
@@ -502,6 +584,25 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertIs(result, batch_df)
         batch_mock.assert_called_once()
 
+    def test_fetch_data_routes_many_site_imerg_to_xee_batch_api(self):
+        batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
+
+        with mock.patch(
+            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
+        ) as batch_mock:
+            result = fetch_data(
+                source="imerg",
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 1),
+                stage="raw",
+                variables=[ClimateVariable.precipitation],
+            )
+
+        self.assertIs(result, batch_df)
+        batch_mock.assert_called_once()
+
     def test_fetch_data_rejects_unsupported_many_site_source(self):
         with self.assertRaises(ValueError):
             fetch_data(
@@ -510,6 +611,62 @@ class FetchPipelineTests(unittest.TestCase):
                 date_from=date(2020, 1, 1),
                 date_to=date(2020, 1, 1),
             )
+
+    def test_transform_data_keeps_nasa_power_humidity_wind_and_solar_columns(self):
+        raw_df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01"]),
+                "precipitation": [1.5],
+                "max_temperature": [28.0],
+                "min_temperature": [18.0],
+                "mean_temperature": [23.0],
+                "humidity": [65.0],
+                "wind_speed": [2.1],
+                "solar_radiation": [210.0],
+            }
+        )
+
+        class _FakeSourceData:
+            def __init__(self, **kwargs):
+                pass
+
+            def download(self):
+                return raw_df.copy()
+
+        with mock.patch(
+            "climate_tookit.fetch_data.transform_data.transform_data.SourceData",
+            _FakeSourceData,
+        ):
+            result = transform_data(
+                source="nasa_power",
+                location_coord=(-1.286, 36.817),
+                variables=[
+                    ClimateVariable.precipitation,
+                    ClimateVariable.max_temperature,
+                    ClimateVariable.min_temperature,
+                    ClimateVariable.mean_temperature,
+                    ClimateVariable.humidity,
+                    ClimateVariable.wind_speed,
+                    ClimateVariable.solar_radiation,
+                ],
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 1),
+                verbose=False,
+            )
+
+        self.assertEqual(
+            list(result.columns),
+            [
+                "date",
+                "precipitation",
+                "max_temperature",
+                "min_temperature",
+                "mean_temperature",
+                "humidity",
+                "wind_speed",
+                "solar_radiation",
+            ],
+        )
 
     def test_fetch_data_requires_location_for_single_site_mode(self):
         with self.assertRaises(ValueError):

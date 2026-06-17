@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "climate-tookit"
+version = "0.0.0"
+description = "Climate toolkit"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["climate_tookit*", "analysis*"]
