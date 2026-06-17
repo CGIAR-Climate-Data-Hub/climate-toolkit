@@ -40,7 +40,6 @@ from .source_data.sources.xee_common import (
     is_retryable_ee_error,
     open_point_dataset,
     point_dataset_to_frame,
-    progress_bar,
 )
 from .transform_data.transform_data import default_variables, load_variable_mappings
 
@@ -78,7 +77,33 @@ DAILY_AGG_REDUCER = {
 
 def _log_progress(message: str, verbose: bool) -> None:
     if verbose:
-        logger.info(message)
+        print(message, flush=True)
+    logger.debug(message)
+
+
+def _format_seconds(value: float) -> str:
+    seconds = max(float(value), 0.0)
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, rem = divmod(int(round(seconds)), 60)
+    if minutes < 60:
+        return f"{minutes}m{rem:02d}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m"
+
+
+def _site_label(site: Site) -> str:
+    name = str(site.name or "").strip()
+    if not name or name.lower() == "site":
+        return f"{site.lat:.4f},{site.lon:.4f}"
+    return name
+
+
+def _eta_seconds(*, completed: int, total: int, elapsed_total: float) -> float:
+    if completed <= 0 or total <= completed:
+        return 0.0
+    avg = elapsed_total / float(completed)
+    return avg * float(total - completed)
 
 
 def _coerce_source(source: str | ClimateDataset) -> ClimateDataset:
@@ -654,10 +679,11 @@ def run_gee_xee_batch_extraction(
     bands = _requested_band_names(dataset, data_settings, active_variables)
     frames: list[pd.DataFrame] = []
     manifest_rows: list[dict[str, object]] = []
+    total_started = time.perf_counter()
 
     _log_progress(
-        f"Starting GEE Xee batch fetch for {dataset.name} "
-        f"{date_from}..{date_to} across {len(sites)} site(s) and {len(chunks)} chunk(s).",
+        f"Fetching {dataset.name} via GEE/Xee | period={date_from}..{date_to} | "
+        f"sites={len(sites)} | chunks_per_site={len(chunks)} | total_batches={total}",
         verbose,
     )
 
@@ -666,11 +692,7 @@ def run_gee_xee_batch_extraction(
     for site in sites:
         for chunk_start, chunk_end in chunks:
             completed += 1
-            _log_progress(
-                f"{progress_bar(completed - 1, total)} batch {completed}/{total}: "
-                f"{site.name} {chunk_start}..{chunk_end}",
-                verbose,
-            )
+            site_label = _site_label(site)
 
             normalized_start = (
                 date(chunk_start.year, chunk_start.month, 1)
@@ -710,9 +732,17 @@ def run_gee_xee_batch_extraction(
             if cached_frame is not None and cached_manifest is not None:
                 frames.append(cached_frame)
                 elapsed = time.perf_counter() - batch_start
+                elapsed_total = time.perf_counter() - total_started
+                eta = _eta_seconds(
+                    completed=completed,
+                    total=total,
+                    elapsed_total=elapsed_total,
+                )
                 _log_progress(
-                    f"Cache hit for {site.name} {normalized_start}..{normalized_end} "
-                    f"in {elapsed:.2f}s.",
+                    f"[{completed}/{total}] {dataset.name} | {site_label} | "
+                    f"{normalized_start}..{normalized_end} | cache hit | "
+                    f"chunk={_format_seconds(elapsed)} | elapsed={_format_seconds(elapsed_total)} | "
+                    f"eta={_format_seconds(eta)}",
                     verbose,
                 )
                 manifest_rows.append(
@@ -759,6 +789,19 @@ def run_gee_xee_batch_extraction(
             _write_cached_frame(data_path, manifest_path, frame, manifest)
             frames.append(frame)
             elapsed = time.perf_counter() - batch_start
+            elapsed_total = time.perf_counter() - total_started
+            eta = _eta_seconds(
+                completed=completed,
+                total=total,
+                elapsed_total=elapsed_total,
+            )
+            _log_progress(
+                f"[{completed}/{total}] {dataset.name} | {site_label} | "
+                f"{normalized_start}..{normalized_end} | fetched | "
+                f"chunk={_format_seconds(elapsed)} | elapsed={_format_seconds(elapsed_total)} | "
+                f"eta={_format_seconds(eta)}",
+                verbose,
+            )
             manifest_rows.append(
                 {
                     "source": dataset.name,
@@ -781,9 +824,10 @@ def run_gee_xee_batch_extraction(
 
     summary_df = _summary_frame(result, dataset)
     manifest_df = pd.DataFrame(manifest_rows)
+    total_elapsed = time.perf_counter() - total_started
     _log_progress(
-        f"{progress_bar(total, total)} completed {total}/{total} batch(es); "
-        f"{len(result)} row(s) ready.",
+        f"Completed {dataset.name} GEE/Xee fetch | batches={total}/{total} | "
+        f"rows={len(result)} | total_elapsed={_format_seconds(total_elapsed)}",
         verbose,
     )
     return result, summary_df, manifest_df
