@@ -1201,6 +1201,78 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertTrue(result["metrics"][0]["low_confidence"])
         self.assertTrue(any("Low overlap" in warning for warning in result["warnings"]))
 
+    def test_annotate_annual_overlap_summary_assigns_high_confidence(self):
+        overlap = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=365, freq="D"),
+                "precipitation_station": [1.0] * 365,
+                "precipitation_grid": [1.0] * 365,
+            }
+        )
+        metric_row = {"variable": "precipitation"}
+        result = station_compare._annotate_annual_overlap_summary(
+            overlap,
+            variable="precipitation",
+            metric_row=metric_row,
+        )
+        self.assertEqual("high", result["confidence_class"])
+        self.assertFalse(result["low_confidence"])
+        self.assertEqual("suitable for annual interpretation", result["confidence_note"])
+
+    def test_annotate_annual_overlap_summary_assigns_very_low_confidence(self):
+        overlap = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=20, freq="D"),
+                "precipitation_station": [1.0] * 20,
+                "precipitation_grid": [1.0] * 20,
+            }
+        )
+        metric_row = {"variable": "precipitation"}
+        result = station_compare._annotate_annual_overlap_summary(
+            overlap,
+            variable="precipitation",
+            metric_row=metric_row,
+        )
+        self.assertEqual("very_low", result["confidence_class"])
+        self.assertTrue(result["low_confidence"])
+        self.assertEqual("sparse overlap; descriptive only", result["confidence_note"])
+
+    def test_render_compare_report_shows_confidence_summary(self):
+        result = {
+            "anchor_location": {"lat": -1.286, "lon": 36.817},
+            "date_from": "2020-01-01",
+            "date_to": "2020-12-31",
+            "selection_strategy": "all_vars_single_station",
+            "grid_sources": ["nasa_power"],
+            "station_summary": [],
+            "selected_stations_by_variable": [],
+            "candidate_review_artifacts": None,
+            "grid_failures": [],
+            "grid_source_metadata": [],
+            "use_case_rankings": [],
+            "warnings": [],
+            "confidence_summary": {
+                "daily": {"high": 1, "medium": 0, "low": 0, "very_low": 1, "total": 2, "low_confidence": 1},
+                "annual": {"high": 0, "medium": 1, "low": 0, "very_low": 0, "total": 1, "low_confidence": 0},
+                "pooled_daily": {"high": 1, "medium": 0, "low": 0, "very_low": 0, "total": 1, "low_confidence": 0},
+                "pooled_annual": {"high": 0, "medium": 0, "low": 1, "very_low": 0, "total": 1, "low_confidence": 1},
+            },
+            "metrics": [],
+            "monthly_metrics": [],
+            "seasonal_metrics": [],
+            "annual_metrics": [],
+            "xclim_precip_indices": [],
+            "pooled_daily_metrics": [],
+            "pooled_monthly_metrics": [],
+            "pooled_seasonal_metrics": [],
+            "pooled_annual_metrics": [],
+            "overall_metrics": [],
+        }
+        rendered = station_compare.render_compare_report(result)
+        self.assertIn("Confidence summary", rendered)
+        self.assertIn("daily: high=1 medium=0 low=0 very_low=1", rendered)
+        self.assertIn("pooled_annual: high=0 medium=0 low=1 very_low=0", rendered)
+
     def test_get_climate_data_applies_custom_station_override(self):
         stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
         base_frame = pd.DataFrame(
