@@ -89,6 +89,16 @@ STATION_METADATA_COLUMNS = {
 }
 
 
+def custom_station_format_help() -> str:
+    return (
+        "Provide CSV or JSON with a date column plus one or more climate variables. "
+        "Accepted aliases include rainfall/precip/precipitation, tmax/max_temperature, "
+        "tmin/min_temperature, tmean/mean_temperature, humidity/rh, wind_speed/wind, "
+        "and solar_radiation/solar. Optional metadata columns: station_id, station_name, "
+        "lat/station_lat, lon/station_lon, elevation/station_elevation_m."
+    )
+
+
 def _custom_cache_root(cache_dir: str | None) -> Path:
     if cache_dir:
         return Path(cache_dir) / "weather_stations" / "custom"
@@ -117,7 +127,11 @@ def _read_table(path: Path) -> pd.DataFrame:
         return pd.read_csv(path)
     if suffix == ".json":
         return pd.read_json(path)
-    raise ValueError("custom station file must be .csv or .json")
+    raise ValueError(
+        "Custom station file must be .csv or .json. "
+        f"Got '{path.suffix or 'no extension'}'. "
+        + custom_station_format_help()
+    )
 
 
 def _normalize_columns(frame: pd.DataFrame) -> pd.DataFrame:
@@ -267,7 +281,10 @@ def load_custom_station_data(
     raw = _read_table(source_path)
     normalized = _normalize_columns(raw)
     if "date" not in normalized.columns:
-        raise ValueError("Custom station file must include a date column.")
+        raise ValueError(
+            "Custom station file must include a date column. "
+            + custom_station_format_help()
+        )
 
     normalized = _ensure_station_metadata(
         normalized,
@@ -283,14 +300,16 @@ def load_custom_station_data(
     )
     if normalized.empty:
         raise ValueError(
-            f"Custom station file has no rows in requested window {date_from.isoformat()}..{date_to.isoformat()}."
+            f"Custom station file has no rows in requested window {date_from.isoformat()}..{date_to.isoformat()}. "
+            "Check date coverage and date-column parsing."
         )
 
     available_variables = [column for column in requested_variables if column in normalized.columns]
     if not available_variables:
         raise ValueError(
             "Custom station file does not contain any requested variables. "
-            f"Requested: {requested_variables}. Available columns: {list(normalized.columns)}"
+            f"Requested: {requested_variables}. Available columns: {list(normalized.columns)}. "
+            + custom_station_format_help()
         )
 
     keep_columns = [
@@ -356,6 +375,9 @@ def load_custom_station_data(
     )
     result.attrs["cache_hit"] = False
     result.attrs["cache_path"] = str(cache_path)
+    result.attrs["source_file"] = str(source_path)
+    result.attrs["requested_variables"] = requested_variables
+    result.attrs["available_variables"] = available_variables
     return result
 
 
@@ -422,5 +444,6 @@ def summarize_custom_station_candidate(
         "selection_threshold_used": 0.0,
         "threshold_status": "custom_file",
         "selection_status": "custom_file",
+        "custom_station_file": str(Path(custom_station_file).expanduser()),
     }
     return pd.DataFrame([row])

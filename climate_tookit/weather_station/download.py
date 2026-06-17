@@ -31,6 +31,7 @@ from climate_tookit.weather_station.gsod import (
     select_gsod_station_candidates,
 )
 from climate_tookit.weather_station.custom_station import (
+    custom_station_format_help,
     load_custom_station_data,
     summarize_custom_station_candidate,
 )
@@ -111,15 +112,23 @@ def _render_list_candidate_summary(frame: pd.DataFrame) -> str:
         return "No candidate stations."
     lines = [f"Candidate stations: {len(frame)}"]
     for rank, (_, row) in enumerate(frame.iterrows(), start=1):
+        if str(row.get("station_source", "")).strip().lower() == "custom_csv":
+            header = (
+                f"{rank}. custom_csv | {row.get('station_id', 'unknown')} | "
+                f"{row.get('station_name', 'unknown')} | "
+                f"source file={row.get('custom_station_file', 'n/a')}"
+            )
+        else:
+            header = (
+                f"{rank}. {row.get('station_source', 'unknown')} | "
+                f"{row.get('station_id', 'unknown')} | {row.get('station_name', 'unknown')} | "
+                f"distance={_format_optional_number(row.get('distance_km'))} km | "
+                f"elevation={_format_optional_number(row.get('elevation_m'), 1)} m | "
+                f"elev_diff={_format_optional_number(row.get('elevation_diff_m'), 1)} m"
+            )
         lines.extend(
             [
-                (
-                    f"{rank}. {row.get('station_source', 'unknown')} | "
-                    f"{row.get('station_id', 'unknown')} | {row.get('station_name', 'unknown')} | "
-                    f"distance={_format_optional_number(row.get('distance_km'))} km | "
-                    f"elevation={_format_optional_number(row.get('elevation_m'), 1)} m | "
-                    f"elev_diff={_format_optional_number(row.get('elevation_diff_m'), 1)} m"
-                ),
+                header,
                 (
                     f"   coverage={_format_field_coverage(row)} | "
                     f"status={row.get('threshold_status', 'n/a')}"
@@ -167,11 +176,20 @@ def _render_download_summary(frame: pd.DataFrame) -> str:
                     f"{int(first['selection_rank'])}. " if "selection_rank" in station_frame.columns else ""
                 )
                 + (
-                    f"{first.get('station_id', 'unknown')} | {first.get('station_name', 'unknown')} | "
-                    f"rows={row_count} | dates={date_min.date()}..{date_max.date()} | "
-                    f"distance={_format_optional_number(first.get('distance_km', first.get('station_distance_km')))} km | "
-                    f"elevation={_format_optional_number(first.get('station_elevation_m'), 1)} m | "
-                    f"elev_diff={_format_optional_number(first.get('elevation_diff_m'), 1)} m"
+                    (
+                        f"{first.get('station_id', 'unknown')} | {first.get('station_name', 'unknown')} | "
+                        f"rows={row_count} | dates={date_min.date()}..{date_max.date()} | "
+                        f"source file={first.get('custom_station_file', 'uploaded dataset')}"
+                    )
+                    if str(first.get("station_source", "")).strip().lower() == "custom_csv"
+                    else
+                    (
+                        f"{first.get('station_id', 'unknown')} | {first.get('station_name', 'unknown')} | "
+                        f"rows={row_count} | dates={date_min.date()}..{date_max.date()} | "
+                        f"distance={_format_optional_number(first.get('distance_km', first.get('station_distance_km')))} km | "
+                        f"elevation={_format_optional_number(first.get('station_elevation_m'), 1)} m | "
+                        f"elev_diff={_format_optional_number(first.get('elevation_diff_m'), 1)} m"
+                    )
                 ),
                 (
                     f"   selection={first.get('selection_status', 'n/a')} | "
@@ -249,6 +267,11 @@ def download_station_data(
             station_id=station_id,
         )
     if station_source == "custom_csv":
+        if not custom_station_file:
+            raise ValueError(
+                "station_source='custom_csv' requires --custom-station-file. "
+                + custom_station_format_help()
+            )
         if selection_mode == "list":
             return summarize_custom_station_candidate(
                 custom_station_file=custom_station_file,
@@ -289,6 +312,7 @@ def download_station_data(
         frame["fields_passing_threshold"] = pd.Series([resolved_requested_fields] * len(frame), index=frame.index, dtype=object)
         frame["fields_failing_threshold"] = pd.Series([[]] * len(frame), index=frame.index, dtype=object)
         frame["all_fields_meet_threshold"] = True
+        frame["custom_station_file"] = str(Path(custom_station_file).expanduser())
         return frame
     resolved_target_elevation_m = target_elevation_m
     if resolved_target_elevation_m is None and auto_anchor_elevation:
@@ -1129,17 +1153,21 @@ def main():
         "--station-source",
         choices=sorted(SUPPORTED_STATION_SOURCES),
         default="ghcn_daily",
-        help="Observed station backend: ghcn_daily, gsod, custom_csv, or auto (rank across both).",
+        help="Observed station backend: ghcn_daily, gsod, custom_csv, or auto (rank across NOAA backends). custom_csv requires --custom-station-file.",
     )
     parser.add_argument("--station-lat", type=float, required=True)
     parser.add_argument("--station-lon", type=float, required=True)
     parser.add_argument("--start", required=True)
     parser.add_argument("--end", required=True)
     parser.add_argument("--station-id", default=None)
-    parser.add_argument("--custom-station-file", default=None)
-    parser.add_argument("--custom-station-name", default=None)
-    parser.add_argument("--custom-temp-unit", choices=["c", "f", "k"], default="c")
-    parser.add_argument("--custom-precip-unit", choices=["mm", "inch", "tenth_mm"], default="mm")
+    parser.add_argument("--custom-station-file", default=None,
+                        help="Path to custom station CSV/JSON. Use with --station-source custom_csv.")
+    parser.add_argument("--custom-station-name", default=None,
+                        help="Optional station label for custom station file.")
+    parser.add_argument("--custom-temp-unit", choices=["c", "f", "k"], default="c",
+                        help="Temperature unit in custom station file (default: c).")
+    parser.add_argument("--custom-precip-unit", choices=["mm", "inch", "tenth_mm"], default="mm",
+                        help="Precipitation unit in custom station file (default: mm).")
     parser.add_argument("--selection-mode", choices=["auto", "specified", "list"], default="auto")
     parser.add_argument("--auto-select", default="auto-1")
     parser.add_argument("--variables", default=None)
@@ -1155,7 +1183,8 @@ def main():
     parser.add_argument("--max-auto-stations", type=int, default=DEFAULT_MAX_AUTO_STATIONS)
     parser.add_argument("--candidate-limit", type=int, default=DEFAULT_CANDIDATE_LIMIT)
     parser.add_argument("--score-limit", type=int, default=DEFAULT_SCORE_LIMIT)
-    parser.add_argument("--report-prefix", default=None)
+    parser.add_argument("--report-prefix", default=None,
+                        help="Prefix for candidate-review CSV/JSON/HTML outputs. Most useful with --selection-mode list.")
     parser.add_argument("--open-report", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("-o", "--output", default=None)

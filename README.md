@@ -417,6 +417,136 @@ We welcome PRs and suggestions!
 
 ---
 
+## Weather Station Workflows
+
+Toolkit supports:
+
+1. NOAA station discovery and download with `ghcn_daily`, `gsod`, or `auto`
+2. station-vs-grid comparison against historical gridded products
+3. custom station CSV/JSON ingestion
+4. custom station override into historical climate analysis
+
+### Candidate Review
+
+Find nearby observed stations and create review artifacts:
+
+```bash
+python -m climate_tookit.weather_station.download \
+  --station-source auto \
+  --selection-mode list \
+  --station-lat -1.286 \
+  --station-lon 36.817 \
+  --start 2011-01-01 \
+  --end 2020-12-31 \
+  --variables precipitation,max_temperature,min_temperature \
+  --max-distance-km 100 \
+  --report-prefix outputs/weather_station/nairobi_auto_candidates \
+  --open-report
+```
+
+Outputs:
+
+- candidate CSV
+- candidate JSON
+- candidate HTML map
+
+### NOAA Station Download
+
+```bash
+python -m climate_tookit.weather_station.download \
+  --station-source auto \
+  --selection-mode auto \
+  --auto-select auto-1 \
+  --station-lat -1.286 \
+  --station-lon 36.817 \
+  --start 2011-01-01 \
+  --end 2020-12-31 \
+  --variables precipitation,max_temperature,min_temperature \
+  --stage preprocessed
+```
+
+### Custom Station File
+
+```bash
+python -m climate_tookit.weather_station.download \
+  --station-source custom_csv \
+  --custom-station-file path/to/station.csv \
+  --custom-station-name "My station" \
+  --station-lat -1.286 \
+  --station-lon 36.817 \
+  --start 2020-01-01 \
+  --end 2020-12-31 \
+  --variables precipitation,max_temperature,min_temperature \
+  --custom-temp-unit c \
+  --custom-precip-unit mm
+```
+
+Expected custom file shape:
+
+- required:
+  - `date`
+  - at least one requested climate variable
+- accepted precipitation aliases:
+  - `precipitation`, `precip`, `rain`, `rainfall`, `prcp`
+- accepted temperature aliases:
+  - `tmax` / `max_temperature`
+  - `tmin` / `min_temperature`
+  - `tmean` / `mean_temperature`
+- optional metadata:
+  - `station_id`, `station_name`, `lat`, `lon`, `elevation`
+
+Declare units explicitly:
+
+- `--custom-temp-unit c|f|k`
+- `--custom-precip-unit mm|inch|tenth_mm`
+
+### Station vs Grid Comparison
+
+```bash
+python -m climate_tookit.weather_station.compare \
+  --station-source auto \
+  --station-lat -1.286 \
+  --station-lon 36.817 \
+  --start 2011-01-01 \
+  --end 2020-12-31 \
+  --selection-mode auto \
+  --auto-select auto-1 \
+  --grid-source paired \
+  --grid-source nasa_power \
+  --precip-source chirps_v3_daily_rnl \
+  --temp-source agera_5 \
+  --variables precipitation,max_temperature,min_temperature \
+  --output outputs/weather_station/nairobi_station_vs_grid_2011_2020.json
+```
+
+### Historical Analysis With Custom Overrides
+
+```bash
+python -m climate_tookit.climate_statistics.statistics \
+  --location="-1.286,36.817" \
+  --start-year=2020 \
+  --end-year=2020 \
+  --source=paired \
+  --precip-source=chirps_v3_daily_rnl \
+  --temp-source=agera_5 \
+  --custom-station-file path/to/station.csv \
+  --custom-station-vars precipitation,max_temperature,min_temperature \
+  --custom-station-name "My station"
+```
+
+### Caching
+
+Weather-station cache uses:
+
+- `outputs/cache/weather_stations/ghcn_daily`
+- `outputs/cache/weather_stations/gsod`
+- `outputs/cache/weather_stations/custom`
+- `outputs/cache/weather_stations/dem_anchor`
+
+Keep cache under project-local `outputs/cache/...` so repeat runs can reuse saved files.
+
+---
+
 ## License
 
 This project is licensed under the [MIT License](./LICENSE).
