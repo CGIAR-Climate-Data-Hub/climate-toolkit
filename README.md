@@ -412,7 +412,8 @@ We welcome PRs and suggestions!
 1. Fork the repo
 2. Work in a feature branch
 3. Follow module layout and formatting
-4. Submit a pull request with a clear description
+4. Submit a pull request with a clear description using the repository PR template
+5. Complete every applicable PR template section, especially problem statement, implementation notes, data/auth/runtime notes, testing, and related issues
 
 ---
 

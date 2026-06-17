@@ -20,3 +20,4 @@ local
 .vscode/
 outputs/
 climate_stats_*.json
+*.egg-info/
