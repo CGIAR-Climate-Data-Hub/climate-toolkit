@@ -44,6 +44,16 @@ from .source_data.sources.utils.settings import Settings
 
 VALID_STAGES = ("raw", "transformed", "preprocessed")
 
+
+def _default_variables_for_source(source_name: str):
+    if source_name in {"ghcn_daily", "gsod"}:
+        return [
+            ClimateVariable.precipitation,
+            ClimateVariable.max_temperature,
+            ClimateVariable.min_temperature,
+        ]
+    return default_variables()
+
 def fetch_data(
     source,
     location_coord=None,
@@ -59,6 +69,7 @@ def fetch_data(
     refresh_cache=False,
     sites=None,
     sites_csv=None,
+    station_id=None,
 ):
     """Fetch climate data through the pipeline.
     Parameters
@@ -89,7 +100,7 @@ def fetch_data(
         )
     source_name = normalize_climate_dataset_name(source)
     settings = settings or Settings.load()
-    variables = variables or default_variables()
+    variables = variables or _default_variables_for_source(source_name)
     date_from = date_from or date.today()
     date_to = date_to or date.today()
     coverage_error = source_date_coverage_error(source_name, date_from, date_to)
@@ -163,6 +174,7 @@ def fetch_data(
             verbose=verbose,
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
+            station_id=station_id,
         )
         return client.download()
 
@@ -179,6 +191,7 @@ def fetch_data(
             verbose=verbose,
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
+            station_id=station_id,
         )
     # preprocessed (default)
     return preprocess_data(
@@ -193,6 +206,7 @@ def fetch_data(
         verbose=verbose,
         cache_dir=cache_dir,
         refresh_cache=refresh_cache,
+        station_id=station_id,
     )
 
 def save_output(data, output_path, fmt):
@@ -247,6 +261,11 @@ def main():
     parser.add_argument("--end", required=True)
     parser.add_argument("--model", default=None)
     parser.add_argument("--scenario", default=None)
+    parser.add_argument(
+        "--station-id",
+        default=None,
+        help="Optional station identifier for station-backed sources such as ghcn_daily or gsod",
+    )
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument(
         "--cache-dir",
@@ -277,7 +296,8 @@ def main():
         help=(
             "Comma-separated list; defaults to a standard set. For agera_5 "
             "companion variables, request humidity, wind_speed, and/or "
-            "solar_radiation explicitly."
+            "solar_radiation explicitly. For ghcn_daily and gsod, default is "
+            "precipitation,max_temperature,min_temperature."
         ),
     )
     parser.add_argument("-o", "--output", default=None)
@@ -350,6 +370,7 @@ def main():
             refresh_cache=args.refresh_cache,
             sites=parsed_sites,
             sites_csv=args.sites_csv,
+            station_id=args.station_id,
         )
     except Exception as exc:
         print(f"Error: {format_ee_setup_error(exc)}")

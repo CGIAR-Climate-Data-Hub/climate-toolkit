@@ -62,6 +62,8 @@ class ClimateDataset(Enum):
     chirts = auto()
     soil_grid = auto()
     hwsd = auto()
+    ghcn_daily = auto()
+    gsod = auto()
 
 
 class Cadence(Enum):
@@ -140,6 +142,10 @@ LEGACY_SOURCE_ALIASES = {
     "power": "nasa_power",
     "nexgddp": "nex_gddp",
     "soilgrids": "soil_grid",
+    "ghcn": "ghcn_daily",
+    "ghcnd": "ghcn_daily",
+    "ghcn_daily": "ghcn_daily",
+    "gsod": "gsod",
 }
 
 SOURCE_DATE_LIMITS = {

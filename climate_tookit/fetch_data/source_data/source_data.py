@@ -14,6 +14,8 @@ from .sources.era_5 import DownloadData as DownloadERA5
 from .sources.tamsat import DownloadTAMSAT
 from .sources.nasa_power import DownloadData as DownloadNASA
 from .sources.nex_gddp import DownloadData as DownloadNEXGDDP
+from .sources.ghcn_daily import DownloadData as DownloadGHCNDaily
+from .sources.gsod import DownloadData as DownloadGSOD
 from .sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
@@ -47,7 +49,7 @@ class SourceData:
     def __init__(self, location_coord, variables, source, date_from_utc,
                  date_to_utc, settings, model=None, scenario=None,
                  nex_backend=None, verbose=True, cache_dir=None,
-                 refresh_cache=False):
+                 refresh_cache=False, station_id=None):
         self.location_coord = location_coord
         self.variables = variables
         self.source = source
@@ -60,6 +62,7 @@ class SourceData:
         self.verbose = verbose
         self.cache_dir = cache_dir
         self.refresh_cache = refresh_cache
+        self.station_id = station_id
 
         client = None
 
@@ -139,7 +142,36 @@ class SourceData:
                 date_from_utc=date_from_utc,
                 date_to_utc=date_to_utc,
                 settings=settings,
-                source=source
+                source=source,
+                verbose=verbose,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
+            )
+        elif source == ClimateDataset.ghcn_daily:
+            client = DownloadGHCNDaily(
+                variables=variables,
+                location_coord=location_coord,
+                date_from_utc=date_from_utc,
+                date_to_utc=date_to_utc,
+                settings=settings,
+                source=source,
+                verbose=verbose,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
+                station_id=station_id,
+            )
+        elif source == ClimateDataset.gsod:
+            client = DownloadGSOD(
+                variables=variables,
+                location_coord=location_coord,
+                date_from_utc=date_from_utc,
+                date_to_utc=date_to_utc,
+                settings=settings,
+                source=source,
+                verbose=verbose,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
+                station_id=station_id,
             )
 
         if client is None:
@@ -175,6 +207,7 @@ def main():
     parser.add_argument('--quiet', action='store_true')
     parser.add_argument('--cache-dir', default=None)
     parser.add_argument('--refresh-cache', action='store_true')
+    parser.add_argument('--station-id', default=None)
     parser.add_argument('--output', '-o', default=None)
     parser.add_argument(
         '--format',
@@ -222,6 +255,7 @@ def main():
         verbose=not args.quiet,
         cache_dir=args.cache_dir,
         refresh_cache=args.refresh_cache,
+        station_id=args.station_id,
     )
 
     climate_data = source_data.download()

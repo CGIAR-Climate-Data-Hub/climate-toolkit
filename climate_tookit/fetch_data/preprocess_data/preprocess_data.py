@@ -79,6 +79,16 @@ def apply_unit_conversions(
             if col in converted_df.columns:
                 if converted_df[col].mean() > 200:
                     converted_df[col] = converted_df[col] - 273.15
+    elif source_lc == 'ghcn_daily':
+        temp_columns = [col for col in converted_df.columns if 'temperature' in col.lower()]
+        for col in temp_columns:
+            if col in converted_df.columns:
+                converted_df[col] = converted_df[col] / 10.0
+    elif source_lc == 'gsod':
+        temp_columns = [col for col in converted_df.columns if 'temperature' in col.lower()]
+        for col in temp_columns:
+            if col in converted_df.columns:
+                converted_df[col] = (converted_df[col] - 32.0) * (5.0 / 9.0)
 
     if 'precipitation' in converted_df.columns:
         if source_lc in ['agera_5', 'era_5']:
@@ -88,6 +98,15 @@ def apply_unit_conversions(
             # IMERG GEE fetch currently sums half-hourly precipitation rates
             # expressed in mm/hr; multiply by 0.5 hr to obtain daily depth.
             converted_df['precipitation'] = converted_df['precipitation'] * 0.5
+        elif source_lc == 'ghcn_daily':
+            converted_df['precipitation'] = converted_df['precipitation'] / 10.0
+        elif source_lc == 'gsod':
+            converted_df['precipitation'] = converted_df['precipitation'] * 25.4
+
+    if source_lc == 'ghcn_daily' and 'wind_speed' in converted_df.columns:
+        converted_df['wind_speed'] = converted_df['wind_speed'] / 10.0
+    elif source_lc == 'gsod' and 'wind_speed' in converted_df.columns:
+        converted_df['wind_speed'] = converted_df['wind_speed'] * 0.514444
     return converted_df
 
 def quality_control_checks(
@@ -168,6 +187,15 @@ def preprocess_transformed_data(
         return pd.DataFrame()
 
     converted_df = apply_unit_conversions(transformed_df, source, verbose=verbose)
+    if (
+        source.lower() in {"ghcn_daily", "gsod"}
+        and 'mean_temperature' not in converted_df.columns
+        and 'max_temperature' in converted_df.columns
+        and 'min_temperature' in converted_df.columns
+    ):
+        converted_df['mean_temperature'] = (
+            converted_df['max_temperature'] + converted_df['min_temperature']
+        ) / 2.0
     cleaned_df = clean_climate_data(converted_df, group_columns=group_columns)
     final_df = quality_control_checks(
         cleaned_df,
@@ -198,6 +226,7 @@ def preprocess_data(
     verbose=True,
     cache_dir=None,
     refresh_cache=False,
+    station_id=None,
 ) -> pd.DataFrame:
     """Preprocess climate data into analysis-ready format."""
     if transformed_data is not None:
@@ -215,6 +244,7 @@ def preprocess_data(
             verbose=verbose,
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
+            station_id=station_id,
         )
 
     return preprocess_transformed_data(
