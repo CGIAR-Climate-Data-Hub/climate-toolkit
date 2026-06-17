@@ -49,6 +49,16 @@ except ImportError:
         print("Warning: preprocess_data pipeline not available")
 
 try:
+    from ..weather_station.custom_station import load_custom_station_data
+    CUSTOM_STATION_AVAILABLE = True
+except ImportError:
+    try:
+        from climate_tookit.weather_station.custom_station import load_custom_station_data
+        CUSTOM_STATION_AVAILABLE = True
+    except ImportError:
+        CUSTOM_STATION_AVAILABLE = False
+
+try:
     from ..fetch_data.source_data.sources.utils.models import (
         ClimateVariable,
         normalize_climate_dataset_name,
@@ -335,6 +345,71 @@ def _fetch_auto(lat, lon, date_from, date_to):
         )
     return _fetch_chirps_chirts(lat, lon, date_from, date_to)
 
+
+def _apply_custom_station_overrides(
+    base_df: pd.DataFrame,
+    *,
+    lat: float,
+    lon: float,
+    date_from: date,
+    date_to: date,
+    custom_station_file: str | None,
+    custom_station_variables: Optional[List[str]] = None,
+    custom_station_name: Optional[str] = None,
+    custom_temp_unit: str = "c",
+    custom_precip_unit: str = "mm",
+) -> pd.DataFrame:
+    if not custom_station_file:
+        return base_df
+    if not CUSTOM_STATION_AVAILABLE:
+        raise RuntimeError("custom station ingestion module is not available")
+
+    requested = custom_station_variables or [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+    ]
+    station_df = load_custom_station_data(
+        custom_station_file=custom_station_file,
+        date_from=date_from,
+        date_to=date_to,
+        variables=requested,
+        stage="preprocessed",
+        station_coord=(lat, lon),
+        station_name=custom_station_name,
+        custom_temp_unit=custom_temp_unit,
+        custom_precip_unit=custom_precip_unit,
+    )
+    if station_df.empty:
+        raise RuntimeError("Custom station file returned no rows in requested period.")
+
+    station_df = station_df.rename(columns=RENAME_MAP).copy()
+    station_df["date"] = pd.to_datetime(station_df["date"])
+    working = base_df.copy()
+    working["date"] = pd.to_datetime(working["date"])
+
+    override_columns = [
+        column for column in ("precip", "tmax", "tmin", "mean_temperature", "humidity", "wind_speed", "solar_radiation")
+        if column in station_df.columns
+    ]
+    if not override_columns:
+        raise RuntimeError("Custom station file did not provide any override columns after normalization.")
+
+    merged = pd.merge(
+        working,
+        station_df[["date"] + override_columns],
+        on="date",
+        how="left",
+        suffixes=("", "_station_override"),
+    )
+    for column in override_columns:
+        override_col = f"{column}_station_override"
+        if override_col not in merged.columns:
+            continue
+        merged[column] = merged[override_col].combine_first(merged.get(column))
+        merged = merged.drop(columns=[override_col])
+    return merged.sort_values("date").reset_index(drop=True)
+
 def get_climate_data(
     lat: float, lon: float,
     start_date: str, end_date: str,
@@ -343,6 +418,12 @@ def get_climate_data(
     scenario: Optional[str] = None,
     precip_source: Optional[str] = None,
     temp_source: Optional[str] = None,
+    verbose: bool = False,
+    custom_station_file: Optional[str] = None,
+    custom_station_variables: Optional[List[str]] = None,
+    custom_station_name: Optional[str] = None,
+    custom_temp_unit: str = "c",
+    custom_precip_unit: str = "mm",
 ) -> pd.DataFrame:
     """
     Fetch all variables for [start_date, end_date] from the given source.
@@ -394,6 +475,18 @@ def get_climate_data(
 
     df = df.rename(columns=RENAME_MAP).copy()
     df['date'] = pd.to_datetime(df['date'])
+    df = _apply_custom_station_overrides(
+        df,
+        lat=lat,
+        lon=lon,
+        date_from=date_from,
+        date_to=date_to,
+        custom_station_file=custom_station_file,
+        custom_station_variables=custom_station_variables,
+        custom_station_name=custom_station_name,
+        custom_temp_unit=custom_temp_unit,
+        custom_precip_unit=custom_precip_unit,
+    )
 
     # Minimum required for ET0 + water balance
     if 'precip' not in df.columns:
@@ -834,6 +927,19 @@ def analyze_climate_statistics(
     extra_months:   int = 6,
     precip_source:  Optional[str] = None,
     temp_source:    Optional[str] = None,
+    crop_name:      Optional[str] = None,
+    calendar_source: Optional[str] = None,
+    calendar_system: str = "rf",
+    spei_scale_months: Optional[int] = None,
+    spei_fit: str = "ub-pwm",
+    spei_ref_start: Optional[str] = None,
+    spei_ref_end: Optional[str] = None,
+    custom_station_file: Optional[str] = None,
+    custom_station_variables: Optional[List[str]] = None,
+    custom_station_name: Optional[str] = None,
+    custom_temp_unit: str = "c",
+    custom_precip_unit: str = "mm",
+    verbose: bool = False,
 ) -> Dict[str, Any]:
     """
     Single entrypoint.
@@ -888,6 +994,8 @@ def analyze_climate_statistics(
         run_label.append(f"precip_source={normalize_climate_dataset_name(precip_source)}")
     if temp_source:
         run_label.append(f"temp_source={normalize_climate_dataset_name(temp_source)}")
+    if custom_station_file:
+        run_label.append("station_override=on")
     if fixed_season:
         run_label.append(f"fixed_season={fixed_season}")
     cache_note = build_historical_cache_note(
@@ -904,7 +1012,13 @@ def analyze_climate_statistics(
         df = get_climate_data(lat, lon, fetch_start, fetch_end,
                               source, model=model, scenario=scenario,
                               precip_source=precip_source,
-                              temp_source=temp_source)
+                              temp_source=temp_source,
+                              custom_station_file=custom_station_file,
+                              custom_station_variables=custom_station_variables,
+                              custom_station_name=custom_station_name,
+                              custom_temp_unit=custom_temp_unit,
+                              custom_precip_unit=custom_precip_unit,
+                              verbose=verbose)
     except Exception as exc:
         return {
             'error': (
@@ -1278,6 +1392,25 @@ def main() -> None:
                         help='Optional paired precipitation source, e.g. chirps_v3_daily_rnl, chirps_v2, or imerg')
     parser.add_argument('--temp-source', default=None,
                         help='Optional paired temperature source, e.g. agera_5 or era_5')
+    parser.add_argument('--custom-station-file', default=None,
+                        help='Optional custom station CSV/JSON used to override historical variables by date.')
+    parser.add_argument('--custom-station-vars', default=None,
+                        help='Comma-separated station override vars, e.g. precipitation,max_temperature,min_temperature')
+    parser.add_argument('--custom-station-name', default=None,
+                        help='Optional station name label for custom station input.')
+    parser.add_argument('--custom-temp-unit', choices=['c', 'f', 'k'],
+                        default='c',
+                        help='Temperature unit in custom station file (default: c)')
+    parser.add_argument('--custom-precip-unit', choices=['mm', 'inch', 'tenth_mm'],
+                        default='mm',
+                        help='Precipitation unit in custom station file (default: mm)')
+    parser.add_argument('--crop', default=None,
+                        help='Optional crop name for crop-calendar preset fallback, e.g. maize or rice')
+    parser.add_argument('--calendar-source', choices=['ggcmi'], default=None,
+                        help='Optional crop-calendar preset source. Currently: ggcmi')
+    parser.add_argument('--calendar-system', choices=list(CALENDAR_SYSTEM_CHOICES),
+                        default='rf',
+                        help="Crop-calendar management system for presets: rf, ir, or both (default: rf)")
     parser.add_argument(
         '--fixed-season',
         default=None,
@@ -1335,6 +1468,22 @@ def main() -> None:
         extra_months=args.extra_months,
         precip_source=args.precip_source,
         temp_source=args.temp_source,
+        custom_station_file=args.custom_station_file,
+        custom_station_variables=(
+            [item.strip() for item in args.custom_station_vars.split(',') if item.strip()]
+            if args.custom_station_vars else None
+        ),
+        custom_station_name=args.custom_station_name,
+        custom_temp_unit=args.custom_temp_unit,
+        custom_precip_unit=args.custom_precip_unit,
+        crop_name=args.crop,
+        calendar_source=args.calendar_source,
+        calendar_system=args.calendar_system,
+        spei_scale_months=args.spei_scale_months,
+        spei_fit=args.spei_fit,
+        spei_ref_start=args.spei_ref_start,
+        spei_ref_end=args.spei_ref_end,
+        verbose=args.verbose,
     )
 
     # Display

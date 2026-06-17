@@ -63,6 +63,204 @@ def _build_dly_line(station_id: str, year: int, month: int, element: str, values
 
 
 class GHCNDailyStationTests(unittest.TestCase):
+    def test_load_gsod_stations_parses_isd_history_metadata(self):
+        csv_text = "\n".join(
+            [
+                "USAF,WBAN,STATION NAME,CTRY,STATE,ICAO,LAT,LON,ELEV(M),BEGIN,END",
+                "637400,99999,JOMO KENYATTA INTL,KE,,HKJK,-1.317,36.917,1624,19570101,20241231",
+                "637410,99999,NAIROBI/DAGORETTI,KE,,HKNW,-1.300,36.750,1798,19500101,20221231",
+            ]
+        )
+        orig_loader = gsod._download_station_history_text
+        gsod._download_station_history_text = lambda **kwargs: csv_text
+        try:
+            frame = gsod.load_gsod_stations(cache_dir="unused", refresh_cache=False)
+        finally:
+            gsod._download_station_history_text = orig_loader
+
+        self.assertEqual(2, len(frame))
+        self.assertEqual(["63740099999", "63741099999"], frame["station_id"].tolist())
+        self.assertEqual("JOMO KENYATTA INTL", frame.iloc[0]["station_name"])
+        self.assertEqual(-1.317, frame.iloc[0]["lat"])
+        self.assertEqual(1624, frame.iloc[0]["elevation_m"])
+
+    def test_download_station_history_text_rejects_html_error_page(self):
+        class _Resp:
+            status_code = 200
+            text = "<!DOCTYPE HTML><html><body>503 Service Unavailable</body></html>"
+
+            def raise_for_status(self):
+                return None
+
+        orig_get = gsod.requests.get
+        gsod.requests.get = lambda *args, **kwargs: _Resp()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                with self.assertRaisesRegex(RuntimeError, "non-CSV content"):
+                    gsod._download_station_history_text(
+                        cache_dir=tmpdir,
+                        refresh_cache=True,
+                    )
+        finally:
+            gsod.requests.get = orig_get
+
+    def test_render_candidate_map_html_uses_leaflet_and_focal_location_label(self):
+        frame = pd.DataFrame(
+            {
+                "station_id": ["63740099999"],
+                "station_name": ["JOMO KENYATTA INTL"],
+                "station_source": ["gsod"],
+                "lat": [-1.32],
+                "lon": [36.93],
+                "distance_km": [11.64],
+                "min_completeness_ratio": [0.93],
+                "mean_completeness_ratio": [0.97],
+                "field_counts": [{"precipitation": 3386, "max_temperature": 3614, "min_temperature": 3614}],
+                "expected_days": [3653],
+                "requested_fields": [["precipitation", "max_temperature", "min_temperature"]],
+            }
+        )
+
+        html_text = station_download._render_candidate_map_html(
+            candidates=frame,
+            anchor_lat=-1.286,
+            anchor_lon=36.817,
+            title="Observed station candidate review",
+            period_start="2011-01-01",
+            period_end="2020-12-31",
+            scope_summary={
+                "scope_label": "NOAA GHCN + GSOD",
+                "search_radius_km": 100.0,
+                "ghcn_local_station_records": 2,
+                "gsod_local_station_records": 2,
+                "unique_noaa_physical_stations": 2,
+                "displayed_station_count": 1,
+                "deduped_backend_records": 2,
+                "scope_note": "GSOD local discovery currently keys off WMO-linked station metadata.",
+            },
+        )
+
+        self.assertIn("leaflet", html_text.lower())
+        self.assertIn("Focal location", html_text)
+        self.assertIn("Map review", html_text)
+        self.assertIn("CARTO", html_text)
+        self.assertIn("Assessment Period", html_text)
+        self.assertIn("2011-01-01 to 2020-12-31", html_text)
+        self.assertIn("Variable completeness", html_text)
+        self.assertIn("precipitation: 3386/3653", html_text)
+        self.assertIn("GHCN Records In Bounds", html_text)
+        self.assertIn("GSOD Records In Bounds", html_text)
+        self.assertIn("Unique Physical Stations", html_text)
+        self.assertIn("backend duplicates merged=2", html_text)
+
+    def test_station_scope_summary_counts_unique_physical_stations_across_backends(self):
+        fake_ghcn_stations = pd.DataFrame(
+            {
+                "station_id": ["KEM00063741", "KE000063740"],
+                "lat": [-1.300, -1.317],
+                "lon": [36.750, 36.917],
+                "elevation_m": [1798.0, 1624.0],
+                "station_name": ["NAIROBI/DAGORETTI", "JOMO KENYATTA INTL"],
+                "wmo_id": ["63741", "63740"],
+            }
+        )
+        fake_gsod_stations = pd.DataFrame(
+            {
+                "station_id": ["63741099999", "63740099999"],
+                "lat": [-1.300, -1.317],
+                "lon": [36.750, 36.917],
+                "elevation_m": [1798.0, 1624.0],
+                "station_name": ["NAIROBI/DAGORETTI", "JOMO KENYATTA INTL"],
+            }
+        )
+        orig_ghcn_loader = station_selector.load_ghcn_stations
+        orig_gsod_loader = station_selector.load_gsod_stations
+        station_selector.load_ghcn_stations = lambda **kwargs: fake_ghcn_stations.copy()
+        station_selector.load_gsod_stations = lambda **kwargs: fake_gsod_stations.copy()
+        try:
+            summary = station_selector.summarize_station_search_scope(
+                station_source="auto",
+                location_coord=(-1.286, 36.817),
+                max_distance_km=100.0,
+                displayed_candidates=pd.DataFrame({"station_id": ["63740099999", "63741099999"]}),
+            )
+        finally:
+            station_selector.load_ghcn_stations = orig_ghcn_loader
+            station_selector.load_gsod_stations = orig_gsod_loader
+
+        self.assertEqual("NOAA GHCN + GSOD", summary["scope_label"])
+        self.assertEqual(2, summary["ghcn_local_station_records"])
+        self.assertEqual(2, summary["gsod_local_station_records"])
+        self.assertEqual(2, summary["unique_noaa_physical_stations"])
+        self.assertEqual(2, summary["displayed_station_count"])
+        self.assertEqual(2, summary["deduped_backend_records"])
+
+    def test_open_report_html_uses_available_opener(self):
+        calls = []
+        orig_which = station_download.shutil.which
+        orig_run = station_download.subprocess.run
+        station_download.shutil.which = lambda name: "/usr/bin/open" if name == "open" else None
+        station_download.subprocess.run = lambda cmd, check=False: calls.append((cmd, check))
+        try:
+            opened = station_download._open_report_html("demo.html")
+        finally:
+            station_download.shutil.which = orig_which
+            station_download.subprocess.run = orig_run
+
+        self.assertTrue(opened)
+        self.assertEqual([(["/usr/bin/open", "demo.html"], False)], calls)
+
+    def test_download_station_data_loads_custom_csv_and_reuses_cache(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "custom_station.csv"
+            pd.DataFrame(
+                {
+                    "date": ["2020-01-01", "2020-01-02"],
+                    "rainfall": [5.0, 0.0],
+                    "tmax": [25.0, 26.0],
+                    "tmin": [15.0, 16.0],
+                }
+            ).to_csv(csv_path, index=False)
+
+            first = station_download.download_station_data(
+                station_source="custom_csv",
+                station_coord=(-1.286, 36.817),
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 2),
+                variables=[
+                    ClimateVariable.precipitation,
+                    ClimateVariable.max_temperature,
+                    ClimateVariable.min_temperature,
+                ],
+                selection_mode="specified",
+                custom_station_file=str(csv_path),
+                custom_station_name="User Station",
+                cache_dir=tmpdir,
+                verbose=False,
+            )
+            second = station_download.download_station_data(
+                station_source="custom_csv",
+                station_coord=(-1.286, 36.817),
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 2),
+                variables=[
+                    ClimateVariable.precipitation,
+                    ClimateVariable.max_temperature,
+                    ClimateVariable.min_temperature,
+                ],
+                selection_mode="specified",
+                custom_station_file=str(csv_path),
+                custom_station_name="User Station",
+                cache_dir=tmpdir,
+                verbose=False,
+            )
+
+        self.assertEqual([5.0, 0.0], first["precipitation"].tolist())
+        self.assertEqual("custom_csv", first.loc[0, "station_source"])
+        self.assertEqual("User Station", first.loc[0, "station_name"])
+        self.assertFalse(first.attrs["cache_hit"])
+        self.assertTrue(second.attrs["cache_hit"])
+
     def test_parse_auto_select_scope_supports_numeric_and_all(self):
         self.assertEqual(1, station_download.parse_auto_select_scope("auto-1"))
         self.assertEqual(3, station_download.parse_auto_select_scope("auto-3"))
@@ -546,6 +744,49 @@ class GHCNDailyStationTests(unittest.TestCase):
         ]
         self.assertEqual(1, len(overall_precip))
 
+    def test_compare_station_to_grids_accepts_custom_csv_and_saves_candidate_map(self):
+        grid_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=3, freq="D"),
+                "precipitation": [0.0, 4.0, 12.0],
+            }
+        )
+        orig_fetch_grid_source = station_compare._fetch_grid_source
+        station_compare._fetch_grid_source = lambda **kwargs: grid_frame.copy()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                csv_path = Path(tmpdir) / "custom_station.csv"
+                report_prefix = Path(tmpdir) / "candidate_review"
+                pd.DataFrame(
+                    {
+                        "date": ["2020-01-01", "2020-01-02", "2020-01-03"],
+                        "precipitation": [0.0, 5.0, 10.0],
+                        "station_lat": [-1.30, -1.30, -1.30],
+                        "station_lon": [36.75, 36.75, 36.75],
+                    }
+                ).to_csv(csv_path, index=False)
+                result = station_compare.compare_station_to_grids(
+                    station_source="custom_csv",
+                    station_coord=(-1.286, 36.817),
+                    date_from=date(2020, 1, 1),
+                    date_to=date(2020, 1, 3),
+                    grid_sources=["nasa_power"],
+                    variables=[ClimateVariable.precipitation],
+                    selection_mode="specified",
+                    custom_station_file=str(csv_path),
+                    custom_station_name="Uploaded Station",
+                    candidate_report_prefix=str(report_prefix),
+                    cache_dir=tmpdir,
+                    verbose=False,
+                )
+                self.assertTrue(Path(result["candidate_review_artifacts"]["html"]).exists())
+        finally:
+            station_compare._fetch_grid_source = orig_fetch_grid_source
+
+        self.assertEqual(1, len(result["metrics"]))
+        self.assertIsNotNone(result["candidate_review_artifacts"])
+        self.assertEqual("Uploaded Station", result["station_summary"][0]["station_name"])
+
     def test_compare_station_to_grids_best_per_variable_selects_different_stations(self):
         precip_candidate = pd.DataFrame(
             {
@@ -781,6 +1022,43 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertEqual("very_low", result["metrics"][0]["confidence_class"])
         self.assertTrue(result["metrics"][0]["low_confidence"])
         self.assertTrue(any("Low overlap" in warning for warning in result["warnings"]))
+
+    def test_get_climate_data_applies_custom_station_override(self):
+        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        base_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=2, freq="D"),
+                "precipitation": [1.0, 2.0],
+                "max_temperature": [24.0, 25.0],
+                "min_temperature": [14.0, 15.0],
+            }
+        )
+        orig_stats_call_preprocess = stats_module._call_preprocess
+        stats_module._call_preprocess = lambda *args, **kwargs: base_frame.copy()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                csv_path = Path(tmpdir) / "override.csv"
+                pd.DataFrame(
+                    {
+                        "date": ["2020-01-01", "2020-01-02"],
+                        "precipitation": [9.0, 8.0],
+                    }
+                ).to_csv(csv_path, index=False)
+                result = stats_module.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2020-01-01",
+                    "2020-01-02",
+                    "agera_5",
+                    custom_station_file=str(csv_path),
+                    custom_station_variables=["precipitation"],
+                    custom_precip_unit="mm",
+                )
+        finally:
+            stats_module._call_preprocess = orig_stats_call_preprocess
+
+        self.assertEqual([9.0, 8.0], result["precip"].tolist())
+        self.assertEqual([24.0, 25.0], result["tmax"].tolist())
 
     def test_compute_aggregated_metrics_monthly_precipitation(self):
         overlap = pd.DataFrame(

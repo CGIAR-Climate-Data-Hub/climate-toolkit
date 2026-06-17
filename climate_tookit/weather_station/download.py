@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
 import re
+import shutil
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -27,13 +30,30 @@ from climate_tookit.weather_station.gsod import (
     list_gsod_station_candidates,
     select_gsod_station_candidates,
 )
+from climate_tookit.weather_station.custom_station import (
+    load_custom_station_data,
+    summarize_custom_station_candidate,
+)
 from climate_tookit.weather_station.station_selector import (
     SUPPORTED_STATION_SOURCES,
     list_station_candidates,
     select_station_candidates,
+    summarize_station_search_scope,
 )
 
 DEFAULT_MAX_AUTO_STATIONS = 10
+
+
+def _open_report_html(path: str | Path) -> bool:
+    target = Path(path)
+    opener = shutil.which("open") or shutil.which("xdg-open")
+    if opener is None:
+        return False
+    try:
+        subprocess.run([opener, str(target)], check=False)
+    except Exception:
+        return False
+    return True
 
 
 def _selection_warnings(frame: pd.DataFrame) -> list[str]:
@@ -149,7 +169,7 @@ def _render_download_summary(frame: pd.DataFrame) -> str:
                 + (
                     f"{first.get('station_id', 'unknown')} | {first.get('station_name', 'unknown')} | "
                     f"rows={row_count} | dates={date_min.date()}..{date_max.date()} | "
-                    f"distance={_format_optional_number(first.get('distance_km'))} km | "
+                    f"distance={_format_optional_number(first.get('distance_km', first.get('station_distance_km')))} km | "
                     f"elevation={_format_optional_number(first.get('station_elevation_m'), 1)} m | "
                     f"elev_diff={_format_optional_number(first.get('elevation_diff_m'), 1)} m"
                 ),
@@ -197,6 +217,10 @@ def download_station_data(
     auto_anchor_elevation: bool = True,
     disable_completeness_guard: bool = False,
     max_auto_stations: int = DEFAULT_MAX_AUTO_STATIONS,
+    custom_station_file: str | None = None,
+    custom_station_name: str | None = None,
+    custom_temp_unit: str = "c",
+    custom_precip_unit: str = "mm",
 ):
     station_source = str(station_source).strip().lower()
     if station_source not in SUPPORTED_STATION_SOURCES:
@@ -224,6 +248,48 @@ def download_station_data(
             refresh_cache=refresh_cache,
             station_id=station_id,
         )
+    if station_source == "custom_csv":
+        if selection_mode == "list":
+            return summarize_custom_station_candidate(
+                custom_station_file=custom_station_file,
+                date_from=date_from,
+                date_to=date_to,
+                variables=variables,
+                station_coord=station_coord,
+                station_id=station_id,
+                station_name=custom_station_name,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
+                custom_temp_unit=custom_temp_unit,
+                custom_precip_unit=custom_precip_unit,
+            )
+        frame = load_custom_station_data(
+            custom_station_file=custom_station_file,
+            date_from=date_from,
+            date_to=date_to,
+            variables=variables,
+            stage=stage,
+            station_coord=station_coord,
+            station_id=station_id,
+            station_name=custom_station_name,
+            cache_dir=cache_dir,
+            refresh_cache=refresh_cache,
+            custom_temp_unit=custom_temp_unit,
+            custom_precip_unit=custom_precip_unit,
+        )
+        resolved_requested_fields = [
+            item.name if hasattr(item, "name") else str(item)
+            for item in (variables or [])
+        ]
+        frame = frame.copy()
+        frame["selection_status"] = "custom_file"
+        frame["selection_threshold_used"] = pd.NA
+        frame["threshold_status"] = "custom_file"
+        frame["requested_fields"] = pd.Series([resolved_requested_fields] * len(frame), index=frame.index, dtype=object)
+        frame["fields_passing_threshold"] = pd.Series([resolved_requested_fields] * len(frame), index=frame.index, dtype=object)
+        frame["fields_failing_threshold"] = pd.Series([[]] * len(frame), index=frame.index, dtype=object)
+        frame["all_fields_meet_threshold"] = True
+        return frame
     resolved_target_elevation_m = target_elevation_m
     if resolved_target_elevation_m is None and auto_anchor_elevation:
         try:
@@ -246,6 +312,13 @@ def download_station_data(
                     f"Reason: {exc}"
                 )
     if selection_mode == "list":
+        if verbose:
+            print(
+                "Listing station candidates "
+                f"(source={station_source}; max_distance_km={max_distance_km:.1f}; "
+                f"target_elevation_m={_format_optional_number(resolved_target_elevation_m, 1)}; "
+                f"score_limit={score_limit}; candidate_limit={candidate_limit})"
+            )
         if station_source == "ghcn_daily":
             candidates = list_ghcn_station_candidates(
                 location_coord=station_coord,
@@ -281,8 +354,10 @@ def download_station_data(
                 candidate_limit=candidate_limit,
                 score_limit=score_limit,
                 enforce_threshold=False,
+                verbose=verbose,
             )
         if verbose:
+            print(f"Candidate listing complete: {len(candidates)} station(s) scored.")
             for warning in _selection_warnings(candidates):
                 print(f"Warning: {warning}")
         return candidates
@@ -395,6 +470,7 @@ def download_station_data(
                     min_completeness_ratio=min_completeness_ratio,
                     candidate_limit=resolved_limit,
                     score_limit=score_limit,
+                    verbose=verbose,
                 )
         if verbose:
             print(
@@ -477,77 +553,533 @@ def _render_candidate_map_html(
     anchor_lat: float,
     anchor_lon: float,
     title: str,
+    period_start: str | None = None,
+    period_end: str | None = None,
+    scope_summary: dict | None = None,
 ) -> str:
     if candidates.empty:
         return "<html><body><p>No candidate stations.</p></body></html>"
 
-    lats = [anchor_lat, *candidates["lat"].astype(float).tolist()]
-    lons = [anchor_lon, *candidates["lon"].astype(float).tolist()]
-    min_lat, max_lat = min(lats), max(lats)
-    min_lon, max_lon = min(lons), max(lons)
-
-    def project(lat: float, lon: float) -> tuple[float, float]:
-        width = 760.0
-        height = 460.0
-        x = 40.0 + ((lon - min_lon) / max(max_lon - min_lon, 1e-9)) * (width - 80.0)
-        y = 40.0 + (1.0 - ((lat - min_lat) / max(max_lat - min_lat, 1e-9))) * (height - 80.0)
-        return x, y
-
-    anchor_x, anchor_y = project(anchor_lat, anchor_lon)
-    markers = [
-        f'<circle cx="{anchor_x:.1f}" cy="{anchor_y:.1f}" r="7" fill="#111827" />'
-        f'<text x="{anchor_x + 10:.1f}" y="{anchor_y - 10:.1f}" font-size="12">Anchor</text>'
-    ]
+    stations = []
     rows = []
     for idx, row in candidates.reset_index(drop=True).iterrows():
-        x, y = project(float(row["lat"]), float(row["lon"]))
-        color = "#0f766e" if idx == 0 else "#2563eb"
-        markers.append(
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{color}" />'
-            f'<text x="{x + 8:.1f}" y="{y - 8:.1f}" font-size="11">{html.escape(str(row["station_id"]))}</text>'
+        rank = idx + 1
+        station_id = str(row.get("station_id", "unknown"))
+        station_name = str(row.get("station_name", "unknown"))
+        station_source = str(row.get("station_source", "unknown"))
+        distance_km = float(row["distance_km"]) if not pd.isna(row.get("distance_km")) else None
+        min_complete = (
+            float(row["min_completeness_ratio"])
+            if not pd.isna(row.get("min_completeness_ratio"))
+            else None
+        )
+        mean_complete = (
+            float(row["mean_completeness_ratio"])
+            if not pd.isna(row.get("mean_completeness_ratio"))
+            else None
+        )
+        field_counts = row.get("field_counts") if isinstance(row.get("field_counts"), dict) else {}
+        expected_days = (
+            int(row.get("expected_days"))
+            if row.get("expected_days") is not None and not pd.isna(row.get("expected_days"))
+            else None
+        )
+        variable_completeness_parts = []
+        for field_name, count in field_counts.items():
+            if expected_days and expected_days > 0:
+                pct = (float(count) / float(expected_days)) * 100.0
+                variable_completeness_parts.append(f"{field_name}: {int(count)}/{expected_days} ({pct:.0f}%)")
+            else:
+                variable_completeness_parts.append(f"{field_name}: {int(count)}")
+        variable_completeness_text = " | ".join(variable_completeness_parts) if variable_completeness_parts else "n/a"
+        stations.append(
+            {
+                "rank": rank,
+                "station_id": station_id,
+                "station_name": station_name,
+                "station_source": station_source,
+                "lat": float(row["lat"]),
+                "lon": float(row["lon"]),
+                "distance_km": distance_km,
+                "min_completeness_ratio": min_complete,
+                "mean_completeness_ratio": mean_complete,
+                "requested_fields": str(row.get("requested_fields", "")),
+                "variable_completeness": variable_completeness_text,
+            }
         )
         rows.append(
             "<tr>"
-            f"<td>{idx + 1}</td>"
-            f"<td>{html.escape(str(row.get('station_source', 'unknown')))}</td>"
-            f"<td>{html.escape(str(row['station_id']))}</td>"
-            f"<td>{html.escape(str(row['station_name']))}</td>"
-            f"<td>{float(row['distance_km']):.2f}</td>"
-            f"<td>{float(row['min_completeness_ratio']):.2f}</td>"
-            f"<td>{float(row['mean_completeness_ratio']):.2f}</td>"
-            f"<td>{html.escape(str(row['requested_fields']))}</td>"
+            f"<td><span class=\"rank-pill\">{rank}</span></td>"
+            f"<td>{html.escape(station_source)}</td>"
+            f"<td>{html.escape(station_id)}</td>"
+            f"<td>{html.escape(station_name)}</td>"
+            f"<td>{html.escape(f'{period_start} to {period_end}' if period_start and period_end else 'n/a')}</td>"
+            f"<td>{'n/a' if distance_km is None else f'{distance_km:.2f}'}</td>"
+            f"<td>{'n/a' if min_complete is None else f'{min_complete:.2f}'}</td>"
+            f"<td>{'n/a' if mean_complete is None else f'{mean_complete:.2f}'}</td>"
+            f"<td class=\"variable-completeness\">{html.escape(variable_completeness_text)}</td>"
+            f"<td class=\"requested-fields\">{html.escape(str(row.get('requested_fields')))}</td>"
             "</tr>"
         )
+    stations_json = json.dumps(stations)
+    scope_summary = scope_summary or {}
+    scope_label = html.escape(str(scope_summary.get("scope_label", "NOAA station discovery")))
+    search_radius_km = scope_summary.get("search_radius_km")
+    ghcn_local = scope_summary.get("ghcn_local_station_records")
+    gsod_local = scope_summary.get("gsod_local_station_records")
+    unique_local = scope_summary.get("unique_noaa_physical_stations")
+    shown_local = scope_summary.get("displayed_station_count")
+    shown_ghcn = scope_summary.get("displayed_ghcn_candidates")
+    shown_gsod = scope_summary.get("displayed_gsod_candidates")
+    deduped_backend_records = scope_summary.get("deduped_backend_records")
+    scope_note = html.escape(str(scope_summary.get("scope_note", "")))
     return f"""<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>{html.escape(title)}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
   <style>
-    body {{ font-family: sans-serif; margin: 24px; color: #111827; }}
-    table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
-    th, td {{ border: 1px solid #d1d5db; padding: 8px; text-align: left; }}
-    th {{ background: #f3f4f6; }}
-    svg {{ border: 1px solid #d1d5db; background: #f9fafb; }}
+    :root {{
+      --ink: #14213d;
+      --muted: #5b6470;
+      --line: #d7dee7;
+      --bg: #eef3f7;
+      --card: rgba(255,255,255,0.92);
+      --focus: #111827;
+      --rank1: #d97706;
+      --rankN: #2563eb;
+      --site: #0f172a;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, #fef3c7 0, transparent 28%),
+        radial-gradient(circle at top right, #dbeafe 0, transparent 32%),
+        linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%);
+    }}
+    .page {{
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 28px 40px;
+    }}
+    .hero {{
+      display: grid;
+      grid-template-columns: 1.4fr 0.8fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }}
+    .card {{
+      background: var(--card);
+      border: 1px solid rgba(215, 222, 231, 0.9);
+      border-radius: 18px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(8px);
+    }}
+    .hero-main {{
+      padding: 24px 24px 18px;
+    }}
+    h1 {{
+      margin: 0 0 12px;
+      font-size: 2.4rem;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }}
+    .subtitle {{
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.5;
+      max-width: 64ch;
+    }}
+    .hero-side {{
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      justify-content: center;
+    }}
+    .meta-label {{
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 3px;
+    }}
+    .meta-value {{
+      font-size: 1.15rem;
+      font-weight: 700;
+    }}
+    .grid {{
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 18px;
+      align-items: start;
+    }}
+    .scope-strip {{
+      margin: 0 0 18px;
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }}
+    .scope-item {{
+      background: rgba(255,255,255,0.78);
+      border: 1px solid rgba(215, 222, 231, 0.9);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }}
+    .scope-value {{
+      font-size: 1.3rem;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-top: 4px;
+    }}
+    .scope-note-card {{
+      margin: 0 0 18px;
+      padding: 14px 16px;
+      color: var(--muted);
+      font-size: 0.96rem;
+      line-height: 1.5;
+    }}
+    .map-card {{ overflow: hidden; }}
+    .map-head {{
+      padding: 16px 18px 10px;
+      border-bottom: 1px solid rgba(215, 222, 231, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }}
+    .map-title {{
+      font-size: 1.05rem;
+      font-weight: 700;
+    }}
+    .map-note {{
+      color: var(--muted);
+      font-size: 0.9rem;
+    }}
+    #map {{
+      width: 100%;
+      height: 620px;
+      background: #dbe7f0;
+    }}
+    .legend {{
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }}
+    .legend-item {{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }}
+    .legend-dot {{
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }}
+    .legend-site {{ background: var(--site); }}
+    .legend-rank1 {{ background: var(--rank1); }}
+    .legend-rankN {{ background: var(--rankN); }}
+    .legend-line {{
+      width: 18px;
+      height: 0;
+      border-top: 2px dashed #6b7280;
+      display: inline-block;
+    }}
+    .table-card {{
+      padding: 16px 18px 18px;
+      min-width: 0;
+    }}
+    .table-title {{
+      margin: 0 0 12px;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }}
+    .table-wrap {{
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }}
+    table {{
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      min-width: 980px;
+      font-size: 0.94rem;
+    }}
+    th, td {{
+      border-bottom: 1px solid var(--line);
+      padding: 10px 10px;
+      text-align: left;
+      vertical-align: top;
+    }}
+    th {{
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }}
+    tr:last-child td {{ border-bottom: none; }}
+    .rank-pill {{
+      display: inline-flex;
+      min-width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      align-items: center;
+      justify-content: center;
+      background: #e8eef6;
+      color: var(--ink);
+      font-weight: 700;
+    }}
+    .requested-fields {{
+      min-width: 220px;
+      max-width: 320px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      color: var(--muted);
+    }}
+    .variable-completeness {{
+      min-width: 240px;
+      max-width: 360px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      color: var(--muted);
+    }}
+    .leaflet-popup-content {{
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }}
+    .popup-title {{
+      font-weight: 800;
+      margin-bottom: 6px;
+    }}
+    .popup-meta {{
+      color: var(--muted);
+      font-size: 0.9rem;
+    }}
+    .distance-label {{
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(215, 222, 231, 0.95);
+      border-radius: 999px;
+      padding: 2px 7px;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.10);
+      color: var(--ink);
+      font-size: 0.76rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }}
+    @media (max-width: 980px) {{
+      .hero, .grid {{ grid-template-columns: 1fr; }}
+      .scope-strip {{ grid-template-columns: 1fr 1fr; }}
+      #map {{ height: 480px; }}
+    }}
+    @media (max-width: 640px) {{
+      .scope-strip {{ grid-template-columns: 1fr; }}
+    }}
   </style>
 </head>
 <body>
-  <h1>{html.escape(title)}</h1>
-  <p>Anchor: {anchor_lat:.4f}, {anchor_lon:.4f}</p>
-  <svg width="760" height="460" viewBox="0 0 760 460">
-    {''.join(markers)}
-  </svg>
-  <table>
-    <thead>
-      <tr>
-        <th>Rank</th><th>Source</th><th>Station ID</th><th>Name</th><th>Distance (km)</th>
-        <th>Min completeness</th><th>Mean completeness</th><th>Requested fields</th>
-      </tr>
-    </thead>
-    <tbody>
-      {''.join(rows)}
-    </tbody>
-  </table>
+  <div class="page">
+    <section class="hero">
+      <div class="card hero-main">
+        <h1>{html.escape(title)}</h1>
+        <p class="subtitle">
+          Nearby weather stations ranked against focal coordinates you supplied. Report only covers stations discoverable through current toolkit NOAA backends. Map uses live web tiles, so internet connection needed for background basemap.
+        </p>
+      </div>
+      <div class="card hero-side">
+        <div>
+          <div class="meta-label">Focal Location</div>
+          <div class="meta-value">{anchor_lat:.4f}, {anchor_lon:.4f}</div>
+        </div>
+        <div>
+          <div class="meta-label">Candidate Stations</div>
+          <div class="meta-value">{len(stations)}</div>
+        </div>
+        <div>
+          <div class="meta-label">Assessment Period</div>
+          <div class="meta-value">{html.escape(f'{period_start} to {period_end}' if period_start and period_end else 'n/a')}</div>
+        </div>
+        <div>
+          <div class="meta-label">Top Candidate</div>
+          <div class="meta-value">{html.escape(stations[0]["station_name"])}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card scope-strip">
+      <div class="scope-item">
+        <div class="meta-label">Discovery Scope</div>
+        <div class="scope-value">{scope_label}</div>
+      </div>
+      <div class="scope-item">
+        <div class="meta-label">Search Radius</div>
+        <div class="scope-value">{'n/a' if search_radius_km is None else f'{float(search_radius_km):.0f} km'}</div>
+      </div>
+      <div class="scope-item">
+        <div class="meta-label">GHCN Records In Bounds</div>
+        <div class="scope-value">{'n/a' if ghcn_local is None else int(ghcn_local)}</div>
+      </div>
+      <div class="scope-item">
+        <div class="meta-label">GSOD Records In Bounds</div>
+        <div class="scope-value">{'n/a' if gsod_local is None else int(gsod_local)}</div>
+      </div>
+      <div class="scope-item">
+        <div class="meta-label">Unique Physical Stations</div>
+        <div class="scope-value">{'n/a' if unique_local is None else int(unique_local)}</div>
+      </div>
+    </section>
+
+    <section class="card scope-note-card">
+      <strong>Displayed in this report:</strong>
+      {'n/a' if shown_local is None else int(shown_local)} station(s)
+      {' ' if shown_ghcn is None and shown_gsod is None else f'| shown by source: GHCN={int(shown_ghcn or 0)}, GSOD={int(shown_gsod or 0)} '}
+      {' ' if deduped_backend_records is None else f'| backend duplicates merged={int(deduped_backend_records)} '}
+      <br>
+      {scope_note}
+    </section>
+
+    <section class="grid">
+      <div class="card map-card">
+        <div class="map-head">
+          <div>
+            <div class="map-title">Map review</div>
+            <div class="map-note">Focal location and candidate stations in geographic context. Marker size scales with station completeness. Raw NOAA scope and duplicate merging shown above.</div>
+          </div>
+          <div class="legend">
+            <span class="legend-item"><span class="legend-dot legend-site"></span>Focal location</span>
+            <span class="legend-item"><span class="legend-dot legend-rank1"></span>Top-ranked station</span>
+            <span class="legend-item"><span class="legend-dot legend-rankN"></span>Other candidates</span>
+            <span class="legend-item"><span class="legend-line"></span>Distance line</span>
+          </div>
+        </div>
+        <div id="map"></div>
+      </div>
+
+      <div class="card table-card">
+        <h2 class="table-title">Candidate summary</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th><th>Source</th><th>Station ID</th><th>Name</th><th>Assessment period</th><th>Distance (km)</th>
+                <th>Min completeness</th><th>Mean completeness</th><th>Variable completeness</th><th>Requested fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              {''.join(rows)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    const focalLocation = [{anchor_lat}, {anchor_lon}];
+    const stations = {stations_json};
+
+    const map = L.map('map', {{
+      zoomControl: true,
+      scrollWheelZoom: true
+    }});
+
+    L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }}).addTo(map);
+
+    const focalIcon = L.divIcon({{
+      className: 'custom-div-icon',
+      html: '<div style="width:18px;height:18px;border-radius:999px;background:#0f172a;border:3px solid white;box-shadow:0 0 0 2px rgba(15,23,42,0.25);"></div>',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9]
+    }});
+
+    const focalMarker = L.marker(focalLocation, {{ icon: focalIcon }})
+      .addTo(map)
+      .bindPopup('<div class="popup-title">Focal location</div><div class="popup-meta">Input coordinates provided for station search.</div>');
+
+    const bounds = [focalLocation];
+    stations.forEach((station, idx) => {{
+      const isTop = idx === 0;
+      const color = isTop ? '#d97706' : '#2563eb';
+      const completeness = station.mean_completeness_ratio ?? station.min_completeness_ratio ?? 0.3;
+      const radius = Math.max(6, Math.min(16, 6 + (completeness * 10) + (isTop ? 1.5 : 0)));
+
+      const distanceLine = L.polyline([focalLocation, [station.lat, station.lon]], {{
+        color: '#6b7280',
+        weight: isTop ? 2.8 : 2.0,
+        opacity: isTop ? 0.85 : 0.60,
+        dashArray: isTop ? '6 6' : '4 6'
+      }}).addTo(map);
+
+      const midpoint = [
+        (focalLocation[0] + station.lat) / 2,
+        (focalLocation[1] + station.lon) / 2
+      ];
+      const distanceLabel = station.distance_km === null
+        ? 'distance n/a'
+        : station.distance_km.toFixed(1) + ' km';
+      L.marker(midpoint, {{
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({{
+          className: 'distance-label-marker',
+          html: '<div class="distance-label">' + distanceLabel + '</div>',
+          iconSize: [68, 18],
+          iconAnchor: [34, 9]
+        }})
+      }}).addTo(map);
+
+      const marker = L.circleMarker([station.lat, station.lon], {{
+        radius: radius,
+        color: 'white',
+        weight: 2,
+        fillColor: color,
+        fillOpacity: 0.95
+      }}).addTo(map);
+      marker.bindPopup(
+        '<div class="popup-title">#' + station.rank + ' ' + station.station_name + '</div>' +
+        '<div class="popup-meta">' +
+        station.station_id + ' | ' + station.station_source + '<br>' +
+        'Distance: ' + (station.distance_km === null ? 'n/a' : station.distance_km.toFixed(2) + ' km') + '<br>' +
+        'Min completeness: ' + (station.min_completeness_ratio === null ? 'n/a' : station.min_completeness_ratio.toFixed(2)) + '<br>' +
+        'Mean completeness: ' + (station.mean_completeness_ratio === null ? 'n/a' : station.mean_completeness_ratio.toFixed(2)) + '<br>' +
+        'By variable: ' + station.variable_completeness + '<br>' +
+        'Marker radius: ' + radius.toFixed(1) +
+        '</div>'
+      );
+      bounds.push([station.lat, station.lon]);
+    }});
+
+    if (bounds.length === 1) {{
+      map.setView(focalLocation, 11);
+    }} else {{
+      map.fitBounds(bounds, {{ padding: [40, 40] }});
+    }}
+  </script>
 </body>
 </html>"""
 
@@ -559,6 +1091,9 @@ def save_candidate_review_artifacts(
     anchor_lat: float,
     anchor_lon: float,
     station_source: str = "ghcn_daily",
+    period_start: str | None = None,
+    period_end: str | None = None,
+    scope_summary: dict | None = None,
 ):
     prefix = Path(report_prefix)
     prefix.parent.mkdir(parents=True, exist_ok=True)
@@ -577,6 +1112,9 @@ def save_candidate_review_artifacts(
                 if str(station_source).strip().lower() == "auto"
                 else f"{str(station_source).strip()} candidate station review"
             ),
+            period_start=period_start,
+            period_end=period_end,
+            scope_summary=scope_summary,
         ),
         encoding="utf-8",
     )
@@ -591,13 +1129,17 @@ def main():
         "--station-source",
         choices=sorted(SUPPORTED_STATION_SOURCES),
         default="ghcn_daily",
-        help="Observed station backend: ghcn_daily, gsod, or auto (rank across both).",
+        help="Observed station backend: ghcn_daily, gsod, custom_csv, or auto (rank across both).",
     )
     parser.add_argument("--station-lat", type=float, required=True)
     parser.add_argument("--station-lon", type=float, required=True)
     parser.add_argument("--start", required=True)
     parser.add_argument("--end", required=True)
     parser.add_argument("--station-id", default=None)
+    parser.add_argument("--custom-station-file", default=None)
+    parser.add_argument("--custom-station-name", default=None)
+    parser.add_argument("--custom-temp-unit", choices=["c", "f", "k"], default="c")
+    parser.add_argument("--custom-precip-unit", choices=["mm", "inch", "tenth_mm"], default="mm")
     parser.add_argument("--selection-mode", choices=["auto", "specified", "list"], default="auto")
     parser.add_argument("--auto-select", default="auto-1")
     parser.add_argument("--variables", default=None)
@@ -614,6 +1156,7 @@ def main():
     parser.add_argument("--candidate-limit", type=int, default=DEFAULT_CANDIDATE_LIMIT)
     parser.add_argument("--score-limit", type=int, default=DEFAULT_SCORE_LIMIT)
     parser.add_argument("--report-prefix", default=None)
+    parser.add_argument("--open-report", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument("--format", choices=["csv", "json", "print"], default="print")
@@ -644,23 +1187,46 @@ def main():
             auto_anchor_elevation=not args.no_auto_anchor_elevation,
             disable_completeness_guard=args.disable_completeness_guard,
             max_auto_stations=args.max_auto_stations,
+            custom_station_file=args.custom_station_file,
+            custom_station_name=args.custom_station_name,
+            custom_temp_unit=args.custom_temp_unit,
+            custom_precip_unit=args.custom_precip_unit,
         )
     except Exception as exc:
         print(f"Error: {exc}")
         return 1
 
     if args.selection_mode == "list" and args.report_prefix:
+        scope_summary = summarize_station_search_scope(
+            station_source=args.station_source,
+            location_coord=(args.station_lat, args.station_lon),
+            max_distance_km=args.max_distance_km,
+            target_elevation_m=args.target_elevation_m,
+            max_elevation_diff_m=args.max_elevation_diff_m,
+            cache_dir=args.cache_dir,
+            refresh_cache=args.refresh_cache,
+            displayed_candidates=frame,
+        )
         csv_path, json_path, html_path = save_candidate_review_artifacts(
             candidates=frame,
             report_prefix=args.report_prefix,
             anchor_lat=args.station_lat,
             anchor_lon=args.station_lon,
             station_source=args.station_source,
+            period_start=args.start,
+            period_end=args.end,
+            scope_summary=scope_summary,
         )
         if not args.quiet:
             print(f"Saved candidate review CSV: {csv_path}")
             print(f"Saved candidate review JSON: {json_path}")
             print(f"Saved candidate review HTML: {html_path}")
+        if args.open_report:
+            opened = _open_report_html(html_path)
+            if not args.quiet:
+                print(
+                    f"{'Opened' if opened else 'Could not open'} report HTML: {html_path}"
+                )
 
     if args.format == "print" or not args.output:
         print(render_station_output_summary(frame, selection_mode=args.selection_mode))

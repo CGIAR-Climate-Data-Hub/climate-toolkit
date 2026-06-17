@@ -23,11 +23,11 @@ from climate_tookit.weather_station.ghcn_daily import (
     _haversine_km,
     annotate_completeness_threshold,
     build_completeness_threshold_sequence,
-    load_ghcn_stations,
 )
 
 
 GSOD_TEMPLATE = "https://www.ncei.noaa.gov/data/global-summary-of-the-day/access/{year}/{station}.csv"
+GSOD_HISTORY_URL = "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"
 DEFAULT_GSOD_CACHE_ROOT = Path("outputs/cache/weather_stations")
 DEFAULT_GSOD_TIMEOUT_SECONDS = 30
 DEFAULT_GSOD_MAX_RETRIES = 2
@@ -83,6 +83,38 @@ def _gsod_cache_root(cache_dir: str | Path | None = None) -> Path:
 
 def _cache_hit(cache_path: Path, refresh_cache: bool) -> bool:
     return cache_path.exists() and not refresh_cache
+
+
+def _station_history_text_is_valid(text: str) -> bool:
+    head = text.lstrip()[:200].lower()
+    if head.startswith("<!doctype html") or head.startswith("<html"):
+        return False
+    first_line = text.splitlines()[0].strip().lower() if text.splitlines() else ""
+    return "usaf" in first_line and "wban" in first_line
+
+
+def _download_station_history_text(
+    *,
+    cache_dir: str | Path | None = None,
+    refresh_cache: bool = False,
+    timeout_seconds: int = 120,
+) -> str:
+    cache_path = _gsod_cache_root(cache_dir) / "index" / "isd-history.csv"
+    if cache_path.exists() and not refresh_cache:
+        cached_text = cache_path.read_text(encoding="utf-8")
+        if _station_history_text_is_valid(cached_text):
+            return cached_text
+
+    response = requests.get(GSOD_HISTORY_URL, timeout=timeout_seconds)
+    response.raise_for_status()
+    if not _station_history_text_is_valid(response.text):
+        raise RuntimeError(
+            "GSOD station-history request returned non-CSV content "
+            f"from {GSOD_HISTORY_URL}. NOAA may be temporarily unavailable."
+        )
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(response.text, encoding="utf-8")
+    return response.text
 
 
 def _normalize_station_id(station_id: str) -> str:
@@ -262,17 +294,79 @@ def _days_inclusive(date_from: date, date_to: date) -> int:
     return (pd.Timestamp(date_to) - pd.Timestamp(date_from)).days + 1
 
 
-def _normalize_wmo_token(token: str | None) -> str | None:
+def _normalize_history_token(token: str | None, *, width: int | None = None) -> str | None:
     if token is None:
         return None
     raw = str(token).strip()
-    if not raw or raw.lower() == "none":
+    if not raw or raw.lower() in {"none", "nan"}:
         return None
-    if len(raw) == 5 and raw.isdigit():
-        return raw
-    if len(raw) == 11 and raw.isdigit():
-        return raw[:5]
-    return None
+    if width is not None and raw.isdigit():
+        return raw.zfill(width)
+    return raw
+
+
+def _coalesce_column(frame: pd.DataFrame, *names: str, default=None):
+    for name in names:
+        if name in frame.columns:
+            return frame[name]
+    return pd.Series([default] * len(frame), index=frame.index)
+
+
+def load_gsod_stations(
+    *,
+    cache_dir: str | Path | None = None,
+    refresh_cache: bool = False,
+) -> pd.DataFrame:
+    text = _download_station_history_text(
+        cache_dir=cache_dir,
+        refresh_cache=refresh_cache,
+    )
+    raw = pd.read_csv(StringIO(text), dtype=str).fillna("")
+    normalized = pd.DataFrame(
+        {
+            "usaf_id": _coalesce_column(raw, "USAF", "usaf").apply(
+                lambda value: _normalize_history_token(value, width=6)
+            ),
+            "wban_id": _coalesce_column(raw, "WBAN", "wban").apply(
+                lambda value: _normalize_history_token(value, width=5)
+            ),
+            "station_name": _coalesce_column(raw, "STATION NAME", "STATION_NAME", "name").apply(
+                lambda value: str(value).strip()
+            ),
+            "country": _coalesce_column(raw, "CTRY", "COUNTRY", "country").apply(
+                lambda value: _normalize_history_token(value)
+            ),
+            "state": _coalesce_column(raw, "STATE", "state").apply(
+                lambda value: _normalize_history_token(value)
+            ),
+            "icao_code": _coalesce_column(raw, "ICAO", "CALL", "icao", "call").apply(
+                lambda value: _normalize_history_token(value)
+            ),
+            "lat": pd.to_numeric(_coalesce_column(raw, "LAT", "lat"), errors="coerce"),
+            "lon": pd.to_numeric(_coalesce_column(raw, "LON", "LONGITUDE", "lon"), errors="coerce"),
+            "elevation_m": pd.to_numeric(
+                _coalesce_column(raw, "ELEV(M)", "ELEV_M", "elevation_m"),
+                errors="coerce",
+            ),
+            "begin": _coalesce_column(raw, "BEGIN", "begin").apply(
+                lambda value: _normalize_history_token(value)
+            ),
+            "end": _coalesce_column(raw, "END", "end").apply(
+                lambda value: _normalize_history_token(value)
+            ),
+        }
+    )
+    normalized = normalized[
+        normalized["usaf_id"].notna()
+        & normalized["wban_id"].notna()
+        & normalized["lat"].notna()
+        & normalized["lon"].notna()
+    ].copy()
+    normalized["station_id"] = normalized["usaf_id"] + normalized["wban_id"]
+    normalized["begin_date"] = pd.to_datetime(normalized["begin"], format="%Y%m%d", errors="coerce")
+    normalized["end_date"] = pd.to_datetime(normalized["end"], format="%Y%m%d", errors="coerce")
+    normalized = normalized.drop_duplicates(subset=["station_id"]).reset_index(drop=True)
+    return normalized
 
 
 def _candidate_station_base_table(
@@ -300,13 +394,20 @@ def _candidate_station_base_table(
             "precipitation, max_temperature, min_temperature, mean_temperature, wind_speed."
         )
 
-    stations = load_ghcn_stations(cache_dir=cache_dir, refresh_cache=refresh_cache).copy()
-    stations["wmo_id"] = stations["wmo_id"].apply(_normalize_wmo_token)
-    stations = stations[stations["wmo_id"].notna()].copy()
+    stations = load_gsod_stations(cache_dir=cache_dir, refresh_cache=refresh_cache).copy()
     if stations.empty:
-        raise ValueError("No WMO-linked station metadata available for GSOD candidate search.")
+        raise ValueError("No GSOD station metadata available for candidate search.")
 
-    stations["station_id"] = stations["wmo_id"].apply(_normalize_station_id)
+    stations = stations[
+        (stations["begin_date"].isna() | (stations["begin_date"].dt.date <= date_to))
+        & (stations["end_date"].isna() | (stations["end_date"].dt.date >= date_from))
+    ].copy()
+    if stations.empty:
+        raise ValueError(
+            "No GSOD station metadata overlapped requested date range "
+            f"{date_from.isoformat()}..{date_to.isoformat()}."
+        )
+
     lat, lon = location_coord
     stations["distance_km"] = stations.apply(
         lambda row: _haversine_km(lat, lon, float(row["lat"]), float(row["lon"])),
@@ -729,5 +830,6 @@ __all__ = [
     "evaluate_gsod_station_candidate",
     "fetch_gsod_records",
     "list_gsod_station_candidates",
+    "load_gsod_stations",
     "select_gsod_station_candidates",
 ]

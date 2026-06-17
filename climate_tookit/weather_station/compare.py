@@ -37,7 +37,11 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import (
     normalize_climate_dataset_name,
 )
 from climate_tookit.weather_station.dem import fetch_anchor_elevation
-from climate_tookit.weather_station.download import download_station_data
+from climate_tookit.weather_station.download import (
+    _open_report_html,
+    download_station_data,
+    save_candidate_review_artifacts,
+)
 from climate_tookit.weather_station.ghcn_daily import (
     list_ghcn_station_candidates,
     select_ghcn_station_candidates,
@@ -45,6 +49,7 @@ from climate_tookit.weather_station.ghcn_daily import (
 from climate_tookit.weather_station.station_selector import (
     list_station_candidates,
     select_station_candidates,
+    summarize_station_search_scope,
 )
 
 
@@ -60,6 +65,11 @@ SUPPORTED_SELECTION_STRATEGIES = {
     "all_vars_single_station",
     "best_per_variable",
 }
+
+
+def _compare_log(verbose: bool, message: str) -> None:
+    if verbose:
+        print(message)
 HISTORICAL_GRID_SOURCES = {
     "agera_5",
     "auto",
@@ -1119,6 +1129,10 @@ def _select_variable_candidate(
     refresh_cache: bool,
     disable_completeness_guard: bool,
     verbose: bool,
+    custom_station_file: str | None = None,
+    custom_station_name: str | None = None,
+    custom_temp_unit: str = "c",
+    custom_precip_unit: str = "mm",
 ):
     variable_list = [variable]
     if station_id:
@@ -1158,6 +1172,10 @@ def _select_variable_candidate(
                 score_limit=score_limit,
                 enforce_threshold=False,
                 verbose=verbose,
+                custom_station_file=custom_station_file,
+                custom_temp_unit=custom_temp_unit,
+                custom_precip_unit=custom_precip_unit,
+                station_name=custom_station_name,
             )
         if candidates.empty:
             raise RuntimeError(f"No candidate station found for variable '{_variable_name(variable)}'.")
@@ -1200,6 +1218,10 @@ def _select_variable_candidate(
                 candidate_limit=1,
                 score_limit=score_limit,
                 enforce_threshold=False,
+                custom_station_file=custom_station_file,
+                custom_temp_unit=custom_temp_unit,
+                custom_precip_unit=custom_precip_unit,
+                station_name=custom_station_name,
             )
         if candidates.empty:
             raise RuntimeError(f"No candidate station found for variable '{_variable_name(variable)}'.")
@@ -1244,6 +1266,10 @@ def _select_variable_candidate(
             candidate_limit=1,
             score_limit=score_limit,
             allow_partial_fallback=True,
+            custom_station_file=custom_station_file,
+            custom_temp_unit=custom_temp_unit,
+            custom_precip_unit=custom_precip_unit,
+            station_name=custom_station_name,
         )
     if candidates.empty:
         raise RuntimeError(f"No candidate station found for variable '{_variable_name(variable)}'.")
@@ -1273,6 +1299,10 @@ def _build_station_compare_payloads(
     cache_dir: str | None,
     refresh_cache: bool,
     verbose: bool,
+    custom_station_file: str | None = None,
+    custom_station_name: str | None = None,
+    custom_temp_unit: str = "c",
+    custom_precip_unit: str = "mm",
 ) -> tuple[list[dict[str, Any]], list[str], list[dict[str, Any]]]:
     strategy = _normalize_selection_strategy(selection_strategy)
     compare_variable_names = [_variable_name(variable) for variable in requested_variables]
@@ -1280,6 +1310,7 @@ def _build_station_compare_payloads(
     selected_station_map: list[dict[str, Any]] = []
 
     if strategy == "all_vars_single_station":
+        _compare_log(verbose, "Building station payloads with all-vars single-station strategy")
         station_frame = download_station_data(
             station_source=station_source,
             station_coord=station_coord,
@@ -1302,6 +1333,10 @@ def _build_station_compare_payloads(
             auto_anchor_elevation=auto_anchor_elevation,
             disable_completeness_guard=disable_completeness_guard,
             max_auto_stations=max_auto_stations,
+            custom_station_file=custom_station_file,
+            custom_station_name=custom_station_name,
+            custom_temp_unit=custom_temp_unit,
+            custom_precip_unit=custom_precip_unit,
         )
         if station_frame is None or station_frame.empty:
             raise RuntimeError("No station observations available for comparison.")
@@ -1336,6 +1371,7 @@ def _build_station_compare_payloads(
     payloads: list[dict[str, Any]] = []
     for variable in requested_variables:
         variable_name = _variable_name(variable)
+        _compare_log(verbose, f"Selecting station for variable={variable_name}")
         try:
             candidate = _select_variable_candidate(
                 station_source=station_source,
@@ -1349,16 +1385,27 @@ def _build_station_compare_payloads(
                 max_elevation_diff_m=max_elevation_diff_m,
                 min_completeness_ratio=min_completeness_ratio,
                 score_limit=score_limit,
-                        cache_dir=cache_dir,
-                        refresh_cache=refresh_cache,
-                        disable_completeness_guard=disable_completeness_guard,
-                        verbose=verbose,
-                    )
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
+                disable_completeness_guard=disable_completeness_guard,
+                verbose=verbose,
+                custom_station_file=custom_station_file,
+                custom_station_name=custom_station_name,
+                custom_temp_unit=custom_temp_unit,
+                custom_precip_unit=custom_precip_unit,
+            )
         except Exception as exc:
             warnings.append(
                 f"No station selected for variable '{variable_name}': {exc}"
             )
             continue
+
+        _compare_log(
+            verbose,
+            f"Selected station for {variable_name}: {candidate.get('station_id')} | "
+            f"{candidate.get('station_name') or 'unknown'} | "
+            f"distance={_format_optional_number(candidate.get('distance_km'))} km",
+        )
 
         selected_station_map.append(
             {
@@ -1394,6 +1441,10 @@ def _build_station_compare_payloads(
             auto_anchor_elevation=auto_anchor_elevation,
             disable_completeness_guard=disable_completeness_guard,
             max_auto_stations=max_auto_stations,
+            custom_station_file=custom_station_file,
+            custom_station_name=custom_station_name,
+            custom_temp_unit=custom_temp_unit,
+            custom_precip_unit=custom_precip_unit,
         )
         if station_frame is None or station_frame.empty:
             warnings.append(
@@ -1648,6 +1699,17 @@ def render_compare_report(result: dict[str, Any]) -> str:
                 f"elev_diff={_format_optional_number(row.get('elevation_diff_m'), 1)} m | "
                 f"selection={row.get('selection_status', 'n/a')}"
             )
+    if result.get("candidate_review_artifacts"):
+        artifacts = result["candidate_review_artifacts"]
+        lines.extend(
+            [
+                "",
+                "Candidate review artifacts",
+                f"- csv: {artifacts.get('csv')}",
+                f"- json: {artifacts.get('json')}",
+                f"- html: {artifacts.get('html')}",
+            ]
+        )
     if result["grid_failures"]:
         lines.extend(["", "Grid fetch failures"])
         for failure in result["grid_failures"]:
@@ -1757,6 +1819,11 @@ def compare_station_to_grids(
     wet_day_threshold_mm: float = DEFAULT_WET_DAY_THRESHOLD_MM,
     min_overlap_days: int = DEFAULT_MIN_OVERLAP_DAYS,
     verbose: bool = True,
+    custom_station_file: str | None = None,
+    custom_station_name: str | None = None,
+    custom_temp_unit: str = "c",
+    custom_precip_unit: str = "mm",
+    candidate_report_prefix: str | None = None,
 ) -> dict[str, Any]:
     normalized_grid_sources = _normalize_grid_sources(grid_sources)
     requested_variables = variables or DEFAULT_COMPARE_VARIABLES
@@ -1816,8 +1883,76 @@ def compare_station_to_grids(
         cache_dir=cache_dir,
         refresh_cache=refresh_cache,
         verbose=verbose,
+        custom_station_file=custom_station_file,
+        custom_station_name=custom_station_name,
+        custom_temp_unit=custom_temp_unit,
+        custom_precip_unit=custom_precip_unit,
     )
     warnings.extend(payload_warnings)
+    _compare_log(
+        verbose,
+        f"Station payloads ready: {len(compare_payloads)} payload(s) | "
+        f"selected variable mappings={len(selected_station_map)}",
+    )
+    candidate_review_artifacts = None
+    if candidate_report_prefix:
+        _compare_log(verbose, f"Building candidate review artifacts: {candidate_report_prefix}")
+        candidate_frame = download_station_data(
+            station_source=station_source,
+            station_coord=station_coord,
+            date_from=date_from,
+            date_to=date_to,
+            variables=requested_variables,
+            station_id=station_id,
+            stage="preprocessed",
+            verbose=False,
+            cache_dir=cache_dir,
+            refresh_cache=refresh_cache,
+            selection_mode="list",
+            max_distance_km=max_distance_km,
+            target_elevation_m=resolved_target_elevation_m,
+            max_elevation_diff_m=max_elevation_diff_m,
+            min_completeness_ratio=min_completeness_ratio,
+            candidate_limit=candidate_limit,
+            score_limit=score_limit,
+            auto_select=auto_select,
+            auto_anchor_elevation=False,
+            disable_completeness_guard=disable_completeness_guard,
+            max_auto_stations=max_auto_stations,
+            custom_station_file=custom_station_file,
+            custom_station_name=custom_station_name,
+            custom_temp_unit=custom_temp_unit,
+            custom_precip_unit=custom_precip_unit,
+        )
+        scope_summary = summarize_station_search_scope(
+            station_source=station_source,
+            location_coord=(float(station_coord[0]), float(station_coord[1])),
+            max_distance_km=max_distance_km,
+            target_elevation_m=resolved_target_elevation_m,
+            max_elevation_diff_m=max_elevation_diff_m,
+            cache_dir=cache_dir,
+            refresh_cache=refresh_cache,
+            displayed_candidates=candidate_frame,
+        )
+        csv_path, json_path, html_path = save_candidate_review_artifacts(
+            candidates=candidate_frame,
+            report_prefix=candidate_report_prefix,
+            anchor_lat=float(station_coord[0]),
+            anchor_lon=float(station_coord[1]),
+            station_source=station_source,
+            period_start=date_from.isoformat(),
+            period_end=date_to.isoformat(),
+            scope_summary=scope_summary,
+        )
+        candidate_review_artifacts = {
+            "csv": str(csv_path),
+            "json": str(json_path),
+            "html": str(html_path),
+        }
+        _compare_log(
+            verbose,
+            f"Candidate review artifacts saved: html={candidate_review_artifacts['html']}",
+        )
 
     metrics_rows: list[dict[str, Any]] = []
     monthly_metrics_rows: list[dict[str, Any]] = []
@@ -1834,13 +1969,19 @@ def compare_station_to_grids(
     station_summary = []
     fetch_cache: dict[tuple[str, float, float], pd.DataFrame] = {}
 
-    for payload in compare_payloads:
+    for payload_index, payload in enumerate(compare_payloads, start=1):
         station_group = payload["station_frame"].copy()
         station_group["date"] = pd.to_datetime(station_group["date"])
         station_group = station_group.sort_values("date").reset_index(drop=True)
         compare_variable_names = payload["compare_variables"]
         station_meta = _build_station_summary(station_group)
         station_summary.append(station_meta)
+        _compare_log(
+            verbose,
+            f"Comparing payload {payload_index}/{len(compare_payloads)} | "
+            f"station={station_meta['station_id']} | vars={','.join(compare_variable_names)} | "
+            f"rows={station_meta['rows']}",
+        )
         station_lat = (
             float(station_meta["station_lat"])
             if station_meta["station_lat"] is not None
@@ -1854,8 +1995,13 @@ def compare_station_to_grids(
 
         station_subset = station_group[["date"] + [column for column in compare_variable_names if column in station_group.columns]].copy()
 
-        for grid_source in normalized_grid_sources:
+        for grid_index, grid_source in enumerate(normalized_grid_sources, start=1):
             cache_key = (grid_source, round(station_lat, 5), round(station_lon, 5))
+            cache_state = "hit" if cache_key in fetch_cache else "miss"
+            _compare_log(
+                verbose,
+                f"  Grid {grid_index}/{len(normalized_grid_sources)} | source={grid_source} | cache={cache_state}",
+            )
             try:
                 if cache_key not in fetch_cache:
                     fetch_cache[cache_key] = _fetch_grid_source(
@@ -2027,6 +2173,10 @@ def compare_station_to_grids(
 
     overall_metrics: list[dict[str, Any]] = []
     if overall_overlap_frames:
+        _compare_log(
+            verbose,
+            f"Building pooled summaries from {len(overall_overlap_frames)} overlap frame(s)",
+        )
         pooled = pd.concat(overall_overlap_frames, ignore_index=True)
         for (grid_source, variable_name), overlap_group in pooled.groupby(["grid_source", "variable"], sort=False):
             pooled_reference = _build_pooled_reference_overlap(
@@ -2141,6 +2291,12 @@ def compare_station_to_grids(
         seasonal_metrics_rows=seasonal_metrics_rows,
         annual_metrics_rows=annual_metrics_rows,
     )
+    _compare_log(
+        verbose,
+        f"Compare complete | station_metrics={len(metrics_rows)} | "
+        f"monthly={len(monthly_metrics_rows)} | seasonal={len(seasonal_metrics_rows)} | "
+        f"annual={len(annual_metrics_rows)} | failures={len(grid_failures)}",
+    )
 
     return {
         "anchor_location": {
@@ -2156,6 +2312,7 @@ def compare_station_to_grids(
         "target_elevation_m": resolved_target_elevation_m,
         "selected_stations_by_variable": selected_station_map,
         "grid_sources": normalized_grid_sources,
+        "candidate_review_artifacts": candidate_review_artifacts,
         "grid_source_metadata": grid_source_metadata,
         "precip_source": normalize_climate_dataset_name(precip_source),
         "temp_source": normalize_climate_dataset_name(temp_source),
@@ -2199,9 +2356,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--station-source",
-        choices=["auto", "ghcn_daily", "gsod"],
+        choices=["auto", "ghcn_daily", "gsod", "custom_csv"],
         default="ghcn_daily",
-        help="Observed station backend: ghcn_daily, gsod, or auto (rank across both).",
+        help="Observed station backend: ghcn_daily, gsod, custom_csv, or auto (rank across both).",
     )
     parser.add_argument("--station-lat", type=float, required=True)
     parser.add_argument("--station-lon", type=float, required=True)
@@ -2211,6 +2368,10 @@ def main() -> int:
     parser.add_argument("--precip-source", default=DEFAULT_AUTO_PRECIP_SOURCE)
     parser.add_argument("--temp-source", default=DEFAULT_AUTO_TEMP_SOURCE)
     parser.add_argument("--station-id", default=None)
+    parser.add_argument("--custom-station-file", default=None)
+    parser.add_argument("--custom-station-name", default=None)
+    parser.add_argument("--custom-temp-unit", choices=["c", "f", "k"], default="c")
+    parser.add_argument("--custom-precip-unit", choices=["mm", "inch", "tenth_mm"], default="mm")
     parser.add_argument("--selection-mode", choices=["auto", "specified"], default="auto")
     parser.add_argument(
         "--selection-strategy",
@@ -2232,6 +2393,8 @@ def main() -> int:
     parser.add_argument("--max-auto-stations", type=int, default=10)
     parser.add_argument("--candidate-limit", type=int, default=10)
     parser.add_argument("--score-limit", type=int, default=25)
+    parser.add_argument("--candidate-report-prefix", default=None)
+    parser.add_argument("--open-report", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--format", choices=["text", "json"], default="text")
     parser.add_argument("-o", "--output", default=None)
@@ -2265,6 +2428,11 @@ def main() -> int:
             wet_day_threshold_mm=args.wet_day_threshold_mm,
             min_overlap_days=args.min_overlap_days,
             verbose=not args.quiet,
+            custom_station_file=args.custom_station_file,
+            custom_station_name=args.custom_station_name,
+            custom_temp_unit=args.custom_temp_unit,
+            custom_precip_unit=args.custom_precip_unit,
+            candidate_report_prefix=args.candidate_report_prefix,
         )
     except Exception as exc:
         print(f"Error: {exc}")
@@ -2284,6 +2452,11 @@ def main() -> int:
         print(render_compare_report(result))
         if args.output:
             print(f"\nSaved JSON report: {args.output}")
+    if args.open_report and result.get("candidate_review_artifacts", {}).get("html"):
+        html_path = result["candidate_review_artifacts"]["html"]
+        opened = _open_report_html(html_path)
+        if not args.quiet:
+            print(f"{'Opened' if opened else 'Could not open'} report HTML: {html_path}")
     return 0
 
 
