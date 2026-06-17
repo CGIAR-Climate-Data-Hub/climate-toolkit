@@ -36,6 +36,7 @@ from .source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
     SoilVariable,
+    normalize_climate_dataset_name,
     source_date_coverage_error,
 )
 from .source_data.sources.utils.settings import Settings
@@ -97,16 +98,17 @@ def fetch_data(
             f"Invalid stage '{stage}'. Must be one of: {', '.join(VALID_STAGES)}"
         )
     settings = settings or Settings.load()
+    source_name = normalize_climate_dataset_name(source)
     variables = variables or _default_variables_for_source(source_name)
     date_from = date_from or date.today()
     date_to = date_to or date.today()
-    coverage_error = source_date_coverage_error(source, date_from, date_to)
+    coverage_error = source_date_coverage_error(source_name, date_from, date_to)
     if coverage_error:
         raise ValueError(coverage_error)
 
     batch_requested = bool(sites or sites_csv)
     if batch_requested:
-        if source == "nex_gddp":
+        if source_name == "nex_gddp":
             data_df, _, _ = fetch_nex_gddp_batch_data(
                 sites=sites,
                 sites_csv=sites_csv,
@@ -124,7 +126,7 @@ def fetch_data(
             return data_df
 
         try:
-            dataset = ClimateDataset[source]
+            dataset = ClimateDataset[source_name]
         except KeyError:
             raise ValueError(f"Unknown source '{source}'")
 
@@ -155,7 +157,7 @@ def fetch_data(
 
     if stage == "raw":
         try:
-            dataset = ClimateDataset[source]
+            dataset = ClimateDataset[source_name]
         except KeyError:
             raise ValueError(f"Unknown source '{source}'")
 
