@@ -32,6 +32,8 @@ import numpy as np
 
 warnings.filterwarnings("ignore")
 
+CALENDAR_SYSTEM_CHOICES = ("rf", "ir", "both")
+
 try:
     from ..fetch_data.runtime_notes import build_historical_cache_note
 except ImportError:
@@ -1432,6 +1434,16 @@ def main() -> None:
                         help='NEX-GDDP model (e.g. ACCESS-CM2)')
     parser.add_argument('--scenario', default=None,
                         help='NEX-GDDP scenario (e.g. ssp245)')
+    parser.add_argument('--spei-scale-months', type=int, default=None,
+                        help='Optional SPEI accumulation scale in months')
+    parser.add_argument('--spei-fit', default='ub-pwm',
+                        help='SPEI distribution fitting method (default: ub-pwm)')
+    parser.add_argument('--spei-ref-start', default=None,
+                        help='Optional SPEI reference period start date YYYY-MM-DD')
+    parser.add_argument('--spei-ref-end', default=None,
+                        help='Optional SPEI reference period end date YYYY-MM-DD')
+    parser.add_argument('--verbose', action='store_true',
+                        help='Print extra runtime detail')
     parser.add_argument('--format', choices=['json', 'pandas'],
                         default='pandas',
                         help='Output format (default: pandas)')
