@@ -41,6 +41,10 @@ import climate_tookit.weather_station.dem as dem
 import climate_tookit.weather_station.compare as station_compare
 import climate_tookit.weather_station.download as station_download
 import climate_tookit.weather_station.station_selector as station_selector
+from climate_tookit.weather_station.custom_station import (
+    custom_station_format_help,
+    load_custom_station_data,
+)
 from climate_tookit.fetch_data.preprocess_data.preprocess_data import (
     apply_unit_conversions,
     preprocess_transformed_data,
@@ -260,6 +264,47 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertEqual("User Station", first.loc[0, "station_name"])
         self.assertFalse(first.attrs["cache_hit"])
         self.assertTrue(second.attrs["cache_hit"])
+
+    def test_download_station_data_requires_custom_station_file_for_custom_source(self):
+        with self.assertRaisesRegex(ValueError, "--custom-station-file"):
+            station_download.download_station_data(
+                station_source="custom_csv",
+                station_coord=(-1.286, 36.817),
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 2),
+                variables=[ClimateVariable.precipitation],
+            )
+
+    def test_load_custom_station_data_missing_date_column_explains_format(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "custom_station.csv"
+            pd.DataFrame({"rainfall": [5.0]}).to_csv(csv_path, index=False)
+            with self.assertRaisesRegex(ValueError, "date column"):
+                load_custom_station_data(
+                    custom_station_file=csv_path,
+                    date_from=date(2020, 1, 1),
+                    date_to=date(2020, 1, 2),
+                    variables=[ClimateVariable.precipitation],
+                )
+        self.assertIn("rainfall/precip/precipitation", custom_station_format_help())
+
+    def test_render_list_candidate_summary_for_custom_station_shows_source_file(self):
+        frame = pd.DataFrame(
+            {
+                "station_source": ["custom_csv"],
+                "station_id": ["demo_station"],
+                "station_name": ["Demo Station"],
+                "custom_station_file": ["demo.csv"],
+                "field_counts": [{"precipitation": 10}],
+                "expected_days": [10],
+                "threshold_status": ["custom_file"],
+                "requested_fields": [["precipitation"]],
+                "fields_passing_threshold": [["precipitation"]],
+                "fields_failing_threshold": [[]],
+            }
+        )
+        rendered = station_download.render_station_output_summary(frame, selection_mode="list")
+        self.assertIn("source file=demo.csv", rendered)
 
     def test_parse_auto_select_scope_supports_numeric_and_all(self):
         self.assertEqual(1, station_download.parse_auto_select_scope("auto-1"))

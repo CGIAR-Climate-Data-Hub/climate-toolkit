@@ -37,6 +37,7 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import (
     normalize_climate_dataset_name,
 )
 from climate_tookit.weather_station.dem import fetch_anchor_elevation
+from climate_tookit.weather_station.custom_station import custom_station_format_help
 from climate_tookit.weather_station.download import (
     _open_report_html,
     download_station_data,
@@ -2358,7 +2359,7 @@ def main() -> int:
         "--station-source",
         choices=["auto", "ghcn_daily", "gsod", "custom_csv"],
         default="ghcn_daily",
-        help="Observed station backend: ghcn_daily, gsod, custom_csv, or auto (rank across both).",
+        help="Observed station backend: ghcn_daily, gsod, custom_csv, or auto (rank across NOAA backends). custom_csv requires --custom-station-file.",
     )
     parser.add_argument("--station-lat", type=float, required=True)
     parser.add_argument("--station-lon", type=float, required=True)
@@ -2368,10 +2369,14 @@ def main() -> int:
     parser.add_argument("--precip-source", default=DEFAULT_AUTO_PRECIP_SOURCE)
     parser.add_argument("--temp-source", default=DEFAULT_AUTO_TEMP_SOURCE)
     parser.add_argument("--station-id", default=None)
-    parser.add_argument("--custom-station-file", default=None)
-    parser.add_argument("--custom-station-name", default=None)
-    parser.add_argument("--custom-temp-unit", choices=["c", "f", "k"], default="c")
-    parser.add_argument("--custom-precip-unit", choices=["mm", "inch", "tenth_mm"], default="mm")
+    parser.add_argument("--custom-station-file", default=None,
+                        help="Path to custom station CSV/JSON. Use with --station-source custom_csv.")
+    parser.add_argument("--custom-station-name", default=None,
+                        help="Optional station label for custom station file.")
+    parser.add_argument("--custom-temp-unit", choices=["c", "f", "k"], default="c",
+                        help="Temperature unit in custom station file (default: c).")
+    parser.add_argument("--custom-precip-unit", choices=["mm", "inch", "tenth_mm"], default="mm",
+                        help="Precipitation unit in custom station file (default: mm).")
     parser.add_argument("--selection-mode", choices=["auto", "specified"], default="auto")
     parser.add_argument(
         "--selection-strategy",
@@ -2401,6 +2406,11 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        if args.station_source == "custom_csv" and not args.custom_station_file:
+            raise ValueError(
+                "station_source='custom_csv' requires --custom-station-file. "
+                + custom_station_format_help()
+            )
         result = compare_station_to_grids(
             station_source=args.station_source,
             station_coord=(args.station_lat, args.station_lon),

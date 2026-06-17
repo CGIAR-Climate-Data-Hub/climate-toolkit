@@ -26,7 +26,10 @@ from climate_tookit.weather_station.gsod import (
     load_gsod_stations,
     select_gsod_station_candidates,
 )
-from climate_tookit.weather_station.custom_station import summarize_custom_station_candidate
+from climate_tookit.weather_station.custom_station import (
+    custom_station_format_help,
+    summarize_custom_station_candidate,
+)
 
 
 SUPPORTED_STATION_SOURCES = {"auto", "ghcn_daily", "gsod", "custom_csv"}
@@ -84,7 +87,10 @@ def _dispatch_list(
 ) -> pd.DataFrame:
     if station_source == "custom_csv":
         if not custom_station_file:
-            raise ValueError("station_source='custom_csv' requires custom_station_file.")
+            raise ValueError(
+                "station_source='custom_csv' requires --custom-station-file. "
+                + custom_station_format_help()
+            )
         return summarize_custom_station_candidate(
             custom_station_file=custom_station_file,
             date_from=date_from,
