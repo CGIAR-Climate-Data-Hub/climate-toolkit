@@ -1,4 +1,4 @@
-earthengine_api==1.5.22
+earthengine_api==1.6.12
 pandas==2.3.1
 pydantic==2.11.7
 python-dotenv==1.1.1
