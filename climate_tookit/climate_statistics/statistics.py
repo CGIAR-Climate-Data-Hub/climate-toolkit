@@ -34,69 +34,43 @@ warnings.filterwarnings("ignore")
 
 CALENDAR_SYSTEM_CHOICES = ("rf", "ir", "both")
 
-try:
-    from ..fetch_data.runtime_notes import build_historical_cache_note
-except ImportError:
-    from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note
+from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note
 
 try:
-    from ..crop_calendar.ggcmi import (
+    from climate_tookit.crop_calendar.ggcmi import (
         CALENDAR_SYSTEM_CHOICES,
         resolve_calendar_preset,
     )
     CROP_CALENDAR_AVAILABLE = True
 except ImportError:
-    try:
-        from climate_tookit.crop_calendar.ggcmi import (
-            CALENDAR_SYSTEM_CHOICES,
-            resolve_calendar_preset,
-        )
-        CROP_CALENDAR_AVAILABLE = True
-    except ImportError:
-        CALENDAR_SYSTEM_CHOICES = ("rf", "ir", "both")
-        CROP_CALENDAR_AVAILABLE = False
+    CALENDAR_SYSTEM_CHOICES = ("rf", "ir", "both")
+    CROP_CALENDAR_AVAILABLE = False
 
 try:
-    from ..fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
+    from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
 except ImportError:
-    try:
-        from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
-    except ImportError:
-        _validate_period_against_scenario = None
+    _validate_period_against_scenario = None
 
 try:
-    from ..climatology import compute_monthly_spei
+    from climate_tookit.climatology import compute_monthly_spei
     SPEI_AVAILABLE = True
 except ImportError:
-    try:
-        from climate_tookit.climatology import compute_monthly_spei
-        SPEI_AVAILABLE = True
-    except ImportError:
-        SPEI_AVAILABLE = False
+    SPEI_AVAILABLE = False
 
 try:
-    from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
+    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
     PREPROCESS_AVAILABLE = True
 except ImportError:
-    try:
-        from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-        PREPROCESS_AVAILABLE = True
-    except ImportError:
-        PREPROCESS_AVAILABLE = False
-        print("Warning: preprocess_data pipeline not available")
+    PREPROCESS_AVAILABLE = False
 
 try:
-    from ..weather_station.overrides import apply_custom_station_overrides
+    from climate_tookit.weather_station.overrides import apply_custom_station_overrides
     CUSTOM_STATION_AVAILABLE = True
 except ImportError:
-    try:
-        from climate_tookit.weather_station.overrides import apply_custom_station_overrides
-        CUSTOM_STATION_AVAILABLE = True
-    except ImportError:
-        CUSTOM_STATION_AVAILABLE = False
+    CUSTOM_STATION_AVAILABLE = False
 
 try:
-    from ..fetch_data.source_data.sources.utils.models import (
+    from climate_tookit.fetch_data.source_data.sources.utils.models import (
         ClimateVariable,
         normalize_climate_dataset_name,
     )
@@ -129,11 +103,12 @@ except (ImportError, AttributeError):
             'precipitation', 'max_temperature', 'min_temperature',
             'humidity', 'soil_moisture', 'solar_radiation', 'wind_speed',
         ]
+
         def normalize_climate_dataset_name(source):
             return str(source).lower() if source is not None else None
 
 try:
-    from ..season_analysis.seasons import (
+    from climate_tookit.season_analysis.seasons import (
         add_et0,
         parse_fixed_seasons,
         detect_onset_cessation,
@@ -143,22 +118,10 @@ try:
     )
     SEASONS_AVAILABLE = True
 except ImportError as exc:
-    try:
-        from climate_tookit.season_analysis.seasons import (
-            add_et0,
-            parse_fixed_seasons,
-            detect_onset_cessation,
-            reassign_spillover_seasons,
-            remove_duplicate_seasons,
-            check_humid,
-        )
-        SEASONS_AVAILABLE = True
-    except ImportError:
-        SEASONS_AVAILABLE = False
-        print(f"Warning: seasons.py not available -- {exc}")
+    SEASONS_AVAILABLE = False
 
 try:
-    from ..calculate_hazards.hazards import (
+    from climate_tookit.calculate_hazards.hazards import (
         DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
         DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
         DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
@@ -169,28 +132,16 @@ try:
     )
     HAZARD_WATER_BALANCE_AVAILABLE = True
 except ImportError:
-    try:
-        from climate_tookit.calculate_hazards.hazards import (
-            DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
-            DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
-            DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
-            FULL_WINDOW_WATER_BALANCE as HAZARD_FULL_WINDOW_WATER_BALANCE,
-            build_water_balance_methodology as shared_build_water_balance_methodology,
-            calc_water_balance as shared_calc_water_balance,
-            summarize_water_balance as shared_summarize_water_balance,
-        )
-        HAZARD_WATER_BALANCE_AVAILABLE = True
-    except ImportError:
-        HAZARD_WATER_BALANCE_AVAILABLE = False
-        HAZARD_DEFAULT_KC_PARAMS = {
-            "kc_init": 0.7,
-            "kc_mid": 1.0,
-            "kc_end": 0.8,
-            "depletion_fraction_p": 0.5,
-        }
-        HAZARD_DEFAULT_SOILCP = 100.0
-        HAZARD_DEFAULT_SOILSAT = 100.0
-        HAZARD_FULL_WINDOW_WATER_BALANCE = "full_window"
+    HAZARD_WATER_BALANCE_AVAILABLE = False
+    HAZARD_DEFAULT_KC_PARAMS = {
+        "kc_init": 0.7,
+        "kc_mid": 1.0,
+        "kc_end": 0.8,
+        "depletion_fraction_p": 0.5,
+    }
+    HAZARD_DEFAULT_SOILCP = 100.0
+    HAZARD_DEFAULT_SOILSAT = 100.0
+    HAZARD_FULL_WINDOW_WATER_BALANCE = "full_window"
 
 if 'CLIMATE_VARS' not in globals():
     CLIMATE_VARS = [

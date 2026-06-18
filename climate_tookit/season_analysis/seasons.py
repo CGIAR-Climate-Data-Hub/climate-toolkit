@@ -53,15 +53,17 @@ from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from fetch_data.preprocess_data.preprocess_data import preprocess_data
-from fetch_data.runtime_notes import build_historical_cache_note
-from fetch_data.source_data.sources.utils.models import (
+from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note
+from climate_tookit.fetch_data.source_data.sources.utils.models import (
     ClimateVariable,
     normalize_climate_dataset_name,
 )
-from crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES, resolve_calendar_preset
-from weather_station.overrides import apply_custom_station_overrides
+from climate_tookit.crop_calendar.ggcmi import (
+    CALENDAR_SYSTEM_CHOICES,
+    resolve_calendar_preset,
+)
+from climate_tookit.weather_station.overrides import apply_custom_station_overrides
 
 HISTORICAL_SOURCES = ['agera_5', 'era_5']
 DEFAULT_AUTO_PRECIP_SOURCE = 'chirps_v3_daily_rnl'

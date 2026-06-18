@@ -7,9 +7,43 @@ name = "climate-tookit"
 version = "0.0.0"
 description = "Climate toolkit"
 requires-python = ">=3.10"
+dependencies = [
+  "earthengine_api==1.6.12",
+  "pandas==2.3.1",
+  "pydantic==2.11.7",
+  "python-dotenv==1.1.1",
+  "PyYAML==6.0.2",
+  "Requests==2.32.4",
+  "tabulate==0.9.0",
+  "xarray==2025.6.1",
+  "xclim==0.61.1",
+  "xee==0.1.0",
+]
+
+[project.scripts]
+climate-toolkit-fetch = "climate_tookit.fetch_data.fetch_data:main"
+climate-toolkit-seasons = "climate_tookit.season_analysis.seasons:main"
+climate-toolkit-seasons-ensemble = "climate_tookit.season_analysis.ensemble:main"
+climate-toolkit-stats = "climate_tookit.climate_statistics.statistics:main"
+climate-toolkit-stats-ensemble = "climate_tookit.climate_statistics.ensemble_statistics:main"
+climate-toolkit-periods = "climate_tookit.compare_periods.periods:main"
+climate-toolkit-periods-ensemble = "climate_tookit.compare_periods.ensemble_periods:main"
+climate-toolkit-hazards = "climate_tookit.calculate_hazards.hazards:main"
+climate-toolkit-hazards-ensemble = "climate_tookit.calculate_hazards.ensemble_hazards:main"
+climate-toolkit-weather-station-download = "climate_tookit.weather_station.download:main"
+climate-toolkit-weather-station-compare = "climate_tookit.weather_station.compare:main"
 
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["climate_tookit*", "analysis*"]
+
+[tool.setuptools.package-data]
+climate_tookit = [
+  "calculate_hazards/*.json",
+  "data/ggcmi_phase3/*.json",
+  "data/ggcmi_phase3/*.parquet",
+  "fetch_data/source_data/sources/utils/*.yaml",
+  "fetch_data/transform_data/*.yaml",
+]

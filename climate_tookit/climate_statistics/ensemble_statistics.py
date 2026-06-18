@@ -23,17 +23,12 @@ Output shape mirrors statistics.analyze_climate_statistics(): location, period, 
 ltm_season_summary, annual_summary, coverage_warning, analysis_date, methodology. Adds: ensemble=True, models_used, models_failed, n_models_ok,
 per_model_ltm.
 """
-import os
 import sys
 import json
 import argparse
 from datetime import date, datetime
 from pathlib import Path
 from typing import Tuple, Dict, List, Any, Optional
-
-current_dir  = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(current_dir))
-sys.path.insert(0, project_root)
 
 from climate_tookit.climate_statistics.statistics import (
     analyze_climate_statistics,

@@ -19,11 +19,9 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-import season_analysis.seasons as seasons
-from fetch_data.preprocess_data.preprocess_data import preprocess_data
-from fetch_data.source_data.sources.nex_gddp import (
+import climate_tookit.season_analysis.seasons as seasons
+from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
     default_ensemble_models_for_location,
 )

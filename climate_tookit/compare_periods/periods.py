@@ -17,17 +17,12 @@ Plain `chirps_v2` source is legacy behavior: statistics.py injects default tmax=
 """
 
 import sys
-import os
 import json
 import argparse
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional, List
 
 import pandas as pd
-
-current_dir  = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(current_dir))
-sys.path.insert(0, project_root)
 
 from climate_tookit.climate_statistics.statistics import analyze_climate_statistics
 from climate_tookit.crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES
