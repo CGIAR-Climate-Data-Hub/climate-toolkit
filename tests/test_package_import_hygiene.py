@@ -159,6 +159,32 @@ class PackageImportHygieneTests(unittest.TestCase):
         finally:
             sys.modules.update(saved_modules)
 
+    def test_sources_utils_package_import_does_not_eager_load_models_or_settings(self):
+        for module_name in [
+            "climate_tookit.fetch_data.source_data.sources.utils",
+            "climate_tookit.fetch_data.source_data.sources.utils.models",
+            "climate_tookit.fetch_data.source_data.sources.utils.settings",
+        ]:
+            sys.modules.pop(module_name, None)
+
+        module = importlib.import_module("climate_tookit.fetch_data.source_data.sources.utils")
+
+        self.assertEqual("climate_tookit.fetch_data.source_data.sources.utils", module.__name__)
+        self.assertNotIn(
+            "climate_tookit.fetch_data.source_data.sources.utils.models",
+            sys.modules,
+        )
+        self.assertNotIn(
+            "climate_tookit.fetch_data.source_data.sources.utils.settings",
+            sys.modules,
+        )
+
+        _ = module.Settings
+        self.assertIn(
+            "climate_tookit.fetch_data.source_data.sources.utils.settings",
+            sys.modules,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

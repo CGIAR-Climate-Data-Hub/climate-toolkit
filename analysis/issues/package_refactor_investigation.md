@@ -11,6 +11,8 @@ Progress since this note was opened:
 - editable install now works
 - optional dependency groups now declared for plotting / table rendering
 - import-hygiene tests now cover package import shape more directly
+- lazy package-root accessors now cover top-level package plus major public subpackages
+- follow-up audit on refactor branch found no new global import-time side-effect bug beyond optional `xclim` import probing
 
 Document below remains useful for remaining gaps, but early sections are partly historical now.
 

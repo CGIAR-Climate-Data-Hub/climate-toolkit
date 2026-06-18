@@ -4,6 +4,7 @@ Status note:
 
 - this document captures root issue as originally observed on `origin/main` and `origin/staging`
 - later package-refactor work removed stale `PREPROCESS_AVAILABLE` compatibility shims from `climate_statistics.statistics`
+- later package-refactor work also added installed-package smoke tests, top-level package API, and import-hygiene coverage on refactor branch
 - keep this note as historical repro evidence, not current-state description for refactored branch
 
 `climate_tookit.climate_statistics.statistics` and `climate_tookit.climatology.long_term_climatology` import successfully under normal package execution, but silently disable their core preprocessing pipeline by setting `PREPROCESS_AVAILABLE = False`.

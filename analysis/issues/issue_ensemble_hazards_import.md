@@ -1,5 +1,11 @@
 ## Summary
 
+Status note:
+
+- this document captures root issue as observed on `origin/main` and `origin/staging`
+- later refactor work improved package import contracts and added dedicated import-hygiene coverage on refactor branch
+- keep this note as historical branch evidence, not current-state description for `codex/package-refactor-issue-10c`
+
 `climate_tookit.calculate_hazards.ensemble_hazards` is not reliably importable under normal package execution because it still depends on `sys.path` mutation and top-level imports (`preprocess_data`, `utils.models`, `hazards`) instead of consistent package-relative imports.
 
 Confirmed on both:
