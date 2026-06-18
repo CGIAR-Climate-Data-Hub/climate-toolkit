@@ -3,11 +3,12 @@
 import logging
 from pathlib import Path
 
+from climate_tookit._resources import load_yaml_resource
 import yaml
 from pydantic import BaseModel, field_validator
 
-BASE_DIR = Path(__file__).parent.parent.parent
-config_path = Path(__file__).parent / "config.yaml"
+CONFIG_PACKAGE = "climate_tookit.fetch_data.source_data.sources.utils"
+CONFIG_RESOURCE = "config.yaml"
 
 def set_logging():
     """Configure logging for the application"""
@@ -188,10 +189,12 @@ class Settings(BaseModel):
     hwsd: SoilGridSettings
 
     @classmethod
-    def load(cls, settings_path: Path = config_path):
-        with open(settings_path, mode="r") as f:
-            settings = yaml.safe_load(f)
-
+    def load(cls, settings_path: str | Path | None = None):
+        if settings_path is None:
+            settings = load_yaml_resource(CONFIG_PACKAGE, CONFIG_RESOURCE)
+        else:
+            with Path(settings_path).open(mode="r", encoding="utf-8") as f:
+                settings = yaml.safe_load(f)
         return cls(**settings)
 
 

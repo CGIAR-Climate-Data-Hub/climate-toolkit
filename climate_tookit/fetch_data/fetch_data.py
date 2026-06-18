@@ -227,7 +227,7 @@ def parse_variables(raw):
         variables.append(parse_variable_token(v))
     return variables
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Fetch climate data through the source -> transform -> preprocess "

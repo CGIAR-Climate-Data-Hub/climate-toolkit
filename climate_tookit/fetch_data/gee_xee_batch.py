@@ -890,7 +890,7 @@ def fetch_gee_xee_batch_data(
     return preprocessed_df, summary_df, manifest_df
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="Package-native many-site GEE Xee extraction."
     )

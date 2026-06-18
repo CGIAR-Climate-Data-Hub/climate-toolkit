@@ -23,6 +23,7 @@ from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
 import json
 import argparse
+from climate_tookit._resources import load_json_resource
 from climate_tookit.crop_calendar.registry import (
     normalize_crop_name,
     threshold_supported_crop_names,
@@ -36,9 +37,8 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import (
 )
 from climate_tookit.season_analysis.season_identity import build_season_identity
 
-HERE = Path(__file__).resolve().parent
-
-CROP_WATER_BALANCE_PARAMS_PATH = str(HERE / "crop_water_balance_params.json")
+CROP_WATER_BALANCE_PARAMS_PACKAGE = "climate_tookit.calculate_hazards"
+CROP_WATER_BALANCE_PARAMS_RESOURCE = "crop_water_balance_params.json"
 
 DEFAULT_SPINUP_DAYS = 60
 DEFAULT_DEPLETION_FRACTION_P = 0.5
@@ -246,9 +246,15 @@ def load_custom_thresholds_file(path: Optional[str]) -> Optional[Dict[str, Dict[
 
 
 @lru_cache(maxsize=4)
-def load_crop_water_balance_params(path: str = CROP_WATER_BALANCE_PARAMS_PATH) -> Dict[str, Dict[str, Any]]:
-    with open(path, "r", encoding="utf-8") as handle:
-        data = json.load(handle)
+def load_crop_water_balance_params(path: str | Path | None = None) -> Dict[str, Dict[str, Any]]:
+    if path is None:
+        data = load_json_resource(
+            CROP_WATER_BALANCE_PARAMS_PACKAGE,
+            CROP_WATER_BALANCE_PARAMS_RESOURCE,
+        )
+    else:
+        with Path(path).open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
     if not isinstance(data, dict):
         raise ValueError("Crop water-balance params file must contain a JSON object keyed by crop name.")
     return data
@@ -256,7 +262,7 @@ def load_crop_water_balance_params(path: str = CROP_WATER_BALANCE_PARAMS_PATH) -
 
 def resolve_crop_water_balance_params(
     crop_name: str,
-    params_path: str = CROP_WATER_BALANCE_PARAMS_PATH,
+    params_path: str | Path | None = None,
 ) -> Dict[str, Any]:
     params = load_crop_water_balance_params(params_path).get(crop_name)
     if not params:
@@ -2411,7 +2417,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
 
     print(f"\n{'='*70}\n")
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(
         description='Calculate crop hazard indices',
         formatter_class=argparse.RawTextHelpFormatter,
@@ -2567,10 +2573,11 @@ def main() -> None:
             os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
             with open(args.output, 'w') as f:
                 f.write(json.dumps(result, indent=2, default=str))
+    return 1 if "error" in result else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 
 # Auto-detect season (no season flag supplied -- uses requested source policy):
 # python -m climate_tookit.calculate_hazards.hazards maize --location="-1.286,36.817" --date-from 2016-01-01 --date-to 2016-12-31 --season-start 2016-03-01 --season-end 2016-06-30

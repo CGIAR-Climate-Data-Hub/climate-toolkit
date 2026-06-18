@@ -1364,7 +1364,7 @@ def print_summary(
         print(f"✓ SAVED: {save_path}")
 
 # CLI
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(
         description='Season analysis — auto, paired, or legacy historical source presets',
         formatter_class=argparse.RawTextHelpFormatter,
@@ -1455,7 +1455,7 @@ def main() -> None:
             )
         except ValueError as exc:
             print(f"Error: {exc}")
-            sys.exit(1)
+            return 1
     if args.fixed_season:
         # Fixed-season path 
         print(
@@ -1466,7 +1466,7 @@ def main() -> None:
             fixed_defs = parse_fixed_seasons(args.fixed_season)
         except ValueError as exc:
             print(f"Error parsing --fixed-season: {exc}")
-            sys.exit(1)
+            return 1
         print(f"\nParsed {len(fixed_defs)} fixed season window(s):")
         for fd in fixed_defs:
             (o_m, o_d), (c_m, c_d) = fd["onset_md"], fd["cessation_md"]
@@ -1563,9 +1563,10 @@ def main() -> None:
         save_path = str(Path(args.output_dir) / filename)
     print_summary(seasons_dict, annual_dict, save_path=save_path)
     print("\nAnalysis complete!")
+    return 0
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
 
 # Automatic detection:
 # python climate_tookit/season_analysis/seasons.py --location="-1.286,36.817" --start-year 2018 --end-year 2020 --source era_5

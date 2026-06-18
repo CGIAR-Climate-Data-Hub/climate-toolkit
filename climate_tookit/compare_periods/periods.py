@@ -1057,7 +1057,7 @@ def print_report(r: Dict[str, Any]) -> None:
     print()
 
 # CLI 
-def main() -> None:
+def main() -> int:
     p = argparse.ArgumentParser(
         description="Compare a focal year against a baseline period using statistics.py.",
         formatter_class=argparse.RawTextHelpFormatter)
@@ -1103,7 +1103,8 @@ def main() -> None:
     try:
         lat, lon = (float(x) for x in args.location.replace(" ", ",").split(","))
     except ValueError:
-        print("Error: --location must be 'lat,lon'"); sys.exit(1)
+        print("Error: --location must be 'lat,lon'")
+        return 1
 
     result = compare(
         location=(lat, lon),
@@ -1139,10 +1140,11 @@ def main() -> None:
             output_path.write_text(rendered)
             print(f"✓ Saved: {output_path}")
     if "error" in result:
-        sys.exit(1)
+        return 1
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 
 # Auto-detected seasons (no --fixed-season):
 # python -m climate_tookit.compare_periods.periods --location=-1.286,36.817 --baseline-start=1991 --baseline-end=2016 --focal-year=2015 --source=chirps_v2+chirts --output=results/nairobi_2015_vs_1991-2016_auto.json

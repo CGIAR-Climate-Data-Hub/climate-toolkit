@@ -199,7 +199,7 @@ def save_output(data, output_path, fmt):
         raise ValueError(fmt)
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description='Download climate data')
     parser.add_argument('--lon', type=float, required=True)
     parser.add_argument('--lat', type=float, required=True)

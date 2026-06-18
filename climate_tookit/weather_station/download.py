@@ -1145,7 +1145,7 @@ def save_candidate_review_artifacts(
     return csv_path, json_path, html_path
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="Download observed weather-station data through toolkit pipeline."
     )

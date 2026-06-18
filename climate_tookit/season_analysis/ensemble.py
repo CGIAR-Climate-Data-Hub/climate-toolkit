@@ -725,14 +725,14 @@ def print_summary(results):
         print(f"  Humid test            : {_humid_line(ens['annual_rain_mm'], ens['low_rain_months'])}")
 
 # CLI 
-def main():
+def main() -> int:
     global NEX_GDDP_SOURCE
 
     if '--list-models' in sys.argv:
         print("Available NEX-GDDP-CMIP6 models:")
         for i, m in enumerate(NEX_GDDP_MODELS, 1):
             print(f"  {i:02d}. {m}")
-        sys.exit(0)
+        return 0
 
     p = argparse.ArgumentParser(
         description='NEX-GDDP-CMIP6 ensemble — wraps seasons.py per model and averages',
@@ -759,13 +759,15 @@ def main():
     try:
         lat, lon = map(float, args.location.split(','))
     except ValueError:
-        print("Error: --location must be in 'lat,lon' format."); sys.exit(1)
+        print("Error: --location must be in 'lat,lon' format.")
+        return 1
 
     scenarios = ([s.strip() for s in args.scenarios.split(',') if s.strip()]
                  if args.scenarios else list(SSP_SCENARIOS))
     invalid = [s for s in scenarios if s not in SSP_SCENARIOS]
     if invalid:
-        print(f"Error: unknown scenario(s) {invalid}. Valid: {SSP_SCENARIOS}"); sys.exit(1)
+        print(f"Error: unknown scenario(s) {invalid}. Valid: {SSP_SCENARIOS}")
+        return 1
 
     sub_models = [m.strip() for m in args.models.split(',') if m.strip()] if args.models else None
     excl = [m.strip() for m in args.exclude_models.split(',') if m.strip()] if args.exclude_models else None
@@ -775,7 +777,8 @@ def main():
         exclude_models=excl,
     )
     if not models:
-        print("Error: model list is empty."); sys.exit(1)
+        print("Error: model list is empty.")
+        return 1
 
     if not args.quiet:
         print(f"NEX-GDDP Ensemble | {lat:.4f},{lon:.4f} | {args.start_year}–{args.end_year}")
@@ -801,9 +804,10 @@ def main():
             print(f"\n✓ Saved to {args.output}")
         except UnicodeEncodeError:
             print(f"\nSaved to {args.output}")
+    return 0
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
 
 # NOTE: the 1st command in a section runs ALL models with a selected scenario/scenarios
 #       (drop --scenarios to run all scenarios too); the 2nd also selects models.

@@ -721,7 +721,7 @@ def print_report(results: dict, output_dir: str = "./outputs"):
     }
 
 # CLI
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="Extended climate dataset comparison tool",
         formatter_class=argparse.RawTextHelpFormatter,
@@ -836,7 +836,7 @@ def main():
         parser.error(str(exc))
     except RuntimeError as exc:
         print(f"Error: {exc}")
-        raise SystemExit(1)
+        return 1
     all_stats = print_report(results, output_dir=args.output_dir)
 
     if args.format == "json":
@@ -845,9 +845,10 @@ def main():
             "datasets": {k: v.to_dict(orient="records") for k, v in results.items()},
         }
         print(json.dumps(serializable, indent=2, default=str))
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 
 # Example — historical-source comparison only:
 # python -m climate_tookit.compare_datasets.compare_datasets --sources era_5 chirps_v2 nasa_power imerg agera_5 chirts soil_grid terraclimate --lat -1.286 --lon 36.817 --start 1990-01-01 --end 2016-12-31 --format report

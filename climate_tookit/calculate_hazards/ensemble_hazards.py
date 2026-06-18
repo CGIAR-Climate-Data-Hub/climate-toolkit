@@ -945,8 +945,7 @@ def print_results(r: Dict) -> None:
         _print_overall_summary(r['overall_ensemble'], multi_scenario=False)
     print(f"\n{'='*70}\n")
 
-# CLI
-if __name__ == "__main__":
+def main() -> int:
     p = argparse.ArgumentParser(
         description='Ensemble of hazards.py across NEX-GDDP models x scenarios.',
     )
@@ -985,7 +984,7 @@ if __name__ == "__main__":
     if args.list_models:
         print("Models:");    [print(f"  {m}") for m in MODELS]
         print("\nScenarios:"); [print(f"  {s}") for s in SCENARIOS]
-        sys.exit(0)
+        return 0
 
     missing = [n for n, v in (('--location',  args.location),
                               ('--start-year', args.start_year),
@@ -1020,6 +1019,11 @@ if __name__ == "__main__":
         with open(args.output, 'w') as f:
             json.dump(result, f, indent=2, default=str)
         print(f"Saved to: {args.output}")
+    return 1 if "error" in result else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
         
 # NOTE: the 1st command in a section includes all models/scenarios while the 2nd allows selection  
    

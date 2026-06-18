@@ -1150,7 +1150,7 @@ def print_ensemble_climatology_report(result: Dict[str, Any]) -> None:
     _print_per_model_monthly_breakdown(result)
     print_climatology_report(result)
 
-def main():
+def main() -> int:
     """Command-line interface for climatology analysis."""
     parser = argparse.ArgumentParser(
         description='Calculate long-term climate normals (WMO 30-year standards)',
@@ -1197,12 +1197,12 @@ Examples:
         lat, lon = map(float, args.location.split(','))
     except ValueError:
         print("Error: Invalid location format. Use 'lat,lon' format.")
-        sys.exit(1)
+        return 1
 
     # Validate years
     if args.end_year < args.start_year:
         print("Error: End year must be >= start year")
-        sys.exit(1)
+        return 1
 
     n_years = args.end_year - args.start_year + 1
     if n_years < 10:
@@ -1228,10 +1228,10 @@ Examples:
         if invalid:
             print(f"Error: invalid scenario(s) {invalid}. "
                   f"Accepted: {sorted(SCENARIO_ALIASES)}")
-            sys.exit(1)
+            return 1
         if not scenarios:
             print("Error: no scenarios provided.")
-            sys.exit(1)
+            return 1
 
         all_results: Dict[str, Any] = {}
         any_ok = False
@@ -1335,8 +1335,8 @@ Examples:
             print(f"✓ JSON data saved to {args.output}")
 
         if not any_ok:
-            sys.exit(1)
-        return
+            return 1
+        return 0
 
     # Single-source climatology (non-NEX-GDDP)
     result = calculate_climatology(
@@ -1365,9 +1365,10 @@ Examples:
             with open(args.output, 'w') as f:
                 json.dump(result, f, indent=2, default=str)
             print(f"✓ JSON data saved to {args.output}")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
     
 # Calculate 1991-2020 climatology (current WMO standard)
 # python -m climate_tookit.climatology.long_term_climatology --location="-1.286,36.817" --start-year 1991 --end-year 2020 --source nasa_power

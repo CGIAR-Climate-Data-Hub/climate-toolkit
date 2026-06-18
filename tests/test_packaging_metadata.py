@@ -1,5 +1,8 @@
 import unittest
+import importlib
+import inspect
 from pathlib import Path
+from typing import get_type_hints
 
 try:
     import tomllib
@@ -54,6 +57,19 @@ class PackagingMetadataTests(unittest.TestCase):
             "climate-toolkit-weather-station-compare": "climate_tookit.weather_station.compare:main",
         }
         self.assertEqual(expected, scripts)
+
+    def test_console_script_modules_expose_main_as_int_returning_entrypoint(self):
+        with PYPROJECT_PATH.open("rb") as handle:
+            pyproject = tomllib.load(handle)
+
+        scripts = pyproject["project"]["scripts"]
+        for entrypoint in scripts.values():
+            module_name, function_name = entrypoint.split(":")
+            with self.subTest(entrypoint=entrypoint):
+                module = importlib.import_module(module_name)
+                entrypoint_fn = getattr(module, function_name)
+                self.assertTrue(callable(entrypoint_fn))
+                self.assertEqual(int, get_type_hints(entrypoint_fn).get("return"))
 
 
 if __name__ == "__main__":

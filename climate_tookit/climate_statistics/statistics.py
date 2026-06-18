@@ -2159,7 +2159,7 @@ def print_pandas(result: Dict[str, Any]) -> None:
             _print_indented_table(preview.fillna("n/a"))
 
 # CLI
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(
         description='Climate statistics analysis by season (auto or fixed)',
         formatter_class=argparse.RawTextHelpFormatter,
@@ -2251,7 +2251,7 @@ def main() -> None:
         lat, lon = map(float, args.location.split(','))
     except ValueError:
         print("Error: --location must be in 'lat,lon' format.")
-        sys.exit(1)
+        return 1
 
     if args.fixed_season:
         print(f"Fixed-season mode | {lat:.4f}N, {lon:.4f}E | "
@@ -2293,7 +2293,7 @@ def main() -> None:
     if args.format == 'pandas':
         print_pandas(result)
         if 'error' in result:
-            sys.exit(1)
+            return 1
     else:
         out = json.dumps(result, indent=2, default=str)
         if args.output:
@@ -2303,14 +2303,14 @@ def main() -> None:
             spei_csv_path = _save_spei_csv_if_present(result, Path(args.output))
             if 'error' in result:
                 print(f"Saved error report to {args.output}")
-                sys.exit(1)
+                return 1
             print(f"Saved to {args.output}")
             if spei_csv_path is not None:
                 print(f"Saved SPEI CSV to {spei_csv_path}")
         else:
             print(out)
             if 'error' in result:
-                sys.exit(1)
+                return 1
 
     # Auto-save JSON alongside pandas display
     if not args.no_save and args.format == 'pandas' and 'error' not in result:
@@ -2325,9 +2325,10 @@ def main() -> None:
         print(f"\n✓ SAVED: {path}")
         if spei_csv_path is not None:
             print(f"✓ SAVED SPEI CSV: {spei_csv_path}")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 
 # Fixed single season:
 # python climate_tookit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "03-01:05-31" --source era_5 --format pandas
