@@ -1853,6 +1853,49 @@ def _render_xclim_table(rows: list[dict[str, Any]]) -> str:
 
 
 def render_compare_report(result: dict[str, Any]) -> str:
+    if result.get("selection_mode") == "list":
+        lines = [
+            "Weather station candidate review",
+            f"Anchor location : {result['anchor_location']['lat']:.4f}, {result['anchor_location']['lon']:.4f}",
+            f"Period          : {result['date_from']} .. {result['date_to']}",
+            f"Station source  : {result.get('station_source')}",
+            f"Candidate count : {len(result.get('candidate_stations', []))}",
+        ]
+        if result.get("candidate_review_artifacts"):
+            artifacts = result["candidate_review_artifacts"]
+            lines.extend(
+                [
+                    "",
+                    "Candidate review artifacts",
+                    f"- csv: {artifacts.get('csv')}",
+                    f"- json: {artifacts.get('json')}",
+                    f"- html: {artifacts.get('html')}",
+                ]
+            )
+        if result.get("candidate_stations"):
+            lines.extend(["", "Candidate stations"])
+            for index, row in enumerate(result["candidate_stations"], start=1):
+                lines.extend(
+                    [
+                        (
+                            f"{index}. {row.get('station_source', result.get('station_source'))} | "
+                            f"{row.get('station_id')} | {row.get('station_name') or 'unknown'} | "
+                            f"distance={_format_optional_number(row.get('distance_km'))} km | "
+                            f"elev_diff={_format_optional_number(row.get('elevation_diff_m'), 1)} m"
+                        ),
+                        (
+                            "   coverage="
+                            f"{_render_variable_completeness(row.get('requested_fields'), row)} | "
+                            f"status={row.get('threshold_status') or row.get('selection_status') or 'n/a'}"
+                        ),
+                    ]
+                )
+        if result.get("warnings"):
+            lines.extend(["", "Warnings"])
+            for warning in result["warnings"]:
+                lines.append(f"- {warning}")
+        return "\n".join(lines)
+
     unique_station_ids = {
         summary.get("station_id")
         for summary in result["station_summary"]
@@ -2115,6 +2158,106 @@ def compare_station_to_grids(
             warnings.append(warning)
             if verbose:
                 print(warning)
+    if selection_mode == "list":
+        candidate_frame = download_station_data(
+            station_source=station_source,
+            station_coord=station_coord,
+            date_from=date_from,
+            date_to=date_to,
+            variables=requested_variables,
+            station_id=station_id,
+            stage="preprocessed",
+            verbose=verbose,
+            cache_dir=cache_dir,
+            refresh_cache=refresh_cache,
+            selection_mode="list",
+            max_distance_km=max_distance_km,
+            target_elevation_m=resolved_target_elevation_m,
+            max_elevation_diff_m=max_elevation_diff_m,
+            min_completeness_ratio=min_completeness_ratio,
+            candidate_limit=candidate_limit,
+            score_limit=score_limit,
+            auto_select=auto_select,
+            auto_anchor_elevation=False,
+            disable_completeness_guard=disable_completeness_guard,
+            max_auto_stations=max_auto_stations,
+            custom_station_file=custom_station_file,
+            custom_station_name=custom_station_name,
+            custom_temp_unit=custom_temp_unit,
+            custom_precip_unit=custom_precip_unit,
+        )
+        candidate_review_artifacts = None
+        if candidate_report_prefix:
+            _compare_log(verbose, f"Building candidate review artifacts: {candidate_report_prefix}")
+            scope_summary = summarize_station_search_scope(
+                station_source=station_source,
+                location_coord=(float(station_coord[0]), float(station_coord[1])),
+                max_distance_km=max_distance_km,
+                target_elevation_m=resolved_target_elevation_m,
+                max_elevation_diff_m=max_elevation_diff_m,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
+                displayed_candidates=candidate_frame,
+            )
+            csv_path, json_path, html_path = save_candidate_review_artifacts(
+                candidates=candidate_frame,
+                report_prefix=candidate_report_prefix,
+                anchor_lat=float(station_coord[0]),
+                anchor_lon=float(station_coord[1]),
+                station_source=station_source,
+                period_start=date_from.isoformat(),
+                period_end=date_to.isoformat(),
+                scope_summary=scope_summary,
+            )
+            candidate_review_artifacts = {
+                "csv": str(csv_path),
+                "json": str(json_path),
+                "html": str(html_path),
+            }
+        warnings.append(
+            "selection_mode='list' returns candidate review only; no station-vs-grid metrics computed."
+        )
+        return {
+            "anchor_location": {
+                "lat": float(station_coord[0]),
+                "lon": float(station_coord[1]),
+            },
+            "date_from": date_from.isoformat(),
+            "date_to": date_to.isoformat(),
+            "station_source": station_source,
+            "selection_mode": selection_mode,
+            "selection_strategy": resolved_strategy,
+            "auto_select": auto_select,
+            "target_elevation_m": resolved_target_elevation_m,
+            "candidate_stations": candidate_frame.to_dict(orient="records"),
+            "candidate_review_artifacts": candidate_review_artifacts,
+            "selected_stations_by_variable": [],
+            "station_summary": [],
+            "grid_sources": normalized_grid_sources,
+            "grid_source_metadata": grid_source_metadata,
+            "precip_source": normalize_climate_dataset_name(precip_source),
+            "temp_source": normalize_climate_dataset_name(temp_source),
+            "wet_day_threshold_mm": float(wet_day_threshold_mm),
+            "min_overlap_days": int(min_overlap_days),
+            "grid_fetch_summary": [],
+            "grid_failures": [],
+            "warnings": warnings,
+            "confidence_summary": {},
+            "window_status_summary": {},
+            "metrics": [],
+            "monthly_metrics": [],
+            "seasonal_metrics": [],
+            "annual_metrics": [],
+            "xclim_available": XCLIM_AVAILABLE,
+            "xclim_precip_indices": [],
+            "pooled_reference_method": "date_mean_across_selected_stations",
+            "pooled_daily_metrics": [],
+            "pooled_monthly_metrics": [],
+            "pooled_seasonal_metrics": [],
+            "pooled_annual_metrics": [],
+            "overall_metrics": [],
+            "use_case_rankings": [],
+        }
     compare_payloads, payload_warnings, selected_station_map = _build_station_compare_payloads(
         station_source=station_source,
         station_coord=station_coord,
@@ -2661,7 +2804,7 @@ def main() -> int:
                         help="Temperature unit in custom station file (default: c).")
     parser.add_argument("--custom-precip-unit", choices=["mm", "inch", "tenth_mm"], default="mm",
                         help="Precipitation unit in custom station file (default: mm).")
-    parser.add_argument("--selection-mode", choices=["auto", "specified"], default="auto")
+    parser.add_argument("--selection-mode", choices=["auto", "specified", "list"], default="auto")
     parser.add_argument(
         "--selection-strategy",
         choices=sorted(SUPPORTED_SELECTION_STRATEGIES),
@@ -2682,7 +2825,8 @@ def main() -> int:
     parser.add_argument("--max-auto-stations", type=int, default=10)
     parser.add_argument("--candidate-limit", type=int, default=10)
     parser.add_argument("--score-limit", type=int, default=25)
-    parser.add_argument("--candidate-report-prefix", default=None)
+    parser.add_argument("--report-prefix", default=None)
+    parser.add_argument("--candidate-report-prefix", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--open-report", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--format", choices=["text", "json"], default="text")
@@ -2694,6 +2838,16 @@ def main() -> int:
             raise ValueError(
                 "station_source='custom_csv' requires --custom-station-file. "
                 + custom_station_format_help()
+            )
+        report_prefix = args.report_prefix or args.candidate_report_prefix
+        if (
+            args.report_prefix
+            and args.candidate_report_prefix
+            and args.report_prefix != args.candidate_report_prefix
+        ):
+            raise ValueError(
+                "Use one report prefix flag only. --report-prefix is canonical; "
+                "--candidate-report-prefix is compatibility alias."
             )
         result = compare_station_to_grids(
             station_source=args.station_source,
@@ -2726,7 +2880,7 @@ def main() -> int:
             custom_station_name=args.custom_station_name,
             custom_temp_unit=args.custom_temp_unit,
             custom_precip_unit=args.custom_precip_unit,
-            candidate_report_prefix=args.candidate_report_prefix,
+            candidate_report_prefix=report_prefix,
         )
     except Exception as exc:
         print(f"Error: {exc}")
