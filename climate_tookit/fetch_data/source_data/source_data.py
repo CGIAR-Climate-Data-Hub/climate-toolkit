@@ -133,7 +133,12 @@ class SourceData:
                 location_coord=location_coord,
                 aggregation=None,
                 date_from_utc=date_from_utc,
-                date_to_utc=date_to_utc
+                date_to_utc=date_to_utc,
+                settings=settings,
+                source=source,
+                verbose=verbose,
+                cache_dir=cache_dir,
+                refresh_cache=refresh_cache,
             )
         elif source == ClimateDataset.nasa_power:
             client = DownloadNASA(

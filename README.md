@@ -33,6 +33,14 @@ and solar radiation. If a direct single-source historical fallback is needed,
 prefer `agera_5`. Keep `era_5` available for compatibility, diagnostics, and
 comparison work, but do not treat it as the primary recommended source.
 
+TAMSAT remains available for completeness and Africa-focused precipitation
+comparison work, but it is currently fragile and should not be treated as a
+default or relied on for production workflows. It is precipitation-only, must
+be paired with a temperature source for most analysis modules, and current
+public access via JASMIN has shown slow performance and intermittent SSL /
+download failures in live testing. Prefer `chirps_v3_daily_rnl + agera_5` for
+normal user workflows.
+
 ---
 
 ## Project Structure
@@ -106,6 +114,14 @@ Key options:
 - `--cache-dir`: optional local cache root for reuse across runs
 
 For NEX-GDDP, you must also provide `--model` and `--scenario`. Current Earth Engine/Xee access also requires prior Earth Engine authentication plus `GCP_PROJECT_ID` in your environment. Current package backend is documented and tested against Earth Engine NEX-GDDP version `1.1`.
+
+TAMSAT-specific note:
+
+- use `tamsat` only as optional precipitation partner, not primary recommended
+  historical source
+- pair it with temperature source such as `agera_5`
+- expect slower runs and possible download instability
+- treat it as comparison / sensitivity source, not dependable default
 
 The low-level `fetch_data` entry point expects an exact source name. Module-level
 `auto` source selection happens in higher-level workflows such as

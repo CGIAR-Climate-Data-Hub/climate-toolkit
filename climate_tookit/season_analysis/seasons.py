@@ -340,6 +340,15 @@ def get_climate_data(
     result['tmin']   = df.get('min_temperature')
     result['precip'] = df.get('precipitation')
     result.attrs.update(df.attrs)
+    if 'precip' not in result.columns or result['precip'].notna().sum() == 0:
+        source_label = normalized_force_source or "auto"
+        if precip_source and temp_source:
+            source_label = f"paired precip={normalized_precip_source} temp={normalized_temp_source}"
+        raise RuntimeError(
+            "Precipitation fetch returned no usable daily values "
+            f"for {source_label} over {start_date}..{end_date}. "
+            "Abort analysis instead of treating missing rainfall as zero."
+        )
     return result
 
 def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=None) -> Optional[pd.DataFrame]:

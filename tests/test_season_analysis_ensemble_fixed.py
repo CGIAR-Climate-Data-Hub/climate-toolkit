@@ -302,6 +302,43 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
 
         self.assertIn("requires both precip_source and temp_source", str(ctx.exception))
 
+    def test_seasons_get_climate_data_rejects_all_missing_precipitation(self):
+        def fake_preprocess_data(**kwargs):
+            if kwargs["source"] == "tamsat":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2020-03-01", "2020-03-02"]),
+                        "precipitation": [None, None],
+                    }
+                )
+            if kwargs["source"] == "agera_5":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2020-03-01", "2020-03-02"]),
+                        "max_temperature": [24.0, 25.0],
+                        "min_temperature": [14.0, 15.0],
+                    }
+                )
+            raise AssertionError(f"unexpected source {kwargs['source']}")
+
+        original = ensemble.seasons.preprocess_data
+        ensemble.seasons.preprocess_data = fake_preprocess_data
+        try:
+            with self.assertRaises(RuntimeError) as ctx:
+                ensemble.seasons.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2020-03-01",
+                    "2020-03-02",
+                    force_source="paired",
+                    precip_source="tamsat",
+                    temp_source="agera_5",
+                )
+        finally:
+            ensemble.seasons.preprocess_data = original
+
+        self.assertIn("no usable daily values", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

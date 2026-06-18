@@ -168,6 +168,7 @@ tamsat:
   # `climate-data.jasmin.ac.uk` no longer resolves. We use the per-day NetCDF
   # tree because monthly files contain a single per-month total, not daily samples.
   rainfall_url: "https://gws-access.jasmin.ac.uk/public/tamsat/rfe/data/v3.1/daily"
+  rainfall_zip_url: "https://gws-access.jasmin.ac.uk/public/tamsat/rfe/data_zipped/v3.1"
   soil_moisture_url: "https://gws-access.jasmin.ac.uk/public/tamsat/soil_moisture/data/v2.3.1/daily"
   data_format: "netcdf"
   download_format: "daily"
