@@ -73,6 +73,26 @@ class PackagingMetadataTests(unittest.TestCase):
                 self.assertTrue(callable(entrypoint_fn))
                 self.assertEqual(int, get_type_hints(entrypoint_fn).get("return"))
 
+    def test_top_level_package_exposes_stable_public_api(self):
+        package = importlib.import_module("climate_tookit")
+        self.assertTrue(hasattr(package, "__version__"))
+        self.assertIsInstance(package.__version__, str)
+
+        expected_exports = {
+            "fetch_climate_data",
+            "analyze_climate_statistics",
+            "compare_climate_periods",
+            "evaluate_hazards",
+            "download_station_data",
+            "compare_station_to_grids",
+        }
+        self.assertTrue(expected_exports.issubset(set(package.__all__)))
+
+        for export_name in expected_exports:
+            with self.subTest(export=export_name):
+                exported = getattr(package, export_name)
+                self.assertTrue(callable(exported))
+
 
 if __name__ == "__main__":
     unittest.main()
