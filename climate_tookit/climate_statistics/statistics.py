@@ -60,12 +60,6 @@ from climate_tookit.calculate_hazards.hazards import (
     summarize_water_balance as shared_summarize_water_balance,
 )
 
-CROP_CALENDAR_AVAILABLE = True
-SPEI_AVAILABLE = True
-PREPROCESS_AVAILABLE = True
-CUSTOM_STATION_AVAILABLE = True
-SEASONS_AVAILABLE = True
-HAZARD_WATER_BALANCE_AVAILABLE = True
 CLIMATE_VARS = [
     ClimateVariable.precipitation,
     ClimateVariable.max_temperature,
@@ -337,8 +331,6 @@ def _apply_custom_station_overrides(
 ) -> pd.DataFrame:
     if not custom_station_file:
         return base_df
-    if not CUSTOM_STATION_AVAILABLE:
-        raise RuntimeError("custom station ingestion module is not available")
     return apply_custom_station_overrides(
         base_df,
         lat=lat,
@@ -383,9 +375,6 @@ def get_climate_data(
       - For direct single-source historical daily runs, prefer `agera_5`.
     Renames pipeline columns to canonical names: precip, tmax, tmin (humidity, soil_moisture, solar_radiation, wind_speed pass through when the source provides them).
     """
-    if not PREPROCESS_AVAILABLE:
-        raise RuntimeError("preprocess_data pipeline not available")
-
     date_from = date.fromisoformat(start_date)
     date_to   = date.fromisoformat(end_date)
     source_lc = normalize_climate_dataset_name(source)
@@ -498,7 +487,7 @@ def _shared_water_balance_summary(
     Keep legacy precip-minus-ET0 totals for continuity, but source NDWS/NDWL0/WRSI
     from the same running soil-water balance used by hazards/ensemble_hazards.
     """
-    if not HAZARD_WATER_BALANCE_AVAILABLE or df is None or df.empty:
+    if df is None or df.empty:
         return {}
     if 'ET0_mm_day' not in df.columns:
         return {}
@@ -675,7 +664,7 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
     water_balance_stats.update(shared_wb)
 
     water_balance_methodology = None
-    if HAZARD_WATER_BALANCE_AVAILABLE and shared_wb:
+    if shared_wb:
         water_balance_methodology = shared_build_water_balance_methodology(
             {
                 'method': season.get('method', 'statistics_default_full_window'),
@@ -767,9 +756,6 @@ def _spei_block(
     ref_start: Optional[str],
     ref_end: Optional[str],
 ) -> Dict[str, Any]:
-    if not SPEI_AVAILABLE:
-        return {"error": "SPEI helper unavailable."}
-
     monthly = compute_monthly_spei(
         df,
         scale_months=scale_months,
@@ -1079,9 +1065,6 @@ def detect_seasons_auto(
     For each ref year, slices a 1.5-year window so onset/cessation crossing the year boundary is captured, then runs ETO detection.
     Final post-processing (reassign + dedup) matches seasons.py.
     """
-    if not SEASONS_AVAILABLE:
-        raise RuntimeError("seasons.py not importable -- cannot detect seasons")
-
     seasons_dict: Dict[int, List[Dict]] = {}
     annual_dict:  Dict[int, Dict]       = {}
 
@@ -1160,9 +1143,6 @@ def detect_seasons_fixed(
       1. Build the [onset, cessation] dates (handles year-crossing).
       2. Slice the master df and run ETO sub-detection inside the window.
     """
-    if not SEASONS_AVAILABLE:
-        raise RuntimeError("seasons.py not importable -- cannot detect seasons")
-
     seasons_dict: Dict[int, List[Dict]] = {
         y: [] for y in range(start_year, end_year + 1)
     }
@@ -1320,8 +1300,6 @@ def _resolve_calendar_preset_request(
 ) -> Optional[Dict[str, Any]]:
     if not crop_name or not calendar_source:
         return None
-    if not CROP_CALENDAR_AVAILABLE:
-        raise ValueError("Crop calendar helpers unavailable in this environment.")
     source = str(calendar_source).lower()
     if source != "ggcmi":
         raise ValueError(f"Unsupported calendar source: {calendar_source}. Available: ggcmi")

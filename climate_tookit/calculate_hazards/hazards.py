@@ -51,27 +51,20 @@ DEFAULT_KC_PARAMS = {
     "source_doc": "generic fallback",
 }
 
-SEASON_ANALYSIS_AVAILABLE = False
-_IMPORT_ERROR: str = ""
-
-try:
-    from climate_tookit.season_analysis.seasons import (
-        PAIRED_SOURCE_SENTINEL,
-        PRECIP_ONLY_SOURCES,
-        TEMP_ONLY_SOURCES,
-        get_climate_data,
-        add_et0,
-        detect_onset_cessation,
-        fetch_and_analyze_years,
-        fetch_and_analyze_years_fixed,
-        fetch_master_range_with_tail,
-        analyze_years_auto_on_prefetched_df,
-        analyze_years_fixed_on_prefetched_df,
-        parse_fixed_seasons,
-    )
-    SEASON_ANALYSIS_AVAILABLE = True
-except Exception as _e:
-    _IMPORT_ERROR = str(_e)
+from climate_tookit.season_analysis.seasons import (
+    PAIRED_SOURCE_SENTINEL,
+    PRECIP_ONLY_SOURCES,
+    TEMP_ONLY_SOURCES,
+    get_climate_data,
+    add_et0,
+    detect_onset_cessation,
+    fetch_and_analyze_years,
+    fetch_and_analyze_years_fixed,
+    fetch_master_range_with_tail,
+    analyze_years_auto_on_prefetched_df,
+    analyze_years_fixed_on_prefetched_df,
+    parse_fixed_seasons,
+)
 
 # Crop thresholds
 CROP_THRESHOLDS = {
@@ -1161,11 +1154,6 @@ def get_climate_data_for_season(
     scenario: Optional[str] = None,
 ) -> pd.DataFrame:
     """Fetch daily climate data for an explicit window and attach ET0."""
-    if not SEASON_ANALYSIS_AVAILABLE:
-        raise Exception(
-            f"Season analysis module not available -- {_IMPORT_ERROR}\n"
-            "Ensure seasons.py and its dependencies (fetch_data, etc.) are importable."
-        )
     force_source = None if source == 'auto' else source
     df = get_climate_data(
         lat,
@@ -1786,8 +1774,6 @@ def calculate_hazards(
 
     # fixed-season (mirrors seasons.py fixed-season mode)
     elif fixed_season:
-        if not SEASON_ANALYSIS_AVAILABLE:
-            return {'error': f'Season analysis module not available -- {_IMPORT_ERROR}'}
         print(f"Fixed-season mode: {fixed_season}")
         try:
             fixed_defs = parse_fixed_seasons(fixed_season)
@@ -1869,7 +1855,7 @@ def calculate_hazards(
             return {'error': 'No seasons produced by fixed-season mode for the given date range.'}
 
     # auto-detect via fetch_and_analyze_years using the requested source policy
-    elif SEASON_ANALYSIS_AVAILABLE:
+    else:
         detection_source = source
         print(f"Detecting growing season for {crop_name} at ({lat}, {lon})")
         if detection_source == 'auto':
@@ -2018,12 +2004,6 @@ def calculate_hazards(
                 if calendar_preset_used:
                     all_results[-1]["eto_seasons"] = s.get("eto_seasons") or []
                     all_results[-1]["eto_detection_note"] = s.get("eto_detection_note")
-    else:
-        return {
-            'error': (
-                f'Season analysis not available and no season dates provided -- {_IMPORT_ERROR}'
-            )
-        }
     # Evaluate hazards for every resolved season
     assessments = []
     for entry in all_results:
