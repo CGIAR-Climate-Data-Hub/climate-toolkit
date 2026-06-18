@@ -61,6 +61,7 @@ from fetch_data.source_data.sources.utils.models import (
     normalize_climate_dataset_name,
 )
 from crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES, resolve_calendar_preset
+from weather_station.overrides import apply_custom_station_overrides
 
 HISTORICAL_SOURCES = ['agera_5', 'era_5']
 DEFAULT_AUTO_PRECIP_SOURCE = 'chirps_v3_daily_rnl'
@@ -250,6 +251,11 @@ def get_climate_data(
     force_source: Optional[str] = None,
     model       : Optional[str] = None,
     scenario    : Optional[str] = None,
+    custom_station_file: Optional[str] = None,
+    custom_station_variables: Optional[List[str]] = None,
+    custom_station_name: Optional[str] = None,
+    custom_temp_unit: str = "c",
+    custom_precip_unit: str = "mm",
 ) -> pd.DataFrame:
     """
     Fetch standardised daily climate data (date, tmax, tmin, precip).
@@ -263,11 +269,33 @@ def get_climate_data(
         if force_source:
             raise RuntimeError(f"No climate data returned from source '{force_source}'.")
         raise RuntimeError("All data sources exhausted.")
+    if custom_station_file:
+        df = apply_custom_station_overrides(
+            df,
+            lat=lat,
+            lon=lon,
+            date_from=date_from,
+            date_to=date_to,
+            custom_station_file=custom_station_file,
+            custom_station_variables=custom_station_variables,
+            custom_station_name=custom_station_name,
+            custom_temp_unit=custom_temp_unit,
+            custom_precip_unit=custom_precip_unit,
+            rename_map={
+                'precipitation': 'precipitation',
+                'max_temperature': 'max_temperature',
+                'min_temperature': 'min_temperature',
+            },
+            stage="preprocessed",
+        )
+        for warning in df.attrs.get("custom_station_warnings", []):
+            print(f"  [WARN] {warning}")
     result           = pd.DataFrame()
     result['date']   = pd.to_datetime(df['date'])
     result['tmax']   = df.get('max_temperature')
     result['tmin']   = df.get('min_temperature')
     result['precip'] = df.get('precipitation')
+    result.attrs.update(df.attrs)
     return result
 
 def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=None) -> Optional[pd.DataFrame]:
@@ -670,6 +698,11 @@ def fetch_full_year_plus_cessation(
     extra_months=6,
     model=None,
     scenario=None,
+    custom_station_file=None,
+    custom_station_variables=None,
+    custom_station_name=None,
+    custom_temp_unit="c",
+    custom_precip_unit="mm",
 ):
     force      = None if source == "auto" else source
     start_date = f"{year}-01-01"
@@ -683,6 +716,11 @@ def fetch_full_year_plus_cessation(
         force_source=force,
         model=model,
         scenario=scenario,
+        custom_station_file=custom_station_file,
+        custom_station_variables=custom_station_variables,
+        custom_station_name=custom_station_name,
+        custom_temp_unit=custom_temp_unit,
+        custom_precip_unit=custom_precip_unit,
     )
     df = add_et0(df, lat)
     return df.sort_values('date').reset_index(drop=True)
@@ -697,6 +735,11 @@ def fetch_master_range_with_tail(
     extra_months=6,
     model=None,
     scenario=None,
+    custom_station_file=None,
+    custom_station_variables=None,
+    custom_station_name=None,
+    custom_temp_unit="c",
+    custom_precip_unit="mm",
 ):
     force = None if source == "auto" else source
     start_date = f"{start_year}-01-01"
@@ -711,6 +754,11 @@ def fetch_master_range_with_tail(
         force_source=force,
         model=model,
         scenario=scenario,
+        custom_station_file=custom_station_file,
+        custom_station_variables=custom_station_variables,
+        custom_station_name=custom_station_name,
+        custom_temp_unit=custom_temp_unit,
+        custom_precip_unit=custom_precip_unit,
     )
     df = add_et0(df, lat)
     return df.sort_values("date").reset_index(drop=True)
@@ -872,6 +920,11 @@ def analyze_years_auto_on_prefetched_df(
 def fetch_and_analyze_years(
     lat, lon, start_year, end_year, extra_months=6, source="auto",
     model=None, scenario=None,
+    custom_station_file=None,
+    custom_station_variables=None,
+    custom_station_name=None,
+    custom_temp_unit="c",
+    custom_precip_unit="mm",
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
     Returns
@@ -956,6 +1009,11 @@ def fetch_and_analyze_years_fixed(
     model        : Optional[str] = None,
     scenario     : Optional[str] = None,
     prefetch_pad_days: int = 0,
+    custom_station_file: Optional[str] = None,
+    custom_station_variables: Optional[List[str]] = None,
+    custom_station_name: Optional[str] = None,
+    custom_temp_unit: str = "c",
+    custom_precip_unit: str = "mm",
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
     Apply fixed season windows to every year.
@@ -1010,6 +1068,11 @@ def fetch_and_analyze_years_fixed(
                 force_source=force,
                 model=model,
                 scenario=scenario,
+                custom_station_file=custom_station_file,
+                custom_station_variables=custom_station_variables,
+                custom_station_name=custom_station_name,
+                custom_temp_unit=custom_temp_unit,
+                custom_precip_unit=custom_precip_unit,
             )
             df = add_et0(df, lat)
             print(f"  Retrieved {len(df)} days")
@@ -1238,6 +1301,18 @@ def main() -> None:
     parser.add_argument('--end-year',     type=int, required=True)
     parser.add_argument('--extra-months', type=int, default=6,
                         help='Extra months beyond Dec for late cessations (auto mode, default: 6)')
+    parser.add_argument('--custom-station-file', default=None,
+                        help='Optional custom station CSV/JSON used to override historical variables by date.')
+    parser.add_argument('--custom-station-vars', default=None,
+                        help='Comma-separated station override vars, e.g. precipitation,max_temperature,min_temperature')
+    parser.add_argument('--custom-station-name', default=None,
+                        help='Optional station name label for custom station input.')
+    parser.add_argument('--custom-temp-unit', choices=['c', 'f', 'k'],
+                        default='c',
+                        help='Temperature unit in custom station file (default: c)')
+    parser.add_argument('--custom-precip-unit', choices=['mm', 'inch', 'tenth_mm'],
+                        default='mm',
+                        help='Precipitation unit in custom station file (default: mm)')
     parser.add_argument('--output-dir',   default='.',
                         help='Directory for CSV output (default: current dir)')
     parser.add_argument('--no-save',      action='store_true',
@@ -1312,6 +1387,14 @@ def main() -> None:
             start_year=args.start_year,
             end_year=args.end_year,
             source=args.source,
+            custom_station_file=args.custom_station_file,
+            custom_station_variables=(
+                [token.strip() for token in args.custom_station_vars.split(',') if token.strip()]
+                if args.custom_station_vars else None
+            ),
+            custom_station_name=args.custom_station_name,
+            custom_temp_unit=args.custom_temp_unit,
+            custom_precip_unit=args.custom_precip_unit,
         )
     else:
         # Automatic detection path 
@@ -1325,6 +1408,14 @@ def main() -> None:
                 end_year=args.end_year,
                 source=args.source,
                 extra_months=args.extra_months,
+                custom_station_file=args.custom_station_file,
+                custom_station_variables=(
+                    [token.strip() for token in args.custom_station_vars.split(',') if token.strip()]
+                    if args.custom_station_vars else None
+                ),
+                custom_station_name=args.custom_station_name,
+                custom_temp_unit=args.custom_temp_unit,
+                custom_precip_unit=args.custom_precip_unit,
             )
             seasons_dict, annual_dict = analyze_years_auto_on_prefetched_df(
                 master_df,
@@ -1356,6 +1447,14 @@ def main() -> None:
                 end_year=args.end_year,
                 extra_months=args.extra_months,
                 source=args.source,
+                custom_station_file=args.custom_station_file,
+                custom_station_variables=(
+                    [token.strip() for token in args.custom_station_vars.split(',') if token.strip()]
+                    if args.custom_station_vars else None
+                ),
+                custom_station_name=args.custom_station_name,
+                custom_temp_unit=args.custom_temp_unit,
+                custom_precip_unit=args.custom_precip_unit,
             )
     # Save & print 
     save_path = None
