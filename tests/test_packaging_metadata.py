@@ -169,6 +169,7 @@ class PackagingMetadataTests(unittest.TestCase):
             with self.subTest(export=export_name):
                 exported = getattr(package, export_name)
                 self.assertTrue(callable(exported))
+                self.assertIn(export_name, dir(package))
 
     def test_top_level_module_entrypoint_prints_package_overview(self):
         module = importlib.import_module("climate_tookit.__main__")
@@ -195,6 +196,7 @@ class PackagingMetadataTests(unittest.TestCase):
                 for export_name in expected_exports:
                     exported = getattr(module, export_name)
                     self.assertTrue(callable(exported))
+                    self.assertIn(export_name, dir(module))
 
 
 if __name__ == "__main__":
