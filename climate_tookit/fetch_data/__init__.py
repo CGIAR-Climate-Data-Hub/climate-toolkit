@@ -1,5 +1,13 @@
+"""Public fetch-data package surface.
+
+Prefer ``fetch_climate_data`` from this package namespace.
+Legacy ``fetch_data`` name may be shadowed by normal submodule imports because
+``climate_tookit.fetch_data.fetch_data`` is also real module path.
+"""
+
 __all__ = [
     "Site",
+    "fetch_climate_data",
     "fetch_gee_xee_batch_data",
     "load_sites",
     "parse_site_spec",
@@ -8,6 +16,12 @@ __all__ = [
     "run_gee_xee_batch_extraction",
     "run_batch_extraction",
 ]
+
+
+def fetch_climate_data(*args, **kwargs):
+    from .fetch_data import fetch_data as _fetch_data
+
+    return _fetch_data(*args, **kwargs)
 
 
 def __getattr__(name):
