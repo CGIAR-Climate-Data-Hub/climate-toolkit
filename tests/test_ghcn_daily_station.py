@@ -1537,6 +1537,9 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertEqual([1.0, 2.0], result["precip"].tolist())
         self.assertEqual([30.0, 31.0], result["tmax"].tolist())
         self.assertEqual([20.0, 21.0], result["tmin"].tolist())
+        summary = result.attrs.get("custom_station_override_summary", [])
+        self.assertEqual("tmax", summary[0]["variable"])
+        self.assertEqual(0, summary[0]["fallback_days"])
 
     def test_get_climate_data_skips_custom_override_when_no_overlap(self):
         stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
@@ -1567,6 +1570,47 @@ class GHCNDailyStationTests(unittest.TestCase):
 
         self.assertEqual([1.0, 2.0], result["precip"].tolist())
         self.assertTrue(result.attrs.get("custom_station_warnings"))
+        summary = result.attrs.get("custom_station_override_summary", [])
+        self.assertEqual("skipped_no_overlap", summary[0]["status"])
+        self.assertEqual(2, summary[0]["fallback_days"])
+
+    def test_get_climate_data_reports_partial_custom_override_coverage(self):
+        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        base_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=3, freq="D"),
+                "precipitation": [1.0, 2.0, 3.0],
+                "max_temperature": [24.0, 25.0, 26.0],
+                "min_temperature": [14.0, 15.0, 16.0],
+            }
+        )
+        orig_stats_call_preprocess = stats_module._call_preprocess
+        stats_module._call_preprocess = lambda *args, **kwargs: base_frame.copy()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                csv_path = Path(tmpdir) / "override_gap.csv"
+                pd.DataFrame(
+                    {
+                        "date": ["2020-01-01", "2020-01-03"],
+                        "precipitation": [9.0, 8.0],
+                    }
+                ).to_csv(csv_path, index=False)
+                result = stats_module.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2020-01-01",
+                    "2020-01-03",
+                    "agera_5",
+                    custom_station_file=str(csv_path),
+                    custom_station_variables=["precipitation"],
+                )
+        finally:
+            stats_module._call_preprocess = orig_stats_call_preprocess
+
+        summary = result.attrs.get("custom_station_override_summary", [])
+        self.assertEqual("partial_override", summary[0]["status"])
+        self.assertEqual(2, summary[0]["override_days"])
+        self.assertEqual(1, summary[0]["fallback_days"])
 
     def test_compute_aggregated_metrics_monthly_precipitation(self):
         overlap = pd.DataFrame(

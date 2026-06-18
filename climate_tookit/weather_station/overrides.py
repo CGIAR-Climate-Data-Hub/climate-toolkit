@@ -31,6 +31,15 @@ def _attach_custom_station_warning(frame: pd.DataFrame, warning: str) -> pd.Data
     return attached
 
 
+def _attach_custom_station_summary(
+    frame: pd.DataFrame,
+    summary_rows: list[dict],
+) -> pd.DataFrame:
+    attached = frame.copy()
+    attached.attrs["custom_station_override_summary"] = summary_rows
+    return attached
+
+
 def apply_custom_station_overrides(
     base_df: pd.DataFrame,
     *,
@@ -68,19 +77,45 @@ def apply_custom_station_overrides(
         )
     except ValueError as exc:
         if "no rows in requested window" in str(exc):
-            return _attach_custom_station_warning(
-                base_df,
+            warning = (
                 "Custom station override skipped: uploaded station file has no rows in "
                 f"requested window {date_from.isoformat()}..{date_to.isoformat()}. "
-                "Using gridded data for that period.",
+                "Using gridded data for that period."
+            )
+            summary_rows = [
+                {
+                    "variable": variable,
+                    "override_days": 0,
+                    "total_days": int(len(base_df)),
+                    "fallback_days": int(len(base_df)),
+                    "status": "skipped_no_overlap",
+                }
+                for variable in requested
+            ]
+            return _attach_custom_station_summary(
+                _attach_custom_station_warning(base_df, warning),
+                summary_rows,
             )
         raise
     if station_df.empty:
-        return _attach_custom_station_warning(
-            base_df,
+        warning = (
             "Custom station override skipped: uploaded station file returned no rows in "
             f"requested window {date_from.isoformat()}..{date_to.isoformat()}. "
-            "Using gridded data for that period.",
+            "Using gridded data for that period."
+        )
+        summary_rows = [
+            {
+                "variable": variable,
+                "override_days": 0,
+                "total_days": int(len(base_df)),
+                "fallback_days": int(len(base_df)),
+                "status": "skipped_empty",
+            }
+            for variable in requested
+        ]
+        return _attach_custom_station_summary(
+            _attach_custom_station_warning(base_df, warning),
+            summary_rows,
         )
 
     working = base_df.copy()
@@ -107,10 +142,33 @@ def apply_custom_station_overrides(
         how="left",
         suffixes=("", "_station_override"),
     )
+    summary_rows: list[dict] = []
     for column in override_columns:
         override_col = f"{column}_station_override"
         if override_col not in merged.columns:
             continue
+        override_days = int(merged[override_col].notna().sum())
+        total_days = int(len(merged))
+        fallback_days = int(total_days - override_days)
+        summary_rows.append(
+            {
+                "variable": column,
+                "override_days": override_days,
+                "total_days": total_days,
+                "fallback_days": fallback_days,
+                "status": "full_override" if fallback_days == 0 else "partial_override",
+            }
+        )
         merged[column] = merged[override_col].combine_first(merged.get(column))
         merged = merged.drop(columns=[override_col])
-    return merged.sort_values("date").reset_index(drop=True)
+    result = merged.sort_values("date").reset_index(drop=True)
+    result = _attach_custom_station_summary(result, summary_rows)
+    for row in summary_rows:
+        if row["fallback_days"] > 0:
+            result = _attach_custom_station_warning(
+                result,
+                "Custom station override partial coverage for "
+                f"{row['variable']}: {row['override_days']}/{row['total_days']} day(s) "
+                f"overridden; remaining {row['fallback_days']} day(s) use gridded data.",
+            )
+    return result

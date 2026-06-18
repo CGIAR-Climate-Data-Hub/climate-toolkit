@@ -549,6 +549,14 @@ def get_climate_data(
         custom_temp_unit=custom_temp_unit,
         custom_precip_unit=custom_precip_unit,
     )
+    for row in df.attrs.get("custom_station_override_summary", []):
+        print(
+            "  [station] "
+            f"{row.get('variable')}: custom_days={row.get('override_days', 0)}/"
+            f"{row.get('total_days', 0)} | "
+            f"gridded_fallback_days={row.get('fallback_days', 0)} | "
+            f"status={row.get('status', 'unknown')}"
+        )
     for warning in df.attrs.get("custom_station_warnings", []):
         print(f"  [WARN] {warning}")
 
