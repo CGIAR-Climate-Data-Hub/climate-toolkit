@@ -58,6 +58,8 @@ class PackageImportHygieneTests(unittest.TestCase):
         "climate_tookit.climatology.long_term_climatology",
         "climate_tookit.fetch_data.gee_xee_batch",
         "climate_tookit.fetch_data.nex_gddp_batch",
+        "climate_tookit.fetch_data.preprocess_data",
+        "climate_tookit.fetch_data.transform_data",
         "climate_tookit.fetch_data.source_data.sources.gee",
         "climate_tookit.fetch_data.source_data.sources.soil_grid",
         "climate_tookit.fetch_data.source_data.sources.chirps",
