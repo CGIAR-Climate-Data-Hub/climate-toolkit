@@ -199,7 +199,7 @@ class HazardThresholdTests(unittest.TestCase):
 
         calls = []
 
-        def fake_get_climate_data(lat, lon, start_date, end_date, force_source=None, model=None, scenario=None):
+        def fake_get_climate_data(lat, lon, start_date, end_date, force_source=None, precip_source=None, temp_source=None, model=None, scenario=None):
             calls.append(
                 {
                     "lat": lat,
@@ -207,6 +207,8 @@ class HazardThresholdTests(unittest.TestCase):
                     "start_date": start_date,
                     "end_date": end_date,
                     "force_source": force_source,
+                    "precip_source": precip_source,
+                    "temp_source": temp_source,
                     "model": model,
                     "scenario": scenario,
                 }
@@ -271,7 +273,7 @@ class HazardThresholdTests(unittest.TestCase):
 
         hazards.fetch_and_analyze_years_fixed = fake_fixed
 
-        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", model=None, scenario=None):
+        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
             season_fetch_calls.append(
                 {
                     "source": source,
@@ -321,6 +323,134 @@ class HazardThresholdTests(unittest.TestCase):
             "regime:fixed|onset_month:03",
             result["season_info"]["season_identity"]["experimental_alignment_key"],
         )
+
+    def test_calculate_hazards_fixed_season_forwards_paired_sources(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        season_fetch_calls = []
+        fixed_call_kwargs = []
+
+        orig_fixed = hazards.fetch_and_analyze_years_fixed
+        orig_window_fetch = hazards.get_climate_data_for_season
+        orig_calc_stats = hazards.calculate_season_statistics
+        orig_eval = hazards.evaluate_hazard_metrics
+
+        def fake_fixed(*args, **kwargs):
+            fixed_call_kwargs.append(kwargs)
+            return (
+                {
+                    2020: [
+                        {
+                            "onset": hazards.pd.Timestamp("2020-03-01"),
+                            "cessation": hazards.pd.Timestamp("2020-05-31"),
+                            "length_days": 92,
+                        }
+                    ]
+                },
+                {},
+            )
+
+        hazards.fetch_and_analyze_years_fixed = fake_fixed
+
+        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
+            season_fetch_calls.append(
+                {
+                    "source": source,
+                    "precip_source": precip_source,
+                    "temp_source": temp_source,
+                }
+            )
+            return hazards.pd.DataFrame(
+                {
+                    "date": hazards.pd.to_datetime(["2020-03-01", "2020-03-02"]),
+                    "precipitation": [10.0, 0.0],
+                    "max_temperature": [28.0, 29.0],
+                    "min_temperature": [16.0, 17.0],
+                    "ET0_mm_day": [4.0, 4.0],
+                }
+            )
+
+        hazards.get_climate_data_for_season = fake_window_fetch
+        hazards.calculate_season_statistics = lambda *args, **kwargs: {
+            "total_precipitation_mm": 10.0,
+            "mean_temperature_c": 22.5,
+        }
+        hazards.evaluate_hazard_metrics = lambda stats, thresholds: {
+            "precipitation": {"status": "no_stress", "value_mm": stats["total_precipitation_mm"]},
+            "temperature": {"status": "no_stress", "value_c": stats["mean_temperature_c"]},
+        }
+        try:
+            result = calculate_hazards(
+                crop_name="maize",
+                location_coord=(-1.286, 36.817),
+                date_from="2020-01-01",
+                date_to="2020-12-31",
+                fixed_season="03-01:05-31",
+                source="paired",
+                precip_source="tamsat",
+                temp_source="agera_5",
+            )
+        finally:
+            hazards.fetch_and_analyze_years_fixed = orig_fixed
+            hazards.get_climate_data_for_season = orig_window_fetch
+            hazards.calculate_season_statistics = orig_calc_stats
+            hazards.evaluate_hazard_metrics = orig_eval
+
+        self.assertEqual("paired", fixed_call_kwargs[0]["source"])
+        self.assertEqual("tamsat", fixed_call_kwargs[0]["precip_source"])
+        self.assertEqual("agera_5", fixed_call_kwargs[0]["temp_source"])
+        self.assertEqual("paired", season_fetch_calls[0]["source"])
+        self.assertEqual("tamsat", season_fetch_calls[0]["precip_source"])
+        self.assertEqual("agera_5", season_fetch_calls[0]["temp_source"])
+        self.assertEqual("paired", result["season_info"]["source"])
+
+    def test_calculate_hazards_fixed_season_uses_carried_fetch_error_without_refetch(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        orig_fixed = hazards.fetch_and_analyze_years_fixed
+        orig_window_fetch = hazards.get_climate_data_for_season
+
+        hazards.fetch_and_analyze_years_fixed = lambda *args, **kwargs: (
+            {
+                2020: [
+                    {
+                        "onset": hazards.pd.Timestamp("2020-03-01"),
+                        "cessation": hazards.pd.Timestamp("2020-05-31"),
+                        "length_days": 92,
+                        "fetch_error": "paired precip=tamsat returned no usable daily values",
+                    }
+                ]
+            },
+            {
+                2020: {
+                    "fetch_error": "paired precip=tamsat returned no usable daily values",
+                }
+            },
+        )
+        hazards.get_climate_data_for_season = lambda *args, **kwargs: self.fail(
+            "fixed-season hazard path should not refetch when fetch_error already carried forward"
+        )
+        try:
+            result = calculate_hazards(
+                crop_name="maize",
+                location_coord=(-1.286, 36.817),
+                date_from="2020-01-01",
+                date_to="2020-12-31",
+                fixed_season="03-01:05-31",
+                source="paired",
+                precip_source="tamsat",
+                temp_source="agera_5",
+            )
+        finally:
+            hazards.fetch_and_analyze_years_fixed = orig_fixed
+            hazards.get_climate_data_for_season = orig_window_fetch
+
+        self.assertIn("error", result)
+        self.assertIn(
+            "Climate data fetch failed for fixed-season hazard window 2020-01-01..2020-05-31",
+            result["error"],
+        )
+        self.assertIn("paired precip=tamsat returned no usable daily values", result["error"])
 
     def test_calculate_hazards_fixed_season_reuses_prefetched_window_df(self):
         import climate_tookit.calculate_hazards.hazards as hazards
@@ -648,7 +778,7 @@ class HazardThresholdTests(unittest.TestCase):
         orig_calc_stats = hazards.calculate_season_statistics
         orig_eval = hazards.evaluate_hazard_metrics
 
-        hazards.fetch_and_analyze_years = lambda lat, lon, start_year, end_year, extra_months=6, source="auto", model=None, scenario=None: (
+        hazards.fetch_and_analyze_years = lambda lat, lon, start_year, end_year, extra_months=6, source="auto", precip_source=None, temp_source=None, model=None, scenario=None: (
             detect_calls.append(
                 {
                     "start_year": start_year,
@@ -667,7 +797,7 @@ class HazardThresholdTests(unittest.TestCase):
             {},
         )
 
-        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", model=None, scenario=None):
+        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
             season_fetch_calls.append(
                 {
                     "source": source,
@@ -712,6 +842,87 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("agera_5", season_fetch_calls[0]["source"])
         self.assertEqual("agera_5", result["season_info"]["source"])
 
+    def test_calculate_hazards_auto_detect_forwards_paired_sources(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        detect_calls = []
+        season_fetch_calls = []
+
+        orig_detect = hazards.fetch_and_analyze_years
+        orig_window_fetch = hazards.get_climate_data_for_season
+        orig_calc_stats = hazards.calculate_season_statistics
+        orig_eval = hazards.evaluate_hazard_metrics
+
+        hazards.fetch_and_analyze_years = lambda lat, lon, start_year, end_year, extra_months=6, source="auto", precip_source=None, temp_source=None, model=None, scenario=None: (
+            detect_calls.append(
+                {
+                    "source": source,
+                    "precip_source": precip_source,
+                    "temp_source": temp_source,
+                }
+            ) or {
+                2020: [
+                    {
+                        "onset": hazards.pd.Timestamp("2020-03-01"),
+                        "cessation": hazards.pd.Timestamp("2020-05-31"),
+                        "length_days": 92,
+                    }
+                ]
+            },
+            {},
+        )
+
+        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
+            season_fetch_calls.append(
+                {
+                    "source": source,
+                    "precip_source": precip_source,
+                    "temp_source": temp_source,
+                }
+            )
+            return hazards.pd.DataFrame(
+                {
+                    "date": hazards.pd.to_datetime(["2020-03-01", "2020-03-02"]),
+                    "precipitation": [10.0, 0.0],
+                    "max_temperature": [28.0, 29.0],
+                    "min_temperature": [16.0, 17.0],
+                    "ET0_mm_day": [4.0, 4.0],
+                }
+            )
+
+        hazards.get_climate_data_for_season = fake_window_fetch
+        hazards.calculate_season_statistics = lambda *args, **kwargs: {
+            "total_precipitation_mm": 10.0,
+            "mean_temperature_c": 22.5,
+        }
+        hazards.evaluate_hazard_metrics = lambda stats, thresholds: {
+            "precipitation": {"status": "no_stress", "value_mm": stats["total_precipitation_mm"]},
+            "temperature": {"status": "no_stress", "value_c": stats["mean_temperature_c"]},
+        }
+        try:
+            result = calculate_hazards(
+                crop_name="maize",
+                location_coord=(-1.286, 36.817),
+                date_from="2020-01-01",
+                date_to="2020-12-31",
+                source="paired",
+                precip_source="tamsat",
+                temp_source="agera_5",
+            )
+        finally:
+            hazards.fetch_and_analyze_years = orig_detect
+            hazards.get_climate_data_for_season = orig_window_fetch
+            hazards.calculate_season_statistics = orig_calc_stats
+            hazards.evaluate_hazard_metrics = orig_eval
+
+        self.assertEqual("paired", detect_calls[0]["source"])
+        self.assertEqual("tamsat", detect_calls[0]["precip_source"])
+        self.assertEqual("agera_5", detect_calls[0]["temp_source"])
+        self.assertEqual("paired", season_fetch_calls[0]["source"])
+        self.assertEqual("tamsat", season_fetch_calls[0]["precip_source"])
+        self.assertEqual("agera_5", season_fetch_calls[0]["temp_source"])
+        self.assertEqual("paired", result["season_info"]["source"])
+
     def test_calculate_hazards_rejects_post_2016_chirps_chirts_window(self):
         result = calculate_hazards(
             crop_name="maize",
@@ -723,6 +934,30 @@ class HazardThresholdTests(unittest.TestCase):
 
         self.assertIn("error", result)
         self.assertIn("currently ends in 2016", result["error"])
+
+    def test_calculate_hazards_rejects_paired_source_without_partners(self):
+        result = calculate_hazards(
+            crop_name="maize",
+            location_coord=(-1.286, 36.817),
+            date_from="2019-01-01",
+            date_to="2020-12-31",
+            source="paired",
+        )
+
+        self.assertIn("error", result)
+        self.assertIn("requires both --precip-source and --temp-source", result["error"])
+
+    def test_calculate_hazards_rejects_precip_only_direct_source(self):
+        result = calculate_hazards(
+            crop_name="maize",
+            location_coord=(-1.286, 36.817),
+            date_from="2019-01-01",
+            date_to="2020-12-31",
+            source="tamsat",
+        )
+
+        self.assertIn("error", result)
+        self.assertIn("precipitation-only", result["error"])
 
     def test_calculate_hazards_auto_detect_keeps_no_season_message_for_true_empty_detection(self):
         import climate_tookit.calculate_hazards.hazards as hazards
@@ -1106,7 +1341,7 @@ class HazardThresholdTests(unittest.TestCase):
             {},
         )
 
-        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", model=None, scenario=None):
+        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
             fetch_calls.append((start_date, end_date, source))
             return hazards.pd.DataFrame(
                 {

@@ -94,7 +94,7 @@ Use the package entry point rather than calling internal source files directly:
 
 ```bash
 python -m climate_tookit.fetch_data.fetch_data \
-  --source chirps_v2 \
+  --source chirps_v3_daily_rnl \
   --lat -1.286 \
   --lon 36.817 \
   --start 2020-01-01 \
@@ -159,7 +159,7 @@ from climate_tookit.fetch_data import fetch_data
 from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 df = fetch_data(
-    source="chirps_v2",
+    source="chirps_v3_daily_rnl",
     location_coord=(-1.286, 36.817),
     variables=[ClimateVariable.precipitation],
     date_from=date(2020, 1, 1),

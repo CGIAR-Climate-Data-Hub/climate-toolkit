@@ -13,6 +13,7 @@ Dependencies: pandas, season_analysis.seasons module
 
 import sys
 import os
+import logging
 from contextlib import redirect_stdout
 from copy import deepcopy
 from datetime import date, datetime, timedelta
@@ -28,6 +29,9 @@ from climate_tookit.crop_calendar.registry import (
 from climate_tookit.crop_calendar.ggcmi import (
     CALENDAR_SYSTEM_CHOICES,
     resolve_calendar_preset,
+)
+from climate_tookit.fetch_data.source_data.sources.utils.models import (
+    normalize_climate_dataset_name,
 )
 from climate_tookit.season_analysis.season_identity import build_season_identity
 
@@ -59,6 +63,9 @@ _IMPORT_ERROR: str = ""
 
 try:
     from climate_tookit.season_analysis.seasons import (
+        PAIRED_SOURCE_SENTINEL,
+        PRECIP_ONLY_SOURCES,
+        TEMP_ONLY_SOURCES,
         get_climate_data,
         add_et0,
         detect_onset_cessation,
@@ -652,11 +659,39 @@ def _resolve_calendar_preset_request(
 
 def _validate_source_window(source: str, end_year: int) -> None:
     source_lc = (source or 'auto').lower()
+    if source_lc in {'chirps_v3_daily_rnl', 'imerg', 'tamsat'}:
+        raise ValueError(
+            f"{source_lc} is precipitation-only and is not yet supported directly by "
+            "calculate_hazards. Use --source auto for the default "
+            "chirps_v3_daily_rnl + agera_5 path, or use agera_5 / era_5 directly for now."
+        )
     if source_lc in {'chirps+chirts', 'chirps_v2+chirts'} and end_year > 2016:
         raise ValueError(
             "chirps_v2+chirts is unavailable for this window because CHIRTS daily "
             "temperature currently ends in 2016. Use agera_5, era_5, or "
             "--source auto (default CHIRPS v3 Daily RNL + AgERA5) for newer periods."
+        )
+
+
+def _validate_paired_sources(
+    precip_source: Optional[str],
+    temp_source: Optional[str],
+    end_year: int,
+) -> None:
+    precip_lc = normalize_climate_dataset_name(precip_source)
+    temp_lc = normalize_climate_dataset_name(temp_source)
+    if bool(precip_lc) != bool(temp_lc):
+        raise ValueError("Provide both --precip-source and --temp-source together with --source paired.")
+    if not precip_lc and not temp_lc:
+        raise ValueError("source='paired' requires both --precip-source and --temp-source.")
+    if precip_lc in TEMP_ONLY_SOURCES:
+        raise ValueError(f"precip_source '{precip_source}' is temperature-only.")
+    if temp_lc in PRECIP_ONLY_SOURCES:
+        raise ValueError(f"temp_source '{temp_source}' is precipitation-only.")
+    if temp_lc == 'chirts' and end_year > 2016:
+        raise ValueError(
+            "Temperature partner chirts is unavailable for this window because "
+            "CHIRTS daily coverage ends in 2016."
         )
 
 
@@ -821,6 +856,21 @@ def _soil_grid_date_anchor() -> Tuple[str, str]:
     return ("2000-01-01", "2000-01-01")
 
 
+class _TemporaryLoggerLevel:
+    def __init__(self, logger_name: str, level: int):
+        self._logger = logging.getLogger(logger_name)
+        self._level = level
+        self._original = self._logger.level
+
+    def __enter__(self):
+        self._logger.setLevel(self._level)
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self._logger.setLevel(self._original)
+        return False
+
+
 def _normalize_percent_like(value: Any) -> Optional[float]:
     if value is None or pd.isna(value):
         return None
@@ -884,23 +934,27 @@ def _fetch_soil_grid_snapshot(lat: float, lon: float) -> Dict[str, Any]:
     from climate_tookit.fetch_data.source_data.sources.utils.models import SoilVariable
 
     start_date, end_date = _soil_grid_date_anchor()
-    soil_df = fetch_data(
-        source="soil_grid",
-        location_coord=(lat, lon),
-        variables=[
-            SoilVariable.bulk_density,
-            SoilVariable.coarse_fragments,
-            SoilVariable.field_capacity,
-            SoilVariable.wilting_point,
-            SoilVariable.clay_content,
-            SoilVariable.sand_content,
-            SoilVariable.organic_carbon,
-        ],
-        date_from=date.fromisoformat(start_date),
-        date_to=date.fromisoformat(end_date),
-        stage="transformed",
-        verbose=False,
-    )
+    with _TemporaryLoggerLevel(
+        "climate_tookit.fetch_data.source_data.sources.gee",
+        logging.CRITICAL,
+    ):
+        soil_df = fetch_data(
+            source="soil_grid",
+            location_coord=(lat, lon),
+            variables=[
+                SoilVariable.bulk_density,
+                SoilVariable.coarse_fragments,
+                SoilVariable.field_capacity,
+                SoilVariable.wilting_point,
+                SoilVariable.clay_content,
+                SoilVariable.sand_content,
+                SoilVariable.organic_carbon,
+            ],
+            date_from=date.fromisoformat(start_date),
+            date_to=date.fromisoformat(end_date),
+            stage="transformed",
+            verbose=False,
+        )
     if soil_df is None or soil_df.empty:
         return {}
     return soil_df.iloc[0].to_dict()
@@ -912,20 +966,24 @@ def _fetch_hwsd_snapshot(lat: float, lon: float) -> Dict[str, Any]:
     from climate_tookit.fetch_data.source_data.sources.utils.models import SoilVariable
 
     start_date, end_date = _soil_grid_date_anchor()
-    hwsd_df = fetch_data(
-        source="hwsd",
-        location_coord=(lat, lon),
-        variables=[
-            SoilVariable.root_depth,
-            SoilVariable.available_water_capacity,
-            SoilVariable.drainage,
-            SoilVariable.bulk_density,
-        ],
-        date_from=date.fromisoformat(start_date),
-        date_to=date.fromisoformat(end_date),
-        stage="transformed",
-        verbose=False,
-    )
+    with _TemporaryLoggerLevel(
+        "climate_tookit.fetch_data.source_data.sources.gee",
+        logging.CRITICAL,
+    ):
+        hwsd_df = fetch_data(
+            source="hwsd",
+            location_coord=(lat, lon),
+            variables=[
+                SoilVariable.root_depth,
+                SoilVariable.available_water_capacity,
+                SoilVariable.drainage,
+                SoilVariable.bulk_density,
+            ],
+            date_from=date.fromisoformat(start_date),
+            date_to=date.fromisoformat(end_date),
+            stage="transformed",
+            verbose=False,
+        )
     if hwsd_df is None or hwsd_df.empty:
         return {}
     return hwsd_df.iloc[0].to_dict()
@@ -1099,6 +1157,8 @@ def get_climate_data_for_season(
     start_date: str,
     end_date: str,
     source: str = 'auto',
+    precip_source: Optional[str] = None,
+    temp_source: Optional[str] = None,
     model: Optional[str] = None,
     scenario: Optional[str] = None,
 ) -> pd.DataFrame:
@@ -1115,6 +1175,8 @@ def get_climate_data_for_season(
         start_date,
         end_date,
         force_source=force_source,
+        precip_source=precip_source,
+        temp_source=temp_source,
         model=model,
         scenario=scenario,
     )
@@ -1625,6 +1687,8 @@ def calculate_hazards(
     season_end:        Optional[str]  = None,
     fixed_season:      Optional[str]  = None,
     source:            str            = 'auto',
+    precip_source:     Optional[str]  = None,
+    temp_source:       Optional[str]  = None,
     custom_thresholds: Optional[Dict] = None,
     gap_days:          int            = 30,
     min_season_days:   int            = 30,
@@ -1664,6 +1728,8 @@ def calculate_hazards(
     requested_end_year = datetime.fromisoformat(date_to).year
     try:
         _validate_source_window(source, requested_end_year)
+        if normalize_climate_dataset_name(source) == PAIRED_SOURCE_SENTINEL:
+            _validate_paired_sources(precip_source, temp_source, requested_end_year)
     except ValueError as exc:
         return {'error': str(exc)}
     try:
@@ -1691,13 +1757,23 @@ def calculate_hazards(
         print(f"Using provided season dates: {season_start} to {season_end}")
         print(f"Climate data source: {source}")
         fetch_start = _shift_iso_date(season_start, -spinup_days)
-        df = get_climate_data_for_season(
-            lat,
-            lon,
-            fetch_start,
-            season_end,
-            source=source,
-        )
+        try:
+            df = get_climate_data_for_season(
+                lat,
+                lon,
+                fetch_start,
+                season_end,
+                source=source,
+                precip_source=precip_source,
+                temp_source=temp_source,
+            )
+        except Exception as exc:
+            return {
+                "error": (
+                    "Climate data fetch failed for requested hazard window "
+                    f"{fetch_start}..{season_end}: {exc}"
+                )
+            }
         season_info = _attach_season_identity({
             'season_detected': True,
             'onset_date':      season_start,
@@ -1723,17 +1799,21 @@ def calculate_hazards(
         start_year = datetime.fromisoformat(date_from).year
         end_year   = datetime.fromisoformat(date_to).year
 
-        seasons_dict, _ = fetch_and_analyze_years_fixed(
+        seasons_dict, annual_dict = fetch_and_analyze_years_fixed(
             lat, lon,
             fixed_seasons=fixed_defs,
             start_year=start_year,
             end_year=end_year,
             source=source,
+            precip_source=precip_source,
+            temp_source=temp_source,
             prefetch_pad_days=spinup_days,
+            emit_fetch_errors=False,
         )
         num_seasons_per_year = len(fixed_defs) 
         all_results = []
         for year, seasons in sorted(seasons_dict.items()):
+            year_fetch_error = (annual_dict.get(year) or {}).get("fetch_error")
             for season_idx, s in enumerate(seasons):   
                 s_start = pd.to_datetime(s['onset']).strftime('%Y-%m-%d')
                 s_end   = (
@@ -1758,14 +1838,32 @@ def calculate_hazards(
                 df = _slice_prefetched_window(s.get('source_df'), fetch_start, s_end)
                 if df is None:
                     df = _slice_prefetched_window(s.get('window_df'), fetch_start, s_end)
+                if df is None and (s.get("fetch_error") or year_fetch_error):
+                    fetch_error = s.get("fetch_error") or year_fetch_error
+                    return {
+                        "error": (
+                            "Climate data fetch failed for fixed-season hazard window "
+                            f"{fetch_start}..{s_end}: {fetch_error}"
+                        )
+                    }
                 if df is None:
-                    df = get_climate_data_for_season(
-                        lat,
-                        lon,
-                        fetch_start,
-                        s_end,
-                        source=source,
-                    )
+                    try:
+                        df = get_climate_data_for_season(
+                            lat,
+                            lon,
+                            fetch_start,
+                            s_end,
+                            source=source,
+                            precip_source=precip_source,
+                            temp_source=temp_source,
+                        )
+                    except Exception as exc:
+                        return {
+                            "error": (
+                                "Climate data fetch failed for fixed-season hazard window "
+                                f"{fetch_start}..{s_end}: {exc}"
+                            )
+                        }
                 all_results.append({'season_info': season_info, 'df': df})
                 all_results[-1]["eto_seasons"] = s.get("eto_seasons") or []
                 all_results[-1]["eto_detection_note"] = s.get("eto_detection_note")
@@ -1790,6 +1888,8 @@ def calculate_hazards(
                 start_year,
                 end_year,
                 source=detection_source,
+                precip_source=precip_source,
+                temp_source=temp_source,
             )
             seasons_dict, annual_dict = analyze_years_auto_on_prefetched_df(
                 auto_master_df,
@@ -1799,7 +1899,8 @@ def calculate_hazards(
             )
         else:
             seasons_dict, annual_dict = fetch_and_analyze_years(
-                lat, lon, start_year=start_year, end_year=end_year, source=detection_source
+                lat, lon, start_year=start_year, end_year=end_year, source=detection_source,
+                precip_source=precip_source, temp_source=temp_source,
             )
         if not any(seasons_dict.values()):
             detection_errors = _extract_detection_errors(annual_dict)
@@ -1880,21 +1981,41 @@ def calculate_hazards(
                     if df is None:
                         df = _slice_prefetched_window(s.get('window_df'), fetch_start, s_end)
                     if df is None:
+                        try:
+                            df = get_climate_data_for_season(
+                                lat,
+                                lon,
+                                fetch_start,
+                                s_end,
+                                source=detection_source,
+                                precip_source=precip_source,
+                                temp_source=temp_source,
+                            )
+                        except Exception as exc:
+                            return {
+                                "error": (
+                                    "Climate data fetch failed for calendar-preset hazard window "
+                                    f"{fetch_start}..{s_end}: {exc}"
+                                )
+                            }
+                else:
+                    try:
                         df = get_climate_data_for_season(
                             lat,
                             lon,
                             fetch_start,
                             s_end,
                             source=detection_source,
+                            precip_source=precip_source,
+                            temp_source=temp_source,
                         )
-                else:
-                    df = get_climate_data_for_season(
-                        lat,
-                        lon,
-                        fetch_start,
-                        s_end,
-                        source=detection_source,
-                    )
+                    except Exception as exc:
+                        return {
+                            "error": (
+                                "Climate data fetch failed for detected hazard season window "
+                                f"{fetch_start}..{s_end}: {exc}"
+                            )
+                        }
                 all_results.append({'season_info': season_info, 'df': df})
                 if calendar_preset_used:
                     all_results[-1]["eto_seasons"] = s.get("eto_seasons") or []
@@ -2339,19 +2460,33 @@ def main() -> None:
                         help='Explicit season end (YYYY-MM-DD). Pair with --season-start.')
     parser.add_argument(
         '--source',
-        choices=['era_5', 'agera_5', 'chirps+chirts', 'chirps_v2+chirts', 'auto'],
+        choices=['era_5', 'agera_5', 'chirps+chirts', 'chirps_v2+chirts', 'chirps_v3_daily_rnl', 'imerg', 'tamsat', 'paired', 'auto'],
         default='auto',
         help=(
             "Climate data source (default: auto).\n"
             "  agera_5       -- AgERA5 / ERA5-Land\n"
             "  era_5         -- ERA5 reanalysis\n"
             "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
+            "  chirps_v3_daily_rnl -- precipitation-only; use via paired or auto\n"
+            "  imerg         -- precipitation-only; use via paired\n"
+            "  tamsat        -- precipitation-only; use via paired\n"
+            "  paired        -- explicit precip+temp pairing via --precip-source and --temp-source\n"
             "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts\n"
             "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
             "Recommended direct single-source fallback: agera_5.\n"
             "Note: auto-detection (no --season-* flag) now honors this source\n"
             "      setting instead of forcing chirps_v2+chirts."
         ),
+    )
+    parser.add_argument(
+        '--precip-source',
+        default=None,
+        help='Required with --source paired. Example: chirps_v3_daily_rnl, imerg, or tamsat.',
+    )
+    parser.add_argument(
+        '--temp-source',
+        default=None,
+        help='Required with --source paired. Example: agera_5 or era_5.',
     )
     parser.add_argument(
         '--calendar-source',
@@ -2411,6 +2546,8 @@ def main() -> None:
         'season_end': args.season_end,
         'fixed_season': args.fixed_season,
         'source': args.source,
+        'precip_source': args.precip_source,
+        'temp_source': args.temp_source,
         'custom_thresholds': custom_thresholds,
         'gap_days': args.gap_days,
         'min_season_days': args.min_season_days,
