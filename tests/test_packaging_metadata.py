@@ -24,6 +24,17 @@ class PackagingMetadataTests(unittest.TestCase):
         "climate_tookit.fetch_data.nex_gddp_batch:main",
         "climate_tookit.fetch_data.cache_inventory:main",
     }
+    EXPLICIT_SUBPACKAGE_EXPORTS = {
+        "climate_tookit.calculate_hazards": {"calculate_hazards"},
+        "climate_tookit.climate_statistics": {"analyze_climate_statistics"},
+        "climate_tookit.compare_periods": {"compare"},
+        "climate_tookit.season_analysis": {
+            "detect_onset_cessation",
+            "fetch_and_analyze_years",
+            "fetch_and_analyze_years_fixed",
+            "parse_fixed_seasons",
+        },
+    }
 
     def test_pyproject_runtime_dependencies_cover_requirements_runtime_set(self):
         with PYPROJECT_PATH.open("rb") as handle:
@@ -108,6 +119,17 @@ class PackagingMetadataTests(unittest.TestCase):
             with self.subTest(export=export_name):
                 exported = getattr(package, export_name)
                 self.assertTrue(callable(exported))
+
+    def test_main_public_subpackages_have_explicit_init_and_lazy_exports(self):
+        for module_name, expected_exports in self.EXPLICIT_SUBPACKAGE_EXPORTS.items():
+            with self.subTest(module=module_name):
+                module = importlib.import_module(module_name)
+                module_path = Path(inspect.getfile(module))
+                self.assertEqual("__init__.py", module_path.name)
+                self.assertTrue(expected_exports.issubset(set(getattr(module, "__all__", []))))
+                for export_name in expected_exports:
+                    exported = getattr(module, export_name)
+                    self.assertTrue(callable(exported))
 
 
 if __name__ == "__main__":
