@@ -19,6 +19,13 @@ def _active_group_columns(df: pd.DataFrame, group_columns=None) -> list[str]:
     return [column for column in (group_columns or []) if column in df.columns]
 
 
+def _fill_precipitation_series(series: pd.Series) -> pd.Series:
+    """Fill precipitation gaps with zero only when some valid data exists."""
+    if series.notna().any():
+        return series.fillna(0)
+    return series
+
+
 def clean_climate_data(
     df: pd.DataFrame,
     group_columns=None,
@@ -43,13 +50,13 @@ def clean_climate_data(
         grouped = cleaned_df.groupby(active_group_columns, group_keys=False, dropna=False)
         for col in numeric_columns:
             if col == 'precipitation':
-                cleaned_df[col] = grouped[col].transform(lambda series: series.fillna(0))
+                cleaned_df[col] = grouped[col].transform(_fill_precipitation_series)
             else:
                 cleaned_df[col] = grouped[col].transform(lambda series: series.ffill().bfill())
     else:
         for col in numeric_columns:
             if col == 'precipitation':
-                cleaned_df[col] = cleaned_df[col].fillna(0)
+                cleaned_df[col] = _fill_precipitation_series(cleaned_df[col])
             else:
                 cleaned_df[col] = cleaned_df[col].ffill().bfill()
 

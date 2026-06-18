@@ -143,6 +143,7 @@ class NasaPowerSettings(BaseModel):
 
 class TamsatSettings(BaseModel):
     rainfall_url: str
+    rainfall_zip_url: str | None = None
     soil_moisture_url: str
     data_format: str
     download_format: str

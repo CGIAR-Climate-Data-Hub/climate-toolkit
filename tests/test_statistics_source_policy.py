@@ -162,6 +162,97 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual(["chirps_v2", "era_5"], calls)
         self.assertEqual(["date", "precip", "tmax", "tmin", "humidity"], list(frame.columns))
 
+    def test_get_climate_data_paired_mode_accepts_tamsat_as_precip_partner(self):
+        calls = []
+
+        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
+            calls.append(source)
+            if source == "tamsat":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
+                        "precipitation": [3.0, 1.0],
+                        "soil_moisture": [22.0, 21.0],
+                    }
+                )
+            if source == "agera_5":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
+                        "max_temperature": [25.0, 26.0],
+                        "min_temperature": [15.0, 16.0],
+                    }
+                )
+            raise AssertionError(f"unexpected source {source}")
+
+        orig_call = stats._call_preprocess
+        stats._call_preprocess = fake_call_preprocess
+        try:
+            frame = stats.get_climate_data(
+                -1.286,
+                36.817,
+                "2018-01-01",
+                "2018-01-02",
+                "paired",
+                precip_source="tamsat",
+                temp_source="agera_5",
+            )
+        finally:
+            stats._call_preprocess = orig_call
+
+        self.assertEqual(["tamsat", "agera_5"], calls)
+        self.assertEqual([3.0, 1.0], frame["precip"].tolist())
+        self.assertEqual([25.0, 26.0], frame["tmax"].tolist())
+
+    def test_analyze_climate_statistics_rejects_tamsat_single_source(self):
+        result = stats.analyze_climate_statistics(
+            location_coord=(-1.286, 36.817),
+            start_year=2018,
+            end_year=2019,
+            source="tamsat",
+            fixed_season="03-01:05-31",
+        )
+
+        self.assertIn("error", result)
+        self.assertIn("paired with a temperature source", result["error"])
+
+    def test_get_climate_data_rejects_all_missing_precipitation(self):
+        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
+            if source == "tamsat":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
+                        "precipitation": [None, None],
+                    }
+                )
+            if source == "agera_5":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
+                        "max_temperature": [25.0, 26.0],
+                        "min_temperature": [15.0, 16.0],
+                    }
+                )
+            raise AssertionError(f"unexpected source {source}")
+
+        orig_call = stats._call_preprocess
+        stats._call_preprocess = fake_call_preprocess
+        try:
+            with self.assertRaises(RuntimeError) as ctx:
+                stats.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2018-01-01",
+                    "2018-01-02",
+                    "paired",
+                    precip_source="tamsat",
+                    temp_source="agera_5",
+                )
+        finally:
+            stats._call_preprocess = orig_call
+
+        self.assertIn("no usable daily values", str(ctx.exception))
+
     def test_analyze_climate_statistics_rejects_incomplete_paired_args(self):
         result = stats.analyze_climate_statistics(
             location_coord=(-1.286, 36.817),

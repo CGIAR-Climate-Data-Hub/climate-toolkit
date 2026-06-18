@@ -47,6 +47,7 @@ from climate_tookit.weather_station.custom_station import (
 )
 from climate_tookit.fetch_data.preprocess_data.preprocess_data import (
     apply_unit_conversions,
+    clean_climate_data,
     preprocess_transformed_data,
 )
 from climate_tookit.climatology.xclim_reference import (
@@ -89,6 +90,40 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertEqual("JOMO KENYATTA INTL", frame.iloc[0]["station_name"])
         self.assertEqual(-1.317, frame.iloc[0]["lat"])
         self.assertEqual(1624, frame.iloc[0]["elevation_m"])
+
+
+class PreprocessClimateDataTests(unittest.TestCase):
+    def test_preprocess_preserves_all_missing_precipitation(self):
+        transformed_df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-03-01", "2020-03-02"]),
+                "precipitation": [None, None],
+                "max_temperature": [24.0, 25.0],
+                "min_temperature": [14.0, 15.0],
+            }
+        )
+
+        result = preprocess_transformed_data(
+            transformed_df,
+            source="tamsat",
+            verbose=False,
+        )
+
+        self.assertTrue(result["precipitation"].isna().all())
+
+    def test_clean_climate_data_grouped_keeps_all_missing_precip_group_missing(self):
+        raw_df = pd.DataFrame(
+            {
+                "site": ["a", "a", "b", "b"],
+                "date": pd.to_datetime(["2020-03-01", "2020-03-02", "2020-03-01", "2020-03-02"]),
+                "precipitation": [1.0, None, None, None],
+            }
+        )
+
+        result = clean_climate_data(raw_df, group_columns=["site"])
+
+        self.assertEqual([1.0, 0.0], result.loc[result["site"] == "a", "precipitation"].tolist())
+        self.assertTrue(result.loc[result["site"] == "b", "precipitation"].isna().all())
 
     def test_download_station_history_text_rejects_html_error_page(self):
         class _Resp:

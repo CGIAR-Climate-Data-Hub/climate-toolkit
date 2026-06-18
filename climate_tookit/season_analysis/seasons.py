@@ -67,6 +67,9 @@ HISTORICAL_SOURCES = ['agera_5', 'era_5']
 DEFAULT_AUTO_PRECIP_SOURCE = 'chirps_v3_daily_rnl'
 DEFAULT_AUTO_TEMP_SOURCE = 'agera_5'
 LEGACY_FALLBACK_COMBO = ('chirps_v2', 'chirts')
+PAIRED_SOURCE_SENTINEL = 'paired'
+PRECIP_ONLY_SOURCES = {'chirps_v2', 'chirps_v3_daily_rnl', 'imerg', 'tamsat'}
+TEMP_ONLY_SOURCES = {'chirts'}
 CORE_CLIMATE_VARIABLES = [
     ClimateVariable.precipitation,
     ClimateVariable.max_temperature,
@@ -249,6 +252,8 @@ def get_climate_data(
     start_date  : str,
     end_date    : str,
     force_source: Optional[str] = None,
+    precip_source: Optional[str] = None,
+    temp_source: Optional[str] = None,
     model       : Optional[str] = None,
     scenario    : Optional[str] = None,
     custom_station_file: Optional[str] = None,
@@ -264,10 +269,41 @@ def get_climate_data(
     """
     date_from = date.fromisoformat(start_date)
     date_to   = date.fromisoformat(end_date)
-    df = _fetch_raw(lat, lon, date_from, date_to, force_source, model=model, scenario=scenario)
+    normalized_force_source = normalize_climate_dataset_name(force_source)
+    if precip_source or temp_source:
+        normalized_precip_source = normalize_climate_dataset_name(precip_source)
+        normalized_temp_source = normalize_climate_dataset_name(temp_source)
+        if not normalized_precip_source or not normalized_temp_source:
+            raise RuntimeError("Provide both precip_source and temp_source together.")
+        if normalized_precip_source in TEMP_ONLY_SOURCES:
+            raise RuntimeError(f"precip_source '{precip_source}' is temperature-only.")
+        if normalized_temp_source in PRECIP_ONLY_SOURCES:
+            raise RuntimeError(f"temp_source '{temp_source}' is precipitation-only.")
+        df = _merge_precip_temp(
+            (lat, lon),
+            date_from,
+            date_to,
+            normalized_precip_source,
+            normalized_temp_source,
+        )
+    else:
+        if normalized_force_source == PAIRED_SOURCE_SENTINEL:
+            raise RuntimeError(
+                "source='paired' requires both precip_source and temp_source. "
+                "Example: --source paired --precip-source tamsat --temp-source agera_5"
+            )
+        df = _fetch_raw(
+            lat,
+            lon,
+            date_from,
+            date_to,
+            normalized_force_source,
+            model=model,
+            scenario=scenario,
+        )
     if df is None or df.empty or 'date' not in df.columns:
-        if force_source:
-            raise RuntimeError(f"No climate data returned from source '{force_source}'.")
+        if normalized_force_source:
+            raise RuntimeError(f"No climate data returned from source '{normalized_force_source}'.")
         raise RuntimeError("All data sources exhausted.")
     if custom_station_file:
         df = apply_custom_station_overrides(
@@ -304,16 +340,24 @@ def get_climate_data(
     result['tmin']   = df.get('min_temperature')
     result['precip'] = df.get('precipitation')
     result.attrs.update(df.attrs)
+    if 'precip' not in result.columns or result['precip'].notna().sum() == 0:
+        source_label = normalized_force_source or "auto"
+        if precip_source and temp_source:
+            source_label = f"paired precip={normalized_precip_source} temp={normalized_temp_source}"
+        raise RuntimeError(
+            "Precipitation fetch returned no usable daily values "
+            f"for {source_label} over {start_date}..{end_date}. "
+            "Abort analysis instead of treating missing rainfall as zero."
+        )
     return result
 
 def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=None) -> Optional[pd.DataFrame]:
     coord = (lat, lon)
-    normalized_force_source = normalize_climate_dataset_name(force_source)
-    if normalized_force_source in {'chirps+chirts', 'chirps_v2+chirts'}:
+    if force_source in {'chirps+chirts', 'chirps_v2+chirts'}:
         return _merge_chirps_chirts(coord, date_from, date_to)
-    if normalized_force_source == 'nex_gddp':
+    if force_source == 'nex_gddp':
         return preprocess_data(
-            source=normalized_force_source,
+            source=force_source,
             location_coord=coord,
             variables=CORE_CLIMATE_VARIABLES,
             date_from=date_from,
@@ -321,8 +365,8 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
             model=model,
             scenario=scenario,
         )
-    if normalized_force_source:
-        return preprocess_data(source=normalized_force_source, location_coord=coord,
+    if force_source:
+        return preprocess_data(source=force_source, location_coord=coord,
                                variables=CORE_CLIMATE_VARIABLES,
                                date_from=date_from, date_to=date_to)
     try:
@@ -704,6 +748,8 @@ def fetch_full_year_plus_cessation(
     year,
     source="auto",
     extra_months=6,
+    precip_source=None,
+    temp_source=None,
     model=None,
     scenario=None,
     custom_station_file=None,
@@ -722,6 +768,8 @@ def fetch_full_year_plus_cessation(
         start_date,
         end_date,
         force_source=force,
+        precip_source=precip_source,
+        temp_source=temp_source,
         model=model,
         scenario=scenario,
         custom_station_file=custom_station_file,
@@ -741,6 +789,8 @@ def fetch_master_range_with_tail(
     end_year,
     source="auto",
     extra_months=6,
+    precip_source=None,
+    temp_source=None,
     model=None,
     scenario=None,
     custom_station_file=None,
@@ -760,6 +810,8 @@ def fetch_master_range_with_tail(
         start_date,
         end_date,
         force_source=force,
+        precip_source=precip_source,
+        temp_source=temp_source,
         model=model,
         scenario=scenario,
         custom_station_file=custom_station_file,
@@ -927,6 +979,7 @@ def analyze_years_auto_on_prefetched_df(
 # Multi-year orchestrator — automatic detection
 def fetch_and_analyze_years(
     lat, lon, start_year, end_year, extra_months=6, source="auto",
+    precip_source=None, temp_source=None,
     model=None, scenario=None,
     custom_station_file=None,
     custom_station_variables=None,
@@ -951,7 +1004,13 @@ def fetch_and_analyze_years(
         try:
             df_window = fetch_full_year_plus_cessation(
                 lat, lon, ref_year, source=source, extra_months=extra_months,
+                precip_source=precip_source, temp_source=temp_source,
                 model=model, scenario=scenario,
+                custom_station_file=custom_station_file,
+                custom_station_variables=custom_station_variables,
+                custom_station_name=custom_station_name,
+                custom_temp_unit=custom_temp_unit,
+                custom_precip_unit=custom_precip_unit,
             )
             if df_window is None or df_window.empty:
                 print(f"  Retrieved 0 days for {ref_year}")
@@ -1014,6 +1073,8 @@ def fetch_and_analyze_years_fixed(
     start_year   : int,
     end_year     : int,
     source       : str = "auto",
+    precip_source: Optional[str] = None,
+    temp_source  : Optional[str] = None,
     model        : Optional[str] = None,
     scenario     : Optional[str] = None,
     prefetch_pad_days: int = 0,
@@ -1074,6 +1135,8 @@ def fetch_and_analyze_years_fixed(
                 fetch_start,
                 fetch_end,
                 force_source=force,
+                precip_source=precip_source,
+                temp_source=temp_source,
                 model=model,
                 scenario=scenario,
                 custom_station_file=custom_station_file,
@@ -1293,18 +1356,23 @@ def main() -> None:
     parser.add_argument('--location',     required=True,
                         help='Coordinates as "lat,lon"  e.g. "-1.286,36.817"')
     parser.add_argument('--source',
-                        choices=['era_5', 'agera_5', 'chirps+chirts', 'chirps_v2+chirts', 'auto'],
+                        choices=['era_5', 'agera_5', 'chirps+chirts', 'chirps_v2+chirts', 'paired', 'auto'],
                         default='auto',
                         help=(
                             "Data source — used in both automatic and fixed-season modes.\n"
                             "  agera_5       -- AgERA5 / ERA5-Land\n"
                             "  era_5         -- ERA5 reanalysis\n"
                             "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
+                            "  paired        -- explicit precip+temp pairing via --precip-source and --temp-source\n"
                             "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts  [default]\n"
                             "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
                             "Cold-cache GEE/Xee historical runs can take noticeably longer than warm-cache reruns.\n"
                             "Recommended direct single-source fallback: agera_5."
                         ))
+    parser.add_argument('--precip-source', default=None,
+                        help='Optional paired precipitation source, e.g. tamsat, chirps_v3_daily_rnl, chirps_v2, or imerg')
+    parser.add_argument('--temp-source', default=None,
+                        help='Optional paired temperature source, e.g. agera_5 or era_5')
     parser.add_argument('--start-year',   type=int, required=True)
     parser.add_argument('--end-year',     type=int, required=True)
     parser.add_argument('--extra-months', type=int, default=6,
@@ -1395,6 +1463,8 @@ def main() -> None:
             start_year=args.start_year,
             end_year=args.end_year,
             source=args.source,
+            precip_source=args.precip_source,
+            temp_source=args.temp_source,
             custom_station_file=args.custom_station_file,
             custom_station_variables=(
                 [token.strip() for token in args.custom_station_vars.split(',') if token.strip()]
@@ -1416,6 +1486,8 @@ def main() -> None:
                 end_year=args.end_year,
                 source=args.source,
                 extra_months=args.extra_months,
+                precip_source=args.precip_source,
+                temp_source=args.temp_source,
                 custom_station_file=args.custom_station_file,
                 custom_station_variables=(
                     [token.strip() for token in args.custom_station_vars.split(',') if token.strip()]
@@ -1455,6 +1527,8 @@ def main() -> None:
                 end_year=args.end_year,
                 extra_months=args.extra_months,
                 source=args.source,
+                precip_source=args.precip_source,
+                temp_source=args.temp_source,
                 custom_station_file=args.custom_station_file,
                 custom_station_variables=(
                     [token.strip() for token in args.custom_station_vars.split(',') if token.strip()]

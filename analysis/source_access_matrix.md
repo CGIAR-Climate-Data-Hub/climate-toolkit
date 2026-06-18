@@ -28,7 +28,7 @@ Key observation:
 | Source | Current backend actually used | Real data today? | Needs GEE auth + `GCP_PROJECT_ID`? | Local-open friendly? | Status / note | Recommendation |
 |---|---|---:|---:|---:|---|---|
 | `nasa_power` | direct NASA POWER HTTP API | Yes | No | Yes | Best current local-open source | Keep as baseline local source |
-| `tamsat` | direct JASMIN daily NetCDF download | Partly, but parked | No | Maybe technically, but not product-ready | Team already treating as deprecated / future inclusion | Mark unsupported / experimental for now |
+| `tamsat` | direct JASMIN daily NetCDF download | Partly | No | Maybe technically, but not product-ready | Kept for completeness and Africa-focused precipitation comparison, but live runs showed slow access plus intermittent JASMIN SSL/download failures | Keep as optional fragile comparison source, not default user path |
 | `nex_gddp` | synthetic placeholder module | No | No | Not meaningful | Current tests earlier in session hit this path, not live NEX | Do not present as real data source |
 | `nex_gddp_xee` | Xee + Earth Engine PoC | Intended yes, not live-validated here | Yes | No | R&D only | Keep backend/operator R&D only |
 | `chirps_v2` | shared Earth Engine downloader | Yes if EE works | Yes | No | Advertised as standard source, but local setup burden hidden | Either document burden or build direct non-GEE backend |
@@ -70,7 +70,7 @@ Key observation:
 
 - current synthetic `nex_gddp`
 - `nex_gddp_xee` PoC
-- `tamsat` until team restores active support
+- `tamsat` as optional fragile comparison source, not recommended default
 
 ## Code Evidence
 
