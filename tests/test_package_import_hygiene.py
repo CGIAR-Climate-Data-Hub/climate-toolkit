@@ -48,6 +48,8 @@ _install_test_stubs()
 
 class PackageImportHygieneTests(unittest.TestCase):
     MODULES = [
+        "climate_tookit.climatology",
+        "climate_tookit.climatology.long_term_climatology",
         "climate_tookit.season_analysis.seasons",
         "climate_tookit.season_analysis.ensemble",
         "climate_tookit.compare_periods.periods",
@@ -56,6 +58,7 @@ class PackageImportHygieneTests(unittest.TestCase):
         "climate_tookit.climate_statistics.ensemble_statistics",
         "climate_tookit.calculate_hazards.hazards",
         "climate_tookit.calculate_hazards.ensemble_hazards",
+        "climate_tookit.fetch_data.source_data.sources.utils",
     ]
 
     def test_package_modules_import_without_stdout_or_sys_path_mutation(self):

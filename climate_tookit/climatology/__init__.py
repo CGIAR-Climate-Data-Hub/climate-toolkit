@@ -6,17 +6,14 @@ Long-term climate analysis including 30-year normal periods and trends.
 
 __all__ = []
 
-try:
-    from .spei import compute_monthly_spei, prepare_monthly_climatic_water_balance
+from .spei import compute_monthly_spei, prepare_monthly_climatic_water_balance
 
-    __all__.extend(
-        [
-            "compute_monthly_spei",
-            "prepare_monthly_climatic_water_balance",
-        ]
-    )
-except ImportError:
-    pass
+__all__.extend(
+    [
+        "compute_monthly_spei",
+        "prepare_monthly_climatic_water_balance",
+    ]
+)
 
 from .xclim_reference import (
     XCLIM_AVAILABLE,

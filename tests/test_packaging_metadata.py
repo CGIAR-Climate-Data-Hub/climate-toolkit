@@ -55,6 +55,8 @@ class PackagingMetadataTests(unittest.TestCase):
             "climate-toolkit-hazards-ensemble": "climate_tookit.calculate_hazards.ensemble_hazards:main",
             "climate-toolkit-weather-station-download": "climate_tookit.weather_station.download:main",
             "climate-toolkit-weather-station-compare": "climate_tookit.weather_station.compare:main",
+            "climate-toolkit-compare-datasets": "climate_tookit.compare_datasets.compare_datasets:main",
+            "climate-toolkit-climatology": "climate_tookit.climatology.long_term_climatology:main",
         }
         self.assertEqual(expected, scripts)
 

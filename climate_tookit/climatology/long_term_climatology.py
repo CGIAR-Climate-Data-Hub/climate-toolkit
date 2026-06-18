@@ -39,6 +39,8 @@ from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
     default_ensemble_models_for_location,
 )
+from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 
 @contextlib.contextmanager
@@ -64,18 +66,7 @@ def _quiet_fetch_logs():
         for name, lvl in prev_levels.items():
             logging.getLogger(name).setLevel(lvl)
 
-try:
-    from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
-    from ..fetch_data.source_data.sources.utils.models import ClimateVariable
-    PREPROCESS_AVAILABLE = True
-except ImportError:
-    try:
-        from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-        from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
-        PREPROCESS_AVAILABLE = True
-    except ImportError:
-        PREPROCESS_AVAILABLE = False
-        print("Warning: Preprocessing pipeline not available")
+PREPROCESS_AVAILABLE = True
 
 try:
     import matplotlib.pyplot as plt

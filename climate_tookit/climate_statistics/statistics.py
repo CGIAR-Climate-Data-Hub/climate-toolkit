@@ -29,125 +29,54 @@ from typing import Tuple, Dict, List, Any, Optional
 import pandas as pd
 from climate_tookit.season_analysis.season_identity import build_season_identity
 import numpy as np
-
 warnings.filterwarnings("ignore")
 
-CALENDAR_SYSTEM_CHOICES = ("rf", "ir", "both")
-
 from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note
+from climate_tookit.crop_calendar.ggcmi import (
+    CALENDAR_SYSTEM_CHOICES,
+    resolve_calendar_preset,
+)
+from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
+from climate_tookit.climatology import compute_monthly_spei
+from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+from climate_tookit.weather_station.overrides import apply_custom_station_overrides
+from climate_tookit.fetch_data.source_data.sources.utils.models import (
+    ClimateVariable,
+    normalize_climate_dataset_name,
+)
+from climate_tookit.season_analysis.seasons import (
+    add_et0,
+    parse_fixed_seasons,
+    detect_onset_cessation,
+    reassign_spillover_seasons,
+    remove_duplicate_seasons,
+    check_humid,
+)
+from climate_tookit.calculate_hazards.hazards import (
+    DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
+    DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
+    DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
+    FULL_WINDOW_WATER_BALANCE as HAZARD_FULL_WINDOW_WATER_BALANCE,
+    build_water_balance_methodology as shared_build_water_balance_methodology,
+    calc_water_balance as shared_calc_water_balance,
+    summarize_water_balance as shared_summarize_water_balance,
+)
 
-try:
-    from climate_tookit.crop_calendar.ggcmi import (
-        CALENDAR_SYSTEM_CHOICES,
-        resolve_calendar_preset,
-    )
-    CROP_CALENDAR_AVAILABLE = True
-except ImportError:
-    CALENDAR_SYSTEM_CHOICES = ("rf", "ir", "both")
-    CROP_CALENDAR_AVAILABLE = False
-
-try:
-    from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
-except ImportError:
-    _validate_period_against_scenario = None
-
-try:
-    from climate_tookit.climatology import compute_monthly_spei
-    SPEI_AVAILABLE = True
-except ImportError:
-    SPEI_AVAILABLE = False
-
-try:
-    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-    PREPROCESS_AVAILABLE = True
-except ImportError:
-    PREPROCESS_AVAILABLE = False
-
-try:
-    from climate_tookit.weather_station.overrides import apply_custom_station_overrides
-    CUSTOM_STATION_AVAILABLE = True
-except ImportError:
-    CUSTOM_STATION_AVAILABLE = False
-
-try:
-    from climate_tookit.fetch_data.source_data.sources.utils.models import (
-        ClimateVariable,
-        normalize_climate_dataset_name,
-    )
-    CLIMATE_VARS = [
-        ClimateVariable.precipitation,
-        ClimateVariable.max_temperature,
-        ClimateVariable.min_temperature,
-        ClimateVariable.humidity,
-        ClimateVariable.soil_moisture,
-        ClimateVariable.solar_radiation,
-        ClimateVariable.wind_speed,
-    ]
-except (ImportError, AttributeError):
-    try:
-        from climate_tookit.fetch_data.source_data.sources.utils.models import (
-            ClimateVariable,
-            normalize_climate_dataset_name,
-        )
-        CLIMATE_VARS = [
-            ClimateVariable.precipitation,
-            ClimateVariable.max_temperature,
-            ClimateVariable.min_temperature,
-            ClimateVariable.humidity,
-            ClimateVariable.soil_moisture,
-            ClimateVariable.solar_radiation,
-            ClimateVariable.wind_speed,
-        ]
-    except (ImportError, AttributeError):
-        CLIMATE_VARS = [
-            'precipitation', 'max_temperature', 'min_temperature',
-            'humidity', 'soil_moisture', 'solar_radiation', 'wind_speed',
-        ]
-
-        def normalize_climate_dataset_name(source):
-            return str(source).lower() if source is not None else None
-
-try:
-    from climate_tookit.season_analysis.seasons import (
-        add_et0,
-        parse_fixed_seasons,
-        detect_onset_cessation,
-        reassign_spillover_seasons,
-        remove_duplicate_seasons,
-        check_humid,
-    )
-    SEASONS_AVAILABLE = True
-except ImportError as exc:
-    SEASONS_AVAILABLE = False
-
-try:
-    from climate_tookit.calculate_hazards.hazards import (
-        DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
-        DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
-        DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
-        FULL_WINDOW_WATER_BALANCE as HAZARD_FULL_WINDOW_WATER_BALANCE,
-        build_water_balance_methodology as shared_build_water_balance_methodology,
-        calc_water_balance as shared_calc_water_balance,
-        summarize_water_balance as shared_summarize_water_balance,
-    )
-    HAZARD_WATER_BALANCE_AVAILABLE = True
-except ImportError:
-    HAZARD_WATER_BALANCE_AVAILABLE = False
-    HAZARD_DEFAULT_KC_PARAMS = {
-        "kc_init": 0.7,
-        "kc_mid": 1.0,
-        "kc_end": 0.8,
-        "depletion_fraction_p": 0.5,
-    }
-    HAZARD_DEFAULT_SOILCP = 100.0
-    HAZARD_DEFAULT_SOILSAT = 100.0
-    HAZARD_FULL_WINDOW_WATER_BALANCE = "full_window"
-
-if 'CLIMATE_VARS' not in globals():
-    CLIMATE_VARS = [
-        'precipitation', 'max_temperature', 'min_temperature',
-        'humidity', 'soil_moisture', 'solar_radiation', 'wind_speed',
-    ]
+CROP_CALENDAR_AVAILABLE = True
+SPEI_AVAILABLE = True
+PREPROCESS_AVAILABLE = True
+CUSTOM_STATION_AVAILABLE = True
+SEASONS_AVAILABLE = True
+HAZARD_WATER_BALANCE_AVAILABLE = True
+CLIMATE_VARS = [
+    ClimateVariable.precipitation,
+    ClimateVariable.max_temperature,
+    ClimateVariable.min_temperature,
+    ClimateVariable.humidity,
+    ClimateVariable.soil_moisture,
+    ClimateVariable.solar_radiation,
+    ClimateVariable.wind_speed,
+]
 
 # Constants
 RENAME_MAP = {
