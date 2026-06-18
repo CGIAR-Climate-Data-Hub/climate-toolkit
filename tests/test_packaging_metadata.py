@@ -31,6 +31,26 @@ class PackagingMetadataTests(unittest.TestCase):
 
         self.assertEqual(runtime_requirements, pyproject_deps)
 
+    def test_pyproject_declares_console_scripts_for_current_module_clis(self):
+        with PYPROJECT_PATH.open("rb") as handle:
+            pyproject = tomllib.load(handle)
+
+        scripts = pyproject["project"]["scripts"]
+        expected = {
+            "climate-toolkit-fetch": "climate_tookit.fetch_data.fetch_data:main",
+            "climate-toolkit-seasons": "climate_tookit.season_analysis.seasons:main",
+            "climate-toolkit-seasons-ensemble": "climate_tookit.season_analysis.ensemble:main",
+            "climate-toolkit-stats": "climate_tookit.climate_statistics.statistics:main",
+            "climate-toolkit-stats-ensemble": "climate_tookit.climate_statistics.ensemble_statistics:main",
+            "climate-toolkit-periods": "climate_tookit.compare_periods.periods:main",
+            "climate-toolkit-periods-ensemble": "climate_tookit.compare_periods.ensemble_periods:main",
+            "climate-toolkit-hazards": "climate_tookit.calculate_hazards.hazards:main",
+            "climate-toolkit-hazards-ensemble": "climate_tookit.calculate_hazards.ensemble_hazards:main",
+            "climate-toolkit-weather-station-download": "climate_tookit.weather_station.download:main",
+            "climate-toolkit-weather-station-compare": "climate_tookit.weather_station.compare:main",
+        }
+        self.assertEqual(expected, scripts)
+
 
 if __name__ == "__main__":
     unittest.main()
