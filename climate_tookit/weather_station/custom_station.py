@@ -47,10 +47,13 @@ CUSTOM_COLUMN_ALIASES = {
     "rain": "precipitation",
     "rainfall": "precipitation",
     "prcp": "precipitation",
+    "temp": "mean_temperature",
     "max_temperature": "max_temperature",
+    "max": "max_temperature",
     "tmax": "max_temperature",
     "maximum_temperature": "max_temperature",
     "min_temperature": "min_temperature",
+    "min": "min_temperature",
     "tmin": "min_temperature",
     "minimum_temperature": "min_temperature",
     "mean_temperature": "mean_temperature",
@@ -63,6 +66,7 @@ CUSTOM_COLUMN_ALIASES = {
     "wind_speed": "wind_speed",
     "windspeed": "wind_speed",
     "wind": "wind_speed",
+    "wdsp": "wind_speed",
     "solar_radiation": "solar_radiation",
     "solar": "solar_radiation",
     "radiation": "solar_radiation",
@@ -88,14 +92,21 @@ STATION_METADATA_COLUMNS = {
     "station_source",
 }
 
+CSV_STRING_COLUMNS = {
+    "station_id": "string",
+    "station_name": "string",
+}
+
 
 def custom_station_format_help() -> str:
     return (
         "Provide CSV or JSON with a date column plus one or more climate variables. "
         "Accepted aliases include rainfall/precip/precipitation, tmax/max_temperature, "
         "tmin/min_temperature, tmean/mean_temperature, humidity/rh, wind_speed/wind, "
-        "and solar_radiation/solar. Optional metadata columns: station_id, station_name, "
-        "lat/station_lat, lon/station_lon, elevation/station_elevation_m."
+        "and solar_radiation/solar. GSOD-style columns PRCP, MAX, MIN, TEMP, and WDSP "
+        "are also accepted when paired with --custom-temp-unit and --custom-precip-unit. "
+        "Optional metadata columns: station_id, station_name, lat/station_lat, "
+        "lon/station_lon, elevation/station_elevation_m."
     )
 
 
@@ -273,7 +284,11 @@ def load_custom_station_data(
     manifest_path = cache_root / f"{stage_token}_{date_from.isoformat()}_{date_to.isoformat()}.json"
 
     if cache_path.exists() and manifest_path.exists() and not refresh_cache:
-        cached = pd.read_csv(cache_path, parse_dates=["date"])
+        cached = pd.read_csv(
+            cache_path,
+            parse_dates=["date"],
+            dtype=CSV_STRING_COLUMNS,
+        )
         cached.attrs["cache_hit"] = True
         cached.attrs["cache_path"] = str(cache_path)
         return cached

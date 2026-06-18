@@ -184,6 +184,70 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
         self.assertIn("precip", frame.columns)
         self.assertEqual([5.0, 0.0], frame["precip"].tolist())
 
+    def test_seasons_get_climate_data_applies_custom_station_override(self):
+        base_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=3, freq="D"),
+                "precipitation": [1.0, 2.0, 3.0],
+                "max_temperature": [24.0, 25.0, 26.0],
+                "min_temperature": [14.0, 15.0, 16.0],
+            }
+        )
+        original = ensemble.seasons._fetch_raw
+        ensemble.seasons._fetch_raw = lambda *args, **kwargs: base_frame.copy()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                csv_path = Path(tmpdir) / "season_override.csv"
+                pd.DataFrame(
+                    {
+                        "date": ["2020-01-01", "2020-01-03"],
+                        "precipitation": [9.0, 8.0],
+                    }
+                ).to_csv(csv_path, index=False)
+                frame = ensemble.seasons.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2020-01-01",
+                    "2020-01-03",
+                    force_source="agera_5",
+                    custom_station_file=str(csv_path),
+                    custom_station_variables=["precipitation"],
+                )
+        finally:
+            ensemble.seasons._fetch_raw = original
+
+        self.assertEqual([9.0, 2.0, 8.0], frame["precip"].tolist())
+        self.assertEqual([24.0, 25.0, 26.0], frame["tmax"].tolist())
+
+    def test_seasons_get_climate_data_skips_custom_override_when_no_overlap(self):
+        base_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-03-01", periods=2, freq="D"),
+                "precipitation": [1.0, 2.0],
+                "max_temperature": [24.0, 25.0],
+                "min_temperature": [14.0, 15.0],
+            }
+        )
+        original = ensemble.seasons._fetch_raw
+        ensemble.seasons._fetch_raw = lambda *args, **kwargs: base_frame.copy()
+        try:
+            frame = ensemble.seasons.get_climate_data(
+                -1.286,
+                36.817,
+                "2020-03-01",
+                "2020-03-02",
+                force_source="agera_5",
+                custom_station_file=str(Path("tests/fixtures/custom_station_gsod_like.csv")),
+                custom_station_variables=["precipitation"],
+                custom_temp_unit="f",
+                custom_precip_unit="inch",
+            )
+        finally:
+            ensemble.seasons._fetch_raw = original
+
+        self.assertEqual([1.0, 2.0], frame["precip"].tolist())
+        self.assertTrue(frame.attrs.get("custom_station_warnings"))
+
 
 if __name__ == "__main__":
     unittest.main()

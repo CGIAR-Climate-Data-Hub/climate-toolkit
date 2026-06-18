@@ -58,6 +58,8 @@ from climate_tookit.climatology.xclim_reference import (
 from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 fetch_data_module = importlib.import_module("climate_tookit.fetch_data.fetch_data")
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+GSOD_LIKE_CUSTOM_STATION_FIXTURE = FIXTURES_DIR / "custom_station_gsod_like.csv"
 
 
 def _build_dly_line(station_id: str, year: int, month: int, element: str, values: list[int]) -> str:
@@ -287,6 +289,81 @@ class GHCNDailyStationTests(unittest.TestCase):
                     variables=[ClimateVariable.precipitation],
                 )
         self.assertIn("rainfall/precip/precipitation", custom_station_format_help())
+        self.assertIn("GSOD-style columns PRCP, MAX, MIN, TEMP, and WDSP", custom_station_format_help())
+
+    def test_load_custom_station_data_accepts_gsod_like_columns_and_units(self):
+        frame = load_custom_station_data(
+            custom_station_file=GSOD_LIKE_CUSTOM_STATION_FIXTURE,
+            date_from=date(2020, 1, 1),
+            date_to=date(2020, 1, 10),
+            variables=[
+                ClimateVariable.precipitation,
+                ClimateVariable.max_temperature,
+                ClimateVariable.min_temperature,
+                ClimateVariable.mean_temperature,
+                ClimateVariable.wind_speed,
+            ],
+            stage="transformed",
+            station_coord=(-1.286, 36.817),
+            cache_dir=None,
+            refresh_cache=True,
+            custom_temp_unit="f",
+            custom_precip_unit="inch",
+        )
+
+        self.assertEqual(
+            [
+                "date",
+                "station_distance_km",
+                "station_elevation_m",
+                "station_id",
+                "station_lat",
+                "station_lon",
+                "station_name",
+                "station_source",
+                "precipitation",
+                "max_temperature",
+                "min_temperature",
+                "mean_temperature",
+                "wind_speed",
+            ],
+            frame.columns.tolist(),
+        )
+        self.assertEqual("63740099999", frame.loc[0, "station_id"])
+        self.assertEqual("JOMO KENYATTA INTL", frame.loc[0, "station_name"])
+        self.assertAlmostEqual(0.0, frame.loc[0, "precipitation"], places=2)
+        self.assertAlmostEqual(1.27, frame.loc[2, "precipitation"], places=2)
+        self.assertAlmostEqual(25.0, frame.loc[0, "max_temperature"], places=2)
+        self.assertAlmostEqual(14.44, frame.loc[0, "min_temperature"], places=2)
+        self.assertAlmostEqual(19.72, frame.loc[0, "mean_temperature"], places=2)
+        self.assertAlmostEqual(7.5, frame.loc[0, "wind_speed"], places=2)
+        self.assertEqual("custom_csv", frame.loc[0, "station_source"])
+
+    def test_download_station_data_loads_gsod_like_custom_csv(self):
+        frame = station_download.download_station_data(
+            station_source="custom_csv",
+            station_coord=(-1.286, 36.817),
+            date_from=date(2020, 1, 1),
+            date_to=date(2020, 1, 10),
+            variables=[
+                ClimateVariable.precipitation,
+                ClimateVariable.max_temperature,
+                ClimateVariable.min_temperature,
+                ClimateVariable.mean_temperature,
+            ],
+            selection_mode="specified",
+            custom_station_file=str(GSOD_LIKE_CUSTOM_STATION_FIXTURE),
+            custom_station_name="GSOD Upload",
+            custom_temp_unit="f",
+            custom_precip_unit="inch",
+            verbose=False,
+        )
+
+        self.assertEqual(10, len(frame))
+        self.assertEqual("63740099999", frame.loc[0, "station_id"])
+        self.assertEqual("JOMO KENYATTA INTL", frame.loc[0, "station_name"])
+        self.assertAlmostEqual(19.72, frame.loc[0, "mean_temperature"], places=2)
+        self.assertAlmostEqual(0.0, frame.loc[0, "station_distance_km"], places=2)
 
     def test_render_list_candidate_summary_for_custom_station_shows_source_file(self):
         frame = pd.DataFrame(
@@ -1218,6 +1295,8 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertEqual("high", result["confidence_class"])
         self.assertFalse(result["low_confidence"])
         self.assertEqual("suitable for annual interpretation", result["confidence_note"])
+        self.assertEqual("descriptive_only", result["window_status"])
+        self.assertAlmostEqual(1.0, result["window_years"], places=1)
 
     def test_annotate_annual_overlap_summary_assigns_very_low_confidence(self):
         overlap = pd.DataFrame(
@@ -1236,6 +1315,24 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertEqual("very_low", result["confidence_class"])
         self.assertTrue(result["low_confidence"])
         self.assertEqual("sparse overlap; descriptive only", result["confidence_note"])
+        self.assertEqual("descriptive_only", result["window_status"])
+
+    def test_annotate_annual_overlap_summary_assigns_period_average_window(self):
+        overlap = pd.DataFrame(
+            {
+                "date": pd.date_range("2010-01-01", "2020-12-31", freq="D"),
+                "precipitation_station": 1.0,
+                "precipitation_grid": 1.0,
+            }
+        )
+        metric_row = {"variable": "precipitation"}
+        result = station_compare._annotate_annual_overlap_summary(
+            overlap,
+            variable="precipitation",
+            metric_row=metric_row,
+        )
+        self.assertEqual("period_average", result["window_status"])
+        self.assertGreaterEqual(result["window_years"], 10.0)
 
     def test_render_compare_report_shows_confidence_summary(self):
         result = {
@@ -1273,6 +1370,62 @@ class GHCNDailyStationTests(unittest.TestCase):
         self.assertIn("daily: high=1 medium=0 low=0 very_low=1", rendered)
         self.assertIn("pooled_annual: high=0 medium=0 low=1 very_low=0", rendered)
 
+    def test_render_compare_report_shows_window_status_summary(self):
+        result = {
+            "anchor_location": {"lat": -1.286, "lon": 36.817},
+            "date_from": "2010-01-01",
+            "date_to": "2020-12-31",
+            "selection_strategy": "all_vars_single_station",
+            "grid_sources": ["nasa_power"],
+            "station_summary": [],
+            "selected_stations_by_variable": [],
+            "candidate_review_artifacts": None,
+            "grid_failures": [],
+            "grid_source_metadata": [],
+            "use_case_rankings": [],
+            "warnings": [],
+            "confidence_summary": {
+                "daily": {"high": 0, "medium": 0, "low": 0, "very_low": 0, "total": 0, "low_confidence": 0},
+                "annual": {"high": 0, "medium": 0, "low": 0, "very_low": 0, "total": 0, "low_confidence": 0},
+                "pooled_daily": {"high": 0, "medium": 0, "low": 0, "very_low": 0, "total": 0, "low_confidence": 0},
+                "pooled_annual": {"high": 0, "medium": 0, "low": 0, "very_low": 0, "total": 0, "low_confidence": 0},
+            },
+            "window_status_summary": {
+                "annual": {
+                    "descriptive_only": 1,
+                    "screening_only": 0,
+                    "preliminary_ranking": 0,
+                    "period_average": 2,
+                    "near_climatology": 0,
+                    "climatology_grade": 0,
+                    "total": 3,
+                },
+                "pooled_annual": {
+                    "descriptive_only": 0,
+                    "screening_only": 0,
+                    "preliminary_ranking": 1,
+                    "period_average": 0,
+                    "near_climatology": 0,
+                    "climatology_grade": 0,
+                    "total": 1,
+                },
+            },
+            "metrics": [],
+            "monthly_metrics": [],
+            "seasonal_metrics": [],
+            "annual_metrics": [],
+            "xclim_precip_indices": [],
+            "pooled_daily_metrics": [],
+            "pooled_monthly_metrics": [],
+            "pooled_seasonal_metrics": [],
+            "pooled_annual_metrics": [],
+            "overall_metrics": [],
+        }
+        rendered = station_compare.render_compare_report(result)
+        self.assertIn("Window status summary", rendered)
+        self.assertIn("annual: descriptive_only=1 screening_only=0 preliminary_ranking=0 period_average=2", rendered)
+        self.assertIn("pooled_annual: descriptive_only=0 screening_only=0 preliminary_ranking=1", rendered)
+
     def test_get_climate_data_applies_custom_station_override(self):
         stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
         base_frame = pd.DataFrame(
@@ -1309,6 +1462,155 @@ class GHCNDailyStationTests(unittest.TestCase):
 
         self.assertEqual([9.0, 8.0], result["precip"].tolist())
         self.assertEqual([24.0, 25.0], result["tmax"].tolist())
+
+    def test_get_climate_data_custom_station_override_preserves_base_on_missing_days(self):
+        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        base_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=3, freq="D"),
+                "precipitation": [1.0, 2.0, 3.0],
+                "max_temperature": [24.0, 25.0, 26.0],
+                "min_temperature": [14.0, 15.0, 16.0],
+            }
+        )
+        orig_stats_call_preprocess = stats_module._call_preprocess
+        stats_module._call_preprocess = lambda *args, **kwargs: base_frame.copy()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                csv_path = Path(tmpdir) / "override_gap.csv"
+                pd.DataFrame(
+                    {
+                        "date": ["2020-01-01", "2020-01-03"],
+                        "precipitation": [9.0, 8.0],
+                    }
+                ).to_csv(csv_path, index=False)
+                result = stats_module.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2020-01-01",
+                    "2020-01-03",
+                    "agera_5",
+                    custom_station_file=str(csv_path),
+                    custom_station_variables=["precipitation"],
+                )
+        finally:
+            stats_module._call_preprocess = orig_stats_call_preprocess
+
+        self.assertEqual([9.0, 2.0, 8.0], result["precip"].tolist())
+        self.assertEqual([24.0, 25.0, 26.0], result["tmax"].tolist())
+
+    def test_get_climate_data_applies_custom_station_temp_override_only(self):
+        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        base_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=2, freq="D"),
+                "precipitation": [1.0, 2.0],
+                "max_temperature": [24.0, 25.0],
+                "min_temperature": [14.0, 15.0],
+            }
+        )
+        orig_stats_call_preprocess = stats_module._call_preprocess
+        stats_module._call_preprocess = lambda *args, **kwargs: base_frame.copy()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                csv_path = Path(tmpdir) / "override_temp.csv"
+                pd.DataFrame(
+                    {
+                        "date": ["2020-01-01", "2020-01-02"],
+                        "tmax": [30.0, 31.0],
+                        "tmin": [20.0, 21.0],
+                    }
+                ).to_csv(csv_path, index=False)
+                result = stats_module.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2020-01-01",
+                    "2020-01-02",
+                    "agera_5",
+                    custom_station_file=str(csv_path),
+                    custom_station_variables=["tmax", "tmin"],
+                    custom_temp_unit="c",
+                )
+        finally:
+            stats_module._call_preprocess = orig_stats_call_preprocess
+
+        self.assertEqual([1.0, 2.0], result["precip"].tolist())
+        self.assertEqual([30.0, 31.0], result["tmax"].tolist())
+        self.assertEqual([20.0, 21.0], result["tmin"].tolist())
+        summary = result.attrs.get("custom_station_override_summary", [])
+        self.assertEqual("tmax", summary[0]["variable"])
+        self.assertEqual(0, summary[0]["fallback_days"])
+
+    def test_get_climate_data_skips_custom_override_when_no_overlap(self):
+        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        base_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-03-01", periods=2, freq="D"),
+                "precipitation": [1.0, 2.0],
+                "max_temperature": [24.0, 25.0],
+                "min_temperature": [14.0, 15.0],
+            }
+        )
+        orig_stats_call_preprocess = stats_module._call_preprocess
+        stats_module._call_preprocess = lambda *args, **kwargs: base_frame.copy()
+        try:
+            result = stats_module.get_climate_data(
+                -1.286,
+                36.817,
+                "2020-03-01",
+                "2020-03-02",
+                "agera_5",
+                custom_station_file=str(GSOD_LIKE_CUSTOM_STATION_FIXTURE),
+                custom_station_variables=["precipitation"],
+                custom_temp_unit="f",
+                custom_precip_unit="inch",
+            )
+        finally:
+            stats_module._call_preprocess = orig_stats_call_preprocess
+
+        self.assertEqual([1.0, 2.0], result["precip"].tolist())
+        self.assertTrue(result.attrs.get("custom_station_warnings"))
+        summary = result.attrs.get("custom_station_override_summary", [])
+        self.assertEqual("skipped_no_overlap", summary[0]["status"])
+        self.assertEqual(2, summary[0]["fallback_days"])
+
+    def test_get_climate_data_reports_partial_custom_override_coverage(self):
+        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        base_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=3, freq="D"),
+                "precipitation": [1.0, 2.0, 3.0],
+                "max_temperature": [24.0, 25.0, 26.0],
+                "min_temperature": [14.0, 15.0, 16.0],
+            }
+        )
+        orig_stats_call_preprocess = stats_module._call_preprocess
+        stats_module._call_preprocess = lambda *args, **kwargs: base_frame.copy()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                csv_path = Path(tmpdir) / "override_gap.csv"
+                pd.DataFrame(
+                    {
+                        "date": ["2020-01-01", "2020-01-03"],
+                        "precipitation": [9.0, 8.0],
+                    }
+                ).to_csv(csv_path, index=False)
+                result = stats_module.get_climate_data(
+                    -1.286,
+                    36.817,
+                    "2020-01-01",
+                    "2020-01-03",
+                    "agera_5",
+                    custom_station_file=str(csv_path),
+                    custom_station_variables=["precipitation"],
+                )
+        finally:
+            stats_module._call_preprocess = orig_stats_call_preprocess
+
+        summary = result.attrs.get("custom_station_override_summary", [])
+        self.assertEqual("partial_override", summary[0]["status"])
+        self.assertEqual(2, summary[0]["override_days"])
+        self.assertEqual(1, summary[0]["fallback_days"])
 
     def test_compute_aggregated_metrics_monthly_precipitation(self):
         overlap = pd.DataFrame(

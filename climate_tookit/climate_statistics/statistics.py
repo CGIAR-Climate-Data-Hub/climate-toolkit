@@ -86,11 +86,11 @@ except ImportError:
         print("Warning: preprocess_data pipeline not available")
 
 try:
-    from ..weather_station.custom_station import load_custom_station_data
+    from ..weather_station.overrides import apply_custom_station_overrides
     CUSTOM_STATION_AVAILABLE = True
 except ImportError:
     try:
-        from climate_tookit.weather_station.custom_station import load_custom_station_data
+        from climate_tookit.weather_station.overrides import apply_custom_station_overrides
         CUSTOM_STATION_AVAILABLE = True
     except ImportError:
         CUSTOM_STATION_AVAILABLE = False
@@ -454,52 +454,20 @@ def _apply_custom_station_overrides(
         return base_df
     if not CUSTOM_STATION_AVAILABLE:
         raise RuntimeError("custom station ingestion module is not available")
-
-    requested = custom_station_variables or [
-        "precipitation",
-        "max_temperature",
-        "min_temperature",
-    ]
-    station_df = load_custom_station_data(
-        custom_station_file=custom_station_file,
+    return apply_custom_station_overrides(
+        base_df,
+        lat=lat,
+        lon=lon,
         date_from=date_from,
         date_to=date_to,
-        variables=requested,
-        stage="preprocessed",
-        station_coord=(lat, lon),
-        station_name=custom_station_name,
+        custom_station_file=custom_station_file,
+        custom_station_variables=custom_station_variables,
+        custom_station_name=custom_station_name,
         custom_temp_unit=custom_temp_unit,
         custom_precip_unit=custom_precip_unit,
+        rename_map=RENAME_MAP,
+        stage="preprocessed",
     )
-    if station_df.empty:
-        raise RuntimeError("Custom station file returned no rows in requested period.")
-
-    station_df = station_df.rename(columns=RENAME_MAP).copy()
-    station_df["date"] = pd.to_datetime(station_df["date"])
-    working = base_df.copy()
-    working["date"] = pd.to_datetime(working["date"])
-
-    override_columns = [
-        column for column in ("precip", "tmax", "tmin", "mean_temperature", "humidity", "wind_speed", "solar_radiation")
-        if column in station_df.columns
-    ]
-    if not override_columns:
-        raise RuntimeError("Custom station file did not provide any override columns after normalization.")
-
-    merged = pd.merge(
-        working,
-        station_df[["date"] + override_columns],
-        on="date",
-        how="left",
-        suffixes=("", "_station_override"),
-    )
-    for column in override_columns:
-        override_col = f"{column}_station_override"
-        if override_col not in merged.columns:
-            continue
-        merged[column] = merged[override_col].combine_first(merged.get(column))
-        merged = merged.drop(columns=[override_col])
-    return merged.sort_values("date").reset_index(drop=True)
 
 def get_climate_data(
     lat: float, lon: float,
@@ -581,6 +549,16 @@ def get_climate_data(
         custom_temp_unit=custom_temp_unit,
         custom_precip_unit=custom_precip_unit,
     )
+    for row in df.attrs.get("custom_station_override_summary", []):
+        print(
+            "  [station] "
+            f"{row.get('variable')}: custom_days={row.get('override_days', 0)}/"
+            f"{row.get('total_days', 0)} | "
+            f"gridded_fallback_days={row.get('fallback_days', 0)} | "
+            f"status={row.get('status', 'unknown')}"
+        )
+    for warning in df.attrs.get("custom_station_warnings", []):
+        print(f"  [WARN] {warning}")
 
     # Minimum required for ET0 + water balance
     if 'precip' not in df.columns:
