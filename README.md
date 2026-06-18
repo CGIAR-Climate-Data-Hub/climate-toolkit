@@ -94,12 +94,24 @@ climate_tookit/
 
    Project examples and local commands now assume environment name is `.venv`.
 
-4. **Install dependencies**
+4. **Install toolkit**
 
    ```bash
    python -m pip install --upgrade pip
-   python -m pip install -r requirements.txt
+   python -m pip install -e .
    ```
+
+   Optional extras:
+
+   ```bash
+   python -m pip install -e ".[plot]"
+   python -m pip install -e ".[tables]"
+   python -m pip install -e ".[full]"
+   ```
+
+   - `plot`: installs `matplotlib` for plot-rendering workflows
+   - `tables`: installs `tabulate` for richer console table rendering
+   - `full`: installs both optional groups
 
 5. **Create and configure your `.env`**
 
@@ -115,6 +127,12 @@ climate_tookit/
 
 Use installed console scripts when package is installed. `python -m ...` form
 still works and is shown as fallback where useful.
+
+Package root help:
+
+```bash
+python -m climate_tookit
+```
 
 ```bash
 climate-toolkit-fetch \
@@ -222,6 +240,12 @@ Current installed console scripts:
 - `climate-toolkit-weather-station-compare`
 - `climate-toolkit-compare-datasets`
 - `climate-toolkit-climatology`
+
+Optional dependency notes:
+
+- `climate-toolkit-compare-datasets` plot/report rendering may need `.[plot]`
+- weather-station compare table rendering can use `.[tables]`
+- base install stays usable without those extras
 
 Internal helper modules such as `source_data.py`, `preprocess_data.py`,
 `transform_data.py`, `gee_xee_batch.py`, `nex_gddp_batch.py`, and

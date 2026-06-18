@@ -2,6 +2,18 @@
 
 ## Bottom line
 
+Progress since this note was opened:
+
+- `pyproject.toml` now present
+- top-level `climate_tookit/__init__.py` now present
+- console scripts now declared
+- package data now declared and tested
+- editable install now works
+- optional dependency groups now declared for plotting / table rendering
+- import-hygiene tests now cover package import shape more directly
+
+Document below remains useful for remaining gaps, but early sections are partly historical now.
+
 Current toolkit behaves like repo-root script collection with package-shaped folders, not like normal installable Python package.
 
 It works mainly because:

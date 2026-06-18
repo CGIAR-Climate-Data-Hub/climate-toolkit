@@ -1,6 +1,8 @@
 import unittest
 import importlib
 import inspect
+import io
+import contextlib
 from pathlib import Path
 from typing import get_type_hints
 
@@ -138,6 +140,20 @@ class PackagingMetadataTests(unittest.TestCase):
             with self.subTest(export=export_name):
                 exported = getattr(package, export_name)
                 self.assertTrue(callable(exported))
+
+    def test_top_level_module_entrypoint_prints_package_overview(self):
+        module = importlib.import_module("climate_tookit.__main__")
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = module.main([])
+
+        rendered = stdout.getvalue()
+        self.assertEqual(0, exit_code)
+        self.assertIn("Climate toolkit package entry point", rendered)
+        self.assertIn("Top-level Python API", rendered)
+        self.assertIn("Installed console scripts", rendered)
+        self.assertIn("climate-toolkit-fetch", rendered)
+        self.assertIn("fetch_climate_data", rendered)
 
     def test_main_public_subpackages_have_explicit_init_and_lazy_exports(self):
         for module_name, expected_exports in self.EXPLICIT_SUBPACKAGE_EXPORTS.items():
