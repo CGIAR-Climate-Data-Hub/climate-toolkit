@@ -27,6 +27,7 @@ class PackagingMetadataTests(unittest.TestCase):
     EXPLICIT_SUBPACKAGE_EXPORTS = {
         "climate_tookit.calculate_hazards": {"calculate_hazards"},
         "climate_tookit.climate_statistics": {"analyze_climate_statistics"},
+        "climate_tookit.compare_datasets": {"compare_sources", "print_report"},
         "climate_tookit.compare_periods": {"compare"},
         "climate_tookit.season_analysis": {
             "detect_onset_cessation",
@@ -108,6 +109,7 @@ class PackagingMetadataTests(unittest.TestCase):
         expected_exports = {
             "fetch_climate_data",
             "analyze_climate_statistics",
+            "compare_climate_sources",
             "compare_climate_periods",
             "evaluate_hazards",
             "download_station_data",

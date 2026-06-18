@@ -8,6 +8,7 @@ __all__ = [
     "__version__",
     "analyze_climate_statistics",
     "compare_climate_periods",
+    "compare_climate_sources",
     "compare_station_to_grids",
     "download_station_data",
     "evaluate_hazards",
@@ -36,6 +37,10 @@ def __getattr__(name: str):
         from .compare_periods.periods import compare as _compare_periods
 
         return _compare_periods
+    if name == "compare_climate_sources":
+        from .compare_datasets.compare_datasets import compare_sources as _compare_sources
+
+        return _compare_sources
     if name == "evaluate_hazards":
         from .calculate_hazards.hazards import calculate_hazards as _calculate_hazards
 
