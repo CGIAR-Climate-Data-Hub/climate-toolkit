@@ -10,7 +10,7 @@ Detection: delegates to seasons.py building blocks (add_et0, detect_onset_cessat
 parse_fixed_seasons, check_humid) so behaviour is identical to seasons.py:
     Per reference year, a 1.5-year window is sliced from the master DataFrame so seasons crossing the year boundary are captured. After detection,
     seasons are reassigned to onset year, filtered to MAM/OND windows for equatorial climates, and de-duplicated.
-Data sources accepted: agera_5, era_5, chirps_v2+chirts, chirps_v2, nasa_power, nex_gddp, auto. Legacy alias `chirps` still works. NEX-GDDP requires --model and --scenario. Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus AgERA5 companion variables.
+Data sources accepted: agera_5, era_5, nasa_power, nex_gddp, auto, paired, and legacy chirps_v2+chirts / chirps_v2 paths. Legacy alias `chirps` still works. Precipitation-only sources such as chirps_v3_daily_rnl, imerg, and tamsat should be used through paired mode with a temperature partner. NEX-GDDP requires --model and --scenario. Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus AgERA5 companion variables.
 
 Dependencies: pandas, numpy, climate_toolkit (preprocess_data, seasons.py)
 """
@@ -2220,8 +2220,8 @@ def main() -> None:
     parser.add_argument('--source',     required=True,
                         help=(
                             "Data source. Examples:\n"
-                            "  agera_5, era_5, chirps_v2, chirps_v2+chirts, paired, "
-                            "nasa_power, nex_gddp, auto\n"
+                            "  agera_5, era_5, chirps_v2, chirps_v2+chirts, paired,\n"
+                            "  nasa_power, nex_gddp, auto\n"
                             "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
                             "Recommended direct single-source fallback: agera_5.\n"
                             "For GEE/Xee-backed historical paths, cold-cache first runs can "
@@ -2230,7 +2230,7 @@ def main() -> None:
                             "error at runtime."
                         ))
     parser.add_argument('--precip-source', default=None,
-                        help='Optional paired precipitation source, e.g. chirps_v3_daily_rnl, chirps_v2, or imerg')
+                        help='Optional paired precipitation source, e.g. chirps_v3_daily_rnl, chirps_v2, imerg, or tamsat')
     parser.add_argument('--temp-source', default=None,
                         help='Optional paired temperature source, e.g. agera_5 or era_5')
     parser.add_argument('--custom-station-file', default=None,

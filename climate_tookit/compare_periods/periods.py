@@ -13,7 +13,7 @@ sections statistics.py produces:
     Single        : '03-01:05-31'
     Two seasons   : '03-01:05-31,10-01:12-15'
     Year-crossing : '11-01:02-28'
-Plain `chirps_v2` source defaults tmax=25/tmin=15 in statistics.py, so temperature is excluded from every diff section when chirps_v2 is source.
+Plain `chirps_v2` source is legacy behavior: statistics.py injects default tmax=25/tmin=15, so temperature is excluded from every diff section when chirps_v2 is source. Prefer `source=auto` or explicit `source=paired`.
 """
 
 import sys
@@ -49,9 +49,9 @@ OVERALL_WATER_BALANCE_EXCLUDED = {
     "ending_soil_water_mm",
     "runoff_mm",
 }
-PRECIP_ONLY  = {"chirps", "chirps_v2"}
+PRECIP_ONLY  = {"chirps", "chirps_v2", "chirps_v3_daily_rnl", "imerg", "tamsat"}
 SUPPORTED    = {"era_5", "agera_5", "chirps+chirts", "chirps_v2+chirts", "nasa_power",
-                "chirps", "chirps_v2", "chirts", "terraclimate", "imerg", "tamsat", "auto",
+                "chirps", "chirps_v2", "chirps_v3_daily_rnl", "chirts", "terraclimate", "imerg", "tamsat", "auto",
                 "paired"}
 
 # helpers
@@ -1071,11 +1071,15 @@ def main() -> None:
     p.add_argument("--baseline-end",   type=int, required=True)
     p.add_argument("--focal-year",     type=int, required=True)
     p.add_argument("--source", required=True,
-                   help=f"One of: {', '.join(sorted(SUPPORTED))}")
+                   help=(
+                       f"One of: {', '.join(sorted(SUPPORTED))}. "
+                       "Default historical daily path elsewhere in package is "
+                       "chirps_v3_daily_rnl + agera_5 via auto or paired mode."
+                   ))
     p.add_argument("--precip-source", default=None,
-                   help="Required with --source=paired. Example: chirps_v2, chirps_v3_daily_rnl, imerg.")
+                   help="Required with --source=paired. Example: chirps_v2, chirps_v3_daily_rnl, imerg, or tamsat.")
     p.add_argument("--temp-source", default=None,
-                   help="Required with --source=paired. Example: agera5, era5, nasa_power.")
+                   help="Required with --source=paired. Example: agera_5, era_5, or nasa_power.")
     p.add_argument("--crop", default=None,
                    help="Optional crop used when requesting external calendar presets such as GGCMI.")
     p.add_argument("--calendar-source", choices=["ggcmi"], default=None,

@@ -351,6 +351,7 @@ class SeasonsNexGddpTests(unittest.TestCase):
             extra_months=6,
             model=None,
             scenario=None,
+            **kwargs,
         ):
             calls.append(
                 {

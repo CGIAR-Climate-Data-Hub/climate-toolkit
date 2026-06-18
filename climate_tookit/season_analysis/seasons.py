@@ -1083,6 +1083,7 @@ def fetch_and_analyze_years_fixed(
     custom_station_name: Optional[str] = None,
     custom_temp_unit: str = "c",
     custom_precip_unit: str = "mm",
+    emit_fetch_errors: bool = True,
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
     Apply fixed season windows to every year.
@@ -1128,6 +1129,7 @@ def fetch_and_analyze_years_fixed(
         fetch_end   = max(date(year, 12, 31), max(c for _, c in resolved)).strftime("%Y-%m-%d")
         print(f"  Fetching {fetch_start} to {fetch_end} ...")
 
+        fetch_error = None
         try:
             df = get_climate_data(
                 lat,
@@ -1148,7 +1150,9 @@ def fetch_and_analyze_years_fixed(
             df = add_et0(df, lat)
             print(f"  Retrieved {len(df)} days")
         except Exception as exc:
-            print(f"  ✗ Data fetch failed: {exc} — stats will be n/a")
+            fetch_error = str(exc)
+            if emit_fetch_errors:
+                print(f"  ✗ Data fetch failed: {exc} — stats will be n/a")
             df = None
 
         # Annual stats (calendar year only)
@@ -1159,10 +1163,11 @@ def fetch_and_analyze_years_fixed(
                 'is_humid':        humid_info['is_humid'],
                 'low_rain_months': humid_info['low_rain_months'],
                 'result_str':      humid_info['result_str'],
+                'fetch_error':     fetch_error,
             }
             print(f"  Annual rainfall={annual_rain} mm | {humid_info['result_str']}")
         else:
-            annual_dict[year] = {}
+            annual_dict[year] = {'fetch_error': fetch_error}
 
         # Build each fixed season
         for onset_date, cessation_date in resolved:
@@ -1186,10 +1191,10 @@ def fetch_and_analyze_years_fixed(
                              dry_days=None, dry_spells=None)
 
             # Season analysis within the fixed window
-            print(f"  Running Season analysis within "
-                  f"{onset_date.strftime('%Y-%m-%d')} → "
-                  f"{cessation_date.strftime('%Y-%m-%d')}{cross_note} ...")
             if df is not None and not df.empty:
+                print(f"  Running Season analysis within "
+                      f"{onset_date.strftime('%Y-%m-%d')} → "
+                      f"{cessation_date.strftime('%Y-%m-%d')}{cross_note} ...")
                 eto_seasons, eto_detection_note = run_eto_in_window(
                     df,
                     onset_date,
@@ -1199,6 +1204,12 @@ def fetch_and_analyze_years_fixed(
             else:
                 eto_seasons = []
                 eto_detection_note = "Climate data unavailable for ETO sub-season detection."
+                if emit_fetch_errors:
+                    print(
+                        f"  Fixed window {onset_date.strftime('%Y-%m-%d')} → "
+                        f"{cessation_date.strftime('%Y-%m-%d')}{cross_note} unavailable: "
+                        "climate data fetch failed."
+                    )
 
             if eto_seasons:
                 for k, es in enumerate(eto_seasons, 1):
@@ -1214,7 +1225,8 @@ def fetch_and_analyze_years_fixed(
                         f"dry_spells={es.get('dry_spells')}"
                     )
             else:
-                print(f"    ETO: {eto_detection_note or 'no sub-season detected within window'}")
+                if df is not None and not df.empty:
+                    print(f"    ETO: {eto_detection_note or 'no sub-season detected within window'}")
 
             season_dict = dict(
                 onset          = pd.Timestamp(onset_date),
@@ -1225,21 +1237,23 @@ def fetch_and_analyze_years_fixed(
                 params_used    = "fixed-season",
                 eto_seasons    = eto_seasons,
                 eto_detection_note = eto_detection_note,
+                fetch_error    = fetch_error,
                 source_df      = df,
                 window_df      = window_df,
                 **stats,
             )
             seasons_dict[year].append(season_dict)
-            print(
-                f"  Fixed window: "
-                f"{onset_date.strftime('%Y-%m-%d')} → "
-                f"{cessation_date.strftime('%Y-%m-%d')}{cross_note} | "
-                f"{length_days}d | "
-                f"rain={stats['total_rainfall_mm']} mm | "
-                f"rainy={stats['rainy_days']}d | "
-                f"dry={stats['dry_days']}d | "
-                f"dry_spells={stats['dry_spells']}"
-            )
+            if df is not None and not df.empty:
+                print(
+                    f"  Fixed window: "
+                    f"{onset_date.strftime('%Y-%m-%d')} → "
+                    f"{cessation_date.strftime('%Y-%m-%d')}{cross_note} | "
+                    f"{length_days}d | "
+                    f"rain={stats['total_rainfall_mm']} mm | "
+                    f"rainy={stats['rainy_days']}d | "
+                    f"dry={stats['dry_days']}d | "
+                    f"dry_spells={stats['dry_spells']}"
+                )
     return seasons_dict, annual_dict
 
 # Summary printer
@@ -1350,7 +1364,7 @@ def print_summary(
 # CLI
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description='Season analysis — CHIRPS v3 + AgERA5 / AgERA5 / ERA5 / CHIRPS+CHIRTS',
+        description='Season analysis — auto, paired, or legacy historical source presets',
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument('--location',     required=True,
