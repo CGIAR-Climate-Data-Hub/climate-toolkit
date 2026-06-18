@@ -18,6 +18,7 @@ from contextlib import redirect_stdout
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 from functools import lru_cache
+from pathlib import Path
 from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
 import json
@@ -35,17 +36,9 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import (
 )
 from climate_tookit.season_analysis.season_identity import build_season_identity
 
-current_dir  = os.path.dirname(os.path.abspath(__file__)) 
-parent_dir   = os.path.dirname(current_dir)                 
-project_root = os.path.dirname(parent_dir)                   
+HERE = Path(__file__).resolve().parent
 
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-CROP_WATER_BALANCE_PARAMS_PATH = os.path.join(
-    current_dir,
-    "crop_water_balance_params.json",
-)
+CROP_WATER_BALANCE_PARAMS_PATH = str(HERE / "crop_water_balance_params.json")
 
 DEFAULT_SPINUP_DAYS = 60
 DEFAULT_DEPLETION_FRACTION_P = 0.5
@@ -79,7 +72,6 @@ try:
     SEASON_ANALYSIS_AVAILABLE = True
 except Exception as _e:
     _IMPORT_ERROR = str(_e)
-    print(f"Warning: Season analysis module not available -- {_e}")
 
 # Crop thresholds
 CROP_THRESHOLDS = {

@@ -24,114 +24,53 @@ from typing import Any, Dict, List, Tuple, Optional
 
 import pandas as pd
 
-try:
-    from .hazards import (
-        CROP_THRESHOLDS,
-        HAZARD_EVAL_SPECS,
-        HAZARD_PRINT_ORDER,
-        evaluate_threshold,
-        evaluate_hazard_metrics,
-        calculate_season_statistics,
-        build_water_balance_methodology,
-        load_custom_thresholds_file,
-        add_et0,
-        FULL_WINDOW_WATER_BALANCE,
-        CROP_ACTIVE_WATER_BALANCE,
-        WATER_BALANCE_WINDOW_CHOICES,
-        DEFAULT_SOILCP,
-        DEFAULT_SOILSAT,
-        DEFAULT_SPINUP_DAYS,
-        _apply_water_balance_window_mode,
-        _normalize_water_balance_window_mode,
-        resolve_thresholds,
-        resolve_crop_water_balance_params,
-        _shift_iso_date,
-        _print_hazard_season_detection_summary,
-    )
-except ImportError:
-    try:
-        from climate_tookit.calculate_hazards.hazards import (
-            CROP_THRESHOLDS,
-            HAZARD_EVAL_SPECS,
-            HAZARD_PRINT_ORDER,
-            evaluate_threshold,
-            evaluate_hazard_metrics,
-            calculate_season_statistics,
-            build_water_balance_methodology,
-            load_custom_thresholds_file,
-            add_et0,
-            FULL_WINDOW_WATER_BALANCE,
-            CROP_ACTIVE_WATER_BALANCE,
-            WATER_BALANCE_WINDOW_CHOICES,
-            DEFAULT_SOILCP,
-            DEFAULT_SOILSAT,
-            DEFAULT_SPINUP_DAYS,
-            _apply_water_balance_window_mode,
-            _normalize_water_balance_window_mode,
-            resolve_thresholds,
-            resolve_crop_water_balance_params,
-            _shift_iso_date,
-            _print_hazard_season_detection_summary,
-        )
-    except ImportError:
-        HERE = os.path.dirname(os.path.abspath(__file__))
-        if HERE not in sys.path:
-            sys.path.insert(0, HERE)
-        from hazards import (
-            CROP_THRESHOLDS,
-            HAZARD_EVAL_SPECS,
-            HAZARD_PRINT_ORDER,
-            evaluate_threshold,
-            evaluate_hazard_metrics,
-            calculate_season_statistics,
-            build_water_balance_methodology,
-            load_custom_thresholds_file,
-            add_et0,
-            FULL_WINDOW_WATER_BALANCE,
-            CROP_ACTIVE_WATER_BALANCE,
-            WATER_BALANCE_WINDOW_CHOICES,
-            DEFAULT_SOILCP,
-            DEFAULT_SOILSAT,
-            DEFAULT_SPINUP_DAYS,
-            _apply_water_balance_window_mode,
-            _normalize_water_balance_window_mode,
-            resolve_thresholds,
-            resolve_crop_water_balance_params,
-            _shift_iso_date,
-            _print_hazard_season_detection_summary,
-        )
+from climate_tookit.calculate_hazards.hazards import (
+    CROP_THRESHOLDS,
+    HAZARD_EVAL_SPECS,
+    HAZARD_PRINT_ORDER,
+    evaluate_threshold,
+    evaluate_hazard_metrics,
+    calculate_season_statistics,
+    build_water_balance_methodology,
+    load_custom_thresholds_file,
+    add_et0,
+    FULL_WINDOW_WATER_BALANCE,
+    CROP_ACTIVE_WATER_BALANCE,
+    WATER_BALANCE_WINDOW_CHOICES,
+    DEFAULT_SOILCP,
+    DEFAULT_SOILSAT,
+    DEFAULT_SPINUP_DAYS,
+    _apply_water_balance_window_mode,
+    _normalize_water_balance_window_mode,
+    resolve_thresholds,
+    resolve_crop_water_balance_params,
+    _shift_iso_date,
+    _print_hazard_season_detection_summary,
+)
 
 PREPROCESS_AVAILABLE = False
+_PREPROCESS_IMPORT_ERROR = ""
 try:
-    from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
-    from ..fetch_data.source_data.sources.utils.models import ClimateVariable
-    from ..fetch_data.source_data.sources.nex_gddp import (
+    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+    from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+    from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
         AVAILABLE_MODELS as MODELS,
         default_ensemble_models_for_location,
     )
     PREPROCESS_AVAILABLE = True
-except ImportError:
-    try:
-        from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-        from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
-        from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
-            AVAILABLE_MODELS as MODELS,
-            default_ensemble_models_for_location,
-        )
-        PREPROCESS_AVAILABLE = True
-    except Exception as e:
-        print(f"✗ NEX-GDDP pipeline not available: {e}")
+except Exception as exc:
+    _PREPROCESS_IMPORT_ERROR = str(exc)
 
+_FAY_ERR = ""
 try:
-    from ..season_analysis.seasons import fetch_and_analyze_years, detect_onset_cessation
+    from climate_tookit.season_analysis.seasons import (
+        fetch_and_analyze_years,
+        detect_onset_cessation,
+    )
     HAS_FAY = True
-except Exception as _e:
-    try:
-        from climate_tookit.season_analysis.seasons import fetch_and_analyze_years, detect_onset_cessation
-        HAS_FAY = True
-    except Exception:
-        HAS_FAY = False
-        _FAY_ERR = str(_e)
+except Exception as exc:
+    HAS_FAY = False
+    _FAY_ERR = str(exc)
 
 SCENARIOS = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
 
