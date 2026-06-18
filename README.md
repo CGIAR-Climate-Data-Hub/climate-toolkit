@@ -113,10 +113,11 @@ climate_tookit/
 
 ### Recommended CLI entry point
 
-Use the package entry point rather than calling internal source files directly:
+Use installed console scripts when package is installed. `python -m ...` form
+still works and is shown as fallback where useful.
 
 ```bash
-python -m climate_tookit.fetch_data.fetch_data \
+climate-toolkit-fetch \
   --source chirps_v3_daily_rnl \
   --lat -1.286 \
   --lon 36.817 \
@@ -154,7 +155,7 @@ historical default path is `chirps_v3_daily_rnl + agera_5`.
 Example:
 
 ```bash
-env GCP_PROJECT_ID=your-project-id python -m climate_tookit.fetch_data.fetch_data \
+env GCP_PROJECT_ID=your-project-id climate-toolkit-fetch \
   --source nex_gddp \
   --lat -1.286 \
   --lon 36.817 \
@@ -193,13 +194,34 @@ df = fetch_data(
 df.head()
 ```
 
-If you do want the CLI from a notebook cell, use:
+If console scripts are not on your PATH, or if you want notebook-safe module
+form, use:
 
 ```bash
 !python -m climate_tookit.fetch_data.fetch_data --help
 ```
 
-`source_data.py` is an internal module. For end users, the supported top-level entry point is `python -m climate_tookit.fetch_data.fetch_data` or the import-based `fetch_data(...)` API.
+`source_data.py` is internal module. Supported end-user entry points are:
+
+- `climate-toolkit-fetch`
+- `python -m climate_tookit.fetch_data.fetch_data`
+- import-based `fetch_data(...)` API
+
+Current installed console scripts:
+
+- `climate-toolkit-fetch`
+- `climate-toolkit-seasons`
+- `climate-toolkit-seasons-ensemble`
+- `climate-toolkit-stats`
+- `climate-toolkit-stats-ensemble`
+- `climate-toolkit-periods`
+- `climate-toolkit-periods-ensemble`
+- `climate-toolkit-hazards`
+- `climate-toolkit-hazards-ensemble`
+- `climate-toolkit-weather-station-download`
+- `climate-toolkit-weather-station-compare`
+- `climate-toolkit-compare-datasets`
+- `climate-toolkit-climatology`
 
 ### Cache and reuse
 
@@ -470,7 +492,7 @@ Toolkit supports:
 Find nearby observed stations and create review artifacts:
 
 ```bash
-python -m climate_tookit.weather_station.download \
+climate-toolkit-weather-station-download \
   --station-source auto \
   --selection-mode list \
   --station-lat -1.286 \
@@ -492,7 +514,7 @@ Outputs:
 ### NOAA Station Download
 
 ```bash
-python -m climate_tookit.weather_station.download \
+climate-toolkit-weather-station-download \
   --station-source auto \
   --selection-mode auto \
   --auto-select auto-1 \
@@ -507,7 +529,7 @@ python -m climate_tookit.weather_station.download \
 ### Custom Station File
 
 ```bash
-python -m climate_tookit.weather_station.download \
+climate-toolkit-weather-station-download \
   --station-source custom_csv \
   --custom-station-file path/to/station.csv \
   --custom-station-name "My station" \
@@ -542,7 +564,7 @@ Declare units explicitly:
 ### Station vs Grid Comparison
 
 ```bash
-python -m climate_tookit.weather_station.compare \
+climate-toolkit-weather-station-compare \
   --station-source auto \
   --station-lat -1.286 \
   --station-lon 36.817 \
@@ -561,7 +583,7 @@ python -m climate_tookit.weather_station.compare \
 ### Historical Analysis With Custom Overrides
 
 ```bash
-python -m climate_tookit.climate_statistics.statistics \
+climate-toolkit-stats \
   --location="-1.286,36.817" \
   --start-year=2020 \
   --end-year=2020 \
