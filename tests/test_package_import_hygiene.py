@@ -79,6 +79,8 @@ class PackageImportHygieneTests(unittest.TestCase):
         "climate_tookit.climate_statistics.ensemble_statistics",
         "climate_tookit.calculate_hazards.hazards",
         "climate_tookit.calculate_hazards.ensemble_hazards",
+        "climate_tookit.weather_station.download",
+        "climate_tookit.weather_station.compare",
         "climate_tookit.fetch_data.source_data.sources.utils",
     ]
 
@@ -126,6 +128,31 @@ class PackageImportHygieneTests(unittest.TestCase):
             self.assertTrue(callable(module.compare_sources))
             if existing is not None:
                 sys.modules["climate_tookit.compare_datasets.compare_datasets"] = existing
+        finally:
+            sys.modules.update(saved_modules)
+
+    def test_weather_station_compare_import_does_not_require_tabulate(self):
+        blocked = {"tabulate"}
+        saved_modules = {
+            name: sys.modules.pop(name)
+            for name in list(blocked)
+            if name in sys.modules
+        }
+        original_import = builtins.__import__
+
+        def blocked_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name in blocked or any(name.startswith(f"{prefix}.") for prefix in blocked):
+                raise ModuleNotFoundError(name)
+            return original_import(name, globals, locals, fromlist, level)
+
+        try:
+            existing = sys.modules.pop("climate_tookit.weather_station.compare", None)
+            with mock.patch("builtins.__import__", side_effect=blocked_import):
+                module = importlib.import_module("climate_tookit.weather_station.compare")
+            self.assertEqual("climate_tookit.weather_station.compare", module.__name__)
+            self.assertTrue(callable(module.compare_station_to_grids))
+            if existing is not None:
+                sys.modules["climate_tookit.weather_station.compare"] = existing
         finally:
             sys.modules.update(saved_modules)
 

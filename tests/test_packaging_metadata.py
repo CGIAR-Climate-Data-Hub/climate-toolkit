@@ -81,6 +81,23 @@ class PackagingMetadataTests(unittest.TestCase):
         }
         self.assertEqual(expected, scripts)
 
+    def test_pyproject_declares_optional_dependency_groups_for_truly_optional_features(self):
+        with PYPROJECT_PATH.open("rb") as handle:
+            pyproject = tomllib.load(handle)
+
+        project = pyproject["project"]
+        core_deps = set(project["dependencies"])
+        extras = project["optional-dependencies"]
+
+        self.assertNotIn("tabulate==0.9.0", core_deps)
+        self.assertTrue(all("matplotlib" not in dep for dep in core_deps))
+        self.assertEqual(["matplotlib>=3.8"], extras["plot"])
+        self.assertEqual(["tabulate==0.9.0"], extras["tables"])
+        self.assertEqual(
+            ["matplotlib>=3.8", "tabulate==0.9.0"],
+            extras["full"],
+        )
+
     def test_console_script_modules_expose_main_as_int_returning_entrypoint(self):
         with PYPROJECT_PATH.open("rb") as handle:
             pyproject = tomllib.load(handle)

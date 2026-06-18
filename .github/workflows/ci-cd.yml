@@ -36,6 +36,28 @@ jobs:
           if [ -f setup.py ]; then pip install -e .; fi
           if [ -f pyproject.toml ]; then pip install -e .; fi
 
+      - name: Smoke installed console scripts
+        run: |
+          scripts=(
+            climate-toolkit-fetch
+            climate-toolkit-seasons
+            climate-toolkit-seasons-ensemble
+            climate-toolkit-stats
+            climate-toolkit-stats-ensemble
+            climate-toolkit-periods
+            climate-toolkit-periods-ensemble
+            climate-toolkit-hazards
+            climate-toolkit-hazards-ensemble
+            climate-toolkit-weather-station-download
+            climate-toolkit-weather-station-compare
+            climate-toolkit-compare-datasets
+            climate-toolkit-climatology
+          )
+          for script in "${scripts[@]}"; do
+            echo "Smoke: ${script} --help"
+            "${script}" --help > /dev/null
+          done
+
       # Setup R
       - name: Set up R ${{ matrix.r-version }}
         uses: r-lib/actions/setup-r@v2
