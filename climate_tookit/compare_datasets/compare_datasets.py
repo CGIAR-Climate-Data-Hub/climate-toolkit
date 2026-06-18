@@ -18,6 +18,9 @@ State variables   (temperature, humidity, radiation, soil props, tmax/tmin, pet)
 Accumulation vars (precipitation):
     annual total per year -> across years reported as mean / min / max / std / CV
     monthly climatology  -> mean monthly total per calendar month
+
+Plot rendering uses optional `matplotlib`. Importing and JSON-mode usage should
+still work when plotting stack is absent.
 """
 import argparse
 import os
@@ -25,8 +28,6 @@ import json
 from datetime import date
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
 from ..climate_statistics.statistics import (
     _fetch_auto as _fetch_auto_dataset,
@@ -201,6 +202,25 @@ def _print_nex_model_breakdown(per_model: dict) -> None:
 MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun",
                 "Jul","Aug","Sep","Oct","Nov","Dec"]
 
+
+def _load_matplotlib():
+    try:
+        import matplotlib.pyplot as plt
+        from matplotlib.ticker import MaxNLocator
+    except ImportError:
+        return None, None
+    return plt, MaxNLocator
+
+
+def _require_plotting_stack():
+    plt, MaxNLocator = _load_matplotlib()
+    if plt is None or MaxNLocator is None:
+        raise RuntimeError(
+            "compare_datasets plotting requires optional dependency 'matplotlib'. "
+            "Install matplotlib or use --format json to skip plot rendering."
+        )
+    return plt, MaxNLocator
+
 # Plot style helpers
 PALETTE = [
     "#2E86AB", "#E84855", "#3BB273", "#F4A261",
@@ -233,6 +253,7 @@ def _autoscale_state_axis(ax, values):
     ax.set_ylim(lo - pad, hi + pad)
 
 def _save(fig, path):
+    plt, _ = _require_plotting_stack()
     fig.savefig(path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"  📊  Saved → {path}")
@@ -363,6 +384,7 @@ def plot_annual_timeseries(df: pd.DataFrame, source: str, output_dir: str):
     num_cols = df.select_dtypes(include="number").columns.tolist()
     if not num_cols:
         return
+    plt, MaxNLocator = _require_plotting_stack()
     n = len(num_cols)
     fig, axes = plt.subplots(n, 1, figsize=(9, 3 * n), squeeze=False)
     fig.suptitle(f"Annual Time Series — {source}", fontsize=12,
@@ -401,6 +423,7 @@ def plot_monthly_climatology(df: pd.DataFrame, source: str, output_dir: str):
     num_cols = df.select_dtypes(include="number").columns.tolist()
     if not num_cols:
         return
+    plt, _ = _require_plotting_stack()
     n = len(num_cols)
     fig, axes = plt.subplots(n, 1, figsize=(9, 3 * n), squeeze=False)
     fig.suptitle(f"Monthly Climatology — {source}", fontsize=12,
@@ -437,6 +460,7 @@ def plot_multisource_annual(results: dict, output_dir: str):
     all_vars: set = set()
     for df in results.values():
         all_vars |= set(df.select_dtypes(include="number").columns)
+    plt, MaxNLocator = _require_plotting_stack()
 
     for var in sorted(all_vars):
         sources_with_var = {
@@ -474,6 +498,7 @@ def plot_multisource_monthly_climatology(results: dict, output_dir: str):
     all_vars: set = set()
     for df in results.values():
         all_vars |= set(df.select_dtypes(include="number").columns)
+    plt, _ = _require_plotting_stack()
 
     for var in sorted(all_vars):
         sources_with_var = _sources_with_var(results, var)
@@ -637,7 +662,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
 def _sep(char="─", width=60):
     print(char * width)
 
-def print_report(results: dict, output_dir: str = "./outputs"):
+def print_report(results: dict, output_dir: str = "./outputs", render_plots: bool = True):
     _sep("═")
     print("  CLIMATE DATA REPORT")
     _sep("═")
@@ -648,13 +673,14 @@ def print_report(results: dict, output_dir: str = "./outputs"):
         all_vars |= set(df.select_dtypes(include="number").columns)
 
     # Per-source plots
-    print(f"\n{'─'*60}")
-    print("  PER-SOURCE PLOTS")
-    print(f"{'─'*60}")
-    for source, df in results.items():
-        print(f"\n  [{source}]")
-        plot_annual_timeseries(df, source, output_dir)
-        plot_monthly_climatology(df, source, output_dir)
+    if render_plots:
+        print(f"\n{'─'*60}")
+        print("  PER-SOURCE PLOTS")
+        print(f"{'─'*60}")
+        for source, df in results.items():
+            print(f"\n  [{source}]")
+            plot_annual_timeseries(df, source, output_dir)
+            plot_monthly_climatology(df, source, output_dir)
 
     # Consolidated tables per variable
     annual_tables: dict = {}
@@ -692,11 +718,12 @@ def print_report(results: dict, output_dir: str = "./outputs"):
         print(clim_display.to_string(float_format=lambda v: f"{v:8.3f}"))
 
     # Multi-source comparison plots
-    print(f"\n{'─'*60}")
-    print("  MULTI-SOURCE COMPARISON PLOTS")
-    print(f"{'─'*60}")
-    plot_multisource_annual(results, output_dir)
-    plot_multisource_monthly_climatology(results, output_dir)
+    if render_plots:
+        print(f"\n{'─'*60}")
+        print("  MULTI-SOURCE COMPARISON PLOTS")
+        print(f"{'─'*60}")
+        plot_multisource_annual(results, output_dir)
+        plot_multisource_monthly_climatology(results, output_dir)
 
     # Pairwise climatology correlations
     all_climatology = {src: compute_monthly_climatology(df)
@@ -837,7 +864,11 @@ def main() -> int:
     except RuntimeError as exc:
         print(f"Error: {exc}")
         return 1
-    all_stats = print_report(results, output_dir=args.output_dir)
+    all_stats = print_report(
+        results,
+        output_dir=args.output_dir,
+        render_plots=(args.format == "report"),
+    )
 
     if args.format == "json":
         serializable = {

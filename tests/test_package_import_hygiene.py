@@ -1,4 +1,5 @@
 import contextlib
+import builtins
 import importlib
 import io
 import logging
@@ -6,6 +7,7 @@ import sys
 import types
 import unittest
 import warnings
+from unittest import mock
 
 
 def _install_test_stubs():
@@ -69,6 +71,8 @@ class PackageImportHygieneTests(unittest.TestCase):
         "climate_tookit.fetch_data.source_data.sources.nex_gddp_xee",
         "climate_tookit.season_analysis.seasons",
         "climate_tookit.season_analysis.ensemble",
+        "climate_tookit.compare_datasets",
+        "climate_tookit.compare_datasets.compare_datasets",
         "climate_tookit.compare_periods.periods",
         "climate_tookit.compare_periods.ensemble_periods",
         "climate_tookit.climate_statistics.statistics",
@@ -99,6 +103,31 @@ class PackageImportHygieneTests(unittest.TestCase):
                 self.assertEqual(before_root_level, logging.root.level)
                 self.assertEqual(before_root_handlers, list(logging.root.handlers))
                 self.assertEqual(before_warning_filters, list(warnings.filters))
+
+    def test_compare_datasets_import_does_not_require_matplotlib(self):
+        blocked = {"matplotlib", "matplotlib.pyplot", "matplotlib.ticker"}
+        saved_modules = {
+            name: sys.modules.pop(name)
+            for name in list(blocked)
+            if name in sys.modules
+        }
+        original_import = builtins.__import__
+
+        def blocked_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name in blocked or any(name.startswith(f"{prefix}.") for prefix in blocked):
+                raise ModuleNotFoundError(name)
+            return original_import(name, globals, locals, fromlist, level)
+
+        try:
+            existing = sys.modules.pop("climate_tookit.compare_datasets.compare_datasets", None)
+            with mock.patch("builtins.__import__", side_effect=blocked_import):
+                module = importlib.import_module("climate_tookit.compare_datasets.compare_datasets")
+            self.assertEqual("climate_tookit.compare_datasets.compare_datasets", module.__name__)
+            self.assertTrue(callable(module.compare_sources))
+            if existing is not None:
+                sys.modules["climate_tookit.compare_datasets.compare_datasets"] = existing
+        finally:
+            sys.modules.update(saved_modules)
 
 
 if __name__ == "__main__":
