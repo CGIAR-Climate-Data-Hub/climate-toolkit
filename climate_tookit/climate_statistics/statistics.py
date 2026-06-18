@@ -219,7 +219,7 @@ SUMMARY_VARS: List[Tuple[str, str]] = [
 BASELINE_DEFAULT_PERIOD: Tuple[int, int] = (1991, 2020)
 MIN_LTM_YEARS:           int            = 20
 CHIRTS_LAST_YEAR:        int            = 2016
-PRECIP_ONLY_SOURCES = {'chirps', 'chirps_v2', 'imerg'}
+PRECIP_ONLY_SOURCES = {'chirps', 'chirps_v2', 'chirps_v3_daily_rnl', 'imerg', 'tamsat'}
 TEMP_ONLY_SOURCES = {'chirts'}
 PAIRED_SOURCE_SENTINEL = 'paired'
 DEFAULT_AUTO_PRECIP_SOURCE = 'chirps_v3_daily_rnl'
@@ -286,6 +286,13 @@ def _validate_source_compatibility(
             "single-source interface. climate_statistics.statistics currently "
             "requires temperature inputs for ET0 and season analysis, so imerg "
             "needs an explicit temperature partner."
+        )
+    if source_lc == 'tamsat':
+        return (
+            "tamsat provides precipitation and soil moisture, but not temperature. "
+            "climate_statistics.statistics requires temperature inputs for ET0 and "
+            "season analysis, so tamsat must be paired with a temperature source "
+            "such as agera_5 or era_5."
         )
     if source_lc == 'chirps_v3_daily_rnl':
         return (

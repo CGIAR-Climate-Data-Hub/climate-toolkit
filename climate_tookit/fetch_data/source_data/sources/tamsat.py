@@ -13,6 +13,7 @@ Coordinate convention: `location_coord` is `(lat, lon)`, matching the rest of th
 import logging
 import os
 import tempfile
+import time
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -25,6 +26,8 @@ from .utils.settings import Settings
 logger = logging.getLogger(__name__)
 
 class DownloadTAMSAT(DataDownloadBase):
+    _FAILURE_PREVIEW_LIMIT = 3
+
     def __init__(
         self,
         location_coord: tuple[float, float],
@@ -112,12 +115,26 @@ class DownloadTAMSAT(DataDownloadBase):
 
         lat0, lon0 = self.location_coord
         values_by_date: dict = {}
+        total_days = len(self.dates)
+        started_at = time.perf_counter()
+        failed_days: list[tuple[date, str]] = []
 
         session = requests.Session()
         session.headers.update({"User-Agent": "Mozilla/5.0"})
 
+        variable_label = "precipitation" if prefix == "rfe" else "soil_moisture"
+        logger.info(
+            "TAMSAT fetch start | variable=%s | location=%.4f,%.4f | period=%s..%s | days=%d",
+            variable_label,
+            lat0,
+            lon0,
+            self.date_from_utc.isoformat(),
+            self.date_to_utc.isoformat(),
+            total_days,
+        )
+
         try:
-            for dt in self.dates:
+            for index, dt in enumerate(self.dates, start=1):
                 file_name = (
                     f"{file_prefix}{dt.year}_{dt.month:02d}_{dt.day:02d}"
                     f".{version}.nc"
@@ -158,12 +175,48 @@ class DownloadTAMSAT(DataDownloadBase):
                         except OSError:
                             pass
                 except Exception as e:
-                    logger.warning(
-                        f"TAMSAT fetch failed for {dt.isoformat()} ({url}): {e}"
-                    )
+                    failed_days.append((dt, str(e)))
                     values_by_date[dt] = np.nan
+                if (
+                    index == 1
+                    or index == total_days
+                    or index % max(total_days // 4, 1) == 0
+                ):
+                    elapsed = time.perf_counter() - started_at
+                    logger.info(
+                        "TAMSAT progress | variable=%s | %d/%d day(s) | elapsed=%.1fs | failures=%d",
+                        variable_label,
+                        index,
+                        total_days,
+                        elapsed,
+                        len(failed_days),
+                    )
         finally:
             session.close()
+
+        elapsed_total = time.perf_counter() - started_at
+        if failed_days:
+            preview = "; ".join(
+                f"{dt.isoformat()} ({msg})"
+                for dt, msg in failed_days[: self._FAILURE_PREVIEW_LIMIT]
+            )
+            if len(failed_days) > self._FAILURE_PREVIEW_LIMIT:
+                preview += f"; ... +{len(failed_days) - self._FAILURE_PREVIEW_LIMIT} more"
+            logger.warning(
+                "TAMSAT fetch completed with failures | variable=%s | ok=%d | failed=%d | elapsed=%.1fs | sample_failures=%s",
+                variable_label,
+                total_days - len(failed_days),
+                len(failed_days),
+                elapsed_total,
+                preview,
+            )
+        else:
+            logger.info(
+                "TAMSAT fetch complete | variable=%s | ok=%d | failed=0 | elapsed=%.1fs",
+                variable_label,
+                total_days,
+                elapsed_total,
+            )
 
         return [values_by_date.get(dt, np.nan) for dt in self.dates]
 
