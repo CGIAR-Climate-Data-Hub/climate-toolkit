@@ -1,6 +1,8 @@
-"""
-Module for applying the DownloadData / SourceData class to download from
-different climate databases.
+"""Internal source-dispatch helper for fetch pipeline.
+
+This module remains importable for package internals and legacy analysis
+scripts, but it is not stable public CLI surface. End users should prefer
+`climate-toolkit-fetch` or `climate_tookit.fetch_data.fetch_data`.
 """
 
 import argparse

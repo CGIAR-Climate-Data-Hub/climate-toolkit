@@ -223,6 +223,11 @@ Current installed console scripts:
 - `climate-toolkit-compare-datasets`
 - `climate-toolkit-climatology`
 
+Internal helper modules such as `source_data.py`, `preprocess_data.py`,
+`transform_data.py`, `gee_xee_batch.py`, `nex_gddp_batch.py`, and
+`cache_inventory.py` remain importable for package internals and advanced
+development workflows, but they are not stable end-user CLI contracts.
+
 ### Cache and reuse
 
 GEE/Xee-backed fetches can be slow on a cold run because the toolkit has to

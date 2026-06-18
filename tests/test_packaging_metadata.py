@@ -16,6 +16,15 @@ REQUIREMENTS_PATH = REPO_ROOT / "requirements.txt"
 
 
 class PackagingMetadataTests(unittest.TestCase):
+    INTERNAL_HELPER_ENTRYPOINTS = {
+        "climate_tookit.fetch_data.source_data.source_data:main",
+        "climate_tookit.fetch_data.preprocess_data.preprocess_data:main",
+        "climate_tookit.fetch_data.transform_data.transform_data:main",
+        "climate_tookit.fetch_data.gee_xee_batch:main",
+        "climate_tookit.fetch_data.nex_gddp_batch:main",
+        "climate_tookit.fetch_data.cache_inventory:main",
+    }
+
     def test_pyproject_runtime_dependencies_cover_requirements_runtime_set(self):
         with PYPROJECT_PATH.open("rb") as handle:
             pyproject = tomllib.load(handle)
@@ -72,6 +81,13 @@ class PackagingMetadataTests(unittest.TestCase):
                 entrypoint_fn = getattr(module, function_name)
                 self.assertTrue(callable(entrypoint_fn))
                 self.assertEqual(int, get_type_hints(entrypoint_fn).get("return"))
+
+    def test_internal_helper_clis_are_not_promoted_as_public_console_scripts(self):
+        with PYPROJECT_PATH.open("rb") as handle:
+            pyproject = tomllib.load(handle)
+
+        scripts = set(pyproject["project"]["scripts"].values())
+        self.assertTrue(self.INTERNAL_HELPER_ENTRYPOINTS.isdisjoint(scripts))
 
     def test_top_level_package_exposes_stable_public_api(self):
         package = importlib.import_module("climate_tookit")
