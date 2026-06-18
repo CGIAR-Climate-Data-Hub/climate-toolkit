@@ -95,6 +95,7 @@ class PackagingMetadataTests(unittest.TestCase):
 
         scripts = pyproject["project"]["scripts"]
         expected = {
+            "climate-toolkit": "climate_tookit.__main__:main",
             "climate-toolkit-fetch": "climate_tookit.fetch_data.fetch_data:main",
             "climate-toolkit-seasons": "climate_tookit.season_analysis.seasons:main",
             "climate-toolkit-seasons-ensemble": "climate_tookit.season_analysis.ensemble:main",
@@ -180,6 +181,7 @@ class PackagingMetadataTests(unittest.TestCase):
         self.assertIn("Climate toolkit package entry point", rendered)
         self.assertIn("Top-level Python API", rendered)
         self.assertIn("Installed console scripts", rendered)
+        self.assertIn("climate-toolkit", rendered)
         self.assertIn("climate-toolkit-fetch", rendered)
         self.assertIn("fetch_climate_data", rendered)
 

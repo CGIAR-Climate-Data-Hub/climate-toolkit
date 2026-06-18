@@ -132,6 +132,7 @@ Package root help:
 
 ```bash
 python -m climate_tookit
+climate-toolkit
 ```
 
 ```bash
@@ -227,6 +228,7 @@ form, use:
 
 Current installed console scripts:
 
+- `climate-toolkit`
 - `climate-toolkit-fetch`
 - `climate-toolkit-seasons`
 - `climate-toolkit-seasons-ensemble`

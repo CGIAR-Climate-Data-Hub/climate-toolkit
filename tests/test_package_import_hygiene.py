@@ -56,9 +56,11 @@ import requests  # noqa: F401
 
 class PackageImportHygieneTests(unittest.TestCase):
     MODULES = [
+        "climate_tookit.crop_calendar",
         "climate_tookit.climatology",
         "climate_tookit.climatology.long_term_climatology",
         "climate_tookit.fetch_data.gee_xee_batch",
+        "climate_tookit.fetch_data",
         "climate_tookit.fetch_data.nex_gddp_batch",
         "climate_tookit.fetch_data.preprocess_data",
         "climate_tookit.fetch_data.transform_data",
@@ -79,6 +81,7 @@ class PackageImportHygieneTests(unittest.TestCase):
         "climate_tookit.climate_statistics.ensemble_statistics",
         "climate_tookit.calculate_hazards.hazards",
         "climate_tookit.calculate_hazards.ensemble_hazards",
+        "climate_tookit.weather_station",
         "climate_tookit.weather_station.download",
         "climate_tookit.weather_station.compare",
         "climate_tookit.fetch_data.source_data.sources.utils",
