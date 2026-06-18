@@ -40,6 +40,16 @@ from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     default_ensemble_models_for_location,
 )
 
+try:
+    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+    from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+
+    PREPROCESS_AVAILABLE = True
+except Exception:
+    preprocess_data = None
+    ClimateVariable = None
+    PREPROCESS_AVAILABLE = False
+
 
 @contextlib.contextmanager
 def _quiet_fetch_logs():
@@ -65,9 +75,16 @@ def _quiet_fetch_logs():
             logging.getLogger(name).setLevel(lvl)
 
 def _import_preprocess_runtime():
-    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-    from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+    global preprocess_data, ClimateVariable, PREPROCESS_AVAILABLE
+    if PREPROCESS_AVAILABLE and preprocess_data is not None and ClimateVariable is not None:
+        return preprocess_data, ClimateVariable
 
+    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data as runtime_preprocess_data
+    from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable as runtime_climate_variable
+
+    preprocess_data = runtime_preprocess_data
+    ClimateVariable = runtime_climate_variable
+    PREPROCESS_AVAILABLE = True
     return preprocess_data, ClimateVariable
 
 PRECIP_COL_CANDIDATES = ['precipitation', 'precip', 'pr', 'rainfall']
