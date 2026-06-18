@@ -179,10 +179,10 @@ Notebook-safe example:
 ```python
 from datetime import date
 
-from climate_tookit.fetch_data import fetch_data
+from climate_tookit import fetch_climate_data
 from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
-df = fetch_data(
+df = fetch_climate_data(
     source="chirps_v3_daily_rnl",
     location_coord=(-1.286, 36.817),
     variables=[ClimateVariable.precipitation],
@@ -205,7 +205,7 @@ form, use:
 
 - `climate-toolkit-fetch`
 - `python -m climate_tookit.fetch_data.fetch_data`
-- import-based `fetch_data(...)` API
+- top-level Python API such as `fetch_climate_data(...)`
 
 Current installed console scripts:
 
@@ -227,6 +227,16 @@ Internal helper modules such as `source_data.py`, `preprocess_data.py`,
 `transform_data.py`, `gee_xee_batch.py`, `nex_gddp_batch.py`, and
 `cache_inventory.py` remain importable for package internals and advanced
 development workflows, but they are not stable end-user CLI contracts.
+
+Top-level Python API names:
+
+- `from climate_tookit import fetch_climate_data`
+- `from climate_tookit import analyze_climate_statistics`
+- `from climate_tookit import compare_climate_periods`
+- `from climate_tookit import compare_climate_sources`
+- `from climate_tookit import evaluate_hazards`
+- `from climate_tookit import download_station_data`
+- `from climate_tookit import compare_station_to_grids`
 
 ### Cache and reuse
 
@@ -345,7 +355,7 @@ If you want cache reuse across sessions, pass a stable project-local
         <td style="padding: 8px; border: 1px solid #ccc;">4</td>
         <td style="padding: 8px; border: 1px solid #ccc;">compare_datasets</td>
         <td style="padding: 8px; border: 1px solid #ccc;">Module</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Compares datasets from various climate sources to help users select preferred datasets.</td>
+        <td style="padding: 8px; border: 1px solid #ccc;">Compares datasets from various climate sources to help users assess and select preferred datasets.</td>
       </tr>
       <tr>
         <td style="padding: 8px; border: 1px solid #ccc;">5</td>
@@ -386,7 +396,7 @@ If you want cache reuse across sessions, pass a stable project-local
       This centralized workflow enables reuse across climate analysis operations like <code>season_analysis</code>, <code>climate_statistics</code>, and <code>compare_periods</code>, ensuring consistency in results and reducing duplication of effort.
     </p>
     <p>
-      The <code>compare_datasets</code> module is reserved for future implementation. Its placement in the diagram demonstrates its anticipated integration with existing components, providing the ability to assess and select preferred data sources.
+      The <code>compare_datasets</code> module now exists as an active comparison workflow layered on top of the shared fetch pipeline. Its placement in the diagram still reflects its integration point with existing components, especially for assessing and selecting preferred historical data sources.
     </p>
   </div>
 </div>
