@@ -39,8 +39,6 @@ from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
     default_ensemble_models_for_location,
 )
-from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 
 @contextlib.contextmanager
@@ -66,14 +64,11 @@ def _quiet_fetch_logs():
         for name, lvl in prev_levels.items():
             logging.getLogger(name).setLevel(lvl)
 
-PREPROCESS_AVAILABLE = True
+def _import_preprocess_runtime():
+    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+    from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
-try:
-    import matplotlib.pyplot as plt
-    from matplotlib.ticker import MaxNLocator
-    MATPLOTLIB_AVAILABLE = True
-except ImportError:
-    MATPLOTLIB_AVAILABLE = False
+    return preprocess_data, ClimateVariable
 
 PRECIP_COL_CANDIDATES = ['precipitation', 'precip', 'pr', 'rainfall']
 TMAX_COL_CANDIDATES = ['max_temperature', 'tmax', 'tasmax', 'temperature_max']
@@ -86,6 +81,15 @@ PALETTE = {
     'tavg': '#F4A261',
     'tmin': '#3BB273',
 }
+
+
+def _load_matplotlib():
+    try:
+        import matplotlib.pyplot as plt
+        from matplotlib.ticker import MaxNLocator
+    except ImportError:
+        return None, None
+    return plt, MaxNLocator
 
 SSP_SCENARIOS: List[str] = ['ssp126', 'ssp245', 'ssp585', 'historical']
 SCENARIO_ALIASES: Dict[str, str] = {
@@ -143,9 +147,7 @@ def calculate_annual_statistics(
     Calculate annual statistics for a single year.
     Works with partial data - accepts datasets with only precipitation, only temperature, or both.
     """
-    if not PREPROCESS_AVAILABLE:
-        raise Exception("Preprocessing pipeline required")
-
+    preprocess_data, ClimateVariable = _import_preprocess_runtime()
     if variables is None:
         variables = [
             ClimateVariable.precipitation,
@@ -319,7 +321,8 @@ def plot_annual_timeseries(
     output_path: str
 ) -> bool:
     """Plot annual precipitation totals and annual mean temperature over the period."""
-    if not MATPLOTLIB_AVAILABLE:
+    plt, MaxNLocator = _load_matplotlib()
+    if plt is None or MaxNLocator is None:
         print("  (matplotlib not available — skipping annual time-series plot)")
         return False
     years = [s['year'] for s in annual_stats]
@@ -377,7 +380,8 @@ def plot_monthly_climatology(
     output_path: str
 ) -> bool:
     """Plot monthly climatology: bar chart for precipitation, line plot for temperature."""
-    if not MATPLOTLIB_AVAILABLE:
+    plt, _ = _load_matplotlib()
+    if plt is None:
         print("  (matplotlib not available — skipping monthly climatology plot)")
         return False
 

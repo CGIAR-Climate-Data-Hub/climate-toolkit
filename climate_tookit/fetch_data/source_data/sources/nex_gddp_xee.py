@@ -60,9 +60,8 @@ from .xee_common import (
     progress_bar,
 )
 from .utils import models
-from .utils.settings import Settings, set_logging
+from .utils.settings import Settings
 
-set_logging()
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "ACCESS-CM2"

@@ -20,7 +20,6 @@ import sys
 import math
 import json
 import argparse
-import warnings
 from datetime import datetime, date
 from pathlib import Path
 from time import perf_counter
@@ -29,7 +28,6 @@ from typing import Tuple, Dict, List, Any, Optional
 import pandas as pd
 from climate_tookit.season_analysis.season_identity import build_season_identity
 import numpy as np
-warnings.filterwarnings("ignore")
 
 from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note
 from climate_tookit.crop_calendar.ggcmi import (

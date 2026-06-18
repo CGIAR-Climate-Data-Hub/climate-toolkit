@@ -11,9 +11,8 @@ import logging
 from datetime import date
 
 from .utils import models
-from .utils.settings import Settings, set_logging
+from .utils.settings import Settings
 
-set_logging()
 logger = logging.getLogger(__name__)
 
 

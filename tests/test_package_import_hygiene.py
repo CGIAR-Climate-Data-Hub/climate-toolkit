@@ -1,9 +1,11 @@
 import contextlib
 import importlib
 import io
+import logging
 import sys
 import types
 import unittest
+import warnings
 
 
 def _install_test_stubs():
@@ -45,11 +47,24 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
+import numpy  # noqa: F401
+import pandas  # noqa: F401
+import requests  # noqa: F401
+
 
 class PackageImportHygieneTests(unittest.TestCase):
     MODULES = [
         "climate_tookit.climatology",
         "climate_tookit.climatology.long_term_climatology",
+        "climate_tookit.fetch_data.gee_xee_batch",
+        "climate_tookit.fetch_data.nex_gddp_batch",
+        "climate_tookit.fetch_data.source_data.sources.gee",
+        "climate_tookit.fetch_data.source_data.sources.soil_grid",
+        "climate_tookit.fetch_data.source_data.sources.chirps",
+        "climate_tookit.fetch_data.source_data.sources.chirts",
+        "climate_tookit.fetch_data.source_data.sources.imerg",
+        "climate_tookit.fetch_data.source_data.sources.terraclimate",
+        "climate_tookit.fetch_data.source_data.sources.nex_gddp_xee",
         "climate_tookit.season_analysis.seasons",
         "climate_tookit.season_analysis.ensemble",
         "climate_tookit.compare_periods.periods",
@@ -65,6 +80,9 @@ class PackageImportHygieneTests(unittest.TestCase):
         for module_name in self.MODULES:
             with self.subTest(module=module_name):
                 before_path = list(sys.path)
+                before_root_level = logging.root.level
+                before_root_handlers = list(logging.root.handlers)
+                before_warning_filters = list(warnings.filters)
                 existing = sys.modules.get(module_name)
                 stdout = io.StringIO()
                 stderr = io.StringIO()
@@ -76,6 +94,9 @@ class PackageImportHygieneTests(unittest.TestCase):
                 self.assertEqual(module_name, mod.__name__)
                 self.assertEqual("", stdout.getvalue())
                 self.assertEqual(before_path, list(sys.path))
+                self.assertEqual(before_root_level, logging.root.level)
+                self.assertEqual(before_root_handlers, list(logging.root.handlers))
+                self.assertEqual(before_warning_filters, list(warnings.filters))
 
 
 if __name__ == "__main__":

@@ -46,12 +46,9 @@ import numpy as np
 import math
 import argparse
 import sys
-import warnings
 from datetime import datetime, date, timedelta
 from typing import Tuple, Dict, List, Any, Optional
 from pathlib import Path
-
-warnings.filterwarnings("ignore")
 
 from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
 from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note

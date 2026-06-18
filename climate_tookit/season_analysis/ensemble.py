@@ -8,7 +8,7 @@ Use --models / --scenarios / --exclude-models to narrow.
 Use --fixed-season for fixed calendar windows (single, two-season, year-crossing).
 """
 
-import argparse, io, json, math, re, statistics, sys, warnings
+import argparse, io, json, math, re, statistics, sys
 from contextlib import contextmanager, redirect_stdout
 from datetime import date, datetime
 from pathlib import Path
@@ -16,8 +16,6 @@ from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
-
-warnings.filterwarnings("ignore")
 
 import climate_tookit.season_analysis.seasons as seasons
 from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
