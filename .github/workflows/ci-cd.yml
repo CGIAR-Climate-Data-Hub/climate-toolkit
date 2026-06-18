@@ -38,6 +38,7 @@ jobs:
 
       - name: Smoke installed console scripts
         run: |
+          python -m climate_tookit --help > /dev/null
           scripts=(
             climate-toolkit-fetch
             climate-toolkit-seasons
