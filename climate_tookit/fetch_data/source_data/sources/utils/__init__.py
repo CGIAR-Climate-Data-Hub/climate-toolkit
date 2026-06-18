@@ -1,6 +1,8 @@
-"""Shared source-data models and settings.
+"""Internal shared source-data models and settings.
 
 Keep package root lightweight. Resolve model/settings exports lazily.
+Importable under installed-package shape for toolkit internals, but not stable
+end-user surface.
 """
 
 from __future__ import annotations

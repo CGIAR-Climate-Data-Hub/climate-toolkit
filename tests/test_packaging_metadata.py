@@ -26,6 +26,27 @@ class PackagingMetadataTests(unittest.TestCase):
         "climate_tookit.fetch_data.nex_gddp_batch:main",
         "climate_tookit.fetch_data.cache_inventory:main",
     }
+    INTERNAL_HELPER_PACKAGE_EXPORTS = {
+        "climate_tookit.fetch_data.preprocess_data": {
+            "run_preprocess_data",
+            "run_preprocess_transformed_data",
+        },
+        "climate_tookit.fetch_data.transform_data": {
+            "default_variables",
+            "load_variable_mappings",
+            "run_transform_data",
+        },
+        "climate_tookit.fetch_data.source_data": {
+            "SourceData",
+        },
+        "climate_tookit.fetch_data.source_data.sources.utils": {
+            "Settings",
+            "ClimateDataset",
+            "ClimateVariable",
+            "parse_variable_token",
+            "canonical_climate_variable_name",
+        },
+    }
     EXPLICIT_SUBPACKAGE_EXPORTS = {
         "climate_tookit.calculate_hazards": {"calculate_hazards"},
         "climate_tookit.climate_statistics": {"analyze_climate_statistics"},
@@ -196,6 +217,18 @@ class PackagingMetadataTests(unittest.TestCase):
                 for export_name in expected_exports:
                     exported = getattr(module, export_name)
                     self.assertTrue(callable(exported))
+                    self.assertIn(export_name, dir(module))
+
+    def test_internal_helper_packages_remain_importable_under_installed_package_shape(self):
+        for module_name, expected_exports in self.INTERNAL_HELPER_PACKAGE_EXPORTS.items():
+            with self.subTest(module=module_name):
+                module = importlib.import_module(module_name)
+                module_path = Path(inspect.getfile(module))
+                self.assertEqual("__init__.py", module_path.name)
+                self.assertTrue(expected_exports.issubset(set(getattr(module, "__all__", []))))
+                for export_name in expected_exports:
+                    exported = getattr(module, export_name)
+                    self.assertIsNotNone(exported)
                     self.assertIn(export_name, dir(module))
 
 

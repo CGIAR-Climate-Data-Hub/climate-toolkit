@@ -1,6 +1,17 @@
-"""Lazy exports for transform_data package."""
+"""Internal transform helpers.
 
-__all__ = ["default_variables", "load_variable_mappings", "transform_data"]
+This package is importable and tested under installed-package shape, but it is
+not end-user stable CLI surface. Prefer top-level APIs or public console
+scripts for user workflows.
+"""
+
+__all__ = ["default_variables", "load_variable_mappings", "transform_data", "run_transform_data"]
+
+
+def run_transform_data(*args, **kwargs):
+    from .transform_data import transform_data as _transform_data
+
+    return _transform_data(*args, **kwargs)
 
 
 def __getattr__(name):
@@ -18,3 +29,7 @@ def __getattr__(name):
         }
         return exports[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(__all__))
