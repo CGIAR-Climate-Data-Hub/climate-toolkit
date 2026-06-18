@@ -61,24 +61,47 @@ climate_tookit/
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/Sammyjoseph999/climate-toolkit.git
+   git clone https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git
    cd climate-toolkit
    ```
 
-2. **Set up a virtual environment**
+2. **Create virtual environment**
 
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   python -m venv .venv
    ```
 
-3. **Install dependencies**
+3. **Activate virtual environment**
+
+   macOS / Linux:
 
    ```bash
-   pip install -r requirements.txt
+   source .venv/bin/activate
    ```
 
-4. **Create and configure your `.env`**
+   Windows PowerShell:
+
+   ```powershell
+   .\.venv\Scripts\Activate.ps1
+   ```
+
+   If PowerShell blocks script activation for current shell, run:
+
+   ```powershell
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   .\.venv\Scripts\Activate.ps1
+   ```
+
+   Project examples and local commands now assume environment name is `.venv`.
+
+4. **Install dependencies**
+
+   ```bash
+   python -m pip install --upgrade pip
+   python -m pip install -r requirements.txt
+   ```
+
+5. **Create and configure your `.env`**
 
    ```bash
    cp .env.example .env
