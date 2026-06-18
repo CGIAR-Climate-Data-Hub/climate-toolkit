@@ -32,8 +32,6 @@ from typing import Dict, Any, Tuple, List, Optional
 
 import pandas as pd
 
-logging.disable(logging.INFO)
-
 current_dir  = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(os.path.dirname(current_dir))
 sys.path.insert(0, project_root)
