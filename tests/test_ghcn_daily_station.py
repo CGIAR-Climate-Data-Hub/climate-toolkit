@@ -944,6 +944,141 @@ class PreprocessClimateDataTests(unittest.TestCase):
         self.assertIsNotNone(result["candidate_review_artifacts"])
         self.assertEqual("Uploaded Station", result["station_summary"][0]["station_name"])
 
+    def test_compare_station_to_grids_list_mode_returns_candidate_review_only(self):
+        candidate_frame = pd.DataFrame(
+            {
+                "station_source": ["gsod", "gsod"],
+                "station_id": ["63740099999", "63741099999"],
+                "station_name": ["JOMO KENYATTA INTL", "NAIROBI/DAGORETTI"],
+                "lat": [-1.32, -1.30],
+                "lon": [36.93, 36.75],
+                "distance_km": [11.64, 7.61],
+                "elevation_diff_m": [43.0, 131.0],
+                "threshold_status": ["strict_all_fields", "below_threshold"],
+                "requested_fields": [
+                    ["precipitation", "max_temperature", "min_temperature"],
+                    ["precipitation", "max_temperature", "min_temperature"],
+                ],
+                "min_completeness_ratio": [0.93, 0.47],
+                "mean_completeness_ratio": [0.97, 0.58],
+                "field_counts": [
+                    {
+                        "precipitation": 3386,
+                        "max_temperature": 3614,
+                        "min_temperature": 3614,
+                    },
+                    {
+                        "precipitation": 1735,
+                        "max_temperature": 2338,
+                        "min_temperature": 2338,
+                    },
+                ],
+                "expected_days": [3653, 3653],
+                "precipitation_completeness_ratio": [0.93, 0.47],
+                "max_temperature_completeness_ratio": [0.99, 0.64],
+                "min_temperature_completeness_ratio": [0.99, 0.64],
+            }
+        )
+
+        orig_download_station_data = station_compare.download_station_data
+        orig_scope_summary = station_compare.summarize_station_search_scope
+        station_compare.download_station_data = lambda **kwargs: candidate_frame.copy()
+        station_compare.summarize_station_search_scope = lambda **kwargs: {
+            "search_radius_km": 50.0,
+            "candidate_count": len(candidate_frame),
+        }
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                prefix = str(Path(tmpdir) / "candidate_review")
+                result = station_compare.compare_station_to_grids(
+                    station_source="auto",
+                    station_coord=(-1.286, 36.817),
+                    date_from=date(2020, 1, 1),
+                    date_to=date(2020, 12, 31),
+                    grid_sources=["nasa_power"],
+                    variables=[
+                        ClimateVariable.precipitation,
+                        ClimateVariable.max_temperature,
+                        ClimateVariable.min_temperature,
+                    ],
+                    selection_mode="list",
+                    candidate_report_prefix=prefix,
+                    verbose=False,
+                )
+                self.assertTrue(Path(result["candidate_review_artifacts"]["html"]).exists())
+        finally:
+            station_compare.download_station_data = orig_download_station_data
+            station_compare.summarize_station_search_scope = orig_scope_summary
+
+        self.assertEqual("list", result["selection_mode"])
+        self.assertEqual(2, len(result["candidate_stations"]))
+        self.assertEqual([], result["metrics"])
+        self.assertTrue(any("candidate review only" in warning for warning in result["warnings"]))
+
+    def test_weather_station_compare_main_accepts_report_prefix_alias(self):
+        orig_compare = station_compare.compare_station_to_grids
+        orig_argv = sys.argv[:]
+        captured = {}
+
+        station_compare.compare_station_to_grids = lambda **kwargs: captured.update(kwargs) or {
+            "anchor_location": {"lat": -1.286, "lon": 36.817},
+            "date_from": "2020-01-01",
+            "date_to": "2020-01-03",
+            "station_source": "auto",
+            "selection_mode": "list",
+            "selection_strategy": "all_vars_single_station",
+            "auto_select": "auto-1",
+            "target_elevation_m": None,
+            "candidate_stations": [],
+            "candidate_review_artifacts": None,
+            "selected_stations_by_variable": [],
+            "station_summary": [],
+            "grid_sources": ["nasa_power"],
+            "grid_source_metadata": [],
+            "precip_source": "chirps_v3_daily_rnl",
+            "temp_source": "agera_5",
+            "wet_day_threshold_mm": 1.0,
+            "min_overlap_days": 30,
+            "grid_fetch_summary": [],
+            "grid_failures": [],
+            "warnings": [],
+            "confidence_summary": {},
+            "window_status_summary": {},
+            "metrics": [],
+            "monthly_metrics": [],
+            "seasonal_metrics": [],
+            "annual_metrics": [],
+            "xclim_available": False,
+            "xclim_precip_indices": [],
+            "pooled_reference_method": "date_mean_across_selected_stations",
+            "pooled_daily_metrics": [],
+            "pooled_monthly_metrics": [],
+            "pooled_seasonal_metrics": [],
+            "pooled_annual_metrics": [],
+            "overall_metrics": [],
+            "use_case_rankings": [],
+        }
+        try:
+            sys.argv = [
+                "compare.py",
+                "--station-source", "auto",
+                "--station-lat", "-1.286",
+                "--station-lon", "36.817",
+                "--start", "2020-01-01",
+                "--end", "2020-01-03",
+                "--grid-source", "nasa_power",
+                "--selection-mode", "list",
+                "--report-prefix", "outputs/weather_station/nairobi_review",
+                "--quiet",
+            ]
+            exit_code = station_compare.main()
+        finally:
+            station_compare.compare_station_to_grids = orig_compare
+            sys.argv = orig_argv
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual("outputs/weather_station/nairobi_review", captured["candidate_report_prefix"])
+
     def test_compare_station_to_grids_best_per_variable_selects_different_stations(self):
         precip_candidate = pd.DataFrame(
             {
