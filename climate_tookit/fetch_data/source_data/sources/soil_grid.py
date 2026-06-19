@@ -3,13 +3,9 @@
 import logging
 from datetime import date
  
-from dotenv import load_dotenv
- 
 from .utils import models
-from .utils.settings import Settings, set_logging
- 
-load_dotenv()
-set_logging()
+from .utils.settings import Settings
+
 logger = logging.getLogger(__name__)
  
  

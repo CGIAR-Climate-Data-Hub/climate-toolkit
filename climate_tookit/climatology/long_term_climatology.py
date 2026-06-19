@@ -40,6 +40,16 @@ from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     default_ensemble_models_for_location,
 )
 
+try:
+    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+    from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+
+    PREPROCESS_AVAILABLE = True
+except Exception:
+    preprocess_data = None
+    ClimateVariable = None
+    PREPROCESS_AVAILABLE = False
+
 
 @contextlib.contextmanager
 def _quiet_fetch_logs():
@@ -64,25 +74,18 @@ def _quiet_fetch_logs():
         for name, lvl in prev_levels.items():
             logging.getLogger(name).setLevel(lvl)
 
-try:
-    from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
-    from ..fetch_data.source_data.sources.utils.models import ClimateVariable
-    PREPROCESS_AVAILABLE = True
-except ImportError:
-    try:
-        from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-        from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
-        PREPROCESS_AVAILABLE = True
-    except ImportError:
-        PREPROCESS_AVAILABLE = False
-        print("Warning: Preprocessing pipeline not available")
+def _import_preprocess_runtime():
+    global preprocess_data, ClimateVariable, PREPROCESS_AVAILABLE
+    if PREPROCESS_AVAILABLE and preprocess_data is not None and ClimateVariable is not None:
+        return preprocess_data, ClimateVariable
 
-try:
-    import matplotlib.pyplot as plt
-    from matplotlib.ticker import MaxNLocator
-    MATPLOTLIB_AVAILABLE = True
-except ImportError:
-    MATPLOTLIB_AVAILABLE = False
+    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data as runtime_preprocess_data
+    from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable as runtime_climate_variable
+
+    preprocess_data = runtime_preprocess_data
+    ClimateVariable = runtime_climate_variable
+    PREPROCESS_AVAILABLE = True
+    return preprocess_data, ClimateVariable
 
 PRECIP_COL_CANDIDATES = ['precipitation', 'precip', 'pr', 'rainfall']
 TMAX_COL_CANDIDATES = ['max_temperature', 'tmax', 'tasmax', 'temperature_max']
@@ -95,6 +98,15 @@ PALETTE = {
     'tavg': '#F4A261',
     'tmin': '#3BB273',
 }
+
+
+def _load_matplotlib():
+    try:
+        import matplotlib.pyplot as plt
+        from matplotlib.ticker import MaxNLocator
+    except ImportError:
+        return None, None
+    return plt, MaxNLocator
 
 SSP_SCENARIOS: List[str] = ['ssp126', 'ssp245', 'ssp585', 'historical']
 SCENARIO_ALIASES: Dict[str, str] = {
@@ -152,9 +164,7 @@ def calculate_annual_statistics(
     Calculate annual statistics for a single year.
     Works with partial data - accepts datasets with only precipitation, only temperature, or both.
     """
-    if not PREPROCESS_AVAILABLE:
-        raise Exception("Preprocessing pipeline required")
-
+    preprocess_data, ClimateVariable = _import_preprocess_runtime()
     if variables is None:
         variables = [
             ClimateVariable.precipitation,
@@ -328,7 +338,8 @@ def plot_annual_timeseries(
     output_path: str
 ) -> bool:
     """Plot annual precipitation totals and annual mean temperature over the period."""
-    if not MATPLOTLIB_AVAILABLE:
+    plt, MaxNLocator = _load_matplotlib()
+    if plt is None or MaxNLocator is None:
         print("  (matplotlib not available — skipping annual time-series plot)")
         return False
     years = [s['year'] for s in annual_stats]
@@ -386,7 +397,8 @@ def plot_monthly_climatology(
     output_path: str
 ) -> bool:
     """Plot monthly climatology: bar chart for precipitation, line plot for temperature."""
-    if not MATPLOTLIB_AVAILABLE:
+    plt, _ = _load_matplotlib()
+    if plt is None:
         print("  (matplotlib not available — skipping monthly climatology plot)")
         return False
 
@@ -1150,7 +1162,7 @@ def print_ensemble_climatology_report(result: Dict[str, Any]) -> None:
     _print_per_model_monthly_breakdown(result)
     print_climatology_report(result)
 
-def main():
+def main() -> int:
     """Command-line interface for climatology analysis."""
     parser = argparse.ArgumentParser(
         description='Calculate long-term climate normals (WMO 30-year standards)',
@@ -1197,12 +1209,12 @@ Examples:
         lat, lon = map(float, args.location.split(','))
     except ValueError:
         print("Error: Invalid location format. Use 'lat,lon' format.")
-        sys.exit(1)
+        return 1
 
     # Validate years
     if args.end_year < args.start_year:
         print("Error: End year must be >= start year")
-        sys.exit(1)
+        return 1
 
     n_years = args.end_year - args.start_year + 1
     if n_years < 10:
@@ -1228,10 +1240,10 @@ Examples:
         if invalid:
             print(f"Error: invalid scenario(s) {invalid}. "
                   f"Accepted: {sorted(SCENARIO_ALIASES)}")
-            sys.exit(1)
+            return 1
         if not scenarios:
             print("Error: no scenarios provided.")
-            sys.exit(1)
+            return 1
 
         all_results: Dict[str, Any] = {}
         any_ok = False
@@ -1335,8 +1347,8 @@ Examples:
             print(f"✓ JSON data saved to {args.output}")
 
         if not any_ok:
-            sys.exit(1)
-        return
+            return 1
+        return 0
 
     # Single-source climatology (non-NEX-GDDP)
     result = calculate_climatology(
@@ -1365,9 +1377,10 @@ Examples:
             with open(args.output, 'w') as f:
                 json.dump(result, f, indent=2, default=str)
             print(f"✓ JSON data saved to {args.output}")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
     
 # Calculate 1991-2020 climatology (current WMO standard)
 # python -m climate_tookit.climatology.long_term_climatology --location="-1.286,36.817" --start-year 1991 --end-year 2020 --source nasa_power

@@ -1,5 +1,8 @@
 import unittest
+import importlib
+import inspect
 from pathlib import Path
+from typing import get_type_hints
 
 try:
     import tomllib
@@ -13,6 +16,27 @@ REQUIREMENTS_PATH = REPO_ROOT / "requirements.txt"
 
 
 class PackagingMetadataTests(unittest.TestCase):
+    INTERNAL_HELPER_ENTRYPOINTS = {
+        "climate_tookit.fetch_data.source_data.source_data:main",
+        "climate_tookit.fetch_data.preprocess_data.preprocess_data:main",
+        "climate_tookit.fetch_data.transform_data.transform_data:main",
+        "climate_tookit.fetch_data.gee_xee_batch:main",
+        "climate_tookit.fetch_data.nex_gddp_batch:main",
+        "climate_tookit.fetch_data.cache_inventory:main",
+    }
+    EXPLICIT_SUBPACKAGE_EXPORTS = {
+        "climate_tookit.calculate_hazards": {"calculate_hazards"},
+        "climate_tookit.climate_statistics": {"analyze_climate_statistics"},
+        "climate_tookit.compare_datasets": {"compare_sources", "print_report"},
+        "climate_tookit.compare_periods": {"compare"},
+        "climate_tookit.season_analysis": {
+            "detect_onset_cessation",
+            "fetch_and_analyze_years",
+            "fetch_and_analyze_years_fixed",
+            "parse_fixed_seasons",
+        },
+    }
+
     def test_pyproject_runtime_dependencies_cover_requirements_runtime_set(self):
         with PYPROJECT_PATH.open("rb") as handle:
             pyproject = tomllib.load(handle)
@@ -52,8 +76,62 @@ class PackagingMetadataTests(unittest.TestCase):
             "climate-toolkit-hazards-ensemble": "climate_tookit.calculate_hazards.ensemble_hazards:main",
             "climate-toolkit-weather-station-download": "climate_tookit.weather_station.download:main",
             "climate-toolkit-weather-station-compare": "climate_tookit.weather_station.compare:main",
+            "climate-toolkit-compare-datasets": "climate_tookit.compare_datasets.compare_datasets:main",
+            "climate-toolkit-climatology": "climate_tookit.climatology.long_term_climatology:main",
         }
         self.assertEqual(expected, scripts)
+
+    def test_console_script_modules_expose_main_as_int_returning_entrypoint(self):
+        with PYPROJECT_PATH.open("rb") as handle:
+            pyproject = tomllib.load(handle)
+
+        scripts = pyproject["project"]["scripts"]
+        for entrypoint in scripts.values():
+            module_name, function_name = entrypoint.split(":")
+            with self.subTest(entrypoint=entrypoint):
+                module = importlib.import_module(module_name)
+                entrypoint_fn = getattr(module, function_name)
+                self.assertTrue(callable(entrypoint_fn))
+                self.assertEqual(int, get_type_hints(entrypoint_fn).get("return"))
+
+    def test_internal_helper_clis_are_not_promoted_as_public_console_scripts(self):
+        with PYPROJECT_PATH.open("rb") as handle:
+            pyproject = tomllib.load(handle)
+
+        scripts = set(pyproject["project"]["scripts"].values())
+        self.assertTrue(self.INTERNAL_HELPER_ENTRYPOINTS.isdisjoint(scripts))
+
+    def test_top_level_package_exposes_stable_public_api(self):
+        package = importlib.import_module("climate_tookit")
+        self.assertTrue(hasattr(package, "__version__"))
+        self.assertIsInstance(package.__version__, str)
+
+        expected_exports = {
+            "fetch_climate_data",
+            "analyze_climate_statistics",
+            "compare_climate_sources",
+            "compare_climate_periods",
+            "evaluate_hazards",
+            "download_station_data",
+            "compare_station_to_grids",
+        }
+        self.assertTrue(expected_exports.issubset(set(package.__all__)))
+
+        for export_name in expected_exports:
+            with self.subTest(export=export_name):
+                exported = getattr(package, export_name)
+                self.assertTrue(callable(exported))
+
+    def test_main_public_subpackages_have_explicit_init_and_lazy_exports(self):
+        for module_name, expected_exports in self.EXPLICIT_SUBPACKAGE_EXPORTS.items():
+            with self.subTest(module=module_name):
+                module = importlib.import_module(module_name)
+                module_path = Path(inspect.getfile(module))
+                self.assertEqual("__init__.py", module_path.name)
+                self.assertTrue(expected_exports.issubset(set(getattr(module, "__all__", []))))
+                for export_name in expected_exports:
+                    exported = getattr(module, export_name)
+                    self.assertTrue(callable(exported))
 
 
 if __name__ == "__main__":

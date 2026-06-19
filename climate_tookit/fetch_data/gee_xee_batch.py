@@ -30,7 +30,7 @@ from .multi_site import (
 from .preprocess_data.preprocess_data import preprocess_transformed_data
 from .runtime_notes import build_historical_cache_note
 from .source_data.sources.utils.models import ClimateDataset
-from .source_data.sources.utils.settings import Settings, set_logging
+from .source_data.sources.utils.settings import Settings
 from .source_data.sources.xee_common import (
     DEFAULT_EE_OPT_URL,
     format_ee_setup_error,
@@ -43,7 +43,6 @@ from .source_data.sources.xee_common import (
 )
 from .transform_data.transform_data import default_variables, load_variable_mappings
 
-set_logging()
 logger = logging.getLogger(__name__)
 
 VALID_STAGES = ("raw", "transformed", "preprocessed")
@@ -890,7 +889,7 @@ def fetch_gee_xee_batch_data(
     return preprocessed_df, summary_df, manifest_df
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="Package-native many-site GEE Xee extraction."
     )

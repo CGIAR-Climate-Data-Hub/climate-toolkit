@@ -8,20 +8,15 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional, Union
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 import ee
 import numpy as np
 import pandas as pd
 
 from .utils import models
 from .utils.models import Cadence
-from .utils.settings import Settings, set_logging
+from .utils.settings import Settings
 from ...multi_site import normalize_cache_coord, safe_coord_fragment
 
-set_logging()
 logger = logging.getLogger(__name__)
 
 

@@ -1,10 +1,8 @@
-"""Climate Data Preprocessing Module
+"""Internal preprocessing helper for fetch pipeline.
 
-Pre-processes raw source data from climate databases into analysis-ready format.
-Receives transformed data from transform_data module and applies cleaning,
-unit normalization, and quality control operations.
-
-Pipeline: Receive Transformed Data → Clean → Unit Conversion → Quality Control → Analysis-Ready Output
+Converts transformed source output into analysis-ready frames. Library callers
+may import this helper directly, but it is not stable end-user CLI surface.
+End users should prefer `climate-toolkit-fetch` or higher-level analysis CLIs.
 """
 
 import os

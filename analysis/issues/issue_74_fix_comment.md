@@ -1,3 +1,10 @@
+Status note:
+
+- historical branch note
+- README guidance has since moved further:
+  - public CLI remains `climate-toolkit-fetch`
+  - notebook/public Python guidance now prefers top-level API names such as `from climate_tookit import fetch_climate_data`
+
 Branch fix now exists on `codex-nex-gddp-access-rnd`.
 
 Resolution choice:

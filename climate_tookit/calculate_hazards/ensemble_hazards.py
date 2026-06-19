@@ -47,30 +47,23 @@ from climate_tookit.calculate_hazards.hazards import (
     _shift_iso_date,
     _print_hazard_season_detection_summary,
 )
-
-PREPROCESS_AVAILABLE = False
-_PREPROCESS_IMPORT_ERROR = ""
 try:
     from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-    from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
-    from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
-        AVAILABLE_MODELS as MODELS,
-        default_ensemble_models_for_location,
-    )
     PREPROCESS_AVAILABLE = True
-except Exception as exc:
-    _PREPROCESS_IMPORT_ERROR = str(exc)
+except Exception:
+    preprocess_data = None
+    PREPROCESS_AVAILABLE = False
+from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
+    AVAILABLE_MODELS as MODELS,
+    default_ensemble_models_for_location,
+)
+from climate_tookit.season_analysis.seasons import (
+    fetch_and_analyze_years,
+    detect_onset_cessation,
+)
 
-_FAY_ERR = ""
-try:
-    from climate_tookit.season_analysis.seasons import (
-        fetch_and_analyze_years,
-        detect_onset_cessation,
-    )
-    HAS_FAY = True
-except Exception as exc:
-    HAS_FAY = False
-    _FAY_ERR = str(exc)
+HAS_FAY = callable(detect_onset_cessation)
 
 SCENARIOS = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
 
@@ -194,8 +187,6 @@ def _fetch(lat: float, lon: float, start: str, end: str,
 def _detect_windows(lat: float, lon: float, sy: int, ey: int,
                     model: str, scenario: str) -> List[Dict]:
     """Auto-detect via fetch_and_analyze_years with NEX-GDDP source."""
-    if not HAS_FAY:
-        raise RuntimeError(f"auto-detect needs seasons.py -- {_FAY_ERR}")
     try:
         seasons_dict, _ = fetch_and_analyze_years(
             lat, lon, start_year=sy, end_year=ey,
@@ -276,7 +267,7 @@ def _evaluate(crop: str, lat: float, lon: float,
         ].copy()
         if len(window_df) < 14:
             eto_detection_note = "ETO window too short for detection (<14 days)."
-        elif HAS_FAY:
+        else:
             try:
                 eto_seasons = detect_onset_cessation(window_df)
                 if not eto_seasons:
@@ -284,8 +275,6 @@ def _evaluate(crop: str, lat: float, lon: float,
             except Exception as exc:
                 eto_detection_note = str(exc)
                 eto_seasons = []
-        else:
-            eto_detection_note = "Season analysis module unavailable for ETO sub-season detection."
     stats, count_window = _apply_water_balance_window_mode(
         stats,
         df,
@@ -945,8 +934,7 @@ def print_results(r: Dict) -> None:
         _print_overall_summary(r['overall_ensemble'], multi_scenario=False)
     print(f"\n{'='*70}\n")
 
-# CLI
-if __name__ == "__main__":
+def main() -> int:
     p = argparse.ArgumentParser(
         description='Ensemble of hazards.py across NEX-GDDP models x scenarios.',
     )
@@ -985,7 +973,7 @@ if __name__ == "__main__":
     if args.list_models:
         print("Models:");    [print(f"  {m}") for m in MODELS]
         print("\nScenarios:"); [print(f"  {s}") for s in SCENARIOS]
-        sys.exit(0)
+        return 0
 
     missing = [n for n, v in (('--location',  args.location),
                               ('--start-year', args.start_year),
@@ -1020,6 +1008,11 @@ if __name__ == "__main__":
         with open(args.output, 'w') as f:
             json.dump(result, f, indent=2, default=str)
         print(f"Saved to: {args.output}")
+    return 1 if "error" in result else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
         
 # NOTE: the 1st command in a section includes all models/scenarios while the 2nd allows selection  
    

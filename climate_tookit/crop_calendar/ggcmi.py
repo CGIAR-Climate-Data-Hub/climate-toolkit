@@ -4,18 +4,23 @@ from __future__ import annotations
 
 import json
 from datetime import date, timedelta
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
+from climate_tookit._resources import (
+    load_json_resource,
+    package_resource_exists,
+    packaged_resource_path,
+)
 from .registry import get_crop_support, normalize_crop_name
 
 
-PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = PACKAGE_ROOT / "data" / "ggcmi_phase3"
-PARQUET_PATH = DATA_DIR / "crop_calendar.parquet"
-MANIFEST_PATH = DATA_DIR / "crop_calendar_manifest.json"
+GGCMI_DATA_PACKAGE = "climate_tookit.data.ggcmi_phase3"
+PARQUET_RESOURCE = "crop_calendar.parquet"
+MANIFEST_RESOURCE = "crop_calendar_manifest.json"
 
 DATA_SOURCE_USED_LABELS = {
     1: "MIRCA",
@@ -36,25 +41,28 @@ class GGCMICalendarAssetMissingError(FileNotFoundError):
 
 
 def asset_paths() -> dict[str, Path]:
-    return {"data_dir": DATA_DIR, "parquet": PARQUET_PATH, "manifest": MANIFEST_PATH}
+    parquet = Path(str(files(GGCMI_DATA_PACKAGE).joinpath(PARQUET_RESOURCE)))
+    manifest = Path(str(files(GGCMI_DATA_PACKAGE).joinpath(MANIFEST_RESOURCE)))
+    return {"data_dir": parquet.parent, "parquet": parquet, "manifest": manifest}
 
 
 def asset_available() -> bool:
-    return PARQUET_PATH.exists() and MANIFEST_PATH.exists()
+    return package_resource_exists(GGCMI_DATA_PACKAGE, PARQUET_RESOURCE) and package_resource_exists(
+        GGCMI_DATA_PACKAGE, MANIFEST_RESOURCE
+    )
 
 
 def _require_asset() -> None:
     if not asset_available():
         raise GGCMICalendarAssetMissingError(
-            f"GGCMI calendar asset not found at {PARQUET_PATH}. "
+            f"GGCMI calendar asset not found in package {GGCMI_DATA_PACKAGE}:{PARQUET_RESOURCE}. "
             "Build it first with analysis/build_ggcmi_phase3_asset.py."
         )
 
 
 def load_calendar_manifest() -> dict[str, Any]:
     _require_asset()
-    with MANIFEST_PATH.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    return load_json_resource(GGCMI_DATA_PACKAGE, MANIFEST_RESOURCE)
 
 
 def load_calendar_table(
@@ -64,9 +72,6 @@ def load_calendar_table(
     system: str | None = None,
     path: Path | None = None,
 ) -> pd.DataFrame:
-    parquet_path = path or PARQUET_PATH
-    if path is None:
-        _require_asset()
     filters = []
     if crop_name is not None:
         crop = get_crop_support(normalize_crop_name(crop_name, require_calendar=True))
@@ -78,9 +83,16 @@ def load_calendar_table(
         if normalized_system not in {"rf", "ir"}:
             raise ValueError("system must be 'rf' or 'ir'")
         filters.append(("system", "==", normalized_system))
-    if filters:
-        return pd.read_parquet(parquet_path, filters=filters)
-    return pd.read_parquet(parquet_path)
+    if path is not None:
+        if filters:
+            return pd.read_parquet(path, filters=filters)
+        return pd.read_parquet(path)
+
+    _require_asset()
+    with packaged_resource_path(GGCMI_DATA_PACKAGE, PARQUET_RESOURCE) as parquet_path:
+        if filters:
+            return pd.read_parquet(parquet_path, filters=filters)
+        return pd.read_parquet(parquet_path)
 
 
 def _month_day_from_doy(day_of_year: int, *, base_year: int = 2001) -> str:

@@ -51,10 +51,9 @@ from .source_data.sources.xee_common import (
     initialize_earth_engine as initialize_earth_engine_session,
 )
 from .source_data.sources.utils.models import ClimateVariable, parse_variable_token
-from .source_data.sources.utils.settings import Settings, set_logging
+from .source_data.sources.utils.settings import Settings
 from .transform_data.transform_data import default_variables, load_variable_mappings
 
-set_logging()
 logger = logging.getLogger(__name__)
 
 VALID_STAGES = ("raw", "transformed", "preprocessed")
@@ -70,7 +69,8 @@ MIN_SITE_BATCH_SIZE = 1
 
 def _log_progress(message: str, verbose: bool) -> None:
     if verbose:
-        logger.info(message)
+        print(message, flush=True)
+    logger.debug(message)
 
 
 def _import_ee():

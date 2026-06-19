@@ -1,4 +1,8 @@
-"""Inventory persistent local cache files for climate-toolkit fetch paths."""
+"""Internal cache inventory helper.
+
+Useful for development, diagnostics, and tests. Not part of stable end-user
+CLI contract unless promoted explicitly in packaging metadata later.
+"""
 
 from __future__ import annotations
 

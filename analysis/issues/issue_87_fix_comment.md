@@ -1,3 +1,9 @@
+Status note:
+
+- historical branch note
+- later package-refactor work removed stale availability-flag fallback pattern
+- import contract now better represented by package/import-hygiene tests than by `PREPROCESS_AVAILABLE` flag checks alone
+
 Branch fix now exists on `codex-nex-gddp-access-rnd`.
 
 What changed:

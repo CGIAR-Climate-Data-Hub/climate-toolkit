@@ -1609,7 +1609,7 @@ def _annotate_cli_timing(
     return result
 
 # CLI
-def main() -> None:
+def main() -> int:
     if "--list-models" in sys.argv:
         print("Available NEX-GDDP-CMIP6 models:")
         for i, m in enumerate(NEX_GDDP_MODELS, 1):
@@ -1620,7 +1620,7 @@ def main() -> None:
                              if c == canon and a != canon)
             extras = f"  (also: {', '.join(aliases)})" if aliases else ""
             print(f"  - {canon}{extras}")
-        sys.exit(0)
+        return 0
 
     p = argparse.ArgumentParser(
         description=(
@@ -1685,7 +1685,8 @@ def main() -> None:
     try:
         lat, lon = (float(x) for x in args.location.replace(" ", ",").split(","))
     except ValueError:
-        print("Error: --location must be 'lat,lon'"); sys.exit(1)
+        print("Error: --location must be 'lat,lon'")
+        return 1
 
     models  = [m.strip() for m in args.models.split(",")]         if args.models         else None
     exclude = [m.strip() for m in args.exclude_models.split(",")] if args.exclude_models else None
@@ -1698,11 +1699,12 @@ def main() -> None:
     if (args.focal_source and not focal_is_nexgddp
             and args.focal_source.lower() not in SUPPORTED):
         print(f"Error: --focal-source '{args.focal_source}' not supported. "
-              f"Use 'nex_gddp' or one of: {', '.join(sorted(SUPPORTED))}"); sys.exit(1)
+              f"Use 'nex_gddp' or one of: {', '.join(sorted(SUPPORTED))}")
+        return 1
     if (args.focal_source and args.focal_source.lower() == "paired"
             and (not args.focal_precip_source or not args.focal_temp_source)):
         print("Error: --focal-source=paired requires both --focal-precip-source and --focal-temp-source.")
-        sys.exit(1)
+        return 1
 
     raw_scenarios = [s.strip() for s in args.scenarios.split(",") if s.strip()]
     scenarios: List[str] = []
@@ -1715,9 +1717,11 @@ def main() -> None:
             invalid.append(s)
     if invalid:
         print(f"Error: invalid scenario(s) {invalid}. "
-              f"Accepted: {sorted(SCENARIO_ALIASES)}"); sys.exit(1)
+              f"Accepted: {sorted(SCENARIO_ALIASES)}")
+        return 1
     if not scenarios:
-        print("Error: no scenarios provided."); sys.exit(1)
+        print("Error: no scenarios provided.")
+        return 1
 
     cli_started = perf_counter()
     focal_prefetch_seconds = 0.0
@@ -1762,7 +1766,7 @@ def main() -> None:
                 print("    guidance:")
                 for item in guidance:
                     print(f"      - {item}")
-            sys.exit(1)
+            return 1
 
     all_results: Dict[str, Any] = {}
     any_ok = False
@@ -1819,7 +1823,7 @@ def main() -> None:
             any_ok = True
 
     if not any_ok:
-        sys.exit(1)
+        return 1
 
     command_total_seconds = perf_counter() - cli_started
     for scenario, result in all_results.items():
@@ -1839,9 +1843,10 @@ def main() -> None:
         with open(args.output, "w") as f:
             json.dump(payload, f, indent=2, default=str)
         print(f"✓ Saved: {args.output}")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 
 # NOTE: the 1st command in a section runs the documented NEX-GDDP model ensemble, the 2nd allows model selection.
 

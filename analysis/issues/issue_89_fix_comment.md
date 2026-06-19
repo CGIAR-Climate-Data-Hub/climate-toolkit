@@ -1,3 +1,9 @@
+Status note:
+
+- historical branch note
+- later package-refactor work removed stale `PREPROCESS_AVAILABLE` compatibility layer from `statistics.py`
+- current package state should be validated through packaging/import tests, not this old flag-specific branch note
+
 Branch fix now exists on `codex-nex-gddp-access-rnd`.
 
 What changed:

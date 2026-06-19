@@ -1,8 +1,15 @@
-import os
-import sys
+"""Internal transform helper for fetch pipeline.
+
+Maps source-native variable names and scales into toolkit canonical schema.
+Useful as library plumbing, not stable public CLI surface.
+"""
+
 from datetime import date
 from pathlib import Path
+
 import yaml
+
+from climate_tookit._resources import load_yaml_resource
 from ..source_data.source_data import SourceData
 from ..source_data.sources.nex_gddp import AVAILABLE_MODELS, SCENARIO_MAPPING
 from ..source_data.sources.utils.models import (
@@ -55,14 +62,18 @@ def validate_inputs(source, lat, lon, date_from, date_to, model, scenario):
     return errors
 
 
-def load_yaml(path: str):
-    with open(path, "r") as f:
+def load_yaml(path: str | Path):
+    with Path(path).open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
-def load_variable_mappings():
-    yaml_path = os.path.join(os.path.dirname(__file__), "data_dictionary.yaml")
-    return load_yaml(yaml_path)["source_mappings"]
+def load_variable_mappings(path: str | Path | None = None):
+    if path is None:
+        return load_yaml_resource(
+            "climate_tookit.fetch_data.transform_data",
+            "data_dictionary.yaml",
+        )["source_mappings"]
+    return load_yaml(path)["source_mappings"]
 
 
 def load_scaling_config(source: str, settings: Settings):

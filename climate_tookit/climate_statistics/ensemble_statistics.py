@@ -652,7 +652,7 @@ def print_report(result: Dict[str, Any]) -> None:
     print_annual(result.get('annual_summary', {}))
 
 # CLI
-def main() -> None:
+def main() -> int:
     if "--list-models" in sys.argv:
         print("Available NEX-GDDP CMIP6 models:")
         for i, m in enumerate(NEX_GDDP_MODELS, 1):
@@ -663,7 +663,7 @@ def main() -> None:
                              if c == canon and a != canon)
             extras = f"  (also: {', '.join(aliases)})" if aliases else ""
             print(f"  - {canon}{extras}")
-        sys.exit(0)
+        return 0
 
     p = argparse.ArgumentParser(
         description=("NEX-GDDP CMIP6 ensemble climate statistics. "
@@ -715,7 +715,7 @@ def main() -> None:
                     args.location.replace(' ', ',').split(','))
     except ValueError:
         print("Error: --location must be 'lat,lon'.")
-        sys.exit(1)
+        return 1
 
     sub_models = ([m.strip() for m in args.models.split(',')]
                   if args.models else None)
@@ -735,10 +735,10 @@ def main() -> None:
     if invalid:
         print(f"Error: invalid scenario(s) {invalid}. "
               f"Accepted: {sorted(SCENARIO_ALIASES)}")
-        sys.exit(1)
+        return 1
     if not scenarios:
         print("Error: no scenarios provided.")
-        sys.exit(1)
+        return 1
 
     all_results: Dict[str, Any] = {}
     any_ok = False
@@ -774,8 +774,11 @@ def main() -> None:
                 print(f"Saved to {args.output}")
             else:
                 print(f"Saved error report to {args.output}")
+                raise SystemExit(1)
         else:
             print(out)
+            if not any_ok:
+                raise SystemExit(1)
     elif args.output:
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         with open(args.output, 'w') as f:
@@ -784,6 +787,7 @@ def main() -> None:
             print(f"\n✓ SAVED: {args.output}")
         else:
             print(f"\nSaved error report to: {args.output}")
+            raise SystemExit(1)
     elif not args.no_save:
         sc_tag = scenarios[0] if len(scenarios) == 1 else 'multi'
         fname = (f"ensemble_stats_{lat:.4f}_{lon:.4f}_"
@@ -796,12 +800,11 @@ def main() -> None:
             print(f"\n✓ SAVED: {path}")
         else:
             print(f"\nSaved error report to: {path}")
-
-    if not any_ok:
-        sys.exit(1)
+            raise SystemExit(1)
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 
 # NOTE: the 1st command in a section includes all models/scenarios while the 2nd allows selection
 

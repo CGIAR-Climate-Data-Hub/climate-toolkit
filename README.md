@@ -113,10 +113,11 @@ climate_tookit/
 
 ### Recommended CLI entry point
 
-Use the package entry point rather than calling internal source files directly:
+Use installed console scripts when package is installed. `python -m ...` form
+still works and is shown as fallback where useful.
 
 ```bash
-python -m climate_tookit.fetch_data.fetch_data \
+climate-toolkit-fetch \
   --source chirps_v3_daily_rnl \
   --lat -1.286 \
   --lon 36.817 \
@@ -154,7 +155,7 @@ historical default path is `chirps_v3_daily_rnl + agera_5`.
 Example:
 
 ```bash
-env GCP_PROJECT_ID=your-project-id python -m climate_tookit.fetch_data.fetch_data \
+env GCP_PROJECT_ID=your-project-id climate-toolkit-fetch \
   --source nex_gddp \
   --lat -1.286 \
   --lon 36.817 \
@@ -178,10 +179,10 @@ Notebook-safe example:
 ```python
 from datetime import date
 
-from climate_tookit.fetch_data import fetch_data
+from climate_tookit import fetch_climate_data
 from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
-df = fetch_data(
+df = fetch_climate_data(
     source="chirps_v3_daily_rnl",
     location_coord=(-1.286, 36.817),
     variables=[ClimateVariable.precipitation],
@@ -193,13 +194,49 @@ df = fetch_data(
 df.head()
 ```
 
-If you do want the CLI from a notebook cell, use:
+If console scripts are not on your PATH, or if you want notebook-safe module
+form, use:
 
 ```bash
 !python -m climate_tookit.fetch_data.fetch_data --help
 ```
 
-`source_data.py` is an internal module. For end users, the supported top-level entry point is `python -m climate_tookit.fetch_data.fetch_data` or the import-based `fetch_data(...)` API.
+`source_data.py` is internal module. Supported end-user entry points are:
+
+- `climate-toolkit-fetch`
+- `python -m climate_tookit.fetch_data.fetch_data`
+- top-level Python API such as `fetch_climate_data(...)`
+
+Current installed console scripts:
+
+- `climate-toolkit-fetch`
+- `climate-toolkit-seasons`
+- `climate-toolkit-seasons-ensemble`
+- `climate-toolkit-stats`
+- `climate-toolkit-stats-ensemble`
+- `climate-toolkit-periods`
+- `climate-toolkit-periods-ensemble`
+- `climate-toolkit-hazards`
+- `climate-toolkit-hazards-ensemble`
+- `climate-toolkit-weather-station-download`
+- `climate-toolkit-weather-station-compare`
+- `climate-toolkit-compare-datasets`
+- `climate-toolkit-climatology`
+
+Internal helper modules such as `source_data.py`, `preprocess_data.py`,
+`transform_data.py`, `gee_xee_batch.py`, `nex_gddp_batch.py`, and
+`cache_inventory.py` remain importable for package internals and advanced
+development workflows, but they are not stable end-user CLI contracts.
+
+Top-level Python API names:
+
+- `from climate_tookit import fetch_climate_data`
+- `from climate_tookit import analyze_climate_statistics`
+- `from climate_tookit import compare_climate_periods`
+- `from climate_tookit import compare_climate_sources`
+- `from climate_tookit import evaluate_hazards`
+- `from climate_tookit import download_station_data`
+- `from climate_tookit import compare_station_to_grids`
 
 ### Cache and reuse
 
@@ -318,7 +355,7 @@ If you want cache reuse across sessions, pass a stable project-local
         <td style="padding: 8px; border: 1px solid #ccc;">4</td>
         <td style="padding: 8px; border: 1px solid #ccc;">compare_datasets</td>
         <td style="padding: 8px; border: 1px solid #ccc;">Module</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Compares datasets from various climate sources to help users select preferred datasets.</td>
+        <td style="padding: 8px; border: 1px solid #ccc;">Compares datasets from various climate sources to help users assess and select preferred datasets.</td>
       </tr>
       <tr>
         <td style="padding: 8px; border: 1px solid #ccc;">5</td>
@@ -359,7 +396,7 @@ If you want cache reuse across sessions, pass a stable project-local
       This centralized workflow enables reuse across climate analysis operations like <code>season_analysis</code>, <code>climate_statistics</code>, and <code>compare_periods</code>, ensuring consistency in results and reducing duplication of effort.
     </p>
     <p>
-      The <code>compare_datasets</code> module is reserved for future implementation. Its placement in the diagram demonstrates its anticipated integration with existing components, providing the ability to assess and select preferred data sources.
+      The <code>compare_datasets</code> module now exists as an active comparison workflow layered on top of the shared fetch pipeline. Its placement in the diagram still reflects its integration point with existing components, especially for assessing and selecting preferred historical data sources.
     </p>
   </div>
 </div>
@@ -470,7 +507,7 @@ Toolkit supports:
 Find nearby observed stations and create review artifacts:
 
 ```bash
-python -m climate_tookit.weather_station.download \
+climate-toolkit-weather-station-download \
   --station-source auto \
   --selection-mode list \
   --station-lat -1.286 \
@@ -492,7 +529,7 @@ Outputs:
 ### NOAA Station Download
 
 ```bash
-python -m climate_tookit.weather_station.download \
+climate-toolkit-weather-station-download \
   --station-source auto \
   --selection-mode auto \
   --auto-select auto-1 \
@@ -507,7 +544,7 @@ python -m climate_tookit.weather_station.download \
 ### Custom Station File
 
 ```bash
-python -m climate_tookit.weather_station.download \
+climate-toolkit-weather-station-download \
   --station-source custom_csv \
   --custom-station-file path/to/station.csv \
   --custom-station-name "My station" \
@@ -542,7 +579,7 @@ Declare units explicitly:
 ### Station vs Grid Comparison
 
 ```bash
-python -m climate_tookit.weather_station.compare \
+climate-toolkit-weather-station-compare \
   --station-source auto \
   --station-lat -1.286 \
   --station-lon 36.817 \
@@ -561,7 +598,7 @@ python -m climate_tookit.weather_station.compare \
 ### Historical Analysis With Custom Overrides
 
 ```bash
-python -m climate_tookit.climate_statistics.statistics \
+climate-toolkit-stats \
   --location="-1.286,36.817" \
   --start-year=2020 \
   --end-year=2020 \

@@ -1,13 +1,14 @@
-"""
-Module for applying the DownloadData / SourceData class to download from
-different climate databases.
+"""Internal source-dispatch helper for fetch pipeline.
+
+This module remains importable for package internals and legacy analysis
+scripts, but it is not stable public CLI surface. End users should prefer
+`climate-toolkit-fetch` or `climate_tookit.fetch_data.fetch_data`.
 """
 
 import argparse
 import sys
 from datetime import datetime, date
 from pathlib import Path
-from .sources.gee import DownloadData as DownloadGEE
 from .sources.gee_xee import DownloadData as DownloadGEEXee
 from .sources.agera_5 import DownloadData as DownloadAgera5
 from .sources.era_5 import DownloadData as DownloadERA5
@@ -41,6 +42,12 @@ STATIC_GEE_SOURCES = (
     ClimateDataset.soil_grid,
     ClimateDataset.hwsd,
 )
+
+
+def _download_gee_cls():
+    from .sources.gee import DownloadData
+
+    return DownloadData
 
 
 class SourceData:
@@ -117,7 +124,7 @@ class SourceData:
                 refresh_cache=refresh_cache,
             )
         elif source in STATIC_GEE_SOURCES:
-            client = DownloadGEE(
+            client = _download_gee_cls()(
                 variables=variables,
                 location_coord=location_coord,
                 date_from_utc=date_from_utc,
@@ -199,7 +206,7 @@ def save_output(data, output_path, fmt):
         raise ValueError(fmt)
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description='Download climate data')
     parser.add_argument('--lon', type=float, required=True)
     parser.add_argument('--lat', type=float, required=True)

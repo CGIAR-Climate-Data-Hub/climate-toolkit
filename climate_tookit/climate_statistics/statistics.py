@@ -20,7 +20,6 @@ import sys
 import math
 import json
 import argparse
-import warnings
 from datetime import datetime, date
 from pathlib import Path
 from time import perf_counter
@@ -30,124 +29,51 @@ import pandas as pd
 from climate_tookit.season_analysis.season_identity import build_season_identity
 import numpy as np
 
-warnings.filterwarnings("ignore")
-
-CALENDAR_SYSTEM_CHOICES = ("rf", "ir", "both")
-
 from climate_tookit.fetch_data.runtime_notes import build_historical_cache_note
-
-try:
-    from climate_tookit.crop_calendar.ggcmi import (
-        CALENDAR_SYSTEM_CHOICES,
-        resolve_calendar_preset,
-    )
-    CROP_CALENDAR_AVAILABLE = True
-except ImportError:
-    CALENDAR_SYSTEM_CHOICES = ("rf", "ir", "both")
-    CROP_CALENDAR_AVAILABLE = False
-
-try:
-    from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
-except ImportError:
-    _validate_period_against_scenario = None
-
-try:
-    from climate_tookit.climatology import compute_monthly_spei
-    SPEI_AVAILABLE = True
-except ImportError:
-    SPEI_AVAILABLE = False
-
+from climate_tookit.crop_calendar.ggcmi import (
+    CALENDAR_SYSTEM_CHOICES,
+    resolve_calendar_preset,
+)
+from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
+from climate_tookit.climatology import compute_monthly_spei
 try:
     from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
     PREPROCESS_AVAILABLE = True
-except ImportError:
+except Exception:
+    preprocess_data = None
     PREPROCESS_AVAILABLE = False
+from climate_tookit.weather_station.overrides import apply_custom_station_overrides
+from climate_tookit.fetch_data.source_data.sources.utils.models import (
+    ClimateVariable,
+    normalize_climate_dataset_name,
+)
+from climate_tookit.season_analysis.seasons import (
+    add_et0,
+    parse_fixed_seasons,
+    detect_onset_cessation,
+    reassign_spillover_seasons,
+    remove_duplicate_seasons,
+    check_humid,
+)
+from climate_tookit.calculate_hazards.hazards import (
+    DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
+    DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
+    DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
+    FULL_WINDOW_WATER_BALANCE as HAZARD_FULL_WINDOW_WATER_BALANCE,
+    build_water_balance_methodology as shared_build_water_balance_methodology,
+    calc_water_balance as shared_calc_water_balance,
+    summarize_water_balance as shared_summarize_water_balance,
+)
 
-try:
-    from climate_tookit.weather_station.overrides import apply_custom_station_overrides
-    CUSTOM_STATION_AVAILABLE = True
-except ImportError:
-    CUSTOM_STATION_AVAILABLE = False
-
-try:
-    from climate_tookit.fetch_data.source_data.sources.utils.models import (
-        ClimateVariable,
-        normalize_climate_dataset_name,
-    )
-    CLIMATE_VARS = [
-        ClimateVariable.precipitation,
-        ClimateVariable.max_temperature,
-        ClimateVariable.min_temperature,
-        ClimateVariable.humidity,
-        ClimateVariable.soil_moisture,
-        ClimateVariable.solar_radiation,
-        ClimateVariable.wind_speed,
-    ]
-except (ImportError, AttributeError):
-    try:
-        from climate_tookit.fetch_data.source_data.sources.utils.models import (
-            ClimateVariable,
-            normalize_climate_dataset_name,
-        )
-        CLIMATE_VARS = [
-            ClimateVariable.precipitation,
-            ClimateVariable.max_temperature,
-            ClimateVariable.min_temperature,
-            ClimateVariable.humidity,
-            ClimateVariable.soil_moisture,
-            ClimateVariable.solar_radiation,
-            ClimateVariable.wind_speed,
-        ]
-    except (ImportError, AttributeError):
-        CLIMATE_VARS = [
-            'precipitation', 'max_temperature', 'min_temperature',
-            'humidity', 'soil_moisture', 'solar_radiation', 'wind_speed',
-        ]
-
-        def normalize_climate_dataset_name(source):
-            return str(source).lower() if source is not None else None
-
-try:
-    from climate_tookit.season_analysis.seasons import (
-        add_et0,
-        parse_fixed_seasons,
-        detect_onset_cessation,
-        reassign_spillover_seasons,
-        remove_duplicate_seasons,
-        check_humid,
-    )
-    SEASONS_AVAILABLE = True
-except ImportError as exc:
-    SEASONS_AVAILABLE = False
-
-try:
-    from climate_tookit.calculate_hazards.hazards import (
-        DEFAULT_KC_PARAMS as HAZARD_DEFAULT_KC_PARAMS,
-        DEFAULT_SOILCP as HAZARD_DEFAULT_SOILCP,
-        DEFAULT_SOILSAT as HAZARD_DEFAULT_SOILSAT,
-        FULL_WINDOW_WATER_BALANCE as HAZARD_FULL_WINDOW_WATER_BALANCE,
-        build_water_balance_methodology as shared_build_water_balance_methodology,
-        calc_water_balance as shared_calc_water_balance,
-        summarize_water_balance as shared_summarize_water_balance,
-    )
-    HAZARD_WATER_BALANCE_AVAILABLE = True
-except ImportError:
-    HAZARD_WATER_BALANCE_AVAILABLE = False
-    HAZARD_DEFAULT_KC_PARAMS = {
-        "kc_init": 0.7,
-        "kc_mid": 1.0,
-        "kc_end": 0.8,
-        "depletion_fraction_p": 0.5,
-    }
-    HAZARD_DEFAULT_SOILCP = 100.0
-    HAZARD_DEFAULT_SOILSAT = 100.0
-    HAZARD_FULL_WINDOW_WATER_BALANCE = "full_window"
-
-if 'CLIMATE_VARS' not in globals():
-    CLIMATE_VARS = [
-        'precipitation', 'max_temperature', 'min_temperature',
-        'humidity', 'soil_moisture', 'solar_radiation', 'wind_speed',
-    ]
+CLIMATE_VARS = [
+    ClimateVariable.precipitation,
+    ClimateVariable.max_temperature,
+    ClimateVariable.min_temperature,
+    ClimateVariable.humidity,
+    ClimateVariable.soil_moisture,
+    ClimateVariable.solar_radiation,
+    ClimateVariable.wind_speed,
+]
 
 # Constants
 RENAME_MAP = {
@@ -410,8 +336,6 @@ def _apply_custom_station_overrides(
 ) -> pd.DataFrame:
     if not custom_station_file:
         return base_df
-    if not CUSTOM_STATION_AVAILABLE:
-        raise RuntimeError("custom station ingestion module is not available")
     return apply_custom_station_overrides(
         base_df,
         lat=lat,
@@ -456,9 +380,6 @@ def get_climate_data(
       - For direct single-source historical daily runs, prefer `agera_5`.
     Renames pipeline columns to canonical names: precip, tmax, tmin (humidity, soil_moisture, solar_radiation, wind_speed pass through when the source provides them).
     """
-    if not PREPROCESS_AVAILABLE:
-        raise RuntimeError("preprocess_data pipeline not available")
-
     date_from = date.fromisoformat(start_date)
     date_to   = date.fromisoformat(end_date)
     source_lc = normalize_climate_dataset_name(source)
@@ -571,7 +492,7 @@ def _shared_water_balance_summary(
     Keep legacy precip-minus-ET0 totals for continuity, but source NDWS/NDWL0/WRSI
     from the same running soil-water balance used by hazards/ensemble_hazards.
     """
-    if not HAZARD_WATER_BALANCE_AVAILABLE or df is None or df.empty:
+    if df is None or df.empty:
         return {}
     if 'ET0_mm_day' not in df.columns:
         return {}
@@ -748,7 +669,7 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
     water_balance_stats.update(shared_wb)
 
     water_balance_methodology = None
-    if HAZARD_WATER_BALANCE_AVAILABLE and shared_wb:
+    if shared_wb:
         water_balance_methodology = shared_build_water_balance_methodology(
             {
                 'method': season.get('method', 'statistics_default_full_window'),
@@ -840,9 +761,6 @@ def _spei_block(
     ref_start: Optional[str],
     ref_end: Optional[str],
 ) -> Dict[str, Any]:
-    if not SPEI_AVAILABLE:
-        return {"error": "SPEI helper unavailable."}
-
     monthly = compute_monthly_spei(
         df,
         scale_months=scale_months,
@@ -1152,9 +1070,6 @@ def detect_seasons_auto(
     For each ref year, slices a 1.5-year window so onset/cessation crossing the year boundary is captured, then runs ETO detection.
     Final post-processing (reassign + dedup) matches seasons.py.
     """
-    if not SEASONS_AVAILABLE:
-        raise RuntimeError("seasons.py not importable -- cannot detect seasons")
-
     seasons_dict: Dict[int, List[Dict]] = {}
     annual_dict:  Dict[int, Dict]       = {}
 
@@ -1233,9 +1148,6 @@ def detect_seasons_fixed(
       1. Build the [onset, cessation] dates (handles year-crossing).
       2. Slice the master df and run ETO sub-detection inside the window.
     """
-    if not SEASONS_AVAILABLE:
-        raise RuntimeError("seasons.py not importable -- cannot detect seasons")
-
     seasons_dict: Dict[int, List[Dict]] = {
         y: [] for y in range(start_year, end_year + 1)
     }
@@ -1393,8 +1305,6 @@ def _resolve_calendar_preset_request(
 ) -> Optional[Dict[str, Any]]:
     if not crop_name or not calendar_source:
         return None
-    if not CROP_CALENDAR_AVAILABLE:
-        raise ValueError("Crop calendar helpers unavailable in this environment.")
     source = str(calendar_source).lower()
     if source != "ggcmi":
         raise ValueError(f"Unsupported calendar source: {calendar_source}. Available: ggcmi")
@@ -2159,7 +2069,7 @@ def print_pandas(result: Dict[str, Any]) -> None:
             _print_indented_table(preview.fillna("n/a"))
 
 # CLI
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(
         description='Climate statistics analysis by season (auto or fixed)',
         formatter_class=argparse.RawTextHelpFormatter,
@@ -2251,7 +2161,7 @@ def main() -> None:
         lat, lon = map(float, args.location.split(','))
     except ValueError:
         print("Error: --location must be in 'lat,lon' format.")
-        sys.exit(1)
+        return 1
 
     if args.fixed_season:
         print(f"Fixed-season mode | {lat:.4f}N, {lon:.4f}E | "
@@ -2293,7 +2203,7 @@ def main() -> None:
     if args.format == 'pandas':
         print_pandas(result)
         if 'error' in result:
-            sys.exit(1)
+            return 1
     else:
         out = json.dumps(result, indent=2, default=str)
         if args.output:
@@ -2303,14 +2213,14 @@ def main() -> None:
             spei_csv_path = _save_spei_csv_if_present(result, Path(args.output))
             if 'error' in result:
                 print(f"Saved error report to {args.output}")
-                sys.exit(1)
+                raise SystemExit(1)
             print(f"Saved to {args.output}")
             if spei_csv_path is not None:
                 print(f"Saved SPEI CSV to {spei_csv_path}")
         else:
             print(out)
             if 'error' in result:
-                sys.exit(1)
+                raise SystemExit(1)
 
     # Auto-save JSON alongside pandas display
     if not args.no_save and args.format == 'pandas' and 'error' not in result:
@@ -2325,9 +2235,10 @@ def main() -> None:
         print(f"\n✓ SAVED: {path}")
         if spei_csv_path is not None:
             print(f"✓ SAVED SPEI CSV: {spei_csv_path}")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
 
 # Fixed single season:
 # python climate_tookit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "03-01:05-31" --source era_5 --format pandas
