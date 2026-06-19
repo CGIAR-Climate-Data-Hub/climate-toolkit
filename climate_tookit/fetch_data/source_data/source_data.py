@@ -9,7 +9,6 @@ import argparse
 import sys
 from datetime import datetime, date
 from pathlib import Path
-from .sources.gee import DownloadData as DownloadGEE
 from .sources.gee_xee import DownloadData as DownloadGEEXee
 from .sources.agera_5 import DownloadData as DownloadAgera5
 from .sources.era_5 import DownloadData as DownloadERA5
@@ -43,6 +42,12 @@ STATIC_GEE_SOURCES = (
     ClimateDataset.soil_grid,
     ClimateDataset.hwsd,
 )
+
+
+def _download_gee_cls():
+    from .sources.gee import DownloadData
+
+    return DownloadData
 
 
 class SourceData:
@@ -119,7 +124,7 @@ class SourceData:
                 refresh_cache=refresh_cache,
             )
         elif source in STATIC_GEE_SOURCES:
-            client = DownloadGEE(
+            client = _download_gee_cls()(
                 variables=variables,
                 location_coord=location_coord,
                 date_from_utc=date_from_utc,
