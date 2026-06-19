@@ -36,7 +36,12 @@ from climate_tookit.crop_calendar.ggcmi import (
 )
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
 from climate_tookit.climatology import compute_monthly_spei
-from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+try:
+    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+    PREPROCESS_AVAILABLE = True
+except Exception:
+    preprocess_data = None
+    PREPROCESS_AVAILABLE = False
 from climate_tookit.weather_station.overrides import apply_custom_station_overrides
 from climate_tookit.fetch_data.source_data.sources.utils.models import (
     ClimateVariable,
@@ -2208,14 +2213,14 @@ def main() -> int:
             spei_csv_path = _save_spei_csv_if_present(result, Path(args.output))
             if 'error' in result:
                 print(f"Saved error report to {args.output}")
-                return 1
+                raise SystemExit(1)
             print(f"Saved to {args.output}")
             if spei_csv_path is not None:
                 print(f"Saved SPEI CSV to {spei_csv_path}")
         else:
             print(out)
             if 'error' in result:
-                return 1
+                raise SystemExit(1)
 
     # Auto-save JSON alongside pandas display
     if not args.no_save and args.format == 'pandas' and 'error' not in result:

@@ -774,8 +774,11 @@ def main() -> int:
                 print(f"Saved to {args.output}")
             else:
                 print(f"Saved error report to {args.output}")
+                raise SystemExit(1)
         else:
             print(out)
+            if not any_ok:
+                raise SystemExit(1)
     elif args.output:
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         with open(args.output, 'w') as f:
@@ -784,6 +787,7 @@ def main() -> int:
             print(f"\n✓ SAVED: {args.output}")
         else:
             print(f"\nSaved error report to: {args.output}")
+            raise SystemExit(1)
     elif not args.no_save:
         sc_tag = scenarios[0] if len(scenarios) == 1 else 'multi'
         fname = (f"ensemble_stats_{lat:.4f}_{lon:.4f}_"
@@ -796,9 +800,7 @@ def main() -> int:
             print(f"\n✓ SAVED: {path}")
         else:
             print(f"\nSaved error report to: {path}")
-
-    if not any_ok:
-        return 1
+            raise SystemExit(1)
     return 0
 
 if __name__ == "__main__":

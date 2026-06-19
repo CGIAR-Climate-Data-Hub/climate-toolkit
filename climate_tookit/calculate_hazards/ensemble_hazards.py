@@ -47,7 +47,12 @@ from climate_tookit.calculate_hazards.hazards import (
     _shift_iso_date,
     _print_hazard_season_detection_summary,
 )
-from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+try:
+    from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+    PREPROCESS_AVAILABLE = True
+except Exception:
+    preprocess_data = None
+    PREPROCESS_AVAILABLE = False
 from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as MODELS,
@@ -57,6 +62,8 @@ from climate_tookit.season_analysis.seasons import (
     fetch_and_analyze_years,
     detect_onset_cessation,
 )
+
+HAS_FAY = callable(detect_onset_cessation)
 
 SCENARIOS = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
 
