@@ -37,7 +37,11 @@ import argparse
 from statistics import mean, stdev, median
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
+    POLICY_PROFILE_CHOICES,
+    POLICY_PROFILE_HELP,
     default_ensemble_models_for_location,
+    policy_runtime_messages,
+    resolve_ensemble_policy_for_location,
 )
 
 try:
@@ -838,6 +842,7 @@ def calculate_climatology_ensemble(
     variables: Optional[List] = None,
     models: Optional[List[str]] = None,
     exclude_models: Optional[List[str]] = None,
+    policy_profile: Optional[str] = None,
     output_dir: Optional[str] = None,
     verbose: bool = True,
 ) -> Dict[str, Any]:
@@ -847,11 +852,13 @@ def calculate_climatology_ensemble(
     """
     lat, lon = location_coord
     canon = _normalize_scenario(scenario) or scenario
-    active = default_ensemble_models_for_location(
+    ensemble_policy = resolve_ensemble_policy_for_location(
         location_coord,
         models=models,
         exclude_models=exclude_models,
+        policy_profile=policy_profile,
     )
+    active = ensemble_policy["models"]
     if not active:
         return {'error': 'No models selected after filtering.'}
 
@@ -863,6 +870,11 @@ def calculate_climatology_ensemble(
         print(f"  Location : ({lat:.4f}, {lon:.4f})")
         print(f"  Period   : {start_year}-{end_year}")
         print(f"  Scenario : {canon}")
+        print(f"  Policy   : {ensemble_policy.get('policy_id')}")
+        if ensemble_policy.get("regional_context"):
+            print(f"  Context  : {ensemble_policy.get('regional_context')}")
+        for line in policy_runtime_messages(ensemble_policy):
+            print(f"  Warning  : {line}")
         print(f"  Models   : {len(active)}")
         print(f"{'='*70}\n")
 
@@ -1012,6 +1024,7 @@ def calculate_climatology_ensemble(
             'years_with_data_min': years_with_data_min,
             'years_with_data_mean': years_with_data_mean,
             'years_with_data_max': years_with_data_max,
+            'ensemble_policy': ensemble_policy,
         },
     }
 
@@ -1194,6 +1207,8 @@ Examples:
                             '(default: all 16).')
     parser.add_argument('--exclude-models', type=str, default=None,
                        help='NEX-GDDP only. Comma-separated CMIP6 models to drop.')
+    parser.add_argument('--policy-profile', choices=POLICY_PROFILE_CHOICES, default='default',
+                       help=f"NEX-GDDP only. {POLICY_PROFILE_HELP}")
     parser.add_argument('--format', choices=['text', 'json'], default='text',
                        help='Output format (default: text)')
     parser.add_argument('--output', type=str,
@@ -1275,6 +1290,7 @@ Examples:
                     scenario=scenario,
                     models=sub_models,
                     exclude_models=excl,
+                    policy_profile=None if args.policy_profile == 'default' else args.policy_profile,
                     output_dir=plot_dir,
                     verbose=verbose_text,
                 )

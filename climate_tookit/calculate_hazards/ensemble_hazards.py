@@ -56,7 +56,11 @@ except Exception:
 from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as MODELS,
+    POLICY_PROFILE_CHOICES,
+    POLICY_PROFILE_HELP,
     default_ensemble_models_for_location,
+    policy_runtime_messages,
+    resolve_ensemble_policy_for_location,
 )
 from climate_tookit.season_analysis.seasons import (
     fetch_and_analyze_years,
@@ -479,7 +483,8 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
                        custom_thresholds: Optional[Dict[str, Dict[str, Tuple]]] = None,
                        soilcp: float = DEFAULT_SOILCP,
                        soilsat: float = DEFAULT_SOILSAT,
-                       water_balance_window: str = FULL_WINDOW_WATER_BALANCE) -> Dict:
+                       water_balance_window: str = FULL_WINDOW_WATER_BALANCE,
+                       ensemble_policy: Optional[Dict[str, Any]] = None) -> Dict:
     water_balance_window = _normalize_water_balance_window_mode(water_balance_window)
     mode = 'fixed_season' if fixed_season else 'auto_detect'
     fixed_defs = _parse_fixed(fixed_season) if fixed_season else None
@@ -490,6 +495,12 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
     print(f"\nNEX-GDDP ensemble: {crop} at ({lat:.4f}, {lon:.4f})  "
           f"{start_year}-{end_year}")
     print(f"  Mode: {mode}" + (f"  ({fixed_season})" if fixed_season else ""))
+    if ensemble_policy:
+        print(f"  Policy: {ensemble_policy.get('policy_id')}")
+        if ensemble_policy.get("regional_context"):
+            print(f"  Context: {ensemble_policy.get('regional_context')}")
+        for line in policy_runtime_messages(ensemble_policy):
+            print(f"  Warning: {line}")
     print(f"  Models: {len(models)}   Scenarios: {len(scenarios)}\n")
     if fixed_defs and _fixed_windows_cross_year(fixed_defs):
         print(
@@ -645,6 +656,7 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         },
         'water_balance_methodology': results[0].get('water_balance_methodology'),
         'models':            models,
+        'ensemble_policy':   ensemble_policy,
         'scenarios':         scenarios,
         'n_total_projections': len(results),
         'assessments':       assessments,
@@ -950,6 +962,8 @@ def main() -> int:
                    help="omit for auto-detect; otherwise single, two, or year-crossing windows")
     p.add_argument('--models',       type=str, default=None,
                    help='comma-separated GCMs (default: location-aware ensemble)')
+    p.add_argument('--policy-profile', choices=POLICY_PROFILE_CHOICES, default='default',
+                   help=POLICY_PROFILE_HELP)
     p.add_argument('--scenarios',    type=str, default=','.join(SCENARIOS),
                    help=f"comma-separated scenarios (default: {','.join(SCENARIOS)})")
     p.add_argument('--soilcp',  type=float, default=DEFAULT_SOILCP,
@@ -983,7 +997,12 @@ def main() -> int:
 
     lat, lon  = map(float, args.location.split(','))
     sub_models = [s.strip() for s in args.models.split(',') if s.strip()] if args.models else None
-    models    = default_ensemble_models_for_location((lat, lon), models=sub_models)
+    ensemble_policy = resolve_ensemble_policy_for_location(
+        (lat, lon),
+        models=sub_models,
+        policy_profile=None if args.policy_profile == 'default' else args.policy_profile,
+    )
+    models = ensemble_policy["models"]
     scenarios = [s.strip() for s in args.scenarios.split(',') if s.strip()]
     custom_thresholds = load_custom_thresholds_file(args.thresholds_file)
 
@@ -996,6 +1015,7 @@ def main() -> int:
         custom_thresholds=custom_thresholds,
         soilcp=args.soilcp, soilsat=args.soilsat,
         water_balance_window=args.water_balance_window,
+        ensemble_policy=ensemble_policy,
     )
 
     if args.format == 'json':

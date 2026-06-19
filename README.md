@@ -139,6 +139,19 @@ Key options:
 
 For NEX-GDDP, you must also provide `--model` and `--scenario`. Current Earth Engine/Xee access also requires prior Earth Engine authentication plus `GCP_PROJECT_ID` in your environment. Current package backend is documented and tested against Earth Engine NEX-GDDP version `1.1`.
 
+Regional NEX-GDDP fast/screening pools:
+
+- CLI/API name remains `regional_fast`
+- in practice this means smaller regional screening subsets, not guaranteed
+  fast runtime
+- current codified regional subsets carry explicit runtime warnings and should
+  be treated as provisional screening pools, not full structural uncertainty
+  envelopes
+- decision memos:
+  - [East Africa](analysis/nex_regional_fast_pool_memo_eaf.md)
+  - [West Africa](analysis/nex_regional_fast_pool_memo_waf.md)
+  - [Andes](analysis/nex_regional_fast_pool_memo_andes.md)
+
 TAMSAT-specific note:
 
 - use `tamsat` only as optional precipitation partner, not primary recommended
