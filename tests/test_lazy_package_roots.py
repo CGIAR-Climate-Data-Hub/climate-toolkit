@@ -1,4 +1,5 @@
 import importlib
+import logging
 import sys
 import unittest
 
@@ -109,6 +110,18 @@ class LazyPackageRootsTests(unittest.TestCase):
             "climate_tookit.fetch_data.source_data.sources.utils.settings",
             sys.modules,
         )
+
+    def test_source_utils_set_logging_does_not_mutate_root_logger(self):
+        package = importlib.import_module("climate_tookit.fetch_data.source_data.sources.utils")
+        before_level = logging.root.level
+        before_handlers = list(logging.root.handlers)
+
+        logger = package.set_logging()
+
+        self.assertEqual(before_level, logging.root.level)
+        self.assertEqual(before_handlers, list(logging.root.handlers))
+        self.assertEqual("climate_tookit", logger.name)
+        self.assertEqual(logging.INFO, logger.level)
 
     def test_source_data_package_root_is_lazy(self):
         _clear_modules(

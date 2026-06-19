@@ -178,6 +178,14 @@ class PackagingMetadataTests(unittest.TestCase):
         self.assertTrue(callable(getattr(module, "fetch_ghcn_daily_records")))
         self.assertTrue(callable(getattr(module, "fetch_gsod_records")))
 
+    def test_internal_source_utils_root_does_not_advertise_logging_side_effect_helper(self):
+        module = importlib.import_module(
+            "climate_tookit.fetch_data.source_data.sources.utils"
+        )
+        public_exports = set(getattr(module, "__all__", []))
+        self.assertNotIn("set_logging", public_exports)
+        self.assertTrue(callable(getattr(module, "set_logging")))
+
 
 if __name__ == "__main__":
     unittest.main()

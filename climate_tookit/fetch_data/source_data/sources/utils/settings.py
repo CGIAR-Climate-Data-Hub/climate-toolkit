@@ -9,13 +9,21 @@ from pydantic import BaseModel, field_validator
 
 CONFIG_PACKAGE = "climate_tookit.fetch_data.source_data.sources.utils"
 CONFIG_RESOURCE = "config.yaml"
+TOOLKIT_LOGGER_NAME = "climate_tookit"
 
 def set_logging():
-    """Configure logging for the application"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d --- %(message)s",
-    )
+    """Configure toolkit logger without mutating root logging state."""
+    logger = logging.getLogger(TOOLKIT_LOGGER_NAME)
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)s %(filename)s:%(lineno)d --- %(message)s"
+            )
+        )
+        logger.addHandler(handler)
+    return logger
 
 
 class Cadence(BaseModel):

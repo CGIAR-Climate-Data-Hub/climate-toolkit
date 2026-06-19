@@ -38,7 +38,6 @@ __all__ = [
     "canonical_climate_variable_name",
     "normalize_climate_dataset_name",
     "parse_variable_token",
-    "set_logging",
     "source_date_coverage_error",
 ]
 
