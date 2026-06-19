@@ -1,17 +1,38 @@
 # Refactor Investigation: make `climate_tookit` behave like traditional Python package
 
+## Status update (2026-06-19)
+
+This note is now partly historical reference.
+
+Already addressed on merged package-refactor work:
+
+- `pyproject.toml` exists
+- top-level `climate_tookit/__init__.py` exists
+- console-script entry points exist
+- packaged resource loading has install-shape tests
+- major `sys.path` hacks and mixed import failures called out here have been reduced substantially
+- top-level and several subpackage API surfaces are now explicit and tested
+
+Still relevant remaining work:
+
+- continue shrinking eager package-root imports
+- keep separating stable package API from internal helper modules
+- continue auditing import-time side effects and compatibility seams
+- continue cleaning historical notes that describe already-fixed breakage as current state
+
 ## Bottom line
 
-Current toolkit behaves like repo-root script collection with package-shaped folders, not like normal installable Python package.
+At investigation time, toolkit behaved more like repo-root script collection
+with package-shaped folders than normal installable Python package.
 
-It works mainly because:
+At that point it worked mainly because:
 
 - commands run from repository root
 - `python -m climate_tookit...` adds cwd to import path
 - several modules mutate `sys.path` at runtime
 - some modules import siblings as bare top-level modules
 
-Traditional package expectations currently not met:
+Traditional package expectations then not met:
 
 - no `pyproject.toml`
 - no `setup.py` / `setup.cfg`

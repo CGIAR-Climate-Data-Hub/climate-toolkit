@@ -1,40 +1,10 @@
-from .models import (
-    CLIMATE_VARIABLE_ALIASES,
-    LEGACY_SOURCE_ALIASES,
-    SOURCE_DATE_LIMITS,
-    Cadence,
-    ClimateDataset,
-    ClimateVariable,
-    DataDownloadBase,
-    Location,
-    SoilVariable,
-    VariableType,
-    accepted_climate_dataset_names,
-    canonical_climate_variable_name,
-    normalize_climate_dataset_name,
-    parse_variable_token,
-    source_date_coverage_error,
-)
-from .settings import (
-    Agera5Settings,
-    Cadence as SettingsCadence,
-    ChirtsSettings,
-    ChirpsSettings,
-    ChirpsV3DailyRnlSettings,
-    ClimateVariable as SettingsClimateVariable,
-    Cmip6Settings,
-    Era5Settings,
-    ImergSettings,
-    NasaPowerSettings,
-    NexGddpSettings,
-    Settings,
-    SoilGridSettings,
-    SoilVariable as SettingsSoilVariable,
-    TamsatSettings,
-    TerraSettings,
-    VariableMeta,
-    set_logging,
-)
+"""Internal source-utils package API.
+
+This package is internal toolkit plumbing, not stable end-user surface. Keep
+module root lazy so import-time behavior stays small and predictable.
+"""
+
+from __future__ import annotations
 
 __all__ = [
     "Agera5Settings",
@@ -71,3 +41,122 @@ __all__ = [
     "set_logging",
     "source_date_coverage_error",
 ]
+
+
+def __getattr__(name: str):
+    if name in {
+        "CLIMATE_VARIABLE_ALIASES",
+        "LEGACY_SOURCE_ALIASES",
+        "SOURCE_DATE_LIMITS",
+        "Cadence",
+        "ClimateDataset",
+        "ClimateVariable",
+        "DataDownloadBase",
+        "Location",
+        "SoilVariable",
+        "VariableType",
+        "accepted_climate_dataset_names",
+        "canonical_climate_variable_name",
+        "normalize_climate_dataset_name",
+        "parse_variable_token",
+        "source_date_coverage_error",
+    }:
+        from .models import (
+            CLIMATE_VARIABLE_ALIASES as _CLIMATE_VARIABLE_ALIASES,
+            LEGACY_SOURCE_ALIASES as _LEGACY_SOURCE_ALIASES,
+            SOURCE_DATE_LIMITS as _SOURCE_DATE_LIMITS,
+            Cadence as _Cadence,
+            ClimateDataset as _ClimateDataset,
+            ClimateVariable as _ClimateVariable,
+            DataDownloadBase as _DataDownloadBase,
+            Location as _Location,
+            SoilVariable as _SoilVariable,
+            VariableType as _VariableType,
+            accepted_climate_dataset_names as _accepted_climate_dataset_names,
+            canonical_climate_variable_name as _canonical_climate_variable_name,
+            normalize_climate_dataset_name as _normalize_climate_dataset_name,
+            parse_variable_token as _parse_variable_token,
+            source_date_coverage_error as _source_date_coverage_error,
+        )
+
+        exports = {
+            "CLIMATE_VARIABLE_ALIASES": _CLIMATE_VARIABLE_ALIASES,
+            "LEGACY_SOURCE_ALIASES": _LEGACY_SOURCE_ALIASES,
+            "SOURCE_DATE_LIMITS": _SOURCE_DATE_LIMITS,
+            "Cadence": _Cadence,
+            "ClimateDataset": _ClimateDataset,
+            "ClimateVariable": _ClimateVariable,
+            "DataDownloadBase": _DataDownloadBase,
+            "Location": _Location,
+            "SoilVariable": _SoilVariable,
+            "VariableType": _VariableType,
+            "accepted_climate_dataset_names": _accepted_climate_dataset_names,
+            "canonical_climate_variable_name": _canonical_climate_variable_name,
+            "normalize_climate_dataset_name": _normalize_climate_dataset_name,
+            "parse_variable_token": _parse_variable_token,
+            "source_date_coverage_error": _source_date_coverage_error,
+        }
+        return exports[name]
+    if name in {
+        "Agera5Settings",
+        "SettingsCadence",
+        "ChirtsSettings",
+        "ChirpsSettings",
+        "ChirpsV3DailyRnlSettings",
+        "SettingsClimateVariable",
+        "Cmip6Settings",
+        "Era5Settings",
+        "ImergSettings",
+        "NasaPowerSettings",
+        "NexGddpSettings",
+        "Settings",
+        "SoilGridSettings",
+        "SettingsSoilVariable",
+        "TamsatSettings",
+        "TerraSettings",
+        "VariableMeta",
+        "set_logging",
+    }:
+        from .settings import (
+            Agera5Settings as _Agera5Settings,
+            Cadence as _SettingsCadence,
+            ChirtsSettings as _ChirtsSettings,
+            ChirpsSettings as _ChirpsSettings,
+            ChirpsV3DailyRnlSettings as _ChirpsV3DailyRnlSettings,
+            ClimateVariable as _SettingsClimateVariable,
+            Cmip6Settings as _Cmip6Settings,
+            Era5Settings as _Era5Settings,
+            ImergSettings as _ImergSettings,
+            NasaPowerSettings as _NasaPowerSettings,
+            NexGddpSettings as _NexGddpSettings,
+            Settings as _Settings,
+            SoilGridSettings as _SoilGridSettings,
+            SoilVariable as _SettingsSoilVariable,
+            TamsatSettings as _TamsatSettings,
+            TerraSettings as _TerraSettings,
+            VariableMeta as _VariableMeta,
+            set_logging as _set_logging,
+        )
+
+        exports = {
+            "Agera5Settings": _Agera5Settings,
+            "SettingsCadence": _SettingsCadence,
+            "ChirtsSettings": _ChirtsSettings,
+            "ChirpsSettings": _ChirpsSettings,
+            "ChirpsV3DailyRnlSettings": _ChirpsV3DailyRnlSettings,
+            "SettingsClimateVariable": _SettingsClimateVariable,
+            "Cmip6Settings": _Cmip6Settings,
+            "Era5Settings": _Era5Settings,
+            "ImergSettings": _ImergSettings,
+            "NasaPowerSettings": _NasaPowerSettings,
+            "NexGddpSettings": _NexGddpSettings,
+            "Settings": _Settings,
+            "SoilGridSettings": _SoilGridSettings,
+            "SettingsSoilVariable": _SettingsSoilVariable,
+            "TamsatSettings": _TamsatSettings,
+            "TerraSettings": _TerraSettings,
+            "VariableMeta": _VariableMeta,
+            "set_logging": _set_logging,
+        }
+        return exports[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
