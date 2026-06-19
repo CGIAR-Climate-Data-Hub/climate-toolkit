@@ -54,8 +54,15 @@ import requests  # noqa: F401
 
 class PackageImportHygieneTests(unittest.TestCase):
     MODULES = [
+        "climate_tookit",
+        "climate_tookit.calculate_hazards",
+        "climate_tookit.climate_statistics",
         "climate_tookit.climatology",
         "climate_tookit.climatology.long_term_climatology",
+        "climate_tookit.compare_datasets",
+        "climate_tookit.compare_periods",
+        "climate_tookit.crop_calendar",
+        "climate_tookit.fetch_data",
         "climate_tookit.fetch_data.gee_xee_batch",
         "climate_tookit.fetch_data.nex_gddp_batch",
         "climate_tookit.fetch_data.preprocess_data",
@@ -67,6 +74,7 @@ class PackageImportHygieneTests(unittest.TestCase):
         "climate_tookit.fetch_data.source_data.sources.imerg",
         "climate_tookit.fetch_data.source_data.sources.terraclimate",
         "climate_tookit.fetch_data.source_data.sources.nex_gddp_xee",
+        "climate_tookit.season_analysis",
         "climate_tookit.season_analysis.seasons",
         "climate_tookit.season_analysis.ensemble",
         "climate_tookit.compare_periods.periods",
@@ -76,6 +84,7 @@ class PackageImportHygieneTests(unittest.TestCase):
         "climate_tookit.calculate_hazards.hazards",
         "climate_tookit.calculate_hazards.ensemble_hazards",
         "climate_tookit.fetch_data.source_data.sources.utils",
+        "climate_tookit.weather_station",
     ]
 
     def test_package_modules_import_without_stdout_or_sys_path_mutation(self):

@@ -29,11 +29,29 @@ class PackagingMetadataTests(unittest.TestCase):
         "climate_tookit.climate_statistics": {"analyze_climate_statistics"},
         "climate_tookit.compare_datasets": {"compare_sources", "print_report"},
         "climate_tookit.compare_periods": {"compare"},
+        "climate_tookit.crop_calendar": {
+            "extract_point_calendar",
+            "get_crop_support",
+            "normalize_crop_name",
+            "resolve_calendar_preset",
+        },
+        "climate_tookit.fetch_data": {
+            "Site",
+            "fetch_gee_xee_batch_data",
+            "fetch_nex_gddp_batch_data",
+            "load_sites",
+            "parse_site_spec",
+        },
         "climate_tookit.season_analysis": {
             "detect_onset_cessation",
             "fetch_and_analyze_years",
             "fetch_and_analyze_years_fixed",
             "parse_fixed_seasons",
+        },
+        "climate_tookit.weather_station": {
+            "compare_station_to_grids",
+            "download_station_data",
+            "render_compare_report",
         },
     }
 
@@ -132,6 +150,33 @@ class PackagingMetadataTests(unittest.TestCase):
                 for export_name in expected_exports:
                     exported = getattr(module, export_name)
                     self.assertTrue(callable(exported))
+
+    def test_fetch_data_package_root_keeps_internal_run_helpers_off_public_all(self):
+        module = importlib.import_module("climate_tookit.fetch_data")
+        public_exports = set(getattr(module, "__all__", []))
+        self.assertNotIn("run_gee_xee_batch_extraction", public_exports)
+        self.assertNotIn("run_batch_extraction", public_exports)
+
+        self.assertTrue(callable(getattr(module, "run_gee_xee_batch_extraction")))
+        self.assertTrue(callable(getattr(module, "run_batch_extraction")))
+
+    def test_fetch_data_package_root_does_not_advertise_shadow_prone_fetch_entrypoint(self):
+        module = importlib.import_module("climate_tookit.fetch_data")
+        public_exports = set(getattr(module, "__all__", []))
+        self.assertNotIn("fetch_data", public_exports)
+
+    def test_weather_station_package_root_keeps_backend_helpers_off_public_all(self):
+        module = importlib.import_module("climate_tookit.weather_station")
+        public_exports = set(getattr(module, "__all__", []))
+
+        self.assertNotIn("fetch_ghcn_daily_records", public_exports)
+        self.assertNotIn("fetch_gsod_records", public_exports)
+        self.assertNotIn("load_ghcn_inventory", public_exports)
+        self.assertNotIn("load_ghcn_stations", public_exports)
+        self.assertNotIn("select_ghcn_station", public_exports)
+
+        self.assertTrue(callable(getattr(module, "fetch_ghcn_daily_records")))
+        self.assertTrue(callable(getattr(module, "fetch_gsod_records")))
 
 
 if __name__ == "__main__":
