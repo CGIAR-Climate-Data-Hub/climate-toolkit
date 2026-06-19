@@ -1,10 +1,14 @@
 # Refactor Investigation: make `climate_tookit` behave like traditional Python package
 
-## Status update (2026-06-19)
+## Final status snapshot (2026-06-19)
 
-This note is now partly historical reference.
+Issue `#10` is core-complete. This note now serves as:
 
-Already addressed on merged package-refactor work:
+- record of original package-refactor problem
+- summary of what has been fixed
+- short residual follow-up list
+
+Completed package-refactor scope:
 
 - `pyproject.toml` exists
 - top-level `climate_tookit/__init__.py` exists
@@ -12,13 +16,27 @@ Already addressed on merged package-refactor work:
 - packaged resource loading has install-shape tests
 - major `sys.path` hacks and mixed import failures called out here have been reduced substantially
 - top-level and several subpackage API surfaces are now explicit and tested
+- lazy package-root contracts now cover:
+  - top-level package
+  - `fetch_data`
+  - `weather_station`
+  - `crop_calendar`
+  - `climatology`
+  - internal helper roots such as `source_data`, `preprocess_data`, `transform_data`, and source `utils`
+- optional heavy imports such as `xclim` no longer load at module import time
+- internal logging helper no longer mutates root logger state
 
-Still relevant remaining work:
+Residual follow-up candidates after `#10`:
 
-- continue shrinking eager package-root imports
-- keep separating stable package API from internal helper modules
-- continue auditing import-time side effects and compatibility seams
-- continue cleaning historical notes that describe already-fixed breakage as current state
+1. keep separating CLI/report-rendering layers from library logic in large modules
+2. keep tightening stable public API docs versus internal helper modules
+3. keep auditing optional/runtime-heavy helpers for import-time side effects
+4. add CI-level install/wheel smoke coverage if needed beyond current subprocess/install-shape tests
+
+## Historical diagnosis
+
+Everything below describes original problem statement that kicked off `#10`.
+Read it as historical context, not current repo state.
 
 ## Bottom line
 
