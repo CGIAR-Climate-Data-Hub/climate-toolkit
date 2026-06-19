@@ -35,8 +35,12 @@ import pandas as pd
 from climate_tookit.climate_statistics.statistics import analyze_climate_statistics
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
+    POLICY_PROFILE_CHOICES,
+    POLICY_PROFILE_HELP,
     _validate_period_against_scenario,
     default_ensemble_models_for_location,
+    policy_runtime_messages,
+    resolve_ensemble_policy_for_location,
 )
 from climate_tookit.compare_periods.periods import (
     _annualize, _agg_seasons, _round,
@@ -125,12 +129,50 @@ def _spread(values: List[float]) -> Dict[str, Any]:
 
 def _filter_models(location_coord: Tuple[float, float],
                    models: Optional[List[str]],
-                   exclude_models: Optional[List[str]]) -> List[str]:
+                   exclude_models: Optional[List[str]],
+                   policy_profile: Optional[str] = None) -> List[str]:
     return default_ensemble_models_for_location(
         location_coord,
         models=models,
         exclude_models=exclude_models,
+        policy_profile=policy_profile,
     )
+
+
+def _resolve_models_and_policy(
+    location_coord: Tuple[float, float],
+    models: Optional[List[str]],
+    exclude_models: Optional[List[str]],
+    policy_profile: Optional[str] = None,
+) -> Tuple[List[str], Dict[str, Any]]:
+    if policy_profile is None:
+        active = _filter_models(location_coord, models, exclude_models)
+    else:
+        active = default_ensemble_models_for_location(
+            location_coord,
+            models=models,
+            exclude_models=exclude_models,
+            policy_profile=policy_profile,
+        )
+    policy = resolve_ensemble_policy_for_location(
+        location_coord,
+        models=models,
+        exclude_models=exclude_models,
+        policy_profile=policy_profile,
+    )
+    if list(policy.get("models", [])) == list(active):
+        return active, policy
+
+    notes = list(policy.get("notes") or [])
+    notes.append(
+        "Active model list adjusted after policy resolution by downstream filtering/override."
+    )
+    policy = {
+        **policy,
+        "models": list(active),
+        "notes": notes,
+    }
+    return active, policy
 
 def _validate_nex_periods(
     baseline_start: int,
@@ -455,6 +497,7 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
                                  calendar_system: str = "rf",
                                  models:         Optional[List[str]] = None,
                                  exclude_models: Optional[List[str]] = None,
+                                 policy_profile: Optional[str] = None,
                                  verbose:        bool = True,
                                  diagnostic_verbose: bool = False,
                                  spei_scale_months: Optional[int] = None,
@@ -466,7 +509,7 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
     Scenario-dependent (the focal year inherits the same scenario as the LTMs).
     """
     canon  = _normalize_scenario(scenario) or scenario
-    active = _filter_models(location, models, exclude_models)
+    active, _ = _resolve_models_and_policy(location, models, exclude_models, policy_profile=policy_profile)
     fs_kw  = {"fixed_season": fixed_season} if fixed_season else {}
     calendar_kw = {
         "crop_name": crop_name,
@@ -1113,6 +1156,7 @@ def ensemble_compare(
     calendar_system: str = "rf",
     models:         Optional[List[str]] = None,
     exclude_models: Optional[List[str]] = None,
+    policy_profile: Optional[str] = None,
     focal_summary: Optional[Dict[str, Any]] = None,
     verbose:        bool = True,
     diagnostic_verbose: bool = False,
@@ -1171,7 +1215,7 @@ def ensemble_compare(
                 "calendar_preset": preset,
             }
 
-    active = _filter_models(location, models, exclude_models)
+    active, ensemble_policy = _resolve_models_and_policy(location, models, exclude_models, policy_profile=policy_profile)
     if not active:
         return {"error": "No models selected after filtering."}
 
@@ -1184,6 +1228,11 @@ def ensemble_compare(
         print(f"  Baseline  : {baseline_start}-{baseline_end}")
         print(f"  Future     : {future_start}-{future_end}")
         print(f"  Scenario  : {scenario}")
+        print(f"  Policy    : {ensemble_policy.get('policy_id')}")
+        if ensemble_policy.get("regional_context"):
+            print(f"  Context   : {ensemble_policy.get('regional_context')}")
+        for line in policy_runtime_messages(ensemble_policy):
+            print(f"  Warning   : {line}")
         if fixed_season:
             print(f"  Seasons   : {fixed_season}")
         print(f"  Models    : {len(active)}")
@@ -1298,6 +1347,7 @@ def ensemble_compare(
         "metadata": {
             "location":      {"lat": location[0], "lon": location[1]},
             "source":        "NEX-GDDP-CMIP6",
+            "ensemble_policy": ensemble_policy,
             "timing":        {
                 "total_seconds": round(total_elapsed, 3),
                 "mean_model_seconds": round(
@@ -1656,6 +1706,8 @@ def main() -> int:
                    help="Crop-calendar system when --calendar-source is used.")
     p.add_argument("--models",         help="Comma-separated subset of models")
     p.add_argument("--exclude-models", help="Comma-separated models to exclude")
+    p.add_argument("--policy-profile", choices=POLICY_PROFILE_CHOICES, default="default",
+                   help=POLICY_PROFILE_HELP)
     p.add_argument("--list-models",    action="store_true")
     p.add_argument("--focal-year",    type=int, default=None,
                    help="Optional. Single observed year to also compare against both the "
@@ -1786,6 +1838,7 @@ def main() -> int:
                 calendar_system=args.calendar_system,
                 models=models,
                 exclude_models=exclude,
+                policy_profile=None if args.policy_profile == "default" else args.policy_profile,
                 verbose=not args.quiet,
                 diagnostic_verbose=args.verbose,
                 spei_scale_months=args.spei_scale_months,
@@ -1806,6 +1859,7 @@ def main() -> int:
             calendar_system=args.calendar_system,
             models=models,
             exclude_models=exclude,
+            policy_profile=None if args.policy_profile == "default" else args.policy_profile,
             focal_summary=scenario_focal,
             verbose=not args.quiet,
             diagnostic_verbose=args.verbose,

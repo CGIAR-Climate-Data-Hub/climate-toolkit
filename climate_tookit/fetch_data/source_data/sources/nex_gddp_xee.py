@@ -282,8 +282,9 @@ def _maybe_log_africa_guidance(
     logger.warning(
         "Africa coordinate detected for NEX-GDDP (%s, %s). For African climate-rationale work, "
         "note CGIAR African CMIP6 ensembling guidance: %s . It uses region-tuned African "
-        "sub-ensembles, excludes CanESM5 from default central-estimate ensemble, and assumes "
-        "r1i1p1f1 across its 18-model NEX workflow.",
+        "sub-ensembles; toolkit auto-default is AFR-13 (excluding CanESM5, INM-CM4-8, "
+        "INM-CM5-0, KACE-1-0-G, and TaiESM1); and all models use r1i1p1f1 within toolkit's "
+        "18-model v1.2-comparable NEX proxy workflow.",
         lat,
         lon,
         AFRICA_CMIP6_GUIDANCE_URL,

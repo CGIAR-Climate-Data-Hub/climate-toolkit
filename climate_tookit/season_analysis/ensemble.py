@@ -21,7 +21,11 @@ import climate_tookit.season_analysis.seasons as seasons
 from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
+    POLICY_PROFILE_CHOICES,
+    POLICY_PROFILE_HELP,
     default_ensemble_models_for_location,
+    policy_runtime_messages,
+    resolve_ensemble_policy_for_location,
 )
 SSP_SCENARIOS   = ['ssp126', 'ssp245', 'ssp585']
 NEX_GDDP_SOURCE = 'nex_gddp'
@@ -413,7 +417,7 @@ def aggregate_overall(model_results: List[Dict]):
     return ensemble, model_averages
 
 # Top-level orchestrator
-def run_ensemble(lat, lon, start_year, end_year, scenarios, models, fixed_arg=None, verbose=True):
+def run_ensemble(lat, lon, start_year, end_year, scenarios, models, fixed_arg=None, verbose=True, ensemble_policy=None):
     results = {}
     mode    = 'fixed' if fixed_arg else 'auto'
 
@@ -472,6 +476,7 @@ def run_ensemble(lat, lon, start_year, end_year, scenarios, models, fixed_arg=No
                 'aggregation':    'model-first (per-model period mean, then mean across models)',
                 'data_source':    'NEX-GDDP-CMIP6',
                 'source_key':     NEX_GDDP_SOURCE,
+                'ensemble_policy': ensemble_policy,
                 'analysis_date':  datetime.now().isoformat(),
                 'diagnostics':    diagnostics,
             },
@@ -742,6 +747,8 @@ def main() -> int:
     p.add_argument('--scenarios',    help=f"Comma-separated. Default: ALL ({','.join(SSP_SCENARIOS)})")
     p.add_argument('--models',       help=f"Comma-separated. Default: ALL {len(NEX_GDDP_MODELS)} models")
     p.add_argument('--exclude-models', help='Comma-separated models to drop')
+    p.add_argument('--policy-profile', choices=POLICY_PROFILE_CHOICES, default='default',
+        help=POLICY_PROFILE_HELP)
     p.add_argument('--fixed-season', metavar='MM-DD:MM-DD[,MM-DD:MM-DD]',
         help="Fixed windows: '03-01:05-31', '03-01:05-31,10-01:12-15', '11-01:02-28' (year-crossing)")
     p.add_argument('--source-key',
@@ -769,11 +776,13 @@ def main() -> int:
 
     sub_models = [m.strip() for m in args.models.split(',') if m.strip()] if args.models else None
     excl = [m.strip() for m in args.exclude_models.split(',') if m.strip()] if args.exclude_models else None
-    models = default_ensemble_models_for_location(
+    ensemble_policy = resolve_ensemble_policy_for_location(
         (lat, lon),
         models=sub_models,
         exclude_models=excl,
+        policy_profile=None if args.policy_profile == 'default' else args.policy_profile,
     )
+    models = ensemble_policy["models"]
     if not models:
         print("Error: model list is empty.")
         return 1
@@ -782,6 +791,11 @@ def main() -> int:
         print(f"NEX-GDDP Ensemble | {lat:.4f},{lon:.4f} | {args.start_year}–{args.end_year}")
         print(f"  Mode       : {'fixed-season' if args.fixed_season else 'auto'}")
         print(f"  Source key : {NEX_GDDP_SOURCE!r}  (override with --source-key)")
+        print(f"  Policy     : {ensemble_policy.get('policy_id')}")
+        if ensemble_policy.get("regional_context"):
+            print(f"  Context    : {ensemble_policy.get('regional_context')}")
+        for line in policy_runtime_messages(ensemble_policy):
+            print(f"  Warning    : {line}")
         print(f"  Scenarios  : {', '.join(scenarios)}  ({len(scenarios)})")
         print(f"  Models     : {len(models)} / {len(NEX_GDDP_MODELS)}")
 
@@ -789,6 +803,7 @@ def main() -> int:
         lat, lon, args.start_year, args.end_year,
         scenarios = scenarios, models = models,
         fixed_arg = args.fixed_season,
+        ensemble_policy = ensemble_policy,
         verbose   = not args.quiet,
     )
 

@@ -41,8 +41,12 @@ from climate_tookit.climate_statistics.statistics import (
 )
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
+    POLICY_PROFILE_CHOICES,
+    POLICY_PROFILE_HELP,
     _validate_period_against_scenario,
     default_ensemble_models_for_location,
+    policy_runtime_messages,
+    resolve_ensemble_policy_for_location,
 )
 
 import pandas as pd
@@ -329,6 +333,7 @@ def analyze_ensemble_nex_gddp(
     fixed_season:   Optional[str] = None,
     models:         Optional[List[str]] = None,
     exclude_models: Optional[List[str]] = None,
+    policy_profile: Optional[str] = None,
     extra_months:   int = 6,
     verbose:        bool = True,
 ) -> Dict[str, Any]:
@@ -360,11 +365,13 @@ def analyze_ensemble_nex_gddp(
     except ValueError as exc:
         return {'error': str(exc)}
 
-    active = default_ensemble_models_for_location(
+    ensemble_policy = resolve_ensemble_policy_for_location(
         location_coord,
         models=models,
         exclude_models=exclude_models,
+        policy_profile=policy_profile,
     )
+    active = ensemble_policy["models"]
     if not active:
         return {'error': 'No models selected after filtering.'}
 
@@ -374,6 +381,11 @@ def analyze_ensemble_nex_gddp(
         print(f"  Location : {location_coord[0]}, {location_coord[1]}")
         print(f"  Period   : {start_year}-{end_year}")
         print(f"  Scenario : {scenario}")
+        print(f"  Policy   : {ensemble_policy.get('policy_id')}")
+        if ensemble_policy.get('regional_context'):
+            print(f"  Context  : {ensemble_policy.get('regional_context')}")
+        for line in policy_runtime_messages(ensemble_policy):
+            print(f"  Warning  : {line}")
         if fixed_season:
             print(f"  Seasons  : {fixed_season}")
         print(f"  Models   : {len(active)}")
@@ -468,6 +480,7 @@ def analyze_ensemble_nex_gddp(
         'season_detection':   season_detection,
         'coverage_warning':   coverage_warning,
         'season_slot_warning': season_slot_warning,
+        'ensemble_policy':    ensemble_policy,
         'analysis_date':      datetime.now().isoformat(),
         'methodology':        ('FUTURE LTM SEASON SUMMARY computed as: '
                                'Step 1 -- statistics.ltm_season_summary per model '
@@ -695,6 +708,8 @@ def main() -> int:
                         "(default: all 16)")
     p.add_argument("--exclude-models", default=None,
                    help="Comma-separated CMIP6 models to drop from the ensemble")
+    p.add_argument("--policy-profile", choices=POLICY_PROFILE_CHOICES, default="default",
+                   help=POLICY_PROFILE_HELP)
     p.add_argument("--list-models",    action="store_true",
                    help="Print available CMIP6 models + scenarios and exit")
     p.add_argument("--format", choices=['json', 'pandas'],
@@ -751,6 +766,7 @@ def main() -> int:
             fixed_season=args.fixed_season,
             models=sub_models,
             exclude_models=excl,
+            policy_profile=None if args.policy_profile == "default" else args.policy_profile,
             extra_months=args.extra_months,
             verbose=not args.quiet,
         )

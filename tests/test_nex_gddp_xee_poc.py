@@ -171,12 +171,100 @@ class NexGddpXeePocTests(unittest.TestCase):
     def test_africa_default_ensemble_excludes_canesm5(self):
         models = nex_gddp.default_ensemble_models_for_location((-1.286, 36.817))
         self.assertNotIn("CanESM5", models)
+        self.assertNotIn("INM-CM4-8", models)
+        self.assertNotIn("INM-CM5-0", models)
+        self.assertNotIn("KACE-1-0-G", models)
+        self.assertNotIn("TaiESM1", models)
         self.assertEqual(len(models), len(nex_gddp.AFRICA_DEFAULT_ENSEMBLE_MODELS))
+        self.assertEqual(len(models), 13)
 
     def test_non_africa_default_ensemble_keeps_canesm5(self):
         models = nex_gddp.default_ensemble_models_for_location((-13.5319, -71.9675))
         self.assertIn("CanESM5", models)
         self.assertEqual(models, nex_gddp.AVAILABLE_MODELS)
+
+    def test_africa_policy_metadata_marks_horn_context_and_paradox_caution(self):
+        policy = nex_gddp.resolve_ensemble_policy_for_location((-1.286, 36.817))
+        self.assertEqual(policy["policy_id"], "AFR-13")
+        self.assertEqual(policy["regional_context"], "AFR-EAF")
+        self.assertTrue(policy["east_african_paradox_caution"])
+        self.assertEqual(policy["realization"], "r1i1p1f1")
+        self.assertIn("CanESM5", policy["excluded_models"])
+
+    def test_non_africa_policy_metadata_uses_full_pool(self):
+        policy = nex_gddp.resolve_ensemble_policy_for_location((-13.5319, -71.9675))
+        self.assertEqual(policy["policy_id"], "FULL-18")
+        self.assertIsNone(policy["regional_context"])
+        self.assertFalse(policy["east_african_paradox_caution"])
+        self.assertEqual(policy["models"], nex_gddp.AVAILABLE_MODELS)
+
+    def test_africa_eaf_regional_fast_profile_uses_provisional_shortlist(self):
+        policy = nex_gddp.resolve_ensemble_policy_for_location(
+            (-1.286, 36.817),
+            policy_profile="regional_fast",
+        )
+        self.assertEqual(policy["policy_id"], "AFR-EAF-FAST-PROVISIONAL-V2")
+        self.assertEqual(policy["regional_context"], "AFR-EAF")
+        self.assertEqual(policy["models"], nex_gddp.AFR_EAF_FAST_PROVISIONAL_MODELS)
+        self.assertEqual(policy["comparability_class"], "strict_proxy")
+        self.assertEqual(policy["evidence_confidence"], "medium")
+        self.assertEqual(policy["warning_level"], "warning")
+        self.assertIn("screening", policy["runtime_disclaimer"].lower())
+
+    def test_waf_regional_fast_profile_uses_warning_watchlist(self):
+        policy = nex_gddp.resolve_ensemble_policy_for_location(
+            (5.56, -0.20),
+            policy_profile="regional_fast",
+        )
+        self.assertEqual(policy["policy_id"], "AFR-WAF-FAST-WARNING")
+        self.assertEqual(policy["regional_context"], "AFR-WAF")
+        self.assertEqual(policy["models"], nex_gddp.AFR_WAF_FAST_WARNING_MODELS)
+        self.assertEqual(policy["evidence_confidence"], "low")
+        self.assertEqual(policy["warning_level"], "warning")
+
+    def test_andes_regional_fast_profile_uses_warning_watchlist(self):
+        policy = nex_gddp.resolve_ensemble_policy_for_location(
+            (-13.5319, -71.9675),
+            policy_profile="regional_fast",
+        )
+        self.assertEqual(policy["policy_id"], "ANDES-FAST-WARNING")
+        self.assertEqual(policy["regional_context"], "ANDES")
+        self.assertEqual(policy["models"], nex_gddp.ANDES_FAST_WARNING_MODELS)
+        self.assertEqual(policy["evidence_confidence"], "low")
+        self.assertEqual(policy["warning_level"], "warning")
+
+    def test_non_codified_regional_fast_profile_still_falls_back_with_note(self):
+        policy = nex_gddp.resolve_ensemble_policy_for_location(
+            (-2.0, 20.0),
+            policy_profile="regional_fast",
+        )
+        self.assertEqual(policy["policy_id"], "AFR-13")
+        self.assertTrue(policy["policy_fallback"])
+        self.assertEqual(policy["requested_policy_profile"], "regional_fast")
+        self.assertIn("no source-backed fast shortlist", " ".join(policy["notes"]))
+
+    def test_policy_runtime_messages_include_disclaimer_and_memo(self):
+        policy = nex_gddp.resolve_ensemble_policy_for_location(
+            (-1.286, 36.817),
+            policy_profile="regional_fast",
+        )
+        lines = nex_gddp.policy_runtime_messages(policy)
+        self.assertTrue(any("provisional" in line.lower() for line in lines))
+        self.assertTrue(any("decision memo" in line.lower() for line in lines))
+
+    def test_user_supplied_models_preserve_manual_override_but_keep_africa_context(self):
+        policy = nex_gddp.resolve_ensemble_policy_for_location(
+            (-1.286, 36.817),
+            models=["MRI-ESM2-0", "EC-Earth3-Veg-LR"],
+        )
+        self.assertEqual(policy["policy_id"], "USER_SUPPLIED")
+        self.assertEqual(policy["regional_context"], "AFR-EAF")
+        self.assertEqual(policy["models"], ["MRI-ESM2-0", "EC-Earth3-Veg-LR"])
+
+    def test_africa_subregion_classification_examples(self):
+        self.assertEqual(nex_gddp.africa_subregion_for_coordinate(-1.286, 36.817), "AFR-EAF")
+        self.assertEqual(nex_gddp.africa_subregion_for_coordinate(5.56, -0.20), "AFR-WAF")
+        self.assertEqual(nex_gddp.africa_subregion_for_coordinate(-18.8792, 47.5079), "AFR-MDG")
 
     def test_available_models_matches_documented_nex_18_pool(self):
         self.assertEqual(len(nex_gddp.AVAILABLE_MODELS), 18)
