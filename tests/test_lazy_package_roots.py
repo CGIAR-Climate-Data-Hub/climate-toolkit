@@ -9,6 +9,31 @@ def _clear_modules(*module_names):
 
 
 class LazyPackageRootsTests(unittest.TestCase):
+    def test_top_level_package_root_does_not_eager_import_major_subpackages(self):
+        _clear_modules(
+            "climate_tookit",
+            "climate_tookit.fetch_data",
+            "climate_tookit.weather_station",
+            "climate_tookit.compare_periods",
+            "climate_tookit.compare_datasets",
+            "climate_tookit.climate_statistics",
+            "climate_tookit.calculate_hazards",
+        )
+
+        package = importlib.import_module("climate_tookit")
+
+        self.assertEqual("climate_tookit", package.__name__)
+        self.assertNotIn("climate_tookit.fetch_data", sys.modules)
+        self.assertNotIn("climate_tookit.weather_station", sys.modules)
+        self.assertNotIn("climate_tookit.compare_periods", sys.modules)
+        self.assertNotIn("climate_tookit.compare_datasets", sys.modules)
+        self.assertNotIn("climate_tookit.climate_statistics", sys.modules)
+        self.assertNotIn("climate_tookit.calculate_hazards", sys.modules)
+
+        fetch_fn = package.fetch_climate_data
+        self.assertTrue(callable(fetch_fn))
+        self.assertIn("climate_tookit.fetch_data.fetch_data", sys.modules)
+
     def test_crop_calendar_package_root_does_not_eager_import_submodules(self):
         _clear_modules(
             "climate_tookit.crop_calendar",
@@ -63,6 +88,63 @@ class LazyPackageRootsTests(unittest.TestCase):
         self.assertTrue(callable(settings_cls))
         self.assertIn(
             "climate_tookit.fetch_data.source_data.sources.utils.settings",
+            sys.modules,
+        )
+
+    def test_source_data_package_root_is_lazy(self):
+        _clear_modules(
+            "climate_tookit.fetch_data.source_data",
+            "climate_tookit.fetch_data.source_data.source_data",
+        )
+
+        package = importlib.import_module("climate_tookit.fetch_data.source_data")
+
+        self.assertEqual("climate_tookit.fetch_data.source_data", package.__name__)
+        self.assertNotIn("climate_tookit.fetch_data.source_data.source_data", sys.modules)
+
+        source_data_cls = package.SourceData
+        self.assertTrue(callable(source_data_cls))
+        self.assertIn("climate_tookit.fetch_data.source_data.source_data", sys.modules)
+
+    def test_transform_data_package_root_is_lazy(self):
+        _clear_modules(
+            "climate_tookit.fetch_data.transform_data",
+            "climate_tookit.fetch_data.transform_data.transform_data",
+        )
+
+        package = importlib.import_module("climate_tookit.fetch_data.transform_data")
+
+        self.assertEqual("climate_tookit.fetch_data.transform_data", package.__name__)
+        self.assertNotIn(
+            "climate_tookit.fetch_data.transform_data.transform_data",
+            sys.modules,
+        )
+
+        transform_fn = package.transform_data
+        self.assertTrue(callable(transform_fn))
+        self.assertIn(
+            "climate_tookit.fetch_data.transform_data.transform_data",
+            sys.modules,
+        )
+
+    def test_preprocess_data_package_root_is_lazy(self):
+        _clear_modules(
+            "climate_tookit.fetch_data.preprocess_data",
+            "climate_tookit.fetch_data.preprocess_data.preprocess_data",
+        )
+
+        package = importlib.import_module("climate_tookit.fetch_data.preprocess_data")
+
+        self.assertEqual("climate_tookit.fetch_data.preprocess_data", package.__name__)
+        self.assertNotIn(
+            "climate_tookit.fetch_data.preprocess_data.preprocess_data",
+            sys.modules,
+        )
+
+        preprocess_fn = package.preprocess_data
+        self.assertTrue(callable(preprocess_fn))
+        self.assertIn(
+            "climate_tookit.fetch_data.preprocess_data.preprocess_data",
             sys.modules,
         )
 
