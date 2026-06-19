@@ -9,13 +9,21 @@ from pydantic import BaseModel, field_validator
 
 CONFIG_PACKAGE = "climate_tookit.fetch_data.source_data.sources.utils"
 CONFIG_RESOURCE = "config.yaml"
+TOOLKIT_LOGGER_NAME = "climate_tookit"
 
 def set_logging():
-    """Configure logging for the application"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(filename)s:%(lineno)d --- %(message)s",
-    )
+    """Configure toolkit logger without mutating root logging state."""
+    logger = logging.getLogger(TOOLKIT_LOGGER_NAME)
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)s %(filename)s:%(lineno)d --- %(message)s"
+            )
+        )
+        logger.addHandler(handler)
+    return logger
 
 
 class Cadence(BaseModel):
@@ -196,15 +204,3 @@ class Settings(BaseModel):
             with Path(settings_path).open(mode="r", encoding="utf-8") as f:
                 settings = yaml.safe_load(f)
         return cls(**settings)
-
-
-if __name__ == "__main__":
-    print(Settings.load().agera_5)
-    print(Settings.load().imerg.short_name.monthly)
-    print(Settings.load().chirps_v2.variable)
-    print(Settings.load().cmip_6.variable)
-    print(Settings.load().nex_gddp.variable)
-    print(Settings.load().nasa_power.variable)
-    print(Settings.load().tamsat.rainfall_url)
-    print(Settings.load().tamsat.soil_moisture_url)
-    print(Settings.load().soil_grid)

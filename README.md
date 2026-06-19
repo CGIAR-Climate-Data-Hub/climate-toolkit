@@ -244,6 +244,34 @@ Top-level Python API names:
 - `from climate_tookit import download_station_data`
 - `from climate_tookit import compare_station_to_grids`
 
+Preferred stable import paths:
+
+- top-level package for end-user workflows:
+  - `climate_tookit.fetch_climate_data`
+  - `climate_tookit.analyze_climate_statistics`
+  - `climate_tookit.compare_climate_periods`
+  - `climate_tookit.compare_climate_sources`
+  - `climate_tookit.evaluate_hazards`
+  - `climate_tookit.download_station_data`
+  - `climate_tookit.compare_station_to_grids`
+- explicit subpackage roots for supported advanced use:
+  - `climate_tookit.fetch_data`
+  - `climate_tookit.weather_station`
+  - `climate_tookit.crop_calendar`
+  - `climate_tookit.climatology`
+
+Avoid depending on deep internal modules unless you are doing package
+development. Examples of internal paths that are importable but not stable
+contracts:
+
+- `climate_tookit.fetch_data.source_data.source_data`
+- `climate_tookit.fetch_data.preprocess_data.preprocess_data`
+- `climate_tookit.fetch_data.transform_data.transform_data`
+- `climate_tookit.fetch_data.gee_xee_batch`
+- `climate_tookit.fetch_data.nex_gddp_batch`
+- `climate_tookit.fetch_data.cache_inventory`
+- `climate_tookit.fetch_data.source_data.sources.utils`
+
 ### Cache and reuse
 
 GEE/Xee-backed fetches can be slow on a cold run because the toolkit has to

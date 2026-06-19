@@ -9,6 +9,8 @@ path ``climate_tookit.fetch_data.fetch_data`` because the package name and
 submodule name collide under Python's import machinery.
 """
 
+from importlib import import_module
+
 __all__ = [
     "Site",
     "fetch_gee_xee_batch_data",
@@ -19,6 +21,8 @@ __all__ = [
 
 
 def __getattr__(name):
+    if name in {"multi_site", "gee_xee_batch", "nex_gddp_batch", "source_data"}:
+        return import_module(f"{__name__}.{name}")
     if name in {"Site", "load_sites", "parse_site_spec"}:
         from .multi_site import (
             Site as _Site,
