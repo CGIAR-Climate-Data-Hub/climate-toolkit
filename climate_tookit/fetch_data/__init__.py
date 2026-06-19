@@ -1,20 +1,24 @@
+"""Public fetch-data package surface.
+
+Stable package-level imports live in ``__all__``. Advanced batch runner
+helpers remain importable from this package for development workflows, but
+they are intentionally not advertised as stable public API.
+
+The main orchestration function intentionally stays on the explicit submodule
+path ``climate_tookit.fetch_data.fetch_data`` because the package name and
+submodule name collide under Python's import machinery.
+"""
+
 __all__ = [
     "Site",
     "fetch_gee_xee_batch_data",
     "load_sites",
     "parse_site_spec",
-    "fetch_data",
     "fetch_nex_gddp_batch_data",
-    "run_gee_xee_batch_extraction",
-    "run_batch_extraction",
 ]
 
 
 def __getattr__(name):
-    if name == "fetch_data":
-        from .fetch_data import fetch_data as _fetch_data
-
-        return _fetch_data
     if name in {"Site", "load_sites", "parse_site_spec"}:
         from .multi_site import (
             Site as _Site,

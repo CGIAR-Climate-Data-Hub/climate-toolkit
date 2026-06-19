@@ -208,7 +208,6 @@ def fetch_data(
         refresh_cache=refresh_cache,
         station_id=station_id,
     )
-
 def save_output(data, output_path, fmt):
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     if fmt == "csv":

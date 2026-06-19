@@ -228,6 +228,12 @@ Internal helper modules such as `source_data.py`, `preprocess_data.py`,
 `cache_inventory.py` remain importable for package internals and advanced
 development workflows, but they are not stable end-user CLI contracts.
 
+Likewise, package roots such as `climate_tookit.fetch_data` and
+`climate_tookit.weather_station` expose a small stable API surface for normal
+use, while lower-level backend helpers remain available through their concrete
+submodules for development work and should not be treated as stable package
+contracts.
+
 Top-level Python API names:
 
 - `from climate_tookit import fetch_climate_data`
