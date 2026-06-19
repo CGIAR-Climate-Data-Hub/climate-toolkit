@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from importlib.util import find_spec
 import logging
 import warnings
 from contextlib import contextmanager
@@ -22,29 +23,59 @@ def _suppress_xclim_import_noise():
         logging.disable(previous_disable)
 
 
-try:
-    with _suppress_xclim_import_noise():
-        import xarray as xr
-        import xclim
-        from xclim.indicators.atmos import (
-            daily_pr_intensity,
-            max_1day_precipitation_amount,
-            max_n_day_precipitation_amount,
-            maximum_consecutive_dry_days,
-            maximum_consecutive_wet_days,
-            wetdays,
-        )
+xr = None
+xclim = None
+daily_pr_intensity = None
+max_1day_precipitation_amount = None
+max_n_day_precipitation_amount = None
+maximum_consecutive_dry_days = None
+maximum_consecutive_wet_days = None
+wetdays = None
+_XCLIM_RUNTIME_LOADED = False
+XCLIM_AVAILABLE = bool(find_spec("xarray")) and bool(find_spec("xclim"))
 
-    XCLIM_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency
-    xr = None
-    xclim = None
-    XCLIM_AVAILABLE = False
+
+def _load_xclim_runtime() -> None:
+    global xr, xclim, daily_pr_intensity, max_1day_precipitation_amount
+    global max_n_day_precipitation_amount, maximum_consecutive_dry_days
+    global maximum_consecutive_wet_days, wetdays, _XCLIM_RUNTIME_LOADED, XCLIM_AVAILABLE
+
+    if _XCLIM_RUNTIME_LOADED:
+        return
+    if not XCLIM_AVAILABLE:
+        raise RuntimeError("xclim is not installed in this environment.")
+
+    try:
+        with _suppress_xclim_import_noise():
+            import xarray as _xr
+            import xclim as _xclim
+            from xclim.indicators.atmos import (
+                daily_pr_intensity as _daily_pr_intensity,
+                max_1day_precipitation_amount as _max_1day_precipitation_amount,
+                max_n_day_precipitation_amount as _max_n_day_precipitation_amount,
+                maximum_consecutive_dry_days as _maximum_consecutive_dry_days,
+                maximum_consecutive_wet_days as _maximum_consecutive_wet_days,
+                wetdays as _wetdays,
+            )
+    except Exception as exc:  # pragma: no cover - optional dependency runtime
+        XCLIM_AVAILABLE = False
+        raise RuntimeError("xclim is not installed in this environment.") from exc
+
+    xr = _xr
+    xclim = _xclim
+    daily_pr_intensity = _daily_pr_intensity
+    max_1day_precipitation_amount = _max_1day_precipitation_amount
+    max_n_day_precipitation_amount = _max_n_day_precipitation_amount
+    maximum_consecutive_dry_days = _maximum_consecutive_dry_days
+    maximum_consecutive_wet_days = _maximum_consecutive_wet_days
+    wetdays = _wetdays
+    _XCLIM_RUNTIME_LOADED = True
 
 
 def _ensure_xclim() -> None:
     if not XCLIM_AVAILABLE:
         raise RuntimeError("xclim is not installed in this environment.")
+    _load_xclim_runtime()
 
 
 def _build_precip_dataarray(

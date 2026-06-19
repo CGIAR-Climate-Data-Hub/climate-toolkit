@@ -34,6 +34,25 @@ class LazyPackageRootsTests(unittest.TestCase):
         self.assertTrue(callable(fetch_fn))
         self.assertIn("climate_tookit.fetch_data.fetch_data", sys.modules)
 
+    def test_climatology_xclim_availability_flag_stays_lightweight(self):
+        _clear_modules(
+            "climate_tookit.climatology",
+            "climate_tookit.climatology.xclim_reference",
+            "xarray",
+            "xclim",
+        )
+
+        package = importlib.import_module("climate_tookit.climatology")
+
+        self.assertEqual("climate_tookit.climatology", package.__name__)
+        self.assertNotIn("climate_tookit.climatology.xclim_reference", sys.modules)
+
+        available = package.XCLIM_AVAILABLE
+        self.assertIsInstance(available, bool)
+        self.assertIn("climate_tookit.climatology.xclim_reference", sys.modules)
+        self.assertNotIn("xarray", sys.modules)
+        self.assertNotIn("xclim", sys.modules)
+
     def test_crop_calendar_package_root_does_not_eager_import_submodules(self):
         _clear_modules(
             "climate_tookit.crop_calendar",
