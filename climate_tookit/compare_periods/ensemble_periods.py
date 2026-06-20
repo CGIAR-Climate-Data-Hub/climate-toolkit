@@ -50,6 +50,7 @@ from climate_tookit.compare_periods.periods import (
     _compare_season_detection_summary,
     _compare_season_detection_guard,
     _diff_spei,
+    _diff_spi,
     _filter_overall_statistics_for_period_compare,
     _seasonal_spei_period_block,
     _merge_seasonal_spei_into_summary,
@@ -129,6 +130,10 @@ def _build_compare_one_model_task(
     spei_fit: str,
     spei_ref_start: Optional[str],
     spei_ref_end: Optional[str],
+    spi_scale_months: Optional[int],
+    spi_fit: str,
+    spi_ref_start: Optional[str],
+    spi_ref_end: Optional[str],
     suppress_child_stdout: bool,
 ) -> Dict[str, Any]:
     return {
@@ -148,6 +153,10 @@ def _build_compare_one_model_task(
         "spei_fit": spei_fit,
         "spei_ref_start": spei_ref_start,
         "spei_ref_end": spei_ref_end,
+        "spi_scale_months": spi_scale_months,
+        "spi_fit": spi_fit,
+        "spi_ref_start": spi_ref_start,
+        "spi_ref_end": spi_ref_end,
         "suppress_child_stdout": suppress_child_stdout,
     }
 
@@ -522,7 +531,11 @@ def _build_focal_summary(location:     Tuple[float, float],
                           spei_scale_months: Optional[int] = None,
                           spei_fit: str = "ub-pwm",
                           spei_ref_start: Optional[str] = None,
-                          spei_ref_end: Optional[str] = None) -> Dict[str, Any]:
+                          spei_ref_end: Optional[str] = None,
+                          spi_scale_months: Optional[int] = None,
+                          spi_fit: str = "ub-pwm",
+                          spi_ref_start: Optional[str] = None,
+                          spi_ref_end: Optional[str] = None) -> Dict[str, Any]:
     """Fetch one observed year and reduce it to comparable season-summary values."""
     fs_kw = {"fixed_season": fixed_season} if fixed_season else {}
     paired_kw = {}
@@ -544,6 +557,10 @@ def _build_focal_summary(location:     Tuple[float, float],
         spei_fit=spei_fit,
         spei_ref_start=spei_ref_start,
         spei_ref_end=spei_ref_end,
+        spi_scale_months=spi_scale_months,
+        spi_fit=spi_fit,
+        spi_ref_start=spi_ref_start,
+        spi_ref_end=spi_ref_end,
         verbose=diagnostic_verbose,
     )
 
@@ -587,6 +604,7 @@ def _build_focal_summary(location:     Tuple[float, float],
         "overall":      overall,
         "seasons":      season_summary,
         "spei":         stats.get("spei"),
+        "spi":          stats.get("spi"),
         "annual_rain":  ann.get("annual_rain_mm"),
         "is_humid":     ann.get("is_humid"),
         "humid_test":   ann.get("humid_test"),
@@ -699,7 +717,11 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
                                  spei_scale_months: Optional[int] = None,
                                  spei_fit: str = "ub-pwm",
                                  spei_ref_start: Optional[str] = None,
-                                 spei_ref_end: Optional[str] = None) -> Optional[Dict[str, Any]]:
+                                 spei_ref_end: Optional[str] = None,
+                                 spi_scale_months: Optional[int] = None,
+                                 spi_fit: str = "ub-pwm",
+                                 spi_ref_start: Optional[str] = None,
+                                 spi_ref_end: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Build a single-year focal summary from the NEX-GDDP ensemble itself (mean across models), so the focal/baseline/future comparison is entirely NEX-GDDP-sourced.
     Scenario-dependent (the focal year inherits the same scenario as the LTMs).
@@ -717,6 +739,7 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
     win_blocks: Dict[int, List[Dict[str, Any]]] = {}
     lump_blocks: List[Dict[str, Any]] = []
     spei_blocks: List[Dict[str, Any]] = []
+    spi_blocks: List[Dict[str, Any]] = []
     rains:      List[float] = []
     humid_count = humid_total = 0
     calendar_presets: List[Dict[str, Any]] = []
@@ -732,6 +755,10 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
                 spei_fit=spei_fit,
                 spei_ref_start=spei_ref_start,
                 spei_ref_end=spei_ref_end,
+                spi_scale_months=spi_scale_months,
+                spi_fit=spi_fit,
+                spi_ref_start=spi_ref_start,
+                spi_ref_end=spi_ref_end,
                 verbose=diagnostic_verbose,
             )
         except Exception as exc:
@@ -765,6 +792,8 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
         ann = (stats.get("annual_summary", {}) or {}).get(str(focal_year), {}) or {}
         if stats.get("spei"):
             spei_blocks.append(stats["spei"])
+        if stats.get("spi"):
+            spi_blocks.append(stats["spi"])
         if stats.get("calendar_preset"):
             calendar_presets.append(stats["calendar_preset"])
         if _is_num(ann.get("annual_rain_mm")):
@@ -786,6 +815,7 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
         season_summary = {"block": _mean_2level(lump_blocks)}
 
     focal_spei = _aggregate_simple_spei_blocks(spei_blocks) if spei_blocks else None
+    focal_spi = _aggregate_simple_spi_blocks(spi_blocks) if spi_blocks else None
 
     return {
         "focal_year":  focal_year,
@@ -798,6 +828,7 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
         "overall":     _mean_2level(overalls),
         "seasons":     season_summary,
         "spei":        focal_spei,
+        "spi":         focal_spi,
         "annual_rain": round(sum(rains) / len(rains), 1) if rains else None,
         "is_humid":    (humid_count > humid_total / 2) if humid_total else None,
         "humid_test":  f"{humid_count}/{humid_total} models humid" if humid_total else None,
@@ -835,6 +866,43 @@ def _aggregate_simple_spei_blocks(blocks: List[Dict[str, Any]]) -> Optional[Dict
         "summary": {
             "n_months": len(monthly_rows),
             "n_valid_spei": len(valid),
+        },
+        "metadata": blocks[0].get("metadata", {}),
+        "monthly_series": monthly_rows,
+    }
+
+
+def _aggregate_simple_spi_blocks(blocks: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not blocks:
+        return None
+    monthly_pool: Dict[str, Dict[str, List[float]]] = {}
+    for block in blocks:
+        for row in block.get("monthly_series") or []:
+            date_key = row.get("date")
+            month = row.get("month")
+            if not date_key:
+                continue
+            slot = monthly_pool.setdefault(date_key, {"month": [month], "spi": []})
+            if _is_num(row.get("spi")):
+                slot["spi"].append(float(row["spi"]))
+    monthly_rows = []
+    for date_key in sorted(monthly_pool):
+        slot = monthly_pool[date_key]
+        if not slot["spi"]:
+            continue
+        monthly_rows.append({
+            "date": date_key,
+            "month": int(slot["month"][0]) if slot["month"] and slot["month"][0] is not None else None,
+            "spi": round(sum(slot["spi"]) / len(slot["spi"]), 3),
+        })
+    if not monthly_rows:
+        return None
+    valid = [row["spi"] for row in monthly_rows if _is_num(row.get("spi"))]
+    return {
+        "config": blocks[0].get("config", {}),
+        "summary": {
+            "n_months": len(monthly_rows),
+            "n_valid_spi": len(valid),
         },
         "metadata": blocks[0].get("metadata", {}),
         "monthly_series": monthly_rows,
@@ -931,6 +999,7 @@ def _diff_focal_vs_ltm(focal:   Dict[str, Any],
     }
 
     spei = _diff_spei(focal.get("spei"), ensemble.get("spei"))
+    spi = _diff_spi(focal.get("spi"), ensemble.get("spi"))
 
     return {
         "focal_year":        focal["focal_year"],
@@ -940,6 +1009,7 @@ def _diff_focal_vs_ltm(focal:   Dict[str, Any],
         "season_statistics":  season_diff,
         "annual_summary":     annual,
         "spei":               spei,
+        "spi":                spi,
     }
 
 def _diff_focal_vs_future(focal: Dict[str, Any],
@@ -978,6 +1048,10 @@ def _compare_one_model(
     spei_fit: str = "ub-pwm",
     spei_ref_start: Optional[str] = None,
     spei_ref_end: Optional[str] = None,
+    spi_scale_months: Optional[int] = None,
+    spi_fit: str = "ub-pwm",
+    spi_ref_start: Optional[str] = None,
+    spi_ref_end: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Same logic as periods.compare(), but pinned to source='nex_gddp'. Baseline
@@ -1009,6 +1083,15 @@ def _compare_one_model(
         }
         if spei_scale_months is not None else {}
     )
+    spi_kw = (
+        {
+            "spi_scale_months": spi_scale_months,
+            "spi_fit": spi_fit,
+            "spi_ref_start": spi_ref_start,
+            "spi_ref_end": spi_ref_end,
+        }
+        if spi_scale_months is not None else {}
+    )
 
     base = _run_stats_call(
         diagnostic_verbose=diagnostic_verbose,
@@ -1016,7 +1099,7 @@ def _compare_one_model(
         start_year=baseline_start, end_year=baseline_end,
         source="nex_gddp",
         model=model, scenario="historical",
-        **fs_kw, **calendar_kw, **spei_kw,
+        **fs_kw, **calendar_kw, **spei_kw, **spi_kw,
     )
     if isinstance(base, dict) and base.get("error"):
         return {
@@ -1031,7 +1114,7 @@ def _compare_one_model(
         start_year=future_start, end_year=future_end,
         source="nex_gddp",
         model=model, scenario=scenario,
-        **fs_kw, **calendar_kw, **spei_kw,
+        **fs_kw, **calendar_kw, **spei_kw, **spi_kw,
     )
     if isinstance(future, dict) and future.get("error"):
         return {
@@ -1127,6 +1210,10 @@ def _compare_one_model(
         future.get("spei"),
         base.get("spei"),
     )
+    spi_diff = _diff_spi(
+        future.get("spi"),
+        base.get("spi"),
+    )
     return {
         "future_period":         f"{future_start}-{future_end}",
         "future_years":          n_future,
@@ -1144,6 +1231,7 @@ def _compare_one_model(
         "future_calendar_preset_used": bool(future.get("calendar_preset_used")),
         "future_calendar_preset": future.get("calendar_preset"),
         "spei_scale_months":    spei_scale_months,
+        "spi_scale_months":     spi_scale_months,
         "temperature_excluded": drop_temp,
         "season_detection":     season_detection,
         "raw_climate_summary":  raw_diff,
@@ -1151,6 +1239,7 @@ def _compare_one_model(
         "season_statistics":    season_diff,
         "annual_summary":       annual_diff,
         "spei":                 spei_diff,
+        "spi":                  spi_diff,
     }
 
 # cross-model aggregation
@@ -1338,6 +1427,63 @@ def _aggregate_spei_diff(per_model: List[Optional[Dict[str, Any]]]) -> Optional[
         "config": {"derived_from": "ensemble mean of per-model SPEI diffs"},
     }
 
+
+def _aggregate_spi_diff(per_model: List[Optional[Dict[str, Any]]]) -> Optional[Dict[str, Any]]:
+    samples = [r.get("spi") for r in per_model if isinstance(r, dict) and r.get("spi")]
+    if not samples:
+        return None
+    monthly_pool: Dict[str, Dict[str, List[float]]] = {}
+    summary_pool: Dict[str, List[float]] = {}
+    for sample in samples:
+        for row in sample.get("monthly") or []:
+            date_key = row.get("date")
+            month = row.get("month")
+            if not date_key:
+                continue
+            slot = monthly_pool.setdefault(date_key, {"month": [month]})
+            for key in ("focal_spi", "baseline_avg_spi", "diff"):
+                if _is_num(row.get(key)):
+                    slot.setdefault(key, []).append(float(row[key]))
+        summary = sample.get("summary") or {}
+        for key in ("focal_avg_spi", "baseline_avg_spi", "diff"):
+            if _is_num(summary.get(key)):
+                summary_pool.setdefault(key, []).append(float(summary[key]))
+    monthly_rows = []
+    for date_key in sorted(monthly_pool):
+        slot = monthly_pool[date_key]
+        row = {
+            "date": date_key,
+            "month": int(slot["month"][0]) if slot["month"] and slot["month"][0] is not None else None,
+        }
+        for key in ("focal_spi", "baseline_avg_spi", "diff"):
+            vals = slot.get(key) or []
+            row[key] = round(sum(vals) / len(vals), 3) if vals else None
+        row["pct"] = None
+        monthly_rows.append(row)
+    summary_out = None
+    if summary_pool:
+        summary_out = {
+            key: round(sum(vals) / len(vals), 3)
+            for key, vals in summary_pool.items() if vals
+        }
+    elif monthly_rows:
+        focal_vals = [row["focal_spi"] for row in monthly_rows if _is_num(row.get("focal_spi"))]
+        base_vals = [row["baseline_avg_spi"] for row in monthly_rows if _is_num(row.get("baseline_avg_spi"))]
+        diff_vals = [row["diff"] for row in monthly_rows if _is_num(row.get("diff"))]
+        if focal_vals and base_vals and diff_vals:
+            summary_out = {
+                "focal_avg_spi": round(sum(focal_vals) / len(focal_vals), 3),
+                "baseline_avg_spi": round(sum(base_vals) / len(base_vals), 3),
+                "diff": round(sum(diff_vals) / len(diff_vals), 3),
+                "pct": None,
+            }
+    return {
+        "summary": summary_out,
+        "monthly": monthly_rows,
+        "n_models": len(samples),
+        "config": {"derived_from": "ensemble mean of per-model SPI diffs"},
+    }
+
 # main API
 def ensemble_compare(
     location:       Tuple[float, float],
@@ -1361,6 +1507,10 @@ def ensemble_compare(
     spei_fit: str = "ub-pwm",
     spei_ref_start: Optional[str] = None,
     spei_ref_end: Optional[str] = None,
+    spi_scale_months: Optional[int] = None,
+    spi_fit: str = "ub-pwm",
+    spi_ref_start: Optional[str] = None,
+    spi_ref_end: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Run the future-period-vs-baseline-period comparison once per NEX-GDDP model, then average across models.
@@ -1453,6 +1603,10 @@ def ensemble_compare(
             spei_fit=spei_fit,
             spei_ref_start=spei_ref_start,
             spei_ref_end=spei_ref_end,
+            spi_scale_months=spi_scale_months,
+            spi_fit=spi_fit,
+            spi_ref_start=spi_ref_start,
+            spi_ref_end=spi_ref_end,
             suppress_child_stdout=requested_model_workers > 1,
         )
         for model in active
@@ -1497,6 +1651,7 @@ def ensemble_compare(
         "annual_summary":      _aggregate_annual(
             [r.get("annual_summary") for r in per_model]),
         "spei":               _aggregate_spei_diff(per_model),
+        "spi":                _aggregate_spi_diff(per_model),
         "metadata": {
             "location":      {"lat": location[0], "lon": location[1]},
             "source":        "NEX-GDDP-CMIP6",
@@ -1654,6 +1809,29 @@ def _print_focal_vs_ltm(avl: Dict[str, Any]) -> None:
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
             print(pd.DataFrame(rows).to_string(index=False))
+    spi = avl.get("spi")
+    if spi:
+        print(f"\n--- 6. SPI (monthly/period summary, not seasonal) ---")
+        summary = spi.get("summary") or {}
+        if summary:
+            print(
+                f"  Mean SPI        : focal={summary['focal_avg_spi']:.3f} | "
+                f"{ltm_lbl}={summary['baseline_avg_spi']:.3f} | "
+                f"Δ={summary['diff']:+.3f}"
+            )
+        monthly = spi.get("monthly") or []
+        if monthly:
+            rows = []
+            for row in monthly:
+                rows.append({
+                    "date": row["date"],
+                    "month": row["month"],
+                    "focal_spi": f"{row['focal_spi']:.3f}" if _is_num(row.get("focal_spi")) else "n/a",
+                    ltm_lbl: f"{row['baseline_avg_spi']:.3f}" if _is_num(row.get("baseline_avg_spi")) else "n/a",
+                    "Δ": f"{row['diff']:+.3f}" if _is_num(row.get("diff")) else "n/a",
+                    "Δ%": _fmt_pct(row.get("pct")),
+                })
+            print(pd.DataFrame(rows).to_string(index=False))
 
 def _print_per_model_breakdown(per_model: List[Dict[str, Any]]) -> None:
     """
@@ -1783,6 +1961,30 @@ def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
                 })
             print(pd.DataFrame(rows).to_string(index=False))
         print()
+    spi = r.get("spi")
+    if spi:
+        print(f"\n--- 6. SPI (ensemble monthly/period summary, not seasonal) ---")
+        summary = spi.get("summary") or {}
+        if summary:
+            print(
+                f"  Mean SPI        : future_ltm={summary.get('focal_avg_spi'):.3f} | "
+                f"baseline_ltm={summary.get('baseline_avg_spi'):.3f} | "
+                f"Δ={summary.get('diff'):+.3f}"
+            )
+        monthly = spi.get("monthly") or []
+        if detailed and monthly:
+            rows = []
+            for row in monthly:
+                rows.append({
+                    "date": row["date"],
+                    "month": row["month"],
+                    "future_ltm_spi": f"{row['focal_spi']:.3f}" if _is_num(row.get("focal_spi")) else "n/a",
+                    "baseline_ltm_spi": f"{row['baseline_avg_spi']:.3f}" if _is_num(row.get("baseline_avg_spi")) else "n/a",
+                    "Δ": f"{row['diff']:+.3f}" if _is_num(row.get("diff")) else "n/a",
+                    "Δ%": _fmt_pct(row.get("pct")),
+                })
+            print(pd.DataFrame(rows).to_string(index=False))
+        print()
 
     avb = r.get("focal_vs_baseline")
     if avb:
@@ -1889,6 +2091,14 @@ def main() -> int:
                    help="Optional SPEI reference-period start date.")
     p.add_argument("--spei-ref-end", default=None,
                    help="Optional SPEI reference-period end date.")
+    p.add_argument("--spi-scale-months", type=int, default=None,
+                   help="Optional SPI scale in months for baseline/future/focal comparisons.")
+    p.add_argument("--spi-fit", choices=["ub-pwm", "empirical"], default="ub-pwm",
+                   help="SPI fitting method when --spi-scale-months is used.")
+    p.add_argument("--spi-ref-start", default=None,
+                   help="Optional SPI reference-period start date.")
+    p.add_argument("--spi-ref-end", default=None,
+                   help="Optional SPI reference-period end date.")
     p.add_argument("--quiet",          action="store_true")
     p.add_argument("--verbose",        action="store_true",
                    help="Show detailed per-year season diagnostics and full per-model report.")
@@ -1959,6 +2169,10 @@ def main() -> int:
             spei_fit=args.spei_fit,
             spei_ref_start=args.spei_ref_start,
             spei_ref_end=args.spei_ref_end,
+            spi_scale_months=args.spi_scale_months,
+            spi_fit=args.spi_fit,
+            spi_ref_start=args.spi_ref_start,
+            spi_ref_end=args.spi_ref_end,
             diagnostic_verbose=args.verbose,
         )
         focal_prefetch_seconds = perf_counter() - focal_started
@@ -2005,6 +2219,10 @@ def main() -> int:
                 spei_fit=args.spei_fit,
                 spei_ref_start=args.spei_ref_start,
                 spei_ref_end=args.spei_ref_end,
+                spi_scale_months=args.spi_scale_months,
+                spi_fit=args.spi_fit,
+                spi_ref_start=args.spi_ref_start,
+                spi_ref_end=args.spi_ref_end,
             )
         result = ensemble_compare(
             location=(lat, lon),
@@ -2028,6 +2246,10 @@ def main() -> int:
             spei_fit=args.spei_fit,
             spei_ref_start=args.spei_ref_start,
             spei_ref_end=args.spei_ref_end,
+            spi_scale_months=args.spi_scale_months,
+            spi_fit=args.spi_fit,
+            spi_ref_start=args.spi_ref_start,
+            spi_ref_end=args.spi_ref_end,
         )
         all_results[scenario] = result
         try:

@@ -1,5 +1,5 @@
 """
-SPEI helpers built on monthly climatic water balance.
+SPEI / SPI helpers built on monthly climate aggregates.
 
 Standard SPEI workflow follows Vicente-Serrano et al. (2010) and the CRAN
 SPEI package defaults:
@@ -157,6 +157,56 @@ def prepare_monthly_climatic_water_balance(
         "input_resolution": resolution,
         "et0_source": "existing_column" if et0_col else "season_analysis.add_et0_hargreaves",
         "water_balance_definition": "monthly precipitation total minus monthly ET0 total",
+    }
+    return monthly
+
+
+def prepare_monthly_precipitation_totals(
+    df: pd.DataFrame,
+    date_col: str = "date",
+    precip_col: Optional[str] = None,
+) -> pd.DataFrame:
+    """
+    Aggregate daily or monthly precipitation inputs into monthly totals for SPI.
+    """
+    if date_col not in df.columns:
+        raise ValueError(f"Missing required date column: {date_col}")
+    if "site" in df.columns and df["site"].nunique(dropna=True) > 1:
+        raise ValueError(
+            "SPI helpers currently expect a single site per call. Split multi-site frames first."
+        )
+
+    frame = _ensure_datetime(df, date_col)
+    resolution = _infer_input_resolution(frame, date_col)
+    precip_col = (
+        precip_col
+        or _detect_column(frame, _PRECIP_COLS)
+        or _detect_column(frame, _MONTHLY_PRECIP_TOTAL_COLS)
+    )
+    if not precip_col:
+        raise ValueError("Could not find a precipitation column for SPI preparation.")
+
+    if resolution == "daily":
+        working = frame.rename(columns={precip_col: "precipitation"})
+        working["month_start"] = working[date_col].dt.to_period("M").dt.to_timestamp()
+        monthly = (
+            working.groupby("month_start", as_index=False)
+            .agg(precipitation_mm=("precipitation", "sum"))
+            .rename(columns={"month_start": "date"})
+        )
+    else:
+        monthly = pd.DataFrame(
+            {
+                "date": frame[date_col].dt.to_period("M").dt.to_timestamp(),
+                "precipitation_mm": frame[precip_col].astype(float),
+            }
+        )
+
+    monthly["year"] = monthly["date"].dt.year
+    monthly["month"] = monthly["date"].dt.month
+    monthly.attrs["spei_metadata"] = {
+        "input_resolution": resolution,
+        "aggregation_definition": "monthly precipitation total",
     }
     return monthly
 
@@ -379,6 +429,102 @@ def compute_monthly_spei(
             "Vicente-Serrano et al. (2010) SPEI",
             "Begueria et al. (2014) SPEI revisited",
             "CRAN SPEI package default: log-Logistic + ub-pwm",
+        ],
+    }
+    return monthly
+
+
+def compute_monthly_spi(
+    df: pd.DataFrame,
+    scale_months: int = 3,
+    min_points_per_calendar_month: int = DEFAULT_MIN_POINTS_PER_MONTH,
+    date_col: str = "date",
+    precip_col: Optional[str] = None,
+    fit: str = "ub-pwm",
+    ref_start: Optional[object] = None,
+    ref_end: Optional[object] = None,
+) -> pd.DataFrame:
+    """
+    Compute monthly SPI from daily or monthly precipitation inputs.
+
+    Uses same month-wise generalized logistic + unbiased PWM default used in
+    current SPEI helper so SPI and SPEI stay method-aligned where possible.
+    """
+    if scale_months < 1:
+        raise ValueError("scale_months must be >= 1")
+    if fit not in {"ub-pwm", "empirical"}:
+        raise ValueError("fit must be one of {'ub-pwm', 'empirical'}")
+    if min_points_per_calendar_month < 4:
+        raise ValueError("min_points_per_calendar_month must be >= 4")
+
+    monthly = prepare_monthly_precipitation_totals(
+        df,
+        date_col=date_col,
+        precip_col=precip_col,
+    ).copy()
+    monthly["precipitation_accumulated_mm"] = (
+        monthly["precipitation_mm"]
+        .rolling(window=scale_months, min_periods=scale_months)
+        .sum()
+    )
+
+    ref_start_ts = _normalize_reference_bound(ref_start)
+    ref_end_ts = _normalize_reference_bound(ref_end)
+    reference_mask = pd.Series(True, index=monthly.index)
+    if ref_start_ts is not None:
+        reference_mask &= monthly["date"] >= ref_start_ts
+    if ref_end_ts is not None:
+        reference_mask &= monthly["date"] <= ref_end_ts
+
+    monthly["spi"] = pd.Series(float("nan"), index=monthly.index, dtype=float)
+    fit_parameters: Dict[int, Optional[Dict[str, float]]] = {}
+    dist = NormalDist()
+
+    for month_number in range(1, 13):
+        month_mask = monthly["month"] == month_number
+        target_values = monthly.loc[month_mask, "precipitation_accumulated_mm"]
+        ref_values = monthly.loc[month_mask & reference_mask, "precipitation_accumulated_mm"]
+
+        if fit == "empirical":
+            monthly.loc[month_mask, "spi"] = _empirical_normal_scores(
+                target_values,
+                min_points=min_points_per_calendar_month,
+            )
+            fit_parameters[month_number] = None
+            continue
+
+        if ref_values.dropna().shape[0] < min_points_per_calendar_month:
+            fit_parameters[month_number] = None
+            continue
+
+        params = _fit_generalized_logistic_ub_pwm(ref_values)
+        fit_parameters[month_number] = params
+        if params is None:
+            continue
+
+        cdf = _cdf_generalized_logistic(target_values, params)
+        monthly.loc[month_mask, "spi"] = cdf.map(dist.inv_cdf)
+
+    monthly.attrs["spei_metadata"] = {
+        **monthly.attrs.get("spei_metadata", {}),
+        "scale_months": scale_months,
+        "index_name": "SPI",
+        "distribution": "generalized_logistic",
+        "fit": fit,
+        "reference_period": {
+            "start": None if ref_start_ts is None else ref_start_ts.strftime("%Y-%m-%d"),
+            "end": None if ref_end_ts is None else ref_end_ts.strftime("%Y-%m-%d"),
+        },
+        "min_points_per_calendar_month": min_points_per_calendar_month,
+        "standardization_method": (
+            "generalized_logistic_ub_pwm_by_calendar_month"
+            if fit == "ub-pwm"
+            else "empirical_normal_by_calendar_month"
+        ),
+        "fit_parameters_by_month": fit_parameters,
+        "references": [
+            "McKee et al. (1993) SPI",
+            "month-wise generalized-logistic alignment for toolkit SPI/SPEI consistency",
         ],
     }
     return monthly
