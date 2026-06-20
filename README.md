@@ -43,78 +43,108 @@ normal user workflows.
 
 ---
 
-## Project Structure
+## Quick Start
 
-```
-climate_tookit/
-├── calculate_hazards/       # Hazard metrics like SPI
-├── climate_statistics/      # Stats and anomalies
-├── compare_periods/         # Compare historic trends
-├── fetch_data/              # Modular data downloaders
-└── season_analysis/         # Onset/cessation detection
-```
+### Installation
 
----
-
-## Getting Started
-
-1. **Clone the repository**
+1. Clone repository
 
    ```bash
    git clone https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git
    cd climate-toolkit
    ```
 
-2. **Create virtual environment**
-
-   ```bash
-   python -m venv .venv
-   ```
-
-3. **Activate virtual environment**
+2. Create virtual environment
 
    macOS / Linux:
 
    ```bash
+   python -m venv .venv
    source .venv/bin/activate
    ```
 
    Windows PowerShell:
 
    ```powershell
+   python -m venv .venv
    .\.venv\Scripts\Activate.ps1
    ```
 
-   If PowerShell blocks script activation for current shell, run:
+   If PowerShell blocks activation:
 
    ```powershell
    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
    .\.venv\Scripts\Activate.ps1
    ```
 
-   Project examples and local commands now assume environment name is `.venv`.
+3. Install package
 
-4. **Install dependencies**
+   Standard editable install:
 
    ```bash
    python -m pip install --upgrade pip
+   python -m pip install -e .
+   ```
+
+   Fallback if you want raw dependency install only:
+
+   ```bash
    python -m pip install -r requirements.txt
    ```
 
-5. **Create and configure your `.env`**
+4. Copy environment template
 
    ```bash
    cp .env.example .env
    ```
 
----
+### Earth Engine setup
 
-## How to Use
+Most historical gridded defaults and all current NEX-GDDP real-access paths use
+Earth Engine-backed retrieval. Before running those sources, authenticate Earth
+Engine and set project ID.
 
-### Recommended CLI entry point
+```bash
+python -c "import ee; ee.Authenticate()"
+python -c "import ee; ee.Initialize(project='YOUR_PROJECT_ID')"
+export GCP_PROJECT_ID=YOUR_PROJECT_ID
+```
 
-Use installed console scripts when package is installed. `python -m ...` form
-still works and is shown as fallback where useful.
+Windows PowerShell:
+
+```powershell
+python -c "import ee; ee.Authenticate()"
+python -c "import ee; ee.Initialize(project='YOUR_PROJECT_ID')"
+$env:GCP_PROJECT_ID="YOUR_PROJECT_ID"
+```
+
+Required in `.env.example`:
+
+- `GCP_PROJECT_ID`
+- optional `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD` for sources that still
+  use Earthdata-backed access
+
+If you see:
+
+- `Earth Engine project ID missing` -> set `GCP_PROJECT_ID`
+- `Project 'projects/your-ee-project-id' not found or deleted` -> you left
+  placeholder value in environment or auth init command
+- auth refresh / DNS errors -> refresh Earth Engine auth and check internet/DNS
+
+### Recommended starting point
+
+For historical daily climate workflows, start with:
+
+- precipitation: `chirps_v3_daily_rnl`
+- temperature + companion variables: `agera_5`
+
+For most higher-level modules, `--source auto` or `--source paired` will route
+to this historical default behavior.
+
+Do not mix historical sources with `nex_gddp` in one run. NEX-GDDP future /
+baseline workflows should be run separately from observed/reanalysis workflows.
+
+### First example
 
 ```bash
 climate-toolkit-fetch \
@@ -127,48 +157,53 @@ climate-toolkit-fetch \
   --stage preprocessed
 ```
 
+Fallback module form:
+
+```bash
+python -m climate_tookit.fetch_data.fetch_data \
+  --source chirps_v3_daily_rnl \
+  --lat -1.286 \
+  --lon 36.817 \
+  --start 2020-01-01 \
+  --end 2020-01-10 \
+  --variables precipitation \
+  --stage preprocessed
+```
+
+---
+
+## Common Workflows
+
+### Fetch climate data
+
+Main entry point:
+
+- `climate-toolkit-fetch`
+
 Key options:
 
-- `--source`: exact dataset key such as `chirps_v3_daily_rnl`, `chirps_v2`,
-  `agera_5`, `era_5`, `nex_gddp`
-- `--stage`: `raw`, `transformed`, or `preprocessed`
-- `--variables`: comma-separated toolkit variable names such as `precipitation,max_temperature,min_temperature`
-- `--output` and `--format`: save to `csv` or `json` instead of printing
-- `--site` / `--sites-csv`: many-site fetch path for GEE/Xee-supported sources
-- `--cache-dir`: optional local cache root for reuse across runs
+- `--source`: exact source key such as `chirps_v3_daily_rnl`, `chirps_v2`,
+  `agera_5`, `era_5`, `nex_gddp`, `nasa_power`
+- `--stage`: `raw`, `transformed`, `preprocessed`
+- `--variables`: comma-separated toolkit variable names
+- `--output`: optional output file
+- `--format`: `print`, `csv`, `json`
+- `--site` / `--sites-csv`: many-site fetch path for GEE/Xee-backed sources
+- `--cache-dir`: stable local cache root for repeat reuse
 
-For NEX-GDDP, you must also provide `--model` and `--scenario`. Current Earth Engine/Xee access also requires prior Earth Engine authentication plus `GCP_PROJECT_ID` in your environment. Current package backend is documented and tested against Earth Engine NEX-GDDP version `1.1`.
+NEX-GDDP requires:
 
-Regional NEX-GDDP fast/screening pools:
+- `--model`
+- `--scenario`
+- prior Earth Engine authentication
+- `GCP_PROJECT_ID`
 
-- CLI/API name remains `regional_fast`
-- in practice this means smaller regional screening subsets, not guaranteed
-  fast runtime
-- current codified regional subsets carry explicit runtime warnings and should
-  be treated as provisional screening pools, not full structural uncertainty
-  envelopes
-- decision memos:
-  - [East Africa](analysis/nex_regional_fast_pool_memo_eaf.md)
-  - [West Africa](analysis/nex_regional_fast_pool_memo_waf.md)
-  - [Andes](analysis/nex_regional_fast_pool_memo_andes.md)
-
-TAMSAT-specific note:
-
-- use `tamsat` only as optional precipitation partner, not primary recommended
-  historical source
-- pair it with temperature source such as `agera_5`
-- expect slower runs and possible download instability
-- treat it as comparison / sensitivity source, not dependable default
-
-The low-level `fetch_data` entry point expects an exact source name. Module-level
-`auto` source selection happens in higher-level workflows such as
-`climate_statistics`, `season_analysis`, and `calculate_hazards`, where the
-historical default path is `chirps_v3_daily_rnl + agera_5`.
+Current package runtime uses Earth Engine NEX-GDDP version `1.1`, not `1.2`.
 
 Example:
 
 ```bash
-env GCP_PROJECT_ID=your-project-id climate-toolkit-fetch \
+env GCP_PROJECT_ID=YOUR_PROJECT_ID climate-toolkit-fetch \
   --source nex_gddp \
   --lat -1.286 \
   --lon 36.817 \
@@ -180,12 +215,150 @@ env GCP_PROJECT_ID=your-project-id climate-toolkit-fetch \
   --stage raw
 ```
 
-### Jupyter / notebook usage
+### Season analysis
 
-If you are running from Jupyter, do not paste plain shell commands into a Python cell. Either:
+- `climate-toolkit-seasons`
+- `climate-toolkit-seasons-ensemble`
 
-1. Prefix CLI commands with `!`, or
-2. Prefer the import-based Python API shown below.
+Fixed-season example:
+
+```bash
+climate-toolkit-seasons \
+  --location="-1.286,36.817" \
+  --start-year=2020 \
+  --end-year=2020 \
+  --source=paired \
+  --precip-source=chirps_v3_daily_rnl \
+  --temp-source=agera_5 \
+  --fixed-season="03-01:05-31"
+```
+
+### Climate statistics
+
+- `climate-toolkit-stats`
+- `climate-toolkit-stats-ensemble`
+
+```bash
+climate-toolkit-stats \
+  --location="-1.286,36.817" \
+  --start-year=2020 \
+  --end-year=2020 \
+  --source=paired \
+  --precip-source=chirps_v3_daily_rnl \
+  --temp-source=agera_5 \
+  --fixed-season="03-01:05-31"
+```
+
+### Compare periods
+
+- `climate-toolkit-periods`
+- `climate-toolkit-periods-ensemble`
+
+NEX-GDDP baseline-vs-future example:
+
+```bash
+climate-toolkit-periods-ensemble \
+  --location="-1.286,36.817" \
+  --baseline-start=1995 \
+  --baseline-end=2013 \
+  --future-start=2041 \
+  --future-end=2060 \
+  --scenarios=ssp245
+```
+
+### Ensemble worker tuning
+
+All NEX-GDDP ensemble CLIs now accept:
+
+- `--model-workers`: bounded model-level parallelism for ensemble jobs
+
+This currently applies to:
+
+- `climate-toolkit-periods-ensemble`
+- `climate-toolkit-stats-ensemble`
+- `climate-toolkit-seasons-ensemble`
+- `climate-toolkit-hazards-ensemble`
+- `climate-toolkit-climatology` when `--source nex_gddp`
+
+Practical guidance:
+
+- `--model-workers 1`: serial debugging or very constrained environments
+- `--model-workers 8`: default balanced setting
+- `--model-workers 12`: heavier workstation run
+- `--model-workers 16`: aggressive upper-end setting to test carefully
+
+In restricted environments, the toolkit may fall back to serial execution if
+process workers are blocked. When that happens, the CLI prints a warning and
+continues rather than failing the entire run.
+
+JSON outputs from ensemble workflows now include timing metadata under
+`metadata.timing`, including worker request/usage fields and aggregate timing
+such as `total_seconds` and `mean_model_seconds`.
+
+### Hazards
+
+- `climate-toolkit-hazards`
+- `climate-toolkit-hazards-ensemble`
+
+### Weather stations
+
+- `climate-toolkit-weather-station-download`
+- `climate-toolkit-weather-station-compare`
+
+Candidate station review:
+
+```bash
+climate-toolkit-weather-station-download \
+  --station-source auto \
+  --selection-mode list \
+  --station-lat -1.286 \
+  --station-lon 36.817 \
+  --start 2011-01-01 \
+  --end 2020-12-31 \
+  --variables precipitation,max_temperature,min_temperature \
+  --max-distance-km 100 \
+  --report-prefix outputs/weather_station/nairobi_auto_candidates
+```
+
+Station-vs-grid comparison:
+
+```bash
+climate-toolkit-weather-station-compare \
+  --station-source auto \
+  --station-lat -1.286 \
+  --station-lon 36.817 \
+  --target-elevation-m 1667 \
+  --start 2011-01-01 \
+  --end 2020-12-31 \
+  --selection-mode auto \
+  --auto-select auto-1 \
+  --grid-source paired \
+  --grid-source nasa_power \
+  --precip-source chirps_v3_daily_rnl \
+  --temp-source agera_5 \
+  --variables precipitation,max_temperature,min_temperature \
+  --output outputs/weather_station/nairobi_station_vs_grid.json
+```
+
+Custom station files are also supported in weather-station and selected
+historical-analysis workflows. Current custom station flags include:
+
+- `--custom-station-file`
+- `--custom-station-vars`
+- `--custom-temp-unit`
+- `--custom-precip-unit`
+
+### Python API
+
+Top-level stable Python API names:
+
+- `from climate_tookit import fetch_climate_data`
+- `from climate_tookit import analyze_climate_statistics`
+- `from climate_tookit import compare_climate_periods`
+- `from climate_tookit import compare_climate_sources`
+- `from climate_tookit import evaluate_hazards`
+- `from climate_tookit import download_station_data`
+- `from climate_tookit import compare_station_to_grids`
 
 Notebook-safe example:
 
@@ -203,24 +376,19 @@ df = fetch_climate_data(
     date_to=date(2020, 1, 10),
     stage="preprocessed",
 )
-
-df.head()
 ```
 
-If console scripts are not on your PATH, or if you want notebook-safe module
-form, use:
+In Jupyter, prefix shell commands with `!`:
 
 ```bash
 !python -m climate_tookit.fetch_data.fetch_data --help
 ```
 
-`source_data.py` is internal module. Supported end-user entry points are:
+---
 
-- `climate-toolkit-fetch`
-- `python -m climate_tookit.fetch_data.fetch_data`
-- top-level Python API such as `fetch_climate_data(...)`
+## Stable vs Internal Entry Points
 
-Current installed console scripts:
+Supported end-user CLI contracts:
 
 - `climate-toolkit-fetch`
 - `climate-toolkit-seasons`
@@ -235,27 +403,6 @@ Current installed console scripts:
 - `climate-toolkit-weather-station-compare`
 - `climate-toolkit-compare-datasets`
 - `climate-toolkit-climatology`
-
-Internal helper modules such as `source_data.py`, `preprocess_data.py`,
-`transform_data.py`, `gee_xee_batch.py`, `nex_gddp_batch.py`, and
-`cache_inventory.py` remain importable for package internals and advanced
-development workflows, but they are not stable end-user CLI contracts.
-
-Likewise, package roots such as `climate_tookit.fetch_data` and
-`climate_tookit.weather_station` expose a small stable API surface for normal
-use, while lower-level backend helpers remain available through their concrete
-submodules for development work and should not be treated as stable package
-contracts.
-
-Top-level Python API names:
-
-- `from climate_tookit import fetch_climate_data`
-- `from climate_tookit import analyze_climate_statistics`
-- `from climate_tookit import compare_climate_periods`
-- `from climate_tookit import compare_climate_sources`
-- `from climate_tookit import evaluate_hazards`
-- `from climate_tookit import download_station_data`
-- `from climate_tookit import compare_station_to_grids`
 
 Preferred stable import paths:
 
@@ -301,6 +448,68 @@ For example, a live three-site, one-year benchmark on June 13, 2026 using:
 If you want cache reuse across sessions, pass a stable project-local
 `--cache-dir` such as `outputs/cache/...`.
 
+### Cold cache vs warm cache
+
+First run may take tens of seconds to minutes for GEE/Xee-backed workflows.
+Repeat runs using same cache can be near-instant.
+
+Observed live examples:
+
+- `chirps_v3_daily_rnl`, 3 sites, 1 year, cold cache: about `22s`
+- `agera_5`, 3 sites, 1 year, cold cache with companion variables: about `78s`
+- warm-cache rerun for same requests: about `0.75s`
+
+For project work, prefer stable cache roots under `outputs/cache/...`.
+
+### NEX-GDDP regional screening pools
+
+CLI/API name remains `regional_fast`, but this means regional screening subset,
+not guaranteed fast runtime.
+
+Decision memos:
+
+- [East Africa](analysis/nex_regional_fast_pool_memo_eaf.md)
+- [West Africa](analysis/nex_regional_fast_pool_memo_waf.md)
+- [Andes](analysis/nex_regional_fast_pool_memo_andes.md)
+
+### Ensemble runtime expectations
+
+NEX-GDDP ensemble runs are still expensive even after model-worker parallelism.
+The practical speedup is bounded by:
+
+- Earth Engine / Xee request latency
+- download chunk size
+- number of models and scenarios
+- per-model daily time-window length
+- local process and memory limits
+
+Use regional screening pools when you want a smaller candidate set for first
+pass analysis, and expand to larger model pools only when the question requires
+it.
+
+### TAMSAT note
+
+Use `tamsat` only as optional precipitation partner, not primary recommended
+historical source.
+
+- pair it with temperature source such as `agera_5`
+- expect slower runs and possible download instability
+- use as comparison / sensitivity source, not dependable default
+
+---
+
+## Project Structure
+
+```
+climate_tookit/
+├── calculate_hazards/       # Hazard and risk workflows
+├── climate_statistics/      # Seasonal / climatological stats
+├── compare_periods/         # Baseline vs focal/future comparisons
+├── fetch_data/              # Climate data retrieval and harmonization
+├── season_analysis/         # Onset / cessation and season summaries
+└── weather_station/         # Station download, selection, comparison
+```
+
 ---
 
 ## Development
@@ -314,6 +523,8 @@ If you want cache reuse across sessions, pass a stable project-local
 - `nex_gddp` now uses real Earth Engine/Xee retrieval. It requires Earth Engine auth plus `GCP_PROJECT_ID`.
 - Current `nex_gddp` Earth Engine backend uses dataset version `1.1`. Future `1.2` sourcing is tracked as follow-up work, not current runtime behavior.
 - Arid-region NEX rainfall-spike warning rationale and literature links are documented in `analysis/nex_gddp_access_rnd.md`.
+- package install shape is tested through `pyproject.toml` and console-script entrypoints
+- editable install for development is `python -m pip install -e .`
 
 
 ### Solution Architecture
