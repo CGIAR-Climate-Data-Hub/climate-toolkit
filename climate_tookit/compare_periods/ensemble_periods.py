@@ -25,6 +25,7 @@ import logging
 import argparse
 import io
 import statistics as pystat
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import redirect_stdout
 from datetime import datetime, date
 from time import perf_counter
@@ -108,6 +109,201 @@ def _run_stats_call(
         return analyze_climate_statistics(**kwargs)
     with redirect_stdout(io.StringIO()):
         return analyze_climate_statistics(**kwargs)
+
+
+def _build_compare_one_model_task(
+    *,
+    location: Tuple[float, float],
+    baseline_start: int,
+    baseline_end: int,
+    future_start: int,
+    future_end: int,
+    fixed_season: Optional[str],
+    model: str,
+    scenario: str,
+    crop_name: Optional[str],
+    calendar_source: Optional[str],
+    calendar_system: str,
+    diagnostic_verbose: bool,
+    spei_scale_months: Optional[int],
+    spei_fit: str,
+    spei_ref_start: Optional[str],
+    spei_ref_end: Optional[str],
+    suppress_child_stdout: bool,
+) -> Dict[str, Any]:
+    return {
+        "location": location,
+        "baseline_start": baseline_start,
+        "baseline_end": baseline_end,
+        "future_start": future_start,
+        "future_end": future_end,
+        "fixed_season": fixed_season,
+        "model": model,
+        "scenario": scenario,
+        "crop_name": crop_name,
+        "calendar_source": calendar_source,
+        "calendar_system": calendar_system,
+        "diagnostic_verbose": diagnostic_verbose,
+        "spei_scale_months": spei_scale_months,
+        "spei_fit": spei_fit,
+        "spei_ref_start": spei_ref_start,
+        "spei_ref_end": spei_ref_end,
+        "suppress_child_stdout": suppress_child_stdout,
+    }
+
+
+def _run_compare_one_model_task(task: Dict[str, Any]) -> Dict[str, Any]:
+    started = perf_counter()
+    model = task["model"]
+    suppress_child_stdout = bool(task.get("suppress_child_stdout", False))
+    compare_kwargs = {k: v for k, v in task.items() if k != "suppress_child_stdout"}
+    try:
+        if suppress_child_stdout:
+            with redirect_stdout(io.StringIO()):
+                result = _compare_one_model(**compare_kwargs)
+        else:
+            result = _compare_one_model(**compare_kwargs)
+        elapsed = perf_counter() - started
+        if "error" in result:
+            return {
+                "model": model,
+                "ok": False,
+                "error": result["error"],
+                "elapsed_seconds": round(elapsed, 3),
+            }
+        result["_model"] = model
+        result["_elapsed_seconds"] = round(elapsed, 3)
+        return {
+            "model": model,
+            "ok": True,
+            "result": result,
+            "elapsed_seconds": round(elapsed, 3),
+        }
+    except Exception as exc:
+        elapsed = perf_counter() - started
+        return {
+            "model": model,
+            "ok": False,
+            "error": str(exc),
+            "elapsed_seconds": round(elapsed, 3),
+        }
+
+
+def _print_model_progress(
+    *,
+    done: int,
+    total: int,
+    model: str,
+    outcome: Dict[str, Any],
+    run_started: float,
+) -> None:
+    elapsed = perf_counter() - run_started
+    avg = elapsed / done if done else 0.0
+    eta = avg * max(total - done, 0)
+    status = "ok" if outcome.get("ok") else "failed"
+    message = (
+        f"  [{done:02d}/{total:02d}] {model} | {status} | "
+        f"model={_format_elapsed(float(outcome.get('elapsed_seconds', 0.0)))} | "
+        f"total={_format_elapsed(elapsed)} | eta={_format_elapsed(eta)}"
+    )
+    if not outcome.get("ok") and outcome.get("error"):
+        message += f" | error={outcome['error']}"
+    print(message, flush=True)
+
+
+def _execute_model_tasks(
+    *,
+    tasks: List[Dict[str, Any]],
+    model_workers: int,
+    verbose: bool,
+    diagnostic_verbose: bool,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, str]], int, float]:
+    per_model: List[Dict[str, Any]] = []
+    failed: List[Dict[str, str]] = []
+    total = len(tasks)
+    effective_workers = max(1, min(int(model_workers), total)) if total else 1
+    run_started = perf_counter()
+
+    if verbose:
+        mode = "parallel" if effective_workers > 1 else "serial"
+        worker_suffix = f" | workers={effective_workers}" if effective_workers > 1 else ""
+        print(f"  Execution : {mode}{worker_suffix}")
+        if effective_workers > 1 and diagnostic_verbose:
+            print(
+                "  Note      : parallel workers suppress nested per-model diagnostics; "
+                "use --model-workers 1 for deep debugging."
+            )
+
+    if effective_workers == 1:
+        for done, task in enumerate(tasks, 1):
+            outcome = _run_compare_one_model_task(task)
+            if outcome.get("ok"):
+                per_model.append(outcome["result"])
+            else:
+                failed.append({"model": outcome["model"], "error": outcome["error"]})
+            if verbose:
+                _print_model_progress(
+                    done=done,
+                    total=total,
+                    model=outcome["model"],
+                    outcome=outcome,
+                    run_started=run_started,
+                )
+        return per_model, failed, effective_workers, perf_counter() - run_started
+
+    future_map = {}
+    try:
+        with ProcessPoolExecutor(max_workers=effective_workers) as executor:
+            for task in tasks:
+                future = executor.submit(_run_compare_one_model_task, task)
+                future_map[future] = task["model"]
+            for done, future in enumerate(as_completed(future_map), 1):
+                model = future_map[future]
+                try:
+                    outcome = future.result()
+                except Exception as exc:
+                    outcome = {
+                        "model": model,
+                        "ok": False,
+                        "error": str(exc),
+                        "elapsed_seconds": 0.0,
+                    }
+                if outcome.get("ok"):
+                    per_model.append(outcome["result"])
+                else:
+                    failed.append({"model": outcome["model"], "error": outcome["error"]})
+                if verbose:
+                    _print_model_progress(
+                        done=done,
+                        total=total,
+                        model=model,
+                        outcome=outcome,
+                        run_started=run_started,
+                    )
+    except (OSError, PermissionError) as exc:
+        if verbose:
+            print(
+                "  Warning   : parallel model workers unavailable in this environment "
+                f"({exc}); falling back to serial execution."
+            )
+        per_model = []
+        failed = []
+        effective_workers = 1
+        for done, task in enumerate(tasks, 1):
+            outcome = _run_compare_one_model_task(task)
+            if outcome.get("ok"):
+                per_model.append(outcome["result"])
+            else:
+                failed.append({"model": outcome["model"], "error": outcome["error"]})
+            if verbose:
+                _print_model_progress(
+                    done=done,
+                    total=total,
+                    model=outcome["model"],
+                    outcome=outcome,
+                    run_started=run_started,
+                )
+    return per_model, failed, effective_workers, perf_counter() - run_started
 
 def _spread(values: List[float]) -> Dict[str, Any]:
     """Cross-model spread for one numeric vector."""
@@ -1160,6 +1356,7 @@ def ensemble_compare(
     focal_summary: Optional[Dict[str, Any]] = None,
     verbose:        bool = True,
     diagnostic_verbose: bool = False,
+    model_workers: int = 1,
     spei_scale_months: Optional[int] = None,
     spei_fit: str = "ub-pwm",
     spei_ref_start: Optional[str] = None,
@@ -1219,8 +1416,6 @@ def ensemble_compare(
     if not active:
         return {"error": "No models selected after filtering."}
 
-    run_started = perf_counter()
-
     if verbose:
         print(f"\n{'=' * 60}")
         print("NEX-GDDP Ensemble Comparison")
@@ -1239,80 +1434,38 @@ def ensemble_compare(
         print(f"  Workload  : {len(active)} model(s) x 2 period(s)")
         print(f"{'=' * 60}")
 
-    per_model: List[Dict[str, Any]] = []
-    failed:    List[Dict[str, str]] = []
-
-    for i, model in enumerate(active, 1):
-        model_started = perf_counter()
-        if verbose:
-            print(f"\n  [{i:02d}/{len(active):02d}] {model} | started", flush=True)
-        try:
-            r = _compare_one_model(
-                location=location,
-                baseline_start=baseline_start,
-                baseline_end=baseline_end,
-                future_start=future_start,
-                future_end=future_end,
-                fixed_season=fixed_season,
-                model=model,
-                scenario=scenario,
-                crop_name=crop_name,
-                calendar_source=calendar_source,
-                calendar_system=calendar_system,
-                diagnostic_verbose=diagnostic_verbose,
-                spei_scale_months=spei_scale_months,
-                spei_fit=spei_fit,
-                spei_ref_start=spei_ref_start,
-                spei_ref_end=spei_ref_end,
-            )
-            if "error" in r:
-                model_elapsed = perf_counter() - model_started
-                elapsed = perf_counter() - run_started
-                done = i
-                avg = elapsed / done if done else 0.0
-                eta = avg * (len(active) - done)
-                if verbose:
-                    print(f"    x  {r['error']}")
-                    print(
-                        f"    timing: model={_format_elapsed(model_elapsed)} | "
-                        f"total={_format_elapsed(elapsed)} | "
-                        f"eta={_format_elapsed(eta)}"
-                    )
-                failed.append({"model": model, "error": r["error"]})
-                continue
-            model_elapsed = perf_counter() - model_started
-            r["_model"] = model
-            r["_elapsed_seconds"] = round(model_elapsed, 3)
-            per_model.append(r)
-            if verbose:
-                elapsed = perf_counter() - run_started
-                done = i
-                avg = elapsed / done if done else 0.0
-                eta = avg * (len(active) - done)
-                print(
-                    f"    ok | model={_format_elapsed(model_elapsed)} | "
-                    f"total={_format_elapsed(elapsed)} | "
-                    f"eta={_format_elapsed(eta)}"
-                )
-        except Exception as exc:
-            model_elapsed = perf_counter() - model_started
-            elapsed = perf_counter() - run_started
-            done = i
-            avg = elapsed / done if done else 0.0
-            eta = avg * (len(active) - done)
-            if verbose:
-                print(f"    x  {exc}")
-                print(
-                    f"    timing: model={_format_elapsed(model_elapsed)} | "
-                    f"total={_format_elapsed(elapsed)} | "
-                    f"eta={_format_elapsed(eta)}"
-                )
-            failed.append({"model": model, "error": str(exc)})
+    requested_model_workers = max(1, int(model_workers))
+    tasks = [
+        _build_compare_one_model_task(
+            location=location,
+            baseline_start=baseline_start,
+            baseline_end=baseline_end,
+            future_start=future_start,
+            future_end=future_end,
+            fixed_season=fixed_season,
+            model=model,
+            scenario=scenario,
+            crop_name=crop_name,
+            calendar_source=calendar_source,
+            calendar_system=calendar_system,
+            diagnostic_verbose=diagnostic_verbose,
+            spei_scale_months=spei_scale_months,
+            spei_fit=spei_fit,
+            spei_ref_start=spei_ref_start,
+            spei_ref_end=spei_ref_end,
+            suppress_child_stdout=requested_model_workers > 1,
+        )
+        for model in active
+    ]
+    per_model, failed, effective_model_workers, total_elapsed = _execute_model_tasks(
+        tasks=tasks,
+        model_workers=requested_model_workers,
+        verbose=verbose,
+        diagnostic_verbose=diagnostic_verbose,
+    )
 
     if not per_model:
         return {"error": "All models failed.", "failed_models": failed}
-
-    total_elapsed = perf_counter() - run_started
 
     result = {
         "future_period":    f"{future_start}-{future_end}",
@@ -1354,6 +1507,8 @@ def ensemble_compare(
                     sum(r.get("_elapsed_seconds", 0.0) for r in per_model) / len(per_model),
                     3,
                 ),
+                "model_workers_requested": requested_model_workers,
+                "model_workers_used": effective_model_workers,
             },
             "analysis_date": datetime.now().isoformat(),
         },
@@ -1721,6 +1876,11 @@ def main() -> int:
     p.add_argument("--focal-temp-source", default=None,
                    help="Required when --focal-source=paired. Example: agera5 or era5.")
     p.add_argument("--output",         default=None, help="Save JSON result to this path")
+    p.add_argument("--model-workers",  type=int, default=8,
+                   help=("Parallel NEX-GDDP model workers for ensemble runs. "
+                         "Practical guidance from local benchmarks: 8 = safe default, "
+                         "12 = good for heavier jobs, 16 = aggressive upper practical setting. "
+                         "Use 1 for serial deep debugging."))
     p.add_argument("--spei-scale-months", type=int, default=None,
                    help="Optional SPEI scale in months for baseline/future/focal comparisons.")
     p.add_argument("--spei-fit", choices=["ub-pwm", "empirical"], default="ub-pwm",
@@ -1863,6 +2023,7 @@ def main() -> int:
             focal_summary=scenario_focal,
             verbose=not args.quiet,
             diagnostic_verbose=args.verbose,
+            model_workers=args.model_workers,
             spei_scale_months=args.spei_scale_months,
             spei_fit=args.spei_fit,
             spei_ref_start=args.spei_ref_start,

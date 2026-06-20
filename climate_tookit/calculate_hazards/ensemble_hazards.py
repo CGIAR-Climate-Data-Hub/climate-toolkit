@@ -16,10 +16,14 @@ Modes:
 import os
 import sys
 import json
+import io
 import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import Counter, defaultdict
+from contextlib import redirect_stdout
 from datetime import datetime, date
 from statistics import mean
+from time import perf_counter
 from typing import Any, Dict, List, Tuple, Optional
 
 import pandas as pd
@@ -76,6 +80,16 @@ _VARS   = [ClimateVariable.precipitation,
            ClimateVariable.min_temperature]
 _COLMAP = {'pr': 'precipitation', 'prcp': 'precipitation',
            'tasmax': 'max_temperature', 'tasmin': 'min_temperature'}
+
+
+def _format_elapsed(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, sec = divmod(int(round(seconds)), 60)
+    if minutes < 60:
+        return f"{minutes}m{sec:02d}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m{sec:02d}s"
 
 # Fixed-season parsing & expansion
 def _parse_fixed(spec: str) -> List[Tuple[str, str]]:
@@ -475,6 +489,154 @@ def _build_ensemble_hazard_season_detection(
         },
     }
 
+
+def _build_hazard_projection_task(
+    *,
+    crop: str,
+    lat: float,
+    lon: float,
+    start_year: int,
+    end_year: int,
+    model: str,
+    scenario: str,
+    fixed_w: Optional[List[Dict[str, Any]]],
+    thresholds: Dict[str, Dict[str, Tuple]],
+    soilcp: float,
+    soilsat: float,
+    water_balance_window: str,
+    suppress_child_stdout: bool,
+) -> Dict[str, Any]:
+    return {
+        "crop": crop,
+        "lat": lat,
+        "lon": lon,
+        "start_year": start_year,
+        "end_year": end_year,
+        "model": model,
+        "scenario": scenario,
+        "fixed_w": fixed_w,
+        "thresholds": thresholds,
+        "soilcp": soilcp,
+        "soilsat": soilsat,
+        "water_balance_window": water_balance_window,
+        "suppress_child_stdout": suppress_child_stdout,
+    }
+
+
+def _run_hazard_projection_task(task: Dict[str, Any]) -> Dict[str, Any]:
+    started = perf_counter()
+    model = task["model"]
+    scenario = task["scenario"]
+    suppress_child_stdout = bool(task.get("suppress_child_stdout", False))
+
+    def _inner() -> Dict[str, Any]:
+        fixed_w = task.get("fixed_w")
+        windows = (
+            fixed_w
+            if fixed_w is not None
+            else _detect_windows(
+                task["lat"],
+                task["lon"],
+                task["start_year"],
+                task["end_year"],
+                model,
+                scenario,
+            )
+        )
+        results: List[Dict[str, Any]] = []
+        failures: List[Dict[str, Any]] = []
+        for w in windows:
+            window_payload = {
+                **w,
+                "fixed_season": fixed_w is not None,
+                "water_balance_window": task["water_balance_window"],
+            }
+            try:
+                results.append(
+                    _evaluate(
+                        task["crop"],
+                        task["lat"],
+                        task["lon"],
+                        window_payload,
+                        model,
+                        scenario,
+                        thresholds=task["thresholds"],
+                        soilcp=task["soilcp"],
+                        soilsat=task["soilsat"],
+                    )
+                )
+            except Exception as exc:
+                failures.append(
+                    {
+                        "model": model,
+                        "scenario": scenario,
+                        "stage": "evaluate",
+                        "year": w.get("year"),
+                        "season_number": w.get("season_number"),
+                        "window": f"{w.get('start')}->{w.get('end')}",
+                        "error": str(exc),
+                    }
+                )
+        return {"results": results, "failures": failures}
+
+    try:
+        if suppress_child_stdout:
+            with redirect_stdout(io.StringIO()):
+                payload = _inner()
+        else:
+            payload = _inner()
+    except Exception as exc:
+        elapsed = perf_counter() - started
+        return {
+            "model": model,
+            "scenario": scenario,
+            "results": [],
+            "failures": [
+                {
+                    "model": model,
+                    "scenario": scenario,
+                    "stage": "detect",
+                    "error": str(exc),
+                }
+            ],
+            "elapsed_seconds": round(elapsed, 3),
+        }
+
+    elapsed = perf_counter() - started
+    return {
+        "model": model,
+        "scenario": scenario,
+        "results": payload["results"],
+        "failures": payload["failures"],
+        "elapsed_seconds": round(elapsed, 3),
+    }
+
+
+def _print_hazard_projection_progress(
+    *,
+    done: int,
+    total: int,
+    outcome: Dict[str, Any],
+    run_started: float,
+) -> None:
+    elapsed = perf_counter() - run_started
+    avg = elapsed / done if done else 0.0
+    eta = avg * max(total - done, 0)
+    successes = len(outcome.get("results") or [])
+    failures = len(outcome.get("failures") or [])
+    status = "ok" if successes and not failures else "partial" if successes else "failed"
+    message = (
+        f"  [{done:02d}/{total:02d}] {outcome['scenario']} | {outcome['model']} | {status} | "
+        f"windows_ok={successes} | windows_failed={failures} | "
+        f"model={_format_elapsed(float(outcome.get('elapsed_seconds', 0.0)))} | "
+        f"total={_format_elapsed(elapsed)} | eta={_format_elapsed(eta)}"
+    )
+    if failures and not successes:
+        first = (outcome.get("failures") or [{}])[0]
+        if first.get("error"):
+            message += f" | error={first['error']}"
+    print(message, flush=True)
+
 # Driver
 def calculate_ensemble(crop: str, lat: float, lon: float,
                        start_year: int, end_year: int,
@@ -484,7 +646,8 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
                        soilcp: float = DEFAULT_SOILCP,
                        soilsat: float = DEFAULT_SOILSAT,
                        water_balance_window: str = FULL_WINDOW_WATER_BALANCE,
-                       ensemble_policy: Optional[Dict[str, Any]] = None) -> Dict:
+                       ensemble_policy: Optional[Dict[str, Any]] = None,
+                       model_workers: int = 1) -> Dict:
     water_balance_window = _normalize_water_balance_window_mode(water_balance_window)
     mode = 'fixed_season' if fixed_season else 'auto_detect'
     fixed_defs = _parse_fixed(fixed_season) if fixed_season else None
@@ -502,6 +665,13 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         for line in policy_runtime_messages(ensemble_policy):
             print(f"  Warning: {line}")
     print(f"  Models: {len(models)}   Scenarios: {len(scenarios)}\n")
+    requested_model_workers = max(1, int(model_workers))
+    total_projection_tasks = len(models) * len(scenarios)
+    effective_model_workers = max(1, min(requested_model_workers, total_projection_tasks))
+    run_started = perf_counter()
+    mode_label = "parallel" if effective_model_workers > 1 else "serial"
+    worker_suffix = f" | workers={effective_model_workers}" if effective_model_workers > 1 else ""
+    print(f"  Execution: {mode_label}{worker_suffix}")
     if fixed_defs and _fixed_windows_cross_year(fixed_defs):
         print(
             f"  ! Year-crossing fixed window detected. Final requested year {end_year} "
@@ -517,31 +687,90 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         )
 
     results: List[Dict] = []
-    for sc in scenarios:
-        for i, m in enumerate(models, 1):
-            print(f"  [{sc}] [{i}/{len(models)}] {m}")
-            try:
-                windows = (fixed_w if fixed_w is not None
-                           else _detect_windows(lat, lon, start_year, end_year, m, sc))
-            except Exception as e:
-                print(f"      ! detection failed: {e}")
-                continue
-            for w in windows:
-                window_payload = {
-                    **w,
-                    "fixed_season": bool(fixed_season),
-                    "water_balance_window": water_balance_window,
-                }
-                tag = f"y{w['year']} s{w['season_number']}/{w['total']} {w['start']}->{w['end']}"
-                try:
-                    results.append(_evaluate(crop, lat, lon, window_payload, m, sc,
-                                             thresholds=thresholds,
-                                             soilcp=soilcp, soilsat=soilsat))
-                    print(f"      {tag}  ✓")
-                except Exception as e:
-                    print(f"      {tag}  ✗ {e}")
+    failed_projection_runs: List[Dict[str, Any]] = []
+    task_outcomes: List[Dict[str, Any]] = []
+    tasks = [
+        _build_hazard_projection_task(
+            crop=crop,
+            lat=lat,
+            lon=lon,
+            start_year=start_year,
+            end_year=end_year,
+            model=m,
+            scenario=sc,
+            fixed_w=fixed_w,
+            thresholds=thresholds,
+            soilcp=soilcp,
+            soilsat=soilsat,
+            water_balance_window=water_balance_window,
+            suppress_child_stdout=effective_model_workers > 1,
+        )
+        for sc in scenarios
+        for m in models
+    ]
+
+    def _consume_outcome(outcome: Dict[str, Any], done: int) -> None:
+        task_outcomes.append(outcome)
+        results.extend(outcome.get("results") or [])
+        failed_projection_runs.extend(outcome.get("failures") or [])
+        _print_hazard_projection_progress(
+            done=done,
+            total=len(tasks),
+            outcome=outcome,
+            run_started=run_started,
+        )
+
+    if effective_model_workers == 1:
+        for done, task in enumerate(tasks, 1):
+            _consume_outcome(_run_hazard_projection_task(task), done)
+    else:
+        try:
+            future_map = {}
+            with ProcessPoolExecutor(max_workers=effective_model_workers) as executor:
+                for task in tasks:
+                    future = executor.submit(_run_hazard_projection_task, task)
+                    future_map[future] = (task["scenario"], task["model"])
+                for done, future in enumerate(as_completed(future_map), 1):
+                    scenario, model = future_map[future]
+                    try:
+                        outcome = future.result()
+                    except Exception as exc:
+                        outcome = {
+                            "model": model,
+                            "scenario": scenario,
+                            "results": [],
+                            "failures": [
+                                {
+                                    "model": model,
+                                    "scenario": scenario,
+                                    "stage": "worker",
+                                    "error": str(exc),
+                                }
+                            ],
+                            "elapsed_seconds": 0.0,
+                        }
+                    _consume_outcome(outcome, done)
+        except (OSError, PermissionError) as exc:
+            print(
+                "  Warning: parallel model workers unavailable in this environment "
+                f"({exc}); falling back to serial execution."
+            )
+            effective_model_workers = 1
+            for done, task in enumerate(tasks, 1):
+                _consume_outcome(_run_hazard_projection_task(task), done)
     if not results:
-        return {'error': 'No projections succeeded.'}
+        return {
+            'error': 'No projections succeeded.',
+            'failed_projection_runs': failed_projection_runs,
+            'metadata': {
+                'timing': {
+                    'total_seconds': round(perf_counter() - run_started, 3),
+                    'mean_model_seconds': 0.0,
+                    'model_workers_requested': requested_model_workers,
+                    'model_workers_used': effective_model_workers,
+                }
+            },
+        }
 
     # Bucket by (scenario, year, season_number) so SSPs never pool together.
     buckets: Dict[Tuple[str, int, int], List[Dict]] = defaultdict(list)
@@ -680,6 +909,20 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
         )
     if warnings:
         out['warning'] = " ".join(warnings)
+    if failed_projection_runs:
+        out['failed_projection_runs'] = failed_projection_runs
+    out['metadata'] = {
+        'timing': {
+            'total_seconds': round(perf_counter() - run_started, 3),
+            'mean_model_seconds': round(
+                sum(float(outcome.get('elapsed_seconds', 0.0)) for outcome in task_outcomes)
+                / len(task_outcomes),
+                3,
+            ) if task_outcomes else 0.0,
+            'model_workers_requested': requested_model_workers,
+            'model_workers_used': effective_model_workers,
+        }
+    }
     return out
 
 # Pretty printer (mirrors hazards.py year/season blocks)
@@ -982,6 +1225,10 @@ def main() -> int:
     p.add_argument('--format',       choices=['json', 'text'], default='text')
     p.add_argument('--output',       type=str, default=None,
                    help='write full result as JSON to this path')
+    p.add_argument('--model-workers', type=int, default=8,
+                   help=("Parallel NEX-GDDP model workers for ensemble runs. "
+                         "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
+                         "Use 1 for serial deep debugging."))
     args = p.parse_args()
 
     if args.list_models:
@@ -1016,6 +1263,7 @@ def main() -> int:
         soilcp=args.soilcp, soilsat=args.soilsat,
         water_balance_window=args.water_balance_window,
         ensemble_policy=ensemble_policy,
+        model_workers=args.model_workers,
     )
 
     if args.format == 'json':

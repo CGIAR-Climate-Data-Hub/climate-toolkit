@@ -26,8 +26,12 @@ per_model_ltm.
 import sys
 import json
 import argparse
+import io
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import redirect_stdout
 from datetime import date, datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Tuple, Dict, List, Any, Optional
 
 from climate_tookit.climate_statistics.statistics import (
@@ -61,6 +65,98 @@ SCENARIO_ALIASES: Dict[str, str] = {
 def _normalize_scenario(s: str) -> Optional[str]:
     """Map any accepted SSP alias to the canonical scenario string, else None."""
     return SCENARIO_ALIASES.get(s.strip()) if isinstance(s, str) else None
+
+
+def _format_elapsed(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, sec = divmod(int(round(seconds)), 60)
+    if minutes < 60:
+        return f"{minutes}m{sec:02d}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m{sec:02d}s"
+
+
+def _build_ensemble_model_task(
+    *,
+    location_coord: Tuple[float, float],
+    start_year: int,
+    end_year: int,
+    scenario: str,
+    fixed_season: Optional[str],
+    model: str,
+    extra_months: int,
+    suppress_child_stdout: bool,
+) -> Dict[str, Any]:
+    return {
+        "location_coord": location_coord,
+        "start_year": start_year,
+        "end_year": end_year,
+        "scenario": scenario,
+        "fixed_season": fixed_season,
+        "model": model,
+        "extra_months": extra_months,
+        "suppress_child_stdout": suppress_child_stdout,
+    }
+
+
+def _run_ensemble_model_task(task: Dict[str, Any]) -> Dict[str, Any]:
+    started = perf_counter()
+    model = task["model"]
+    suppress_child_stdout = bool(task.get("suppress_child_stdout", False))
+    kwargs = {k: v for k, v in task.items() if k != "suppress_child_stdout"}
+    try:
+        if suppress_child_stdout:
+            with redirect_stdout(io.StringIO()):
+                result = analyze_climate_statistics(
+                    source="nex_gddp",
+                    **kwargs,
+                )
+        else:
+            result = analyze_climate_statistics(
+                source="nex_gddp",
+                **kwargs,
+            )
+        elapsed = perf_counter() - started
+        if isinstance(result, dict):
+            result["_elapsed_seconds"] = round(elapsed, 3)
+        return {
+            "model": model,
+            "result": result,
+            "elapsed_seconds": round(elapsed, 3),
+        }
+    except Exception as exc:
+        elapsed = perf_counter() - started
+        return {
+            "model": model,
+            "error": str(exc),
+            "elapsed_seconds": round(elapsed, 3),
+        }
+
+
+def _print_worker_progress(
+    *,
+    done: int,
+    total: int,
+    model: str,
+    ok: bool,
+    elapsed_seconds: float,
+    run_started: float,
+    error: Optional[str] = None,
+) -> None:
+    elapsed = perf_counter() - run_started
+    avg = elapsed / done if done else 0.0
+    eta = avg * max(total - done, 0)
+    message = (
+        f"  [{done:02d}/{total:02d}] {model} | "
+        f"{'ok' if ok else 'failed'} | "
+        f"model={_format_elapsed(elapsed_seconds)} | "
+        f"total={_format_elapsed(elapsed)} | "
+        f"eta={_format_elapsed(eta)}"
+    )
+    if error:
+        message += f" | error={error}"
+    print(message, flush=True)
 
 # Cross-model aggregation helpers
 def _ensemble_seasons(per_model_seasons: List[List[Dict[str, Any]]]
@@ -336,6 +432,7 @@ def analyze_ensemble_nex_gddp(
     policy_profile: Optional[str] = None,
     extra_months:   int = 6,
     verbose:        bool = True,
+    model_workers:  int = 1,
 ) -> Dict[str, Any]:
     """
     Future LTM via NEX-GDDP CMIP6 ensemble.
@@ -391,6 +488,14 @@ def analyze_ensemble_nex_gddp(
         print(f"  Models   : {len(active)}")
         print(f"{'=' * 60}")
 
+    requested_model_workers = max(1, int(model_workers))
+    effective_model_workers = max(1, min(requested_model_workers, len(active)))
+    run_started = perf_counter()
+    if verbose:
+        mode = "parallel" if effective_model_workers > 1 else "serial"
+        worker_suffix = f" | workers={effective_model_workers}" if effective_model_workers > 1 else ""
+        print(f"  Execution: {mode}{worker_suffix}")
+
     # Per-model collection. The LTM list is keyed by model name so callers can verify the ensemble = mean of per-model values.
     per_model_seasons: List[List[Dict[str, Any]]] = []
     per_model_ltm_list: List[Dict[str, Any]]     = []  # ordered, used for step 2 below
@@ -400,40 +505,99 @@ def analyze_ensemble_nex_gddp(
     models_ok: List[str]            = []
     failed:    List[Dict[str, str]] = []
     attempted_results: List[Tuple[str, Dict[str, Any]]] = []
-    for i, model in enumerate(active, 1):
+    tasks = [
+        _build_ensemble_model_task(
+            location_coord=location_coord,
+            start_year=start_year,
+            end_year=end_year,
+            scenario=scenario,
+            fixed_season=fixed_season,
+            model=model,
+            extra_months=extra_months,
+            suppress_child_stdout=effective_model_workers > 1,
+        )
+        for model in active
+    ]
+
+    def _consume_outcome(outcome: Dict[str, Any], done: int) -> None:
+        model = outcome["model"]
+        if "error" in outcome:
+            failed.append({'model': model, 'error': outcome['error']})
+            if verbose:
+                _print_worker_progress(
+                    done=done,
+                    total=len(active),
+                    model=model,
+                    ok=False,
+                    elapsed_seconds=float(outcome.get("elapsed_seconds", 0.0)),
+                    run_started=run_started,
+                    error=outcome["error"],
+                )
+            return
+        r = outcome["result"]
+        attempted_results.append((model, r))
+        seasons = r.get('season_statistics') or []
+        ltm_model = r.get('ltm_season_summary') or {}
+        annual = r.get('annual_summary') or {}
+        if not seasons and not ltm_model.get('windows'):
+            failed.append({'model': model, 'error': 'no seasons or LTM produced'})
+            if verbose:
+                _print_worker_progress(
+                    done=done,
+                    total=len(active),
+                    model=model,
+                    ok=False,
+                    elapsed_seconds=float(outcome.get("elapsed_seconds", 0.0)),
+                    run_started=run_started,
+                    error='no seasons or LTM produced',
+                )
+            return
+        per_model_seasons.append(seasons)
+        per_model_ltm_list.append(ltm_model)
+        per_model_ltm_by_name[model] = ltm_model
+        per_model_annual.append(annual)
+        models_ok.append(model)
+        per_model_results.append((model, r))
         if verbose:
-            print(f"\n  [{i:02d}/{len(active):02d}] {model}", flush=True)
-        try:
-            # STEP 1 of the FUTURE LTM pipeline (per-model):
-            r = analyze_climate_statistics(
-                location_coord=location_coord,
-                start_year=start_year, end_year=end_year,
-                source='nex_gddp', fixed_season=fixed_season,
-                model=model, scenario=scenario,
-                extra_months=extra_months,
+            _print_worker_progress(
+                done=done,
+                total=len(active),
+                model=model,
+                ok=True,
+                elapsed_seconds=float(outcome.get("elapsed_seconds", 0.0)),
+                run_started=run_started,
             )
-            attempted_results.append((model, r))
-            seasons    = r.get('season_statistics') or []
-            ltm_model  = r.get('ltm_season_summary') or {}  
-            annual     = r.get('annual_summary') or {}
-            if not seasons and not ltm_model.get('windows'):
-                failed.append({'model': model,
-                               'error': 'no seasons or LTM produced'})
-                if verbose:
-                    print("    x  no seasons or LTM produced")
-                continue
-            per_model_seasons.append(seasons)
-            per_model_ltm_list.append(ltm_model)
-            per_model_ltm_by_name[model] = ltm_model
-            per_model_annual.append(annual)
-            models_ok.append(model)
-            per_model_results.append((model, r))
+
+    if effective_model_workers == 1:
+        for done, task in enumerate(tasks, 1):
+            _consume_outcome(_run_ensemble_model_task(task), done)
+    else:
+        try:
+            future_map = {}
+            with ProcessPoolExecutor(max_workers=effective_model_workers) as executor:
+                for task in tasks:
+                    future = executor.submit(_run_ensemble_model_task, task)
+                    future_map[future] = task["model"]
+                for done, future in enumerate(as_completed(future_map), 1):
+                    model = future_map[future]
+                    try:
+                        outcome = future.result()
+                    except Exception as exc:
+                        outcome = {
+                            "model": model,
+                            "error": str(exc),
+                            "elapsed_seconds": 0.0,
+                        }
+                    _consume_outcome(outcome, done)
+        except (OSError, PermissionError) as exc:
             if verbose:
-                print("    ok")
-        except Exception as exc:
-            failed.append({'model': model, 'error': str(exc)})
-            if verbose:
-                print(f"    x  {exc}")
+                print(
+                    "  Warning  : parallel model workers unavailable in this environment "
+                    f"({exc}); falling back to serial execution."
+                )
+            effective_model_workers = 1
+            for done, task in enumerate(tasks, 1):
+                _consume_outcome(_run_ensemble_model_task(task), done)
 
     season_detection = _aggregate_ensemble_season_detection(attempted_results)
 
@@ -459,6 +623,7 @@ def analyze_ensemble_nex_gddp(
         f"LTM coverage is {years_span} year(s); recommended ≥ {MIN_LTM_YEARS}."
         if years_span < MIN_LTM_YEARS else None
     )
+    total_elapsed = perf_counter() - run_started
 
     return {
         'location':           {'lat': location_coord[0],
@@ -481,6 +646,20 @@ def analyze_ensemble_nex_gddp(
         'coverage_warning':   coverage_warning,
         'season_slot_warning': season_slot_warning,
         'ensemble_policy':    ensemble_policy,
+        'metadata':           {
+            'timing': {
+                'total_seconds': round(total_elapsed, 3),
+                'mean_model_seconds': round(
+                    sum(
+                        float(r.get('_elapsed_seconds', 0.0))
+                        for _, r in per_model_results
+                    ) / len(per_model_results),
+                    3,
+                ) if per_model_results else 0.0,
+                'model_workers_requested': requested_model_workers,
+                'model_workers_used': effective_model_workers,
+            }
+        },
         'analysis_date':      datetime.now().isoformat(),
         'methodology':        ('FUTURE LTM SEASON SUMMARY computed as: '
                                'Step 1 -- statistics.ltm_season_summary per model '
@@ -721,6 +900,10 @@ def main() -> int:
                    help='Directory for default JSON output (default: cwd)')
     p.add_argument("--no-save",    action='store_true',
                    help='Skip saving the JSON output')
+    p.add_argument("--model-workers", type=int, default=8,
+                   help=("Parallel NEX-GDDP model workers for ensemble runs. "
+                         "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
+                         "Use 1 for serial deep debugging."))
     p.add_argument("--quiet",      action='store_true',
                    help='Suppress per-model progress prints')
     args = p.parse_args()
@@ -769,6 +952,7 @@ def main() -> int:
             policy_profile=None if args.policy_profile == "default" else args.policy_profile,
             extra_months=args.extra_months,
             verbose=not args.quiet,
+            model_workers=args.model_workers,
         )
         all_results[scenario] = result
 

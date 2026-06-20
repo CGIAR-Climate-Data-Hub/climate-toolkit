@@ -9,9 +9,11 @@ Use --fixed-season for fixed calendar windows (single, two-season, year-crossing
 """
 
 import argparse, io, json, math, re, statistics, sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import contextmanager, redirect_stdout
 from datetime import date, datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Dict, List
 
 import numpy as np
@@ -29,6 +31,16 @@ from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
 )
 SSP_SCENARIOS   = ['ssp126', 'ssp245', 'ssp585']
 NEX_GDDP_SOURCE = 'nex_gddp'
+
+
+def _format_elapsed(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, sec = divmod(int(round(seconds)), 60)
+    if minutes < 60:
+        return f"{minutes}m{sec:02d}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m{sec:02d}s"
 
 # NEX-GDDP-tuned wet-spell confirmation
 def _nex_gddp_has_wet_confirmation(precip_data, et0_data, start_idx,
@@ -143,6 +155,101 @@ def analyze_one_model(lat, lon, start_year, end_year, model, scenario, fixed_arg
     if state['success'] == 0 and state['last_error'] is not None:
         raise state['last_error']
     return s_dict, a_dict, _parse_skip_info(sink.getvalue())
+
+
+def _build_season_model_task(
+    *,
+    lat: float,
+    lon: float,
+    start_year: int,
+    end_year: int,
+    model: str,
+    scenario: str,
+    fixed_arg: str | None,
+) -> Dict[str, Any]:
+    return {
+        "lat": lat,
+        "lon": lon,
+        "start_year": start_year,
+        "end_year": end_year,
+        "model": model,
+        "scenario": scenario,
+        "fixed_arg": fixed_arg,
+    }
+
+
+def _run_season_model_task(task: Dict[str, Any]) -> Dict[str, Any]:
+    started = perf_counter()
+    model = task["model"]
+    scenario = task["scenario"]
+    try:
+        s_dict, a_dict, skip_info = analyze_one_model(
+            task["lat"],
+            task["lon"],
+            task["start_year"],
+            task["end_year"],
+            model,
+            scenario,
+            task["fixed_arg"],
+        )
+        elapsed = perf_counter() - started
+        return {
+            "model": model,
+            "scenario": scenario,
+            "seasons_dict": s_dict,
+            "annual_dict": a_dict,
+            "skip_info": skip_info,
+            "elapsed_seconds": round(elapsed, 3),
+        }
+    except Exception as exc:
+        elapsed = perf_counter() - started
+        return {
+            "model": model,
+            "scenario": scenario,
+            "seasons_dict": {},
+            "annual_dict": {},
+            "skip_info": {'perhumid_years': [], 'no_season_years': [], 'analyzed_years': []},
+            "error": f"{type(exc).__name__}: {exc}",
+            "elapsed_seconds": round(elapsed, 3),
+        }
+
+
+def _print_season_worker_progress(
+    *,
+    done: int,
+    total: int,
+    outcome: Dict[str, Any],
+    run_started: float,
+    mode: str,
+) -> None:
+    elapsed = perf_counter() - run_started
+    avg = elapsed / done if done else 0.0
+    eta = avg * max(total - done, 0)
+    model = outcome["model"]
+    if outcome.get("error"):
+        print(
+            f"  [{done:02d}/{total:02d}] {model} | failed | "
+            f"model={_format_elapsed(float(outcome.get('elapsed_seconds', 0.0)))} | "
+            f"total={_format_elapsed(elapsed)} | eta={_format_elapsed(eta)} | "
+            f"error={outcome['error']}",
+            flush=True,
+        )
+        return
+
+    s_dict = outcome.get("seasons_dict") or {}
+    n_seasons = sum(len(v) for v in s_dict.values())
+    n_years = sum(1 for v in s_dict.values() if v)
+    extra = ''
+    skip_info = outcome.get('skip_info') or {}
+    if mode == 'auto' and skip_info.get('perhumid_years'):
+        extra = f" | perhumid={len(skip_info['perhumid_years'])}y"
+    print(
+        f"  [{done:02d}/{total:02d}] {model} | ok | "
+        f"model={_format_elapsed(float(outcome.get('elapsed_seconds', 0.0)))} | "
+        f"total={_format_elapsed(elapsed)} | eta={_format_elapsed(eta)} | "
+        f"seasons={n_seasons} | years={n_years}{extra}",
+        flush=True,
+    )
 
 # Ensemble statistics
 def _avg(values):
@@ -417,45 +524,82 @@ def aggregate_overall(model_results: List[Dict]):
     return ensemble, model_averages
 
 # Top-level orchestrator
-def run_ensemble(lat, lon, start_year, end_year, scenarios, models, fixed_arg=None, verbose=True, ensemble_policy=None):
+def run_ensemble(lat, lon, start_year, end_year, scenarios, models, fixed_arg=None, verbose=True, ensemble_policy=None, model_workers=1):
     results = {}
     mode    = 'fixed' if fixed_arg else 'auto'
 
     for scenario in scenarios:
+        requested_model_workers = max(1, int(model_workers))
+        effective_model_workers = max(1, min(requested_model_workers, len(models)))
+        run_started = perf_counter()
         if verbose:
             print(f"\n{'=' * 70}")
             print(f"Scenario: {scenario}  |  {len(models)} model(s)  |  "
                   f"{start_year}–{end_year}  |  mode={mode}")
             print('=' * 70)
+            mode_label = "parallel" if effective_model_workers > 1 else "serial"
+            worker_suffix = f" | workers={effective_model_workers}" if effective_model_workers > 1 else ""
+            print(f"  Execution: {mode_label}{worker_suffix}")
 
         per_model = []
-        for i, model in enumerate(models, 1):
+        tasks = [
+            _build_season_model_task(
+                lat=lat,
+                lon=lon,
+                start_year=start_year,
+                end_year=end_year,
+                model=model,
+                scenario=scenario,
+                fixed_arg=fixed_arg,
+            )
+            for model in models
+        ]
+
+        def _consume_outcome(outcome: Dict[str, Any], done: int) -> None:
+            per_model.append(outcome)
             if verbose:
-                print(f"  [{i:02d}/{len(models):02d}] {model:<22}", end=' ', flush=True)
+                _print_season_worker_progress(
+                    done=done,
+                    total=len(models),
+                    outcome=outcome,
+                    run_started=run_started,
+                    mode=mode,
+                )
+
+        if effective_model_workers == 1:
+            for done, task in enumerate(tasks, 1):
+                _consume_outcome(_run_season_model_task(task), done)
+        else:
             try:
-                s_dict, a_dict, skip_info = analyze_one_model(
-                    lat, lon, start_year, end_year, model, scenario, fixed_arg)
-                per_model.append({
-                    'model':        model,
-                    'seasons_dict': s_dict,
-                    'annual_dict':  a_dict,
-                    'skip_info':    skip_info,
-                })
+                future_map = {}
+                with ProcessPoolExecutor(max_workers=effective_model_workers) as executor:
+                    for task in tasks:
+                        future = executor.submit(_run_season_model_task, task)
+                        future_map[future] = task["model"]
+                    for done, future in enumerate(as_completed(future_map), 1):
+                        model = future_map[future]
+                        try:
+                            outcome = future.result()
+                        except Exception as exc:
+                            outcome = {
+                                'model': model,
+                                'scenario': scenario,
+                                'seasons_dict': {},
+                                'annual_dict': {},
+                                'skip_info': {'perhumid_years': [], 'no_season_years': [], 'analyzed_years': []},
+                                'error': f"{type(exc).__name__}: {exc}",
+                                'elapsed_seconds': 0.0,
+                            }
+                        _consume_outcome(outcome, done)
+            except (OSError, PermissionError) as exc:
                 if verbose:
-                    n_seasons = sum(len(v) for v in s_dict.values())
-                    n_years   = sum(1 for v in s_dict.values() if v)
-                    extra     = ''
-                    if mode == 'auto' and skip_info['perhumid_years']:
-                        extra = f"  [perhumid: {len(skip_info['perhumid_years'])}y]"
-                    print(f"✓  {n_seasons} season(s) over {n_years} year(s){extra}")
-            except Exception as exc:
-                per_model.append({
-                    'model': model, 'seasons_dict': {}, 'annual_dict': {},
-                    'skip_info': {'perhumid_years': [], 'no_season_years': [], 'analyzed_years': []},
-                    'error': f"{type(exc).__name__}: {exc}",
-                })
-                if verbose:
-                    print(f"✗  {type(exc).__name__}: {exc}")
+                    print(
+                        "  Warning: parallel model workers unavailable in this environment "
+                        f"({exc}); falling back to serial execution."
+                    )
+                effective_model_workers = 1
+                for done, task in enumerate(tasks, 1):
+                    _consume_outcome(_run_season_model_task(task), done)
 
         ok = sum(1 for r in per_model if not r.get('error'))
         diagnostics = _aggregate_skip_info(per_model)
@@ -477,6 +621,15 @@ def run_ensemble(lat, lon, start_year, end_year, scenarios, models, fixed_arg=No
                 'data_source':    'NEX-GDDP-CMIP6',
                 'source_key':     NEX_GDDP_SOURCE,
                 'ensemble_policy': ensemble_policy,
+                'timing': {
+                    'total_seconds': round(perf_counter() - run_started, 3),
+                    'mean_model_seconds': round(
+                        sum(float(r.get('elapsed_seconds', 0.0)) for r in per_model) / len(per_model),
+                        3,
+                    ) if per_model else 0.0,
+                    'model_workers_requested': requested_model_workers,
+                    'model_workers_used': effective_model_workers,
+                },
                 'analysis_date':  datetime.now().isoformat(),
                 'diagnostics':    diagnostics,
             },
@@ -755,6 +908,10 @@ def main() -> int:
         help=f"Override preprocess_data source key (default: {NEX_GDDP_SOURCE!r})")
     p.add_argument('--list-models',  action='store_true', help='Print models and exit')
     p.add_argument('--output',       help='Save JSON result here')
+    p.add_argument('--model-workers', type=int, default=8,
+        help=("Parallel NEX-GDDP model workers for ensemble runs. "
+              "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
+              "Use 1 for serial deep debugging."))
     p.add_argument('--quiet',        action='store_true')
     args = p.parse_args()
 
@@ -804,6 +961,7 @@ def main() -> int:
         scenarios = scenarios, models = models,
         fixed_arg = args.fixed_season,
         ensemble_policy = ensemble_policy,
+        model_workers = args.model_workers,
         verbose   = not args.quiet,
     )
 

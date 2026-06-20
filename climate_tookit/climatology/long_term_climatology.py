@@ -29,11 +29,15 @@ import math
 import logging
 import contextlib
 import calendar
+import io
 from datetime import date
+from time import perf_counter
 from typing import Dict, List, Any, Tuple, Optional
 import pandas as pd
 import json
 import argparse
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import redirect_stdout
 from statistics import mean, stdev, median
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
@@ -77,6 +81,104 @@ def _quiet_fetch_logs():
         logging.root.setLevel(prev_root_level)
         for name, lvl in prev_levels.items():
             logging.getLogger(name).setLevel(lvl)
+
+
+def _format_elapsed(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, sec = divmod(int(round(seconds)), 60)
+    if minutes < 60:
+        return f"{minutes}m{sec:02d}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m{sec:02d}s"
+
+
+def _build_climatology_model_task(
+    *,
+    location_coord: Tuple[float, float],
+    start_year: int,
+    end_year: int,
+    variables: Optional[List],
+    model: str,
+    scenario: str,
+    suppress_child_stdout: bool,
+) -> Dict[str, Any]:
+    return {
+        "location_coord": location_coord,
+        "start_year": start_year,
+        "end_year": end_year,
+        "variables": variables,
+        "model": model,
+        "scenario": scenario,
+        "suppress_child_stdout": suppress_child_stdout,
+    }
+
+
+def _run_climatology_model_task(task: Dict[str, Any]) -> Dict[str, Any]:
+    started = perf_counter()
+    model = task["model"]
+    suppress_child_stdout = bool(task.get("suppress_child_stdout", False))
+    kwargs = {k: v for k, v in task.items() if k != "suppress_child_stdout"}
+    try:
+        if suppress_child_stdout:
+            with redirect_stdout(io.StringIO()):
+                result = calculate_climatology(
+                    source='nex_gddp',
+                    output_dir=None,
+                    verbose=False,
+                    **kwargs,
+                )
+        else:
+            result = calculate_climatology(
+                source='nex_gddp',
+                output_dir=None,
+                verbose=False,
+                **kwargs,
+            )
+        elapsed = perf_counter() - started
+        if isinstance(result, dict):
+            result["_elapsed_seconds"] = round(elapsed, 3)
+        return {
+            "model": model,
+            "result": result,
+            "elapsed_seconds": round(elapsed, 3),
+        }
+    except Exception as exc:
+        elapsed = perf_counter() - started
+        return {
+            "model": model,
+            "error": str(exc),
+            "elapsed_seconds": round(elapsed, 3),
+        }
+
+
+def _print_climatology_worker_progress(
+    *,
+    done: int,
+    total: int,
+    model: str,
+    outcome: Dict[str, Any],
+    run_started: float,
+    n_years: int,
+) -> None:
+    elapsed = perf_counter() - run_started
+    avg = elapsed / done if done else 0.0
+    eta = avg * max(total - done, 0)
+    message = (
+        f"  [{done:02d}/{total:02d}] {model} | "
+        f"{'ok' if 'error' not in outcome else 'failed'} | "
+        f"model={_format_elapsed(float(outcome.get('elapsed_seconds', 0.0)))} | "
+        f"total={_format_elapsed(elapsed)} | "
+        f"eta={_format_elapsed(eta)}"
+    )
+    result = outcome.get("result") or {}
+    if 'error' not in outcome and isinstance(result, dict):
+        years = ((result.get('period') or {}).get('years_with_data'))
+        if isinstance(years, int):
+            message += f" | years={years}/{n_years}"
+    elif outcome.get("error"):
+        message += f" | error={outcome['error']}"
+    print(message, flush=True)
 
 def _import_preprocess_runtime():
     global preprocess_data, ClimateVariable, PREPROCESS_AVAILABLE
@@ -845,6 +947,7 @@ def calculate_climatology_ensemble(
     policy_profile: Optional[str] = None,
     output_dir: Optional[str] = None,
     verbose: bool = True,
+    model_workers: int = 1,
 ) -> Dict[str, Any]:
     """
     NEX-GDDP-CMIP6 ensemble climatology.
@@ -878,32 +981,97 @@ def calculate_climatology_ensemble(
         print(f"  Models   : {len(active)}")
         print(f"{'='*70}\n")
 
+    requested_model_workers = max(1, int(model_workers))
+    effective_model_workers = max(1, min(requested_model_workers, len(active)))
+    run_started = perf_counter()
+    if verbose:
+        mode = "parallel" if effective_model_workers > 1 else "serial"
+        worker_suffix = f" | workers={effective_model_workers}" if effective_model_workers > 1 else ""
+        print(f"  Execution: {mode}{worker_suffix}")
+
     per_model_results: Dict[str, Dict[str, Any]] = {}
     failed: List[Dict[str, str]] = []
-    for i, model in enumerate(active, 1):
+    tasks = [
+        _build_climatology_model_task(
+            location_coord=(lat, lon),
+            start_year=start_year,
+            end_year=end_year,
+            variables=variables,
+            model=model,
+            scenario=canon,
+            suppress_child_stdout=effective_model_workers > 1,
+        )
+        for model in active
+    ]
+
+    def _consume_outcome(outcome: Dict[str, Any], done: int) -> None:
+        model = outcome["model"]
+        if 'error' in outcome:
+            failed.append({'model': model, 'error': outcome['error']})
+            if verbose:
+                _print_climatology_worker_progress(
+                    done=done,
+                    total=len(active),
+                    model=model,
+                    outcome=outcome,
+                    run_started=run_started,
+                    n_years=n_years,
+                )
+            return
+        r = outcome["result"]
+        if 'error' in r:
+            failed.append({'model': model, 'error': r['error']})
+            if verbose:
+                _print_climatology_worker_progress(
+                    done=done,
+                    total=len(active),
+                    model=model,
+                    outcome={"model": model, "error": r["error"], "elapsed_seconds": outcome.get("elapsed_seconds", 0.0)},
+                    run_started=run_started,
+                    n_years=n_years,
+                )
+            return
+        per_model_results[model] = r
         if verbose:
-            print(f"  [{i:02d}/{len(active):02d}] {model:<22}", end=' ', flush=True)
-        try:
-            r = calculate_climatology(
-                location_coord=(lat, lon),
-                start_year=start_year, end_year=end_year,
-                source='nex_gddp', variables=variables,
-                output_dir=None, model=model, scenario=canon,
-                verbose=False,
+            _print_climatology_worker_progress(
+                done=done,
+                total=len(active),
+                model=model,
+                outcome=outcome,
+                run_started=run_started,
+                n_years=n_years,
             )
-            if 'error' in r:
-                failed.append({'model': model, 'error': r['error']})
-                if verbose:
-                    print(f"✗  {r['error']}")
-                continue
-            per_model_results[model] = r
+
+    if effective_model_workers == 1:
+        for done, task in enumerate(tasks, 1):
+            _consume_outcome(_run_climatology_model_task(task), done)
+    else:
+        try:
+            future_map = {}
+            with ProcessPoolExecutor(max_workers=effective_model_workers) as executor:
+                for task in tasks:
+                    future = executor.submit(_run_climatology_model_task, task)
+                    future_map[future] = task["model"]
+                for done, future in enumerate(as_completed(future_map), 1):
+                    model = future_map[future]
+                    try:
+                        outcome = future.result()
+                    except Exception as exc:
+                        outcome = {
+                            "model": model,
+                            "error": str(exc),
+                            "elapsed_seconds": 0.0,
+                        }
+                    _consume_outcome(outcome, done)
+        except (OSError, PermissionError) as exc:
             if verbose:
-                yrs = r['period']['years_with_data']
-                print(f"✓  {yrs}/{n_years} years")
-        except Exception as exc:
-            failed.append({'model': model, 'error': str(exc)})
-            if verbose:
-                print(f"✗  {exc}")
+                print(
+                    "  Warning  : parallel model workers unavailable in this environment "
+                    f"({exc}); falling back to serial execution."
+                )
+            effective_model_workers = 1
+            for done, task in enumerate(tasks, 1):
+                _consume_outcome(_run_climatology_model_task(task), done)
 
     if not per_model_results:
         return {'error': 'All models failed.', 'failed_models': failed,
@@ -962,6 +1130,7 @@ def calculate_climatology_ensemble(
     years_with_data_min = min(years_with_data_values)
     years_with_data_max = max(years_with_data_values)
     years_with_data_mean = round(mean(years_with_data_values), 2)
+    total_elapsed = perf_counter() - run_started
 
     # Plots from the ensemble-mean series (reconstruct an annual_stats shape)
     plots_written: List[str] = []
@@ -1025,6 +1194,18 @@ def calculate_climatology_ensemble(
             'years_with_data_mean': years_with_data_mean,
             'years_with_data_max': years_with_data_max,
             'ensemble_policy': ensemble_policy,
+            'timing': {
+                'total_seconds': round(total_elapsed, 3),
+                'mean_model_seconds': round(
+                    sum(
+                        float(r.get('_elapsed_seconds', 0.0))
+                        for r in results_list
+                    ) / len(results_list),
+                    3,
+                ) if results_list else 0.0,
+                'model_workers_requested': requested_model_workers,
+                'model_workers_used': effective_model_workers,
+            },
         },
     }
 
@@ -1216,6 +1397,10 @@ Examples:
     parser.add_argument('--output-dir', type=str, default='./outputs',
                        help='Directory for plot PNGs (default: ./outputs). '
                             'Pass empty string to disable plotting.')
+    parser.add_argument('--model-workers', type=int, default=8,
+                       help=("Parallel NEX-GDDP model workers for ensemble runs. "
+                             "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
+                             "Use 1 for serial deep debugging."))
 
     args = parser.parse_args()
 
@@ -1293,6 +1478,7 @@ Examples:
                     policy_profile=None if args.policy_profile == 'default' else args.policy_profile,
                     output_dir=plot_dir,
                     verbose=verbose_text,
+                    model_workers=args.model_workers,
                 )
             all_results[scenario] = result
             if 'error' not in result:
