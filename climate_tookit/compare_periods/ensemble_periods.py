@@ -99,6 +99,149 @@ def _format_elapsed(seconds: float) -> str:
     return f"{hours}h{minutes:02d}m{sec:02d}s"
 
 
+def _round_if_num(value: Any, digits: int = 3) -> Optional[float]:
+    return round(float(value), digits) if _is_num(value) else None
+
+
+def _extract_stats_timing(stats: Optional[Dict[str, Any]]) -> Dict[str, Optional[float]]:
+    timing = (stats or {}).get("timing") or {}
+    return {
+        "fetch_seconds": _round_if_num(timing.get("fetch_seconds")),
+        "prep_seconds": _round_if_num(timing.get("prep_seconds")),
+        "season_detection_seconds": _round_if_num(timing.get("season_detection_seconds")),
+        "season_reduction_seconds": _round_if_num(timing.get("season_reduction_seconds")),
+        "spei_seconds": _round_if_num(timing.get("spei_seconds")),
+        "total_seconds": _round_if_num(timing.get("total_seconds")),
+    }
+
+
+def _summarize_runtime_stage(values: List[float]) -> Dict[str, Optional[float]]:
+    clean = [float(v) for v in values if _is_num(v)]
+    if not clean:
+        return {"mean_seconds": None, "median_seconds": None, "max_seconds": None}
+    return {
+        "mean_seconds": round(pystat.mean(clean), 3),
+        "median_seconds": round(pystat.median(clean), 3),
+        "max_seconds": round(max(clean), 3),
+    }
+
+
+def _build_runtime_summary(
+    per_model: List[Dict[str, Any]],
+    failed: List[Dict[str, str]],
+    total_elapsed: float,
+) -> Dict[str, Any]:
+    model_totals = [r.get("_elapsed_seconds", 0.0) for r in per_model if _is_num(r.get("_elapsed_seconds"))]
+    baseline_totals = [
+        r.get("timing_breakdown", {}).get("baseline_total_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    future_totals = [
+        r.get("timing_breakdown", {}).get("future_total_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    compare_totals = [
+        r.get("timing_breakdown", {}).get("compare_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    baseline_fetch = [
+        r.get("timing_breakdown", {}).get("baseline", {}).get("fetch_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    future_fetch = [
+        r.get("timing_breakdown", {}).get("future", {}).get("fetch_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    baseline_reduce = [
+        r.get("timing_breakdown", {}).get("baseline", {}).get("season_reduction_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    future_reduce = [
+        r.get("timing_breakdown", {}).get("future", {}).get("season_reduction_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+
+    slowest_models = [
+        {
+            "model": r.get("_model"),
+            "total_seconds": round(float(r.get("_elapsed_seconds", 0.0)), 3),
+            "baseline_total_seconds": _round_if_num((r.get("timing_breakdown") or {}).get("baseline_total_seconds")),
+            "future_total_seconds": _round_if_num((r.get("timing_breakdown") or {}).get("future_total_seconds")),
+            "compare_seconds": _round_if_num((r.get("timing_breakdown") or {}).get("compare_seconds")),
+        }
+        for r in sorted(
+            [row for row in per_model if _is_num(row.get("_elapsed_seconds"))],
+            key=lambda row: float(row.get("_elapsed_seconds", 0.0)),
+            reverse=True,
+        )[:3]
+    ]
+    return {
+        "models_ok": len(per_model),
+        "models_failed": len(failed),
+        "total_elapsed_seconds": round(total_elapsed, 3),
+        "mean_model_seconds": round(pystat.mean(model_totals), 3) if model_totals else None,
+        "median_model_seconds": round(pystat.median(model_totals), 3) if model_totals else None,
+        "slowest_models": slowest_models,
+        "stage_summary": {
+            "baseline_total": _summarize_runtime_stage(baseline_totals),
+            "future_total": _summarize_runtime_stage(future_totals),
+            "compare": _summarize_runtime_stage(compare_totals),
+            "baseline_fetch": _summarize_runtime_stage(baseline_fetch),
+            "future_fetch": _summarize_runtime_stage(future_fetch),
+            "baseline_reduction": _summarize_runtime_stage(baseline_reduce),
+            "future_reduction": _summarize_runtime_stage(future_reduce),
+        },
+    }
+
+
+def _format_stage_stat(stage_summary: Dict[str, Any], key: str) -> str:
+    block = (stage_summary or {}).get(key) or {}
+    mean_seconds = block.get("mean_seconds")
+    if not _is_num(mean_seconds):
+        return "n/a"
+    return _format_elapsed(float(mean_seconds))
+
+
+def _print_runtime_summary(runtime_summary: Optional[Dict[str, Any]]) -> None:
+    if not isinstance(runtime_summary, dict):
+        return
+    stage_summary = runtime_summary.get("stage_summary") or {}
+    slowest = runtime_summary.get("slowest_models") or []
+    slowest_text = ", ".join(
+        f"{row.get('model')}({_format_elapsed(float(row.get('total_seconds', 0.0)))})"
+        for row in slowest
+        if row.get("model") and _is_num(row.get("total_seconds"))
+    ) or "n/a"
+    print("\n--- Runtime Summary ---")
+    print(
+        "  Models      : "
+        f"ok={runtime_summary.get('models_ok', 0)} | "
+        f"failed={runtime_summary.get('models_failed', 0)}"
+    )
+    print(
+        "  Model time  : "
+        f"mean={_format_elapsed(float(runtime_summary['mean_model_seconds'])) if _is_num(runtime_summary.get('mean_model_seconds')) else 'n/a'} | "
+        f"median={_format_elapsed(float(runtime_summary['median_model_seconds'])) if _is_num(runtime_summary.get('median_model_seconds')) else 'n/a'} | "
+        f"total={_format_elapsed(float(runtime_summary['total_elapsed_seconds'])) if _is_num(runtime_summary.get('total_elapsed_seconds')) else 'n/a'}"
+    )
+    print(
+        "  Stage means : "
+        f"baseline={_format_stage_stat(stage_summary, 'baseline_total')} | "
+        f"future={_format_stage_stat(stage_summary, 'future_total')} | "
+        f"compare={_format_stage_stat(stage_summary, 'compare')} | "
+        f"baseline_fetch={_format_stage_stat(stage_summary, 'baseline_fetch')} | "
+        f"future_fetch={_format_stage_stat(stage_summary, 'future_fetch')}"
+    )
+    print(f"  Slowest     : {slowest_text}")
+
+
 def _run_stats_call(
     *,
     diagnostic_verbose: bool,
@@ -170,6 +313,7 @@ def _run_compare_one_model_task(task: Dict[str, Any]) -> Dict[str, Any]:
                 "ok": False,
                 "error": result["error"],
                 "elapsed_seconds": round(elapsed, 3),
+                "timing_breakdown": result.get("timing_breakdown"),
             }
         result["_model"] = model
         result["_elapsed_seconds"] = round(elapsed, 3)
@@ -178,6 +322,7 @@ def _run_compare_one_model_task(task: Dict[str, Any]) -> Dict[str, Any]:
             "ok": True,
             "result": result,
             "elapsed_seconds": round(elapsed, 3),
+            "timing_breakdown": result.get("timing_breakdown"),
         }
     except Exception as exc:
         elapsed = perf_counter() - started
@@ -186,6 +331,7 @@ def _run_compare_one_model_task(task: Dict[str, Any]) -> Dict[str, Any]:
             "ok": False,
             "error": str(exc),
             "elapsed_seconds": round(elapsed, 3),
+            "timing_breakdown": None,
         }
 
 
@@ -201,8 +347,15 @@ def _print_model_progress(
     avg = elapsed / done if done else 0.0
     eta = avg * max(total - done, 0)
     status = "ok" if outcome.get("ok") else "failed"
+    timing = outcome.get("timing_breakdown") or {}
+    baseline = timing.get("baseline_total_seconds")
+    future = timing.get("future_total_seconds")
+    compare = timing.get("compare_seconds")
     message = (
         f"  [{done:02d}/{total:02d}] {model} | {status} | "
+        f"baseline={_format_elapsed(float(baseline)) if _is_num(baseline) else 'n/a'} | "
+        f"future={_format_elapsed(float(future)) if _is_num(future) else 'n/a'} | "
+        f"compare={_format_elapsed(float(compare)) if _is_num(compare) else 'n/a'} | "
         f"model={_format_elapsed(float(outcome.get('elapsed_seconds', 0.0)))} | "
         f"total={_format_elapsed(elapsed)} | eta={_format_elapsed(eta)}"
     )
@@ -1010,6 +1163,7 @@ def _compare_one_model(
         if spei_scale_months is not None else {}
     )
 
+    baseline_started = perf_counter()
     base = _run_stats_call(
         diagnostic_verbose=diagnostic_verbose,
         location_coord=location,
@@ -1018,13 +1172,23 @@ def _compare_one_model(
         model=model, scenario="historical",
         **fs_kw, **calendar_kw, **spei_kw,
     )
+    baseline_elapsed = perf_counter() - baseline_started
+    baseline_timing = _extract_stats_timing(base)
     if isinstance(base, dict) and base.get("error"):
         return {
             "error": (
                 f"Baseline fetch/analysis failed for model={model} scenario=historical "
                 f"({baseline_start}-{baseline_end}): {base['error']}"
-            )
+            ),
+            "timing_breakdown": {
+                "baseline": baseline_timing,
+                "future": {},
+                "baseline_total_seconds": round(baseline_elapsed, 3),
+                "future_total_seconds": None,
+                "compare_seconds": None,
+            },
         }
+    future_started = perf_counter()
     future = _run_stats_call(
         diagnostic_verbose=diagnostic_verbose,
         location_coord=location,
@@ -1033,12 +1197,21 @@ def _compare_one_model(
         model=model, scenario=scenario,
         **fs_kw, **calendar_kw, **spei_kw,
     )
+    future_elapsed = perf_counter() - future_started
+    future_timing = _extract_stats_timing(future)
     if isinstance(future, dict) and future.get("error"):
         return {
             "error": (
                 f"Future fetch/analysis failed for model={model} scenario={scenario} "
                 f"({future_start}-{future_end}): {future['error']}"
-            )
+            ),
+            "timing_breakdown": {
+                "baseline": baseline_timing,
+                "future": future_timing,
+                "baseline_total_seconds": round(baseline_elapsed, 3),
+                "future_total_seconds": round(future_elapsed, 3),
+                "compare_seconds": None,
+            },
         }
     season_detection = _compare_season_detection_summary(
         base,
@@ -1047,7 +1220,18 @@ def _compare_one_model(
     )
     season_detection_error = _compare_season_detection_guard(season_detection)
     if season_detection_error:
-        return {"error": season_detection_error, "season_detection": season_detection}
+        return {
+            "error": season_detection_error,
+            "season_detection": season_detection,
+            "timing_breakdown": {
+                "baseline": baseline_timing,
+                "future": future_timing,
+                "baseline_total_seconds": round(baseline_elapsed, 3),
+                "future_total_seconds": round(future_elapsed, 3),
+                "compare_seconds": None,
+            },
+        }
+    compare_started = perf_counter()
     # 1. raw_climate_summary -- already period-wide means/min/max/std
     raw_diff = _diff_raw(future.get("raw_climate_summary", []),
                          base.get("raw_climate_summary",  []),
@@ -1069,7 +1253,17 @@ def _compare_one_model(
         if not fixed_season:
             auto_guard_error = _auto_season_count_guard(base_seasons, future_seasons)
             if auto_guard_error:
-                return {"error": auto_guard_error, "season_detection": season_detection}
+                return {
+                    "error": auto_guard_error,
+                    "season_detection": season_detection,
+                    "timing_breakdown": {
+                        "baseline": baseline_timing,
+                        "future": future_timing,
+                        "baseline_total_seconds": round(baseline_elapsed, 3),
+                        "future_total_seconds": round(future_elapsed, 3),
+                        "compare_seconds": None,
+                    },
+                }
         if fixed_season:
             labels = [w.strip() for w in fixed_season.split(",")]
             base_grp:  Dict[int, List[Dict]] = {}
@@ -1127,6 +1321,7 @@ def _compare_one_model(
         future.get("spei"),
         base.get("spei"),
     )
+    compare_elapsed = perf_counter() - compare_started
     return {
         "future_period":         f"{future_start}-{future_end}",
         "future_years":          n_future,
@@ -1151,6 +1346,13 @@ def _compare_one_model(
         "season_statistics":    season_diff,
         "annual_summary":       annual_diff,
         "spei":                 spei_diff,
+        "timing_breakdown": {
+            "baseline": baseline_timing,
+            "future": future_timing,
+            "baseline_total_seconds": round(baseline_elapsed, 3),
+            "future_total_seconds": round(future_elapsed, 3),
+            "compare_seconds": round(compare_elapsed, 3),
+        },
     }
 
 # cross-model aggregation
@@ -1467,6 +1669,7 @@ def ensemble_compare(
     if not per_model:
         return {"error": "All models failed.", "failed_models": failed}
 
+    runtime_summary = _build_runtime_summary(per_model, failed, total_elapsed)
     result = {
         "future_period":    f"{future_start}-{future_end}",
         "future_years":     future_end - future_start + 1,
@@ -1502,13 +1705,12 @@ def ensemble_compare(
             "source":        "NEX-GDDP-CMIP6",
             "ensemble_policy": ensemble_policy,
             "timing":        {
-                "total_seconds": round(total_elapsed, 3),
-                "mean_model_seconds": round(
-                    sum(r.get("_elapsed_seconds", 0.0) for r in per_model) / len(per_model),
-                    3,
-                ),
+                "total_seconds": runtime_summary["total_elapsed_seconds"],
+                "mean_model_seconds": runtime_summary["mean_model_seconds"],
+                "median_model_seconds": runtime_summary["median_model_seconds"],
                 "model_workers_requested": requested_model_workers,
                 "model_workers_used": effective_model_workers,
+                "runtime_summary": runtime_summary,
             },
             "analysis_date": datetime.now().isoformat(),
         },
@@ -1524,6 +1726,7 @@ def ensemble_compare(
             f"\nCompleted ensemble comparison in {_format_elapsed(total_elapsed)} "
             f"(models_ok={len(per_model)}, models_failed={len(failed)})"
         )
+        _print_runtime_summary(runtime_summary)
 
     return result
 
@@ -1792,6 +1995,8 @@ def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
     if avf:
         _print_focal_vs_ltm(avf)
         print()
+
+    _print_runtime_summary((((r.get("metadata") or {}).get("timing") or {}).get("runtime_summary")))
 
 
 def _annotate_cli_timing(
