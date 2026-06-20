@@ -339,6 +339,149 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
 
         self.assertIn("no usable daily values", str(ctx.exception))
 
+    def test_run_ensemble_records_worker_metadata_in_serial_mode(self):
+        orig_task_runner = ensemble._run_season_model_task
+
+        def fake_task_runner(task):
+            return {
+                "model": task["model"],
+                "scenario": task["scenario"],
+                "seasons_dict": {2050: [{"season_number": 1}], 2051: [{"season_number": 1}]},
+                "annual_dict": {
+                    2050: {"annual_rain_mm": 700.0, "low_rain_months": 6, "is_humid": False},
+                    2051: {"annual_rain_mm": 740.0, "low_rain_months": 5, "is_humid": False},
+                },
+                "skip_info": {"perhumid_years": [], "no_season_years": [], "analyzed_years": [2050, 2051]},
+                "elapsed_seconds": 0.5,
+            }
+
+        ensemble._run_season_model_task = fake_task_runner
+        try:
+            result = ensemble.run_ensemble(
+                -1.286,
+                36.817,
+                2050,
+                2051,
+                scenarios=["ssp245"],
+                models=["ACCESS-CM2", "MRI-ESM2-0"],
+                fixed_arg="03-01:05-31",
+                verbose=False,
+                model_workers=1,
+            )
+        finally:
+            ensemble._run_season_model_task = orig_task_runner
+
+        timing = result["ssp245"]["metadata"]["timing"]
+        self.assertEqual(1, timing["model_workers_requested"])
+        self.assertEqual(1, timing["model_workers_used"])
+        self.assertEqual(2, result["ssp245"]["metadata"]["models_ok"])
+
+    def test_run_ensemble_parallel_path_uses_executor(self):
+        orig_task_runner = ensemble._run_season_model_task
+        orig_executor = ensemble.ProcessPoolExecutor
+        orig_as_completed = ensemble.as_completed
+        tasks_seen = []
+
+        def fake_task_runner(task):
+            tasks_seen.append(task)
+            return {
+                "model": task["model"],
+                "scenario": task["scenario"],
+                "seasons_dict": {2050: [{"season_number": 1}]},
+                "annual_dict": {
+                    2050: {"annual_rain_mm": 700.0, "low_rain_months": 6, "is_humid": False},
+                },
+                "skip_info": {"perhumid_years": [], "no_season_years": [], "analyzed_years": [2050]},
+                "elapsed_seconds": 0.5,
+            }
+
+        class _FakeFuture:
+            def __init__(self, value):
+                self._value = value
+
+            def result(self):
+                return self._value
+
+        class _FakeExecutor:
+            def __init__(self, max_workers):
+                self.max_workers = max_workers
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def submit(self, fn, task):
+                return _FakeFuture(fn(task))
+
+        ensemble._run_season_model_task = fake_task_runner
+        ensemble.ProcessPoolExecutor = _FakeExecutor
+        ensemble.as_completed = lambda futures: list(futures)
+        try:
+            result = ensemble.run_ensemble(
+                -1.286,
+                36.817,
+                2050,
+                2050,
+                scenarios=["ssp245"],
+                models=["ACCESS-CM2", "MRI-ESM2-0"],
+                fixed_arg="03-01:05-31",
+                verbose=False,
+                model_workers=8,
+            )
+        finally:
+            ensemble._run_season_model_task = orig_task_runner
+            ensemble.ProcessPoolExecutor = orig_executor
+            ensemble.as_completed = orig_as_completed
+
+        timing = result["ssp245"]["metadata"]["timing"]
+        self.assertEqual(8, timing["model_workers_requested"])
+        self.assertEqual(2, timing["model_workers_used"])
+        self.assertEqual(2, len(tasks_seen))
+
+    def test_run_ensemble_parallel_falls_back_when_blocked(self):
+        orig_task_runner = ensemble._run_season_model_task
+        orig_executor = ensemble.ProcessPoolExecutor
+
+        def fake_task_runner(task):
+            return {
+                "model": task["model"],
+                "scenario": task["scenario"],
+                "seasons_dict": {2050: [{"season_number": 1}]},
+                "annual_dict": {
+                    2050: {"annual_rain_mm": 700.0, "low_rain_months": 6, "is_humid": False},
+                },
+                "skip_info": {"perhumid_years": [], "no_season_years": [], "analyzed_years": [2050]},
+                "elapsed_seconds": 0.5,
+            }
+
+        class _BrokenExecutor:
+            def __init__(self, max_workers):
+                raise PermissionError("blocked semaphore")
+
+        ensemble._run_season_model_task = fake_task_runner
+        ensemble.ProcessPoolExecutor = _BrokenExecutor
+        try:
+            result = ensemble.run_ensemble(
+                -1.286,
+                36.817,
+                2050,
+                2050,
+                scenarios=["ssp245"],
+                models=["ACCESS-CM2", "MRI-ESM2-0"],
+                fixed_arg="03-01:05-31",
+                verbose=False,
+                model_workers=4,
+            )
+        finally:
+            ensemble._run_season_model_task = orig_task_runner
+            ensemble.ProcessPoolExecutor = orig_executor
+
+        timing = result["ssp245"]["metadata"]["timing"]
+        self.assertEqual(4, timing["model_workers_requested"])
+        self.assertEqual(1, timing["model_workers_used"])
+
 
 if __name__ == "__main__":
     unittest.main()

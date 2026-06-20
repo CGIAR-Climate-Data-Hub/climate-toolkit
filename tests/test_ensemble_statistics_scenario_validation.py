@@ -181,6 +181,134 @@ class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):
         self.assertEqual([], result["ltm_season_summary"]["windows"])
         self.assertIn("Use --fixed-season", result["ltm_season_summary"]["warning"])
 
+    def test_serial_worker_metadata_recorded(self):
+        fake_result = {
+            "season_statistics": [
+                {"year": 2050, "season_number": 1, "precipitation": {"total_mm": 400}}
+            ],
+            "ltm_season_summary": {"mode": "fixed", "windows": [{"season_number": 1}]},
+            "annual_summary": {"2050": {"annual_rain_mm": 800.0, "is_humid": False}},
+            "_elapsed_seconds": 0.25,
+        }
+
+        with mock.patch.object(
+            es,
+            "resolve_ensemble_policy_for_location",
+            return_value={"models": ["MRI-ESM2-0", "ACCESS-CM2"], "policy_id": "unit-test"},
+        ), mock.patch.object(es, "analyze_climate_statistics", return_value=fake_result):
+            result = es.analyze_ensemble_nex_gddp(
+                location_coord=(-1.286, 36.817),
+                start_year=2040,
+                end_year=2060,
+                scenario="ssp245",
+                verbose=False,
+                model_workers=1,
+            )
+
+        timing = result["metadata"]["timing"]
+        self.assertEqual(1, timing["model_workers_requested"])
+        self.assertEqual(1, timing["model_workers_used"])
+        self.assertEqual(2, result["n_models_ok"])
+
+    def test_parallel_worker_path_uses_executor(self):
+        tasks_seen = []
+
+        def fake_task_runner(task):
+            tasks_seen.append(task)
+            return {
+                "model": task["model"],
+                "elapsed_seconds": 0.5,
+                "result": {
+                    "_elapsed_seconds": 0.5,
+                    "season_statistics": [
+                        {"year": 2050, "season_number": 1, "precipitation": {"total_mm": 400}}
+                    ],
+                    "ltm_season_summary": {"mode": "fixed", "windows": [{"season_number": 1}]},
+                    "annual_summary": {"2050": {"annual_rain_mm": 800.0, "is_humid": False}},
+                },
+            }
+
+        class _FakeFuture:
+            def __init__(self, value):
+                self._value = value
+
+            def result(self):
+                return self._value
+
+        class _FakeExecutor:
+            def __init__(self, max_workers):
+                self.max_workers = max_workers
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def submit(self, fn, task):
+                return _FakeFuture(fn(task))
+
+        with mock.patch.object(
+            es,
+            "resolve_ensemble_policy_for_location",
+            return_value={"models": ["MRI-ESM2-0", "ACCESS-CM2"], "policy_id": "unit-test"},
+        ), mock.patch.object(es, "_run_ensemble_model_task", side_effect=fake_task_runner), \
+             mock.patch.object(es, "ProcessPoolExecutor", _FakeExecutor), \
+             mock.patch.object(es, "as_completed", lambda futures: list(futures)):
+            result = es.analyze_ensemble_nex_gddp(
+                location_coord=(-1.286, 36.817),
+                start_year=2040,
+                end_year=2060,
+                scenario="ssp245",
+                verbose=False,
+                model_workers=8,
+            )
+
+        timing = result["metadata"]["timing"]
+        self.assertEqual(8, timing["model_workers_requested"])
+        self.assertEqual(2, timing["model_workers_used"])
+        self.assertEqual(2, len(tasks_seen))
+        self.assertTrue(all(task["suppress_child_stdout"] for task in tasks_seen))
+
+    def test_parallel_workers_fall_back_to_serial_when_blocked(self):
+        def fake_task_runner(task):
+            return {
+                "model": task["model"],
+                "elapsed_seconds": 0.5,
+                "result": {
+                    "_elapsed_seconds": 0.5,
+                    "season_statistics": [
+                        {"year": 2050, "season_number": 1, "precipitation": {"total_mm": 400}}
+                    ],
+                    "ltm_season_summary": {"mode": "fixed", "windows": [{"season_number": 1}]},
+                    "annual_summary": {"2050": {"annual_rain_mm": 800.0, "is_humid": False}},
+                },
+            }
+
+        class _BrokenExecutor:
+            def __init__(self, max_workers):
+                raise PermissionError("blocked semaphore")
+
+        with mock.patch.object(
+            es,
+            "resolve_ensemble_policy_for_location",
+            return_value={"models": ["MRI-ESM2-0", "ACCESS-CM2"], "policy_id": "unit-test"},
+        ), mock.patch.object(es, "_run_ensemble_model_task", side_effect=fake_task_runner), \
+             mock.patch.object(es, "ProcessPoolExecutor", _BrokenExecutor):
+            result = es.analyze_ensemble_nex_gddp(
+                location_coord=(-1.286, 36.817),
+                start_year=2040,
+                end_year=2060,
+                scenario="ssp245",
+                verbose=False,
+                model_workers=4,
+            )
+
+        timing = result["metadata"]["timing"]
+        self.assertEqual(4, timing["model_workers_requested"])
+        self.assertEqual(1, timing["model_workers_used"])
+        self.assertEqual(2, result["n_models_ok"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1273,6 +1273,184 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual(0.0, timing["focal_prefetch_seconds"])
         self.assertEqual(0.358, timing["ensemble_compare_seconds"])
 
+    def test_ensemble_compare_records_model_worker_metadata_in_serial_mode(self):
+        orig_resolve = ep._resolve_models_and_policy
+        orig_task_runner = ep._run_compare_one_model_task
+
+        ep._resolve_models_and_policy = lambda *args, **kwargs: (
+            ["ACCESS-CM2", "MRI-ESM2-0"],
+            {"policy_id": "unit-test"},
+        )
+
+        def fake_task_runner(task):
+            model = task["model"]
+            return {
+                "model": model,
+                "ok": True,
+                "elapsed_seconds": 0.25,
+                "result": {
+                    "_model": model,
+                    "_elapsed_seconds": 0.25,
+                    "raw_climate_summary": {},
+                    "overall_statistics": {},
+                    "season_statistics": [],
+                    "annual_summary": {},
+                    "spei": None,
+                },
+            }
+
+        ep._run_compare_one_model_task = fake_task_runner
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                scenario="ssp245",
+                model_workers=1,
+                verbose=False,
+            )
+        finally:
+            ep._resolve_models_and_policy = orig_resolve
+            ep._run_compare_one_model_task = orig_task_runner
+
+        timing = result["metadata"]["timing"]
+        self.assertEqual(1, timing["model_workers_requested"])
+        self.assertEqual(1, timing["model_workers_used"])
+        self.assertEqual(2, result["n_models_ok"])
+
+    def test_ensemble_compare_parallel_path_uses_executor_and_suppresses_child_stdout(self):
+        orig_resolve = ep._resolve_models_and_policy
+        orig_task_runner = ep._run_compare_one_model_task
+        orig_executor = ep.ProcessPoolExecutor
+        orig_as_completed = ep.as_completed
+
+        ep._resolve_models_and_policy = lambda *args, **kwargs: (
+            ["ACCESS-CM2", "MRI-ESM2-0"],
+            {"policy_id": "unit-test"},
+        )
+
+        tasks_seen = []
+
+        def fake_task_runner(task):
+            tasks_seen.append(task)
+            model = task["model"]
+            return {
+                "model": model,
+                "ok": True,
+                "elapsed_seconds": 0.5,
+                "result": {
+                    "_model": model,
+                    "_elapsed_seconds": 0.5,
+                    "raw_climate_summary": {},
+                    "overall_statistics": {},
+                    "season_statistics": [],
+                    "annual_summary": {},
+                    "spei": None,
+                },
+            }
+
+        class _FakeFuture:
+            def __init__(self, value):
+                self._value = value
+
+            def result(self):
+                return self._value
+
+        class _FakeExecutor:
+            def __init__(self, max_workers):
+                self.max_workers = max_workers
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def submit(self, fn, task):
+                return _FakeFuture(fn(task))
+
+        ep._run_compare_one_model_task = fake_task_runner
+        ep.ProcessPoolExecutor = _FakeExecutor
+        ep.as_completed = lambda futures: list(futures)
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                scenario="ssp245",
+                model_workers=8,
+                verbose=False,
+            )
+        finally:
+            ep._resolve_models_and_policy = orig_resolve
+            ep._run_compare_one_model_task = orig_task_runner
+            ep.ProcessPoolExecutor = orig_executor
+            ep.as_completed = orig_as_completed
+
+        timing = result["metadata"]["timing"]
+        self.assertEqual(8, timing["model_workers_requested"])
+        self.assertEqual(2, timing["model_workers_used"])
+        self.assertEqual(2, len(tasks_seen))
+        self.assertTrue(all(task["suppress_child_stdout"] for task in tasks_seen))
+
+    def test_ensemble_compare_parallel_falls_back_to_serial_when_process_pool_unavailable(self):
+        orig_resolve = ep._resolve_models_and_policy
+        orig_task_runner = ep._run_compare_one_model_task
+        orig_executor = ep.ProcessPoolExecutor
+
+        ep._resolve_models_and_policy = lambda *args, **kwargs: (
+            ["ACCESS-CM2", "MRI-ESM2-0"],
+            {"policy_id": "unit-test"},
+        )
+
+        def fake_task_runner(task):
+            model = task["model"]
+            return {
+                "model": model,
+                "ok": True,
+                "elapsed_seconds": 0.5,
+                "result": {
+                    "_model": model,
+                    "_elapsed_seconds": 0.5,
+                    "raw_climate_summary": {},
+                    "overall_statistics": {},
+                    "season_statistics": [],
+                    "annual_summary": {},
+                    "spei": None,
+                },
+            }
+
+        class _BrokenExecutor:
+            def __init__(self, max_workers):
+                raise PermissionError("blocked semaphore")
+
+        ep._run_compare_one_model_task = fake_task_runner
+        ep.ProcessPoolExecutor = _BrokenExecutor
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                scenario="ssp245",
+                model_workers=4,
+                verbose=False,
+            )
+        finally:
+            ep._resolve_models_and_policy = orig_resolve
+            ep._run_compare_one_model_task = orig_task_runner
+            ep.ProcessPoolExecutor = orig_executor
+
+        timing = result["metadata"]["timing"]
+        self.assertEqual(4, timing["model_workers_requested"])
+        self.assertEqual(1, timing["model_workers_used"])
+        self.assertEqual(2, result["n_models_ok"])
+
     def test_ensemble_compare_rejects_single_year_baseline_period(self):
         result = ep.ensemble_compare(
             location=(-1.286, 36.817),

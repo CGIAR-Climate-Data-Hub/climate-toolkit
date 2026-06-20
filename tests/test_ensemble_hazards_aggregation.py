@@ -534,6 +534,200 @@ class EnsembleHazardsAggregationTests(unittest.TestCase):
         self.assertEqual(500.0, result["precipitation"]["value_mm"])
         self.assertEqual("no_stress", result["temperature"]["status"])
 
+    def test_worker_metadata_recorded_in_serial_mode(self):
+        orig_task_runner = eh._run_hazard_projection_task
+
+        def fake_task_runner(task):
+            return {
+                "model": task["model"],
+                "scenario": task["scenario"],
+                "results": [
+                    {
+                        "season_info": {
+                            "start": "2050-03-01",
+                            "end": "2050-05-31",
+                            "season_number": 1,
+                            "year": 2050,
+                            "total": 1,
+                            "length_days": 91,
+                        },
+                        "season_statistics": {
+                            "total_precipitation_mm": 600.0,
+                            "mean_temperature_c": 24.0,
+                        },
+                        "hazard_evaluation": {
+                            "precipitation": {"value_mm": 600.0, "status": "no_stress"},
+                            "temperature": {"value_c": 24.0, "status": "no_stress"},
+                        },
+                        "projection": {"model": task["model"], "scenario": task["scenario"]},
+                    }
+                ],
+                "failures": [],
+                "elapsed_seconds": 0.5,
+            }
+
+        eh._run_hazard_projection_task = fake_task_runner
+        try:
+            result = eh.calculate_ensemble(
+                crop="maize",
+                lat=-1.286,
+                lon=36.817,
+                start_year=2050,
+                end_year=2050,
+                models=["ACCESS-CM2", "MRI-ESM2-0"],
+                scenarios=["ssp245"],
+                fixed_season="03-01:05-31",
+                model_workers=1,
+            )
+        finally:
+            eh._run_hazard_projection_task = orig_task_runner
+
+        timing = result["metadata"]["timing"]
+        self.assertEqual(1, timing["model_workers_requested"])
+        self.assertEqual(1, timing["model_workers_used"])
+        self.assertEqual(0.5, timing["mean_model_seconds"])
+
+    def test_parallel_worker_path_uses_executor(self):
+        orig_task_runner = eh._run_hazard_projection_task
+        orig_executor = eh.ProcessPoolExecutor
+        orig_as_completed = eh.as_completed
+        tasks_seen = []
+
+        def fake_task_runner(task):
+            tasks_seen.append(task)
+            return {
+                "model": task["model"],
+                "scenario": task["scenario"],
+                "results": [
+                    {
+                        "season_info": {
+                            "start": "2050-03-01",
+                            "end": "2050-05-31",
+                            "season_number": 1,
+                            "year": 2050,
+                            "total": 1,
+                            "length_days": 91,
+                        },
+                        "season_statistics": {
+                            "total_precipitation_mm": 600.0,
+                            "mean_temperature_c": 24.0,
+                        },
+                        "hazard_evaluation": {
+                            "precipitation": {"value_mm": 600.0, "status": "no_stress"},
+                            "temperature": {"value_c": 24.0, "status": "no_stress"},
+                        },
+                        "projection": {"model": task["model"], "scenario": task["scenario"]},
+                    }
+                ],
+                "failures": [],
+                "elapsed_seconds": 0.5,
+            }
+
+        class _FakeFuture:
+            def __init__(self, value):
+                self._value = value
+
+            def result(self):
+                return self._value
+
+        class _FakeExecutor:
+            def __init__(self, max_workers):
+                self.max_workers = max_workers
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def submit(self, fn, task):
+                return _FakeFuture(fn(task))
+
+        eh._run_hazard_projection_task = fake_task_runner
+        eh.ProcessPoolExecutor = _FakeExecutor
+        eh.as_completed = lambda futures: list(futures)
+        try:
+            result = eh.calculate_ensemble(
+                crop="maize",
+                lat=-1.286,
+                lon=36.817,
+                start_year=2050,
+                end_year=2050,
+                models=["ACCESS-CM2", "MRI-ESM2-0"],
+                scenarios=["ssp245"],
+                fixed_season="03-01:05-31",
+                model_workers=8,
+            )
+        finally:
+            eh._run_hazard_projection_task = orig_task_runner
+            eh.ProcessPoolExecutor = orig_executor
+            eh.as_completed = orig_as_completed
+
+        timing = result["metadata"]["timing"]
+        self.assertEqual(8, timing["model_workers_requested"])
+        self.assertEqual(2, timing["model_workers_used"])
+        self.assertEqual(2, len(tasks_seen))
+        self.assertTrue(all(task["suppress_child_stdout"] for task in tasks_seen))
+
+    def test_parallel_workers_fall_back_when_blocked(self):
+        orig_task_runner = eh._run_hazard_projection_task
+        orig_executor = eh.ProcessPoolExecutor
+
+        def fake_task_runner(task):
+            return {
+                "model": task["model"],
+                "scenario": task["scenario"],
+                "results": [
+                    {
+                        "season_info": {
+                            "start": "2050-03-01",
+                            "end": "2050-05-31",
+                            "season_number": 1,
+                            "year": 2050,
+                            "total": 1,
+                            "length_days": 91,
+                        },
+                        "season_statistics": {
+                            "total_precipitation_mm": 600.0,
+                            "mean_temperature_c": 24.0,
+                        },
+                        "hazard_evaluation": {
+                            "precipitation": {"value_mm": 600.0, "status": "no_stress"},
+                            "temperature": {"value_c": 24.0, "status": "no_stress"},
+                        },
+                        "projection": {"model": task["model"], "scenario": task["scenario"]},
+                    }
+                ],
+                "failures": [],
+                "elapsed_seconds": 0.5,
+            }
+
+        class _BrokenExecutor:
+            def __init__(self, max_workers):
+                raise PermissionError("blocked semaphore")
+
+        eh._run_hazard_projection_task = fake_task_runner
+        eh.ProcessPoolExecutor = _BrokenExecutor
+        try:
+            result = eh.calculate_ensemble(
+                crop="maize",
+                lat=-1.286,
+                lon=36.817,
+                start_year=2050,
+                end_year=2050,
+                models=["ACCESS-CM2", "MRI-ESM2-0"],
+                scenarios=["ssp245"],
+                fixed_season="03-01:05-31",
+                model_workers=4,
+            )
+        finally:
+            eh._run_hazard_projection_task = orig_task_runner
+            eh.ProcessPoolExecutor = orig_executor
+
+        timing = result["metadata"]["timing"]
+        self.assertEqual(4, timing["model_workers_requested"])
+        self.assertEqual(1, timing["model_workers_used"])
+
 
 if __name__ == "__main__":
     unittest.main()
