@@ -550,6 +550,14 @@ def _r(value, n=2):
         return None
     return round(float(value), n)
 
+
+def _slice_date_window(
+    df: pd.DataFrame,
+    onset_ts: pd.Timestamp,
+    cess_ts: pd.Timestamp,
+) -> pd.DataFrame:
+    return df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)]
+
 def raw_climate_summary(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """
     Compact summary table -- mean / min / max / std per core variable.
@@ -637,6 +645,7 @@ def season_statistics(
     season: Dict,
     *,
     shared_water_balance_summary: Optional[Dict[str, Any]] = None,
+    season_df: Optional[pd.DataFrame] = None,
 ) -> Dict[str, Any]:
     """
     Essential agro metrics for one season.
@@ -651,7 +660,11 @@ def season_statistics(
     else:
         cess_ts = df['date'].iloc[-1]
 
-    sdf = df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)].copy()
+    sdf = (
+        season_df.copy()
+        if isinstance(season_df, pd.DataFrame)
+        else _slice_date_window(df, onset_ts, cess_ts).copy()
+    )
     if sdf.empty:
         return {}
 
@@ -1264,6 +1277,13 @@ def _compile_season_results(
     for year in sorted(seasons_dict.keys()):
         year_regime = _derive_year_regime(seasons_dict[year])
         for i, season in enumerate(seasons_dict[year], 1):
+            onset_ts = pd.to_datetime(season['onset'])
+            cess_ts = (
+                pd.to_datetime(season['cessation'])
+                if season.get('cessation') is not None
+                else df['date'].iloc[-1]
+            )
+            sdf = _slice_date_window(df, onset_ts, cess_ts)
             shared_wb = _shared_water_balance_summary(
                 df,
                 analysis_start=season['onset'],
@@ -1274,9 +1294,13 @@ def _compile_season_results(
                     df,
                     season,
                     shared_water_balance_summary=shared_wb,
+                    season_df=sdf,
                 )
             except TypeError as exc:
-                if "shared_water_balance_summary" not in str(exc):
+                if (
+                    "shared_water_balance_summary" not in str(exc)
+                    and "season_df" not in str(exc)
+                ):
                     raise
                 stats = season_statistics(df, season)
             if not stats:
@@ -1294,13 +1318,6 @@ def _compile_season_results(
                 total_seasons_per_year=len(seasons_dict[year]),
             )
 
-            onset_ts = pd.to_datetime(season['onset'])
-            cess_ts = (
-                pd.to_datetime(season['cessation'])
-                if season.get('cessation') is not None
-                else df['date'].iloc[-1]
-            )
-            sdf = df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)]
             stats['raw_climate_summary'] = raw_climate_summary(sdf)
             if not sdf.empty:
                 stats['overall_statistics'] = overall_statistics(
@@ -1313,7 +1330,19 @@ def _compile_season_results(
 
             sub_results: List[Dict] = []
             for es in (season.get('eto_seasons') or []):
-                ssub = season_statistics(sdf, es)
+                sub_onset_ts = pd.to_datetime(es['onset'])
+                sub_cess_ts = (
+                    pd.to_datetime(es['cessation'])
+                    if es.get('cessation') is not None
+                    else sdf['date'].iloc[-1]
+                )
+                sub_sdf = _slice_date_window(sdf, sub_onset_ts, sub_cess_ts)
+                try:
+                    ssub = season_statistics(sdf, es, season_df=sub_sdf)
+                except TypeError as exc:
+                    if "season_df" not in str(exc):
+                        raise
+                    ssub = season_statistics(sdf, es)
                 if ssub:
                     ssub['regime'] = es.get('regime', 'eto')
                     sub_results.append(ssub)

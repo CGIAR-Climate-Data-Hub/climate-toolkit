@@ -157,6 +157,26 @@ def _build_runtime_summary(
         for r in per_model
         if isinstance(r.get("timing_breakdown"), dict)
     ]
+    baseline_prep = [
+        r.get("timing_breakdown", {}).get("baseline", {}).get("prep_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    future_prep = [
+        r.get("timing_breakdown", {}).get("future", {}).get("prep_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    baseline_detect = [
+        r.get("timing_breakdown", {}).get("baseline", {}).get("season_detection_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    future_detect = [
+        r.get("timing_breakdown", {}).get("future", {}).get("season_detection_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
     baseline_reduce = [
         r.get("timing_breakdown", {}).get("baseline", {}).get("season_reduction_seconds")
         for r in per_model
@@ -195,6 +215,10 @@ def _build_runtime_summary(
             "compare": _summarize_runtime_stage(compare_totals),
             "baseline_fetch": _summarize_runtime_stage(baseline_fetch),
             "future_fetch": _summarize_runtime_stage(future_fetch),
+            "baseline_prep": _summarize_runtime_stage(baseline_prep),
+            "future_prep": _summarize_runtime_stage(future_prep),
+            "baseline_detection": _summarize_runtime_stage(baseline_detect),
+            "future_detection": _summarize_runtime_stage(future_detect),
             "baseline_reduction": _summarize_runtime_stage(baseline_reduce),
             "future_reduction": _summarize_runtime_stage(future_reduce),
         },
@@ -235,9 +259,21 @@ def _print_runtime_summary(runtime_summary: Optional[Dict[str, Any]]) -> None:
         "  Stage means : "
         f"baseline={_format_stage_stat(stage_summary, 'baseline_total')} | "
         f"future={_format_stage_stat(stage_summary, 'future_total')} | "
-        f"compare={_format_stage_stat(stage_summary, 'compare')} | "
+        f"compare={_format_stage_stat(stage_summary, 'compare')}"
+    )
+    print(
+        "  Fetch/Prep  : "
         f"baseline_fetch={_format_stage_stat(stage_summary, 'baseline_fetch')} | "
-        f"future_fetch={_format_stage_stat(stage_summary, 'future_fetch')}"
+        f"future_fetch={_format_stage_stat(stage_summary, 'future_fetch')} | "
+        f"baseline_prep={_format_stage_stat(stage_summary, 'baseline_prep')} | "
+        f"future_prep={_format_stage_stat(stage_summary, 'future_prep')}"
+    )
+    print(
+        "  Detect/Red. : "
+        f"baseline_detect={_format_stage_stat(stage_summary, 'baseline_detection')} | "
+        f"future_detect={_format_stage_stat(stage_summary, 'future_detection')} | "
+        f"baseline_reduce={_format_stage_stat(stage_summary, 'baseline_reduction')} | "
+        f"future_reduce={_format_stage_stat(stage_summary, 'future_reduction')}"
     )
     print(f"  Slowest     : {slowest_text}")
 
