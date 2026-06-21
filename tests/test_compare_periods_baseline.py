@@ -1407,6 +1407,52 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual(0.358, timing["ensemble_compare_seconds"])
         self.assertEqual(0.178, timing["mean_model_seconds"])
 
+    def test_ensemble_print_report_renders_runtime_summary(self):
+        payload = {
+            "baseline_period": "1995-2013",
+            "future_period": "2041-2060",
+            "scenario": "ssp245",
+            "n_models_ok": 2,
+            "models_failed": [],
+            "per_model_results": [],
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": None,
+            "annual_summary": {},
+            "metadata": {
+                "timing": {
+                    "runtime_summary": {
+                        "models_ok": 2,
+                        "models_failed": 0,
+                        "total_elapsed_seconds": 38.0,
+                        "mean_model_seconds": 19.0,
+                        "median_model_seconds": 19.0,
+                        "slowest_models": [{"model": "ACCESS-CM2", "total_seconds": 21.4}],
+                        "stage_summary": {
+                            "baseline_total": {"mean_seconds": 10.0},
+                            "future_total": {"mean_seconds": 8.0},
+                            "compare": {"mean_seconds": 0.3},
+                            "baseline_fetch": {"mean_seconds": 6.0},
+                            "future_fetch": {"mean_seconds": 5.0},
+                        },
+                    }
+                }
+            },
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            ep.print_report(payload, detailed=False)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("--- Runtime Summary ---", rendered)
+        self.assertIn("mean=19.0s", rendered)
+        self.assertIn("ACCESS-CM2(21.4s)", rendered)
+
     def test_main_json_output_uses_command_wall_clock_timing(self):
         payload = {
             "scenario": "ssp245",
@@ -1500,6 +1546,95 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual(1, timing["model_workers_requested"])
         self.assertEqual(1, timing["model_workers_used"])
         self.assertEqual(2, result["n_models_ok"])
+
+    def test_compare_one_model_records_stage_timing_breakdown(self):
+        orig_run_stats_call = ep._run_stats_call
+
+        calls = []
+
+        def fake_run_stats_call(**kwargs):
+            calls.append(kwargs)
+            if kwargs["scenario"] == "historical":
+                return {
+                    "timing": {
+                        "fetch_seconds": 5.2,
+                        "season_reduction_seconds": 1.3,
+                        "total_seconds": 8.4,
+                    },
+                    "raw_climate_summary": [],
+                    "overall_statistics": {},
+                    "season_statistics": [],
+                    "annual_summary": {},
+                }
+            return {
+                "timing": {
+                    "fetch_seconds": 4.8,
+                    "season_reduction_seconds": 1.1,
+                    "total_seconds": 7.6,
+                },
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+            }
+
+        ep._run_stats_call = fake_run_stats_call
+        try:
+            result = ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                fixed_season=None,
+                model="ACCESS-CM2",
+                scenario="ssp245",
+            )
+        finally:
+            ep._run_stats_call = orig_run_stats_call
+
+        self.assertEqual(2, len(calls))
+        timing = result["timing_breakdown"]
+        self.assertEqual(5.2, timing["baseline"]["fetch_seconds"])
+        self.assertEqual(4.8, timing["future"]["fetch_seconds"])
+        self.assertTrue(timing["baseline_total_seconds"] >= 0.0)
+        self.assertTrue(timing["future_total_seconds"] >= 0.0)
+        self.assertTrue(timing["compare_seconds"] >= 0.0)
+
+    def test_compare_one_model_requests_compact_statistics_payloads(self):
+        orig_run_stats_call = ep._run_stats_call
+        calls = []
+
+        def fake_run_stats_call(**kwargs):
+            calls.append(kwargs)
+            return {
+                "timing": {"fetch_seconds": 1.0, "season_reduction_seconds": 0.5, "total_seconds": 1.8},
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+            }
+
+        ep._run_stats_call = fake_run_stats_call
+        try:
+            ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                fixed_season=None,
+                model="ACCESS-CM2",
+                scenario="ssp245",
+            )
+        finally:
+            ep._run_stats_call = orig_run_stats_call
+
+        self.assertEqual(2, len(calls))
+        for kwargs in calls:
+            self.assertFalse(kwargs["include_season_raw_summary"])
+            self.assertFalse(kwargs["include_season_overall_statistics"])
+            self.assertFalse(kwargs["include_ltm_season_summary"])
 
     def test_ensemble_compare_parallel_path_uses_executor_and_suppresses_child_stdout(self):
         orig_resolve = ep._resolve_models_and_policy
@@ -1631,6 +1766,76 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual(4, timing["model_workers_requested"])
         self.assertEqual(1, timing["model_workers_used"])
         self.assertEqual(2, result["n_models_ok"])
+
+    def test_ensemble_compare_records_runtime_summary_metadata(self):
+        orig_resolve = ep._resolve_models_and_policy
+        orig_task_runner = ep._run_compare_one_model_task
+
+        ep._resolve_models_and_policy = lambda *args, **kwargs: (
+            ["ACCESS-CM2", "MRI-ESM2-0"],
+            {"policy_id": "unit-test"},
+        )
+
+        outcomes = {
+            "ACCESS-CM2": {
+                "baseline_total_seconds": 11.2,
+                "future_total_seconds": 9.8,
+                "compare_seconds": 0.4,
+                "baseline": {"fetch_seconds": 7.0, "season_reduction_seconds": 1.0},
+                "future": {"fetch_seconds": 6.1, "season_reduction_seconds": 0.9},
+            },
+            "MRI-ESM2-0": {
+                "baseline_total_seconds": 8.8,
+                "future_total_seconds": 7.5,
+                "compare_seconds": 0.3,
+                "baseline": {"fetch_seconds": 5.0, "season_reduction_seconds": 0.8},
+                "future": {"fetch_seconds": 4.5, "season_reduction_seconds": 0.7},
+            },
+        }
+
+        def fake_task_runner(task):
+            model = task["model"]
+            elapsed = 21.4 if model == "ACCESS-CM2" else 16.6
+            return {
+                "model": model,
+                "ok": True,
+                "elapsed_seconds": elapsed,
+                "timing_breakdown": outcomes[model],
+                "result": {
+                    "_model": model,
+                    "_elapsed_seconds": elapsed,
+                    "timing_breakdown": outcomes[model],
+                    "raw_climate_summary": {},
+                    "overall_statistics": {},
+                    "season_statistics": [],
+                    "annual_summary": {},
+                    "spei": None,
+                },
+            }
+
+        ep._run_compare_one_model_task = fake_task_runner
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                scenario="ssp245",
+                model_workers=1,
+                verbose=False,
+            )
+        finally:
+            ep._resolve_models_and_policy = orig_resolve
+            ep._run_compare_one_model_task = orig_task_runner
+
+        timing = result["metadata"]["timing"]
+        runtime = timing["runtime_summary"]
+        self.assertEqual(19.0, timing["mean_model_seconds"])
+        self.assertEqual(19.0, timing["median_model_seconds"])
+        self.assertEqual("ACCESS-CM2", runtime["slowest_models"][0]["model"])
+        self.assertEqual(5.3, runtime["stage_summary"]["future_fetch"]["mean_seconds"])
+        self.assertEqual(2, runtime["models_ok"])
 
     def test_ensemble_compare_rejects_single_year_baseline_period(self):
         result = ep.ensemble_compare(

@@ -499,9 +499,16 @@ def _shared_water_balance_summary(
     if not any(col in df.columns for col in ('precip', 'precipitation', 'total_precipitation')):
         return {}
 
+    working_df = df
+    if analysis_end and 'date' in df.columns:
+        end_ts = pd.Timestamp(analysis_end)
+        trimmed = df.loc[df['date'] <= end_ts]
+        if not trimmed.empty:
+            working_df = trimmed
+
     params = dict(HAZARD_DEFAULT_KC_PARAMS)
     wb = shared_calc_water_balance(
-        df,
+        working_df,
         soilcp=HAZARD_DEFAULT_SOILCP,
         soilsat=HAZARD_DEFAULT_SOILSAT,
         kc=float(params.get('kc_mid', 1.0)),
@@ -550,6 +557,14 @@ def _r(value, n=2):
         return None
     return round(float(value), n)
 
+
+def _slice_date_window(
+    df: pd.DataFrame,
+    onset_ts: pd.Timestamp,
+    cess_ts: pd.Timestamp,
+) -> pd.DataFrame:
+    return df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)]
+
 def raw_climate_summary(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """
     Compact summary table -- mean / min / max / std per core variable.
@@ -581,6 +596,7 @@ def overall_statistics(
     full_df: Optional[pd.DataFrame] = None,
     analysis_start: Optional[str] = None,
     analysis_end: Optional[str] = None,
+    shared_water_balance_summary: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Essential agro metrics for the full period.
@@ -591,10 +607,14 @@ def overall_statistics(
     tn  = df['tmin']
     et0 = df['ET0_mm_day'].fillna(0)
     wb  = df['water_balance']
-    shared_wb = _shared_water_balance_summary(
-        full_df if full_df is not None else df,
-        analysis_start=analysis_start,
-        analysis_end=analysis_end,
+    shared_wb = (
+        dict(shared_water_balance_summary)
+        if isinstance(shared_water_balance_summary, dict)
+        else _shared_water_balance_summary(
+            full_df if full_df is not None else df,
+            analysis_start=analysis_start,
+            analysis_end=analysis_end,
+        )
     )
 
     water_balance_stats = {
@@ -627,7 +647,13 @@ def overall_statistics(
         'water_balance': water_balance_stats,
     }
 
-def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
+def season_statistics(
+    df: pd.DataFrame,
+    season: Dict,
+    *,
+    shared_water_balance_summary: Optional[Dict[str, Any]] = None,
+    season_df: Optional[pd.DataFrame] = None,
+) -> Dict[str, Any]:
     """
     Essential agro metrics for one season.
     Slices df to [onset, cessation] and computes the trimmed metric set:
@@ -641,7 +667,11 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
     else:
         cess_ts = df['date'].iloc[-1]
 
-    sdf = df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)].copy()
+    sdf = (
+        season_df.copy()
+        if isinstance(season_df, pd.DataFrame)
+        else _slice_date_window(df, onset_ts, cess_ts).copy()
+    )
     if sdf.empty:
         return {}
 
@@ -654,10 +684,14 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
     length_days = int(season.get('length_days',
                                  (cess_ts - onset_ts).days + 1))
     intensity = _r(p.sum() / rainy_days, 2) if rainy_days else 0.0
-    shared_wb = _shared_water_balance_summary(
-        df,
-        analysis_start=onset_ts.strftime('%Y-%m-%d'),
-        analysis_end=cess_ts.strftime('%Y-%m-%d'),
+    shared_wb = (
+        dict(shared_water_balance_summary)
+        if isinstance(shared_water_balance_summary, dict)
+        else _shared_water_balance_summary(
+            df,
+            analysis_start=onset_ts.strftime('%Y-%m-%d'),
+            analysis_end=cess_ts.strftime('%Y-%m-%d'),
+        )
     )
 
     water_balance_stats = {
@@ -1284,11 +1318,55 @@ def _compile_season_results(
     df: pd.DataFrame,
     seasons_dict: Dict[int, List[Dict[str, Any]]],
 ) -> List[Dict[str, Any]]:
+    return _compile_season_results_with_options(df, seasons_dict)
+
+
+def _compile_season_results_with_options(
+    df: pd.DataFrame,
+    seasons_dict: Dict[int, List[Dict[str, Any]]],
+    *,
+    include_season_raw_summary: bool = True,
+    include_season_overall_statistics: bool = True,
+    return_breakdown: bool = False,
+) -> Any:
     season_results: List[Dict[str, Any]] = []
+    reduction_breakdown = {
+        "core_seconds": 0.0,
+        "raw_summary_seconds": 0.0,
+        "overall_statistics_seconds": 0.0,
+        "eto_subseason_seconds": 0.0,
+    }
     for year in sorted(seasons_dict.keys()):
         year_regime = _derive_year_regime(seasons_dict[year])
         for i, season in enumerate(seasons_dict[year], 1):
-            stats = season_statistics(df, season)
+            onset_ts = pd.to_datetime(season['onset'])
+            cess_ts = (
+                pd.to_datetime(season['cessation'])
+                if season.get('cessation') is not None
+                else df['date'].iloc[-1]
+            )
+            sdf = _slice_date_window(df, onset_ts, cess_ts)
+            core_started = perf_counter()
+            shared_wb = _shared_water_balance_summary(
+                df,
+                analysis_start=season['onset'],
+                analysis_end=season['cessation'],
+            )
+            try:
+                stats = season_statistics(
+                    df,
+                    season,
+                    shared_water_balance_summary=shared_wb,
+                    season_df=sdf,
+                )
+            except TypeError as exc:
+                if (
+                    "shared_water_balance_summary" not in str(exc)
+                    and "season_df" not in str(exc)
+                ):
+                    raise
+                stats = season_statistics(df, season)
+            reduction_breakdown["core_seconds"] += perf_counter() - core_started
             if not stats:
                 continue
             stats['year'] = year
@@ -1304,32 +1382,51 @@ def _compile_season_results(
                 total_seasons_per_year=len(seasons_dict[year]),
             )
 
-            onset_ts = pd.to_datetime(season['onset'])
-            cess_ts = (
-                pd.to_datetime(season['cessation'])
-                if season.get('cessation') is not None
-                else df['date'].iloc[-1]
-            )
-            sdf = df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)]
-            stats['raw_climate_summary'] = raw_climate_summary(sdf)
-            if not sdf.empty:
+            if include_season_raw_summary:
+                raw_started = perf_counter()
+                stats['raw_climate_summary'] = raw_climate_summary(sdf)
+                reduction_breakdown["raw_summary_seconds"] += perf_counter() - raw_started
+            if include_season_overall_statistics and not sdf.empty:
+                overall_started = perf_counter()
                 stats['overall_statistics'] = overall_statistics(
                     sdf,
                     full_df=df,
                     analysis_start=season['onset'],
                     analysis_end=season['cessation'],
+                    shared_water_balance_summary=shared_wb,
+                )
+                reduction_breakdown["overall_statistics_seconds"] += (
+                    perf_counter() - overall_started
                 )
 
+            eto_started = perf_counter()
             sub_results: List[Dict] = []
             for es in (season.get('eto_seasons') or []):
-                ssub = season_statistics(sdf, es)
+                sub_onset_ts = pd.to_datetime(es['onset'])
+                sub_cess_ts = (
+                    pd.to_datetime(es['cessation'])
+                    if es.get('cessation') is not None
+                    else sdf['date'].iloc[-1]
+                )
+                sub_sdf = _slice_date_window(sdf, sub_onset_ts, sub_cess_ts)
+                try:
+                    ssub = season_statistics(sdf, es, season_df=sub_sdf)
+                except TypeError as exc:
+                    if "season_df" not in str(exc):
+                        raise
+                    ssub = season_statistics(sdf, es)
                 if ssub:
                     ssub['regime'] = es.get('regime', 'eto')
                     sub_results.append(ssub)
             if sub_results or season.get('eto_seasons') is not None:
                 stats['eto_sub_seasons'] = sub_results
+            reduction_breakdown["eto_subseason_seconds"] += perf_counter() - eto_started
 
             season_results.append(stats)
+    if return_breakdown:
+        return season_results, {
+            key: round(value, 3) for key, value in reduction_breakdown.items()
+        }
     return season_results
 
 
@@ -1376,6 +1473,10 @@ def analyze_climate_statistics(
     custom_station_name: Optional[str] = None,
     custom_temp_unit: str = "c",
     custom_precip_unit: str = "mm",
+    include_period_raw_summary: bool = True,
+    include_season_raw_summary: bool = True,
+    include_season_overall_statistics: bool = True,
+    include_ltm_season_summary: bool = True,
     verbose: bool = False,
 ) -> Dict[str, Any]:
     """
@@ -1587,14 +1688,20 @@ def analyze_climate_statistics(
 
     # Per-season block (computed against the FULL df so year-crossing seasons have access to days beyond Dec 31). Raw and overall stats are computed per season only; no full-period view is produced.
     reduce_started = perf_counter()
-    season_results: List[Dict] = _compile_season_results(df, seasons_dict)
+    season_results, reduction_breakdown = _compile_season_results_with_options(
+        df,
+        seasons_dict,
+        include_season_raw_summary=include_season_raw_summary,
+        include_season_overall_statistics=include_season_overall_statistics,
+        return_breakdown=True,
+    )
     reduce_elapsed = perf_counter() - reduce_started
     annual_summary = _annual_summary_from_detection(annual_dict, seasons_dict)
 
     # Period-wide views (whole years start_year..end_year, excluding the fetchtail).
     period_df = df[(df['date'] >= pd.Timestamp(f"{start_year}-01-01")) &
                    (df['date'] <= pd.Timestamp(f"{end_year}-12-31"))]
-    raw_period     = raw_climate_summary(period_df)
+    raw_period     = raw_climate_summary(period_df) if include_period_raw_summary else []
     overall_period = overall_statistics(period_df) if not period_df.empty else {}
     spei_result: Optional[Dict[str, Any]] = None
     spi_result: Optional[Dict[str, Any]] = None
@@ -1640,7 +1747,11 @@ def analyze_climate_statistics(
         ltm = {'mode': 'auto', 'windows': [], 'warning': season_slot_warning}
         print(f"\n  [WARN] {season_slot_warning}")
     else:
-        ltm = ltm_season_summary(season_results, fixed_season)
+        ltm = (
+            ltm_season_summary(season_results, fixed_season)
+            if include_ltm_season_summary
+            else {'mode': 'skipped', 'windows': [], 'skipped': True}
+        )
     years_span = end_year - start_year + 1
     coverage_warning: Optional[str] = None
     if years_span < MIN_LTM_YEARS:
@@ -1717,11 +1828,21 @@ def analyze_climate_statistics(
             end_year,
         )
         reduce_started = perf_counter()
-        season_results = _compile_season_results(df, seasons_dict)
+        season_results, reduction_breakdown = _compile_season_results_with_options(
+            df,
+            seasons_dict,
+            include_season_raw_summary=include_season_raw_summary,
+            include_season_overall_statistics=include_season_overall_statistics,
+            return_breakdown=True,
+        )
         reduce_elapsed = perf_counter() - reduce_started
         annual_summary = _annual_summary_from_detection(annual_dict, seasons_dict)
         season_slot_warning = None
-        ltm = ltm_season_summary(season_results, requested_calendar_preset['fixed_season'])
+        ltm = (
+            ltm_season_summary(season_results, requested_calendar_preset['fixed_season'])
+            if include_ltm_season_summary
+            else {'mode': 'skipped', 'windows': [], 'skipped': True}
+        )
         detection_status = _build_season_detection_status(
             fixed_season=requested_calendar_preset['fixed_season'],
             start_year=start_year,
@@ -1797,6 +1918,10 @@ def analyze_climate_statistics(
             'prep_seconds': round(prep_elapsed, 3),
             'season_detection_seconds': round(detect_elapsed, 3),
             'season_reduction_seconds': round(reduce_elapsed, 3),
+            'season_reduction_core_seconds': reduction_breakdown.get('core_seconds'),
+            'season_reduction_raw_seconds': reduction_breakdown.get('raw_summary_seconds'),
+            'season_reduction_overall_seconds': reduction_breakdown.get('overall_statistics_seconds'),
+            'season_reduction_eto_seconds': reduction_breakdown.get('eto_subseason_seconds'),
             'spei_seconds': round(spei_elapsed, 3),
             'spi_seconds': round(spi_elapsed, 3),
             'total_seconds': round(total_elapsed, 3),
