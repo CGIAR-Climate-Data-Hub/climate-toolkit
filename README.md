@@ -704,6 +704,43 @@ Toolkit supports:
 3. custom station CSV/JSON ingestion
 4. custom station override into historical climate analysis
 
+Detailed guide:
+
+- [docs/weather_station_workflows.md](docs/weather_station_workflows.md)
+
+### Core concepts
+
+- `--station-source`
+  - `ghcn_daily`: NOAA GHCN-Daily only
+  - `gsod`: NOAA GSOD only
+  - `auto`: rank candidates across both NOAA backends
+  - `custom_csv`: user-supplied CSV/JSON
+- `--selection-mode`
+  - `list`: inspect candidates only; no station data download
+  - `specified`: use `--station-id`
+  - `auto`: toolkit chooses station(s) inside current guardrails
+- `--auto-select`
+  - `auto-1`, `auto-2`, `auto-3`, ...
+  - `auto-all`: use as many eligible stations as current `--max-auto-stations` cap allows
+- compare workflow also has `--selection-strategy`
+  - `all_vars_single_station`: one station must carry all requested variables
+  - `best_per_variable`: toolkit may use different nearby stations for precipitation vs temperature
+
+Default guardrails:
+
+- search radius: `50 km`
+- maximum elevation difference: `500 m`
+- minimum per-variable completeness: `0.70`
+- maximum auto-selected stations: `10`
+
+Completeness relaxation:
+
+- strict threshold first: requested `--min-completeness-ratio`
+- relaxed sequence after that: `0.50 -> 0.30 -> 0.10`
+- if still no station passes and fallback allowed, toolkit may keep stations that satisfy only some requested variables
+
+This means station selection is variable-by-variable, not only one overall coverage score.
+
 ### Candidate Review
 
 Find nearby observed stations and create review artifacts:
@@ -728,6 +765,18 @@ Outputs:
 - candidate JSON
 - candidate HTML map
 
+Candidate review is best first step when:
+
+- you do not know which stations exist nearby
+- you want to inspect completeness by variable before download
+- you want map showing focal coordinates vs candidate station positions
+
+Map notes:
+
+- `--open-report` tries to open HTML map automatically
+- map uses live web tiles, so background basemap needs internet
+- report shows only stations discoverable through current toolkit NOAA backends
+
 ### NOAA Station Download
 
 ```bash
@@ -742,6 +791,14 @@ climate-toolkit-weather-station-download \
   --variables precipitation,max_temperature,min_temperature \
   --stage preprocessed
 ```
+
+Useful variants:
+
+- pin one station with `--selection-mode specified --station-id <ID>`
+- widen search with `--max-distance-km`
+- supply known elevation with `--target-elevation-m`
+- disable completeness guard for exploratory work with `--disable-completeness-guard`
+- keep raw values with `--stage raw`
 
 ### Custom Station File
 
@@ -778,6 +835,12 @@ Declare units explicitly:
 - `--custom-temp-unit c|f|k`
 - `--custom-precip-unit mm|inch|tenth_mm`
 
+Custom file notes:
+
+- toolkit normalizes aliases, subsets requested period, converts units, then caches normalized outputs
+- if `mean_temperature` missing but `max_temperature` and `min_temperature` exist, toolkit derives mean temperature
+- if `station_id`, `station_name`, `lat`, `lon`, or `elevation` missing, toolkit fills best-effort metadata from CLI inputs and file name
+
 ### Station vs Grid Comparison
 
 ```bash
@@ -797,6 +860,33 @@ climate-toolkit-weather-station-compare \
   --output outputs/weather_station/nairobi_station_vs_grid_2011_2020.json
 ```
 
+Comparison intent:
+
+- compare observed station data against historical gridded products near same location
+- assess which historical grid source best represents local observed conditions
+- not direct future `nex_gddp` validation workflow
+
+Current grid-source notes:
+
+- better independence: `agera_5`, `era_5`, `nasa_power`, `imerg`
+- partly station-informed: `chirps_v2`, `chirps_v3_daily_rnl`, `chirts`, `paired`, `terraclimate`, `auto`
+- comparison output warns when selected grid source is not fully independent from station-based validation
+
+Output layers include:
+
+- daily metrics
+- monthly aggregated metrics
+- seasonal aggregated metrics
+- annual overlap summary
+- xclim-derived annual precipitation reference indices when overlap is dense enough
+- pooled multi-station summaries when more than one station contributes
+
+Interpretation caution:
+
+- daily precipitation correlation often looks weak even when monthly or seasonal agreement is useful
+- annual and xclim summaries should only be trusted when overlap coverage is dense enough
+- `paired` is mixed-source workflow, so interpret independence using underlying precip and temperature products
+
 ### Historical Analysis With Custom Overrides
 
 ```bash
@@ -812,6 +902,16 @@ climate-toolkit-stats \
   --custom-station-name "My station"
 ```
 
+Override workflow purpose:
+
+- substitute observed station variables into historical season/statistics workflows
+- keep gridded variables for anything not supplied by station file
+
+Current override entry points:
+
+- `climate-toolkit-stats`
+- `climate-toolkit-seasons`
+
 ### Caching
 
 Weather-station cache uses:
@@ -821,7 +921,24 @@ Weather-station cache uses:
 - `outputs/cache/weather_stations/custom`
 - `outputs/cache/weather_stations/dem_anchor`
 
+Typical contents:
+
+- NOAA station metadata / inventories
+- downloaded station files
+- custom-station normalized CSV plus manifest JSON
+- DEM-derived focal elevation lookups
+- candidate review artifacts under chosen `--report-prefix`
+
 Keep cache under project-local `outputs/cache/...` so repeat runs can reuse saved files.
+
+### Current limitations
+
+- some locations have very sparse observed coverage, especially for full precip + tmax + tmin overlap
+- `auto` only sees current NOAA backends plus user-supplied custom files; not all global station archives
+- compare workflow is historical-grid only; future NEX-GDDP station evaluation remains separate methodological work
+- candidate review map is HTML, not full GIS export
+- mixed-station compare strategies can improve variable coverage, but reduce simplicity of interpretation
+- Earth Engine-backed helper pieces such as anchor elevation need valid project/auth if DEM lookup is used automatically
 
 ---
 
