@@ -94,3 +94,16 @@ Suggested next steps
 Scope
 
 Methodology / interpretation issue, not confirmed code defect.
+
+Current progress
+
+- user-facing labels in `climate_statistics.statistics` have been improved from
+  internal wording like `shared_root_zone` to clearer `crop_model`
+- compact outputs now emit an explicit note that `NDWS`, `NDWL0`, and `WRSI`
+  are custom crop-water-balance metrics, not standard `xclim` / ETCCDI
+  indicators
+- `compare_periods.periods` now surfaces the same distinction in terminal
+  output
+
+That means the immediate risk is now more about calibration and interpretation
+than silent mislabelling.

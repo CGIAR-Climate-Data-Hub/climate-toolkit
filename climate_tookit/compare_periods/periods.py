@@ -198,6 +198,26 @@ def _print_methodology_summary(methodology: Optional[Dict[str, Any]]) -> None:
         print(f"    NDWS/WRSI method: {' ; '.join(parts)}")
 
 
+def _has_custom_water_balance_metrics(payload: Dict[str, Any]) -> bool:
+    season = payload.get("season_statistics")
+    if isinstance(season, dict):
+        if "windows" in season:
+            for window in season["windows"] or []:
+                diff = (window or {}).get("diff") or {}
+                water_balance = diff.get("water_balance") or {}
+                if any(key in water_balance for key in ("NDWS", "NDWL0", "WRSI")):
+                    return True
+        else:
+            diff = season.get("diff") or {}
+            water_balance = diff.get("water_balance") or {}
+            if any(key in water_balance for key in ("NDWS", "NDWL0", "WRSI")):
+                return True
+
+    overall = payload.get("overall_statistics") or {}
+    water_balance = overall.get("water_balance") if isinstance(overall, dict) else {}
+    return any(key in (water_balance or {}) for key in ("NDWS", "NDWL0", "WRSI"))
+
+
 def _month_day_in_window(
     month: int,
     day: int,
@@ -1026,7 +1046,7 @@ def _print_season_detection_summary(summary: Optional[Dict[str, Any]]) -> None:
         for item in guidance:
             print(f"      - {item}")
 
-def print_report(r: Dict[str, Any]) -> None:
+def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
     if "error" in r:
         print(f"\nError: {r['error']}")
         _print_season_detection_summary(r.get("season_detection"))
@@ -1065,6 +1085,11 @@ def print_report(r: Dict[str, Any]) -> None:
             )
     if r.get("temperature_excluded"):
         print("  [!] precipitation-only source -- temperature excluded.")
+    if _has_custom_water_balance_metrics(r):
+        print(
+            "  Water balance : NDWS, NDWL0, and WRSI are custom crop-water-balance "
+            "metrics, not standard xclim/ETCCDI indicators."
+        )
     _print_season_detection_summary(r.get("season_detection"))
 
     print(f"\n--- 1. RAW CLIMATE SUMMARY ---")
@@ -1124,7 +1149,7 @@ def print_report(r: Dict[str, Any]) -> None:
                 f"Δ={summary['diff']:+.3f}"
             )
         monthly = spei.get("monthly") or []
-        if monthly:
+        if monthly and detailed:
             rows = []
             for row in monthly:
                 rows.append({
@@ -1136,6 +1161,8 @@ def print_report(r: Dict[str, Any]) -> None:
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
             print(pd.DataFrame(rows).to_string(index=False))
+        elif monthly:
+            print("  Monthly detail  : hidden in compact mode; rerun with --verbose.")
     spi = r.get("spi")
     if spi:
         print(f"\n--- 6. SPI (monthly/period summary, not seasonal) ---")
@@ -1147,7 +1174,7 @@ def print_report(r: Dict[str, Any]) -> None:
                 f"Δ={summary['diff']:+.3f}"
             )
         monthly = spi.get("monthly") or []
-        if monthly:
+        if monthly and detailed:
             rows = []
             for row in monthly:
                 rows.append({
@@ -1159,6 +1186,8 @@ def print_report(r: Dict[str, Any]) -> None:
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
             print(pd.DataFrame(rows).to_string(index=False))
+        elif monthly:
+            print("  Monthly detail  : hidden in compact mode; rerun with --verbose.")
     print()
 
 # CLI 
@@ -1204,6 +1233,8 @@ def main() -> int:
                    help="Optional SPI reference-period end date, e.g. 2020-12-31.")
     p.add_argument("--format", choices=["pandas", "json"], default="pandas",
                    help="Output format: human-readable table view or raw JSON.")
+    p.add_argument("--verbose", action="store_true",
+                   help="Show detailed monthly SPEI/SPI tables in terminal output.")
     p.add_argument("--fixed-season", default=None,
                    metavar="MM-DD:MM-DD[,MM-DD:MM-DD]",
                    help=("Optional. Passed through to statistics.py.\n"
@@ -1250,7 +1281,7 @@ def main() -> int:
         else:
             print(rendered)
     else:
-        print_report(result)
+        print_report(result, detailed=args.verbose)
         if args.output:
             output_path = Path(args.output)
             output_path.parent.mkdir(parents=True, exist_ok=True)

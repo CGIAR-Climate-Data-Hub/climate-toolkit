@@ -15,7 +15,10 @@ __all__ = [
     "prepare_monthly_precipitation_totals",
     "assess_xclim_precip_annual_readiness",
     "compare_xclim_precip_indices",
+    "compute_xclim_core_period_metrics",
     "compute_xclim_precip_indices",
+    "compute_xclim_spei_reference",
+    "compute_xclim_spi_reference",
     "XCLIM_AVAILABLE",
 ]
 
@@ -32,7 +35,10 @@ def __getattr__(name: str):
     if name in {
         "assess_xclim_precip_annual_readiness",
         "compare_xclim_precip_indices",
+        "compute_xclim_core_period_metrics",
         "compute_xclim_precip_indices",
+        "compute_xclim_spei_reference",
+        "compute_xclim_spi_reference",
         "XCLIM_AVAILABLE",
     }:
         module = import_module(".xclim_reference", __name__)

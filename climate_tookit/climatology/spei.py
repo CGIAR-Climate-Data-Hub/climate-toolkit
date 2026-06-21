@@ -430,6 +430,12 @@ def compute_monthly_spei(
             "Begueria et al. (2014) SPEI revisited",
             "CRAN SPEI package default: log-Logistic + ub-pwm",
         ],
+        "xclim_reference_status": (
+            "nearest-reference helper available via "
+            "climate_tookit.climatology.compute_xclim_spei_reference; "
+            "expected to track closely, but not exact parity because xclim uses "
+            "its own standardized-index fitting options."
+        ),
     }
     return monthly
 
@@ -526,5 +532,11 @@ def compute_monthly_spi(
             "McKee et al. (1993) SPI",
             "month-wise generalized-logistic alignment for toolkit SPI/SPEI consistency",
         ],
+        "xclim_reference_status": (
+            "nearest-reference helper available via "
+            "climate_tookit.climatology.compute_xclim_spi_reference; "
+            "expected to track closely, but not exact parity because xclim uses "
+            "its own standardized-index fitting options."
+        ),
     }
     return monthly

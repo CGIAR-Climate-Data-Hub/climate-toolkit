@@ -8,6 +8,10 @@ from unittest import mock
 
 import pandas as pd
 
+from climate_tookit.climatology.xclim_reference import (
+    XCLIM_AVAILABLE,
+    compute_xclim_core_period_metrics,
+)
 
 def _install_test_stubs():
     dotenv = types.ModuleType("dotenv")
@@ -326,6 +330,71 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             stats.shared_summarize_water_balance = orig_summarize
 
         self.assertEqual(pd.Timestamp("2018-03-03"), seen["max_date"])
+
+    @unittest.skipUnless(XCLIM_AVAILABLE, "xclim not installed")
+    def test_overall_statistics_matches_xclim_core_period_metrics(self):
+        dates = pd.date_range("2020-01-01", "2020-12-31", freq="D")
+        df = pd.DataFrame(
+            {
+                "date": dates,
+                "precip": [0.0] * len(dates),
+                "tmax": [25.0 + (i % 7) for i in range(len(dates))],
+                "tmin": [14.0 + (i % 5) for i in range(len(dates))],
+                "ET0_mm_day": [4.0] * len(dates),
+                "water_balance": [-1.0] * len(dates),
+            }
+        )
+        df.loc[5, "precip"] = 10.0
+        df.loc[6, "precip"] = 5.0
+        df.loc[100, "precip"] = 20.0
+        df.loc[200, "precip"] = 1.0
+
+        toolkit = stats.overall_statistics(df)
+        xclim_metrics = compute_xclim_core_period_metrics(df).iloc[0].to_dict()
+
+        self.assertEqual(toolkit["precipitation"]["total_mm"], round(xclim_metrics["total_mm"], 1))
+        self.assertEqual(toolkit["precipitation"]["rainy_days"], int(xclim_metrics["rainy_days"]))
+        self.assertEqual(toolkit["precipitation"]["dry_days"], int(xclim_metrics["dry_days"]))
+        self.assertEqual(toolkit["precipitation"]["max_daily"], round(xclim_metrics["max_daily"], 2))
+        self.assertEqual(toolkit["temperature"]["mean_tmax"], round(xclim_metrics["mean_tmax"], 2))
+        self.assertEqual(toolkit["temperature"]["mean_tmin"], round(xclim_metrics["mean_tmin"], 2))
+        self.assertEqual(toolkit["temperature"]["mean_tavg"], round(xclim_metrics["mean_tavg"], 2))
+        self.assertEqual(toolkit["temperature"]["max_tmax"], round(xclim_metrics["max_tmax"], 2))
+        self.assertEqual(toolkit["temperature"]["min_tmin"], round(xclim_metrics["min_tmin"], 2))
+
+    @unittest.skipUnless(XCLIM_AVAILABLE, "xclim not installed")
+    def test_season_statistics_matches_xclim_core_period_metrics_on_slice(self):
+        dates = pd.date_range("2020-03-01", "2020-05-31", freq="D")
+        df = pd.DataFrame(
+            {
+                "date": dates,
+                "precip": [0.0] * len(dates),
+                "tmax": [24.0 + (i % 6) for i in range(len(dates))],
+                "tmin": [13.0 + (i % 4) for i in range(len(dates))],
+                "ET0_mm_day": [4.0] * len(dates),
+                "water_balance": [-1.0] * len(dates),
+            }
+        )
+        for idx, value in [(3, 12.0), (4, 4.0), (20, 7.0), (40, 2.0), (50, 15.0)]:
+            df.loc[idx, "precip"] = value
+
+        season = {
+            "onset": "2020-03-01",
+            "cessation": "2020-05-31",
+            "length_days": len(df),
+        }
+        toolkit = stats.season_statistics(df, season, season_df=df)
+        xclim_metrics = compute_xclim_core_period_metrics(df).iloc[0].to_dict()
+
+        self.assertEqual(toolkit["precipitation"]["total_mm"], round(xclim_metrics["total_mm"], 1))
+        self.assertEqual(toolkit["precipitation"]["rainy_days"], int(xclim_metrics["rainy_days"]))
+        self.assertEqual(toolkit["precipitation"]["max_daily"], round(xclim_metrics["max_daily"], 2))
+        self.assertEqual(toolkit["precipitation"]["intensity"], round(xclim_metrics["intensity"], 2))
+        self.assertEqual(toolkit["temperature"]["mean_tmax"], round(xclim_metrics["mean_tmax"], 2))
+        self.assertEqual(toolkit["temperature"]["mean_tmin"], round(xclim_metrics["mean_tmin"], 2))
+        self.assertEqual(toolkit["temperature"]["mean_tavg"], round(xclim_metrics["mean_tavg"], 2))
+        self.assertEqual(toolkit["temperature"]["max_tmax"], round(xclim_metrics["max_tmax"], 2))
+        self.assertEqual(toolkit["temperature"]["min_tmin"], round(xclim_metrics["min_tmin"], 2))
 
     def test_get_climate_data_paired_mode_merges_precip_and_temperature_sources(self):
         calls = []
@@ -1203,6 +1272,56 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         rendered = stdout.getvalue()
         self.assertIn("SPI-3 | fit=ub-pwm", rendered)
         self.assertIn("2019-01-01", rendered)
+
+    def test_print_pandas_compact_mode_suppresses_raw_tables_and_monthly_previews(self):
+        payload = {
+            "location": {"lat": -1.286, "lon": 36.817},
+            "period": {"start_year": 2018, "end_year": 2019},
+            "source": "era_5",
+            "mode": "fixed",
+            "fixed_season": "03-01:05-31",
+            "season_statistics": [
+                {
+                    "year": 2019,
+                    "onset": "2019-03-01",
+                    "cessation": "2019-05-31",
+                    "length_days": 92,
+                    "precipitation": {"total_mm": 100.0, "max_daily": 20.0, "rainy_days": 10, "intensity": 10.0},
+                    "temperature": {"mean_tmax": 25.0, "mean_tmin": 15.0, "mean_tavg": 20.0, "max_tmax": 30.0, "min_tmin": 10.0},
+                    "water_balance": {"total_balance": -5.0, "deficit_days": 20, "surplus_days": 10, "stress_ratio": 0.2, "NDWS": 7, "WRSI": 80.0},
+                }
+            ],
+            "ltm_season_summary": {"windows": []},
+            "annual_summary": {},
+            "spei": {
+                "config": {"scale_months": 3, "fit": "ub-pwm"},
+                "summary": {"n_months": 24, "n_valid_spei": 20},
+                "metadata": {},
+                "monthly_series": [
+                    {"date": "2019-01-01", "water_balance_accumulated_mm": -10.0, "spei": -1.0},
+                ],
+            },
+            "spi": {
+                "config": {"scale_months": 3, "fit": "ub-pwm"},
+                "summary": {"n_months": 24, "n_valid_spi": 20},
+                "metadata": {},
+                "monthly_series": [
+                    {"date": "2019-01-01", "precipitation_accumulated_mm": 10.0, "spi": -1.0},
+                ],
+            },
+        }
+
+        stdout = StringIO()
+        with mock.patch("sys.stdout", stdout):
+            stats._print_pandas(payload, detailed=False)
+
+        rendered = stdout.getvalue()
+        self.assertNotIn("RAW CLIMATE SUMMARY BY SEASON", rendered)
+        self.assertNotIn("OVERALL STATISTICS BY SEASON", rendered)
+        self.assertIn("Water-balance note :", rendered)
+        self.assertIn("SPEI-3 | fit=ub-pwm", rendered)
+        self.assertIn("SPI-3 | fit=ub-pwm", rendered)
+        self.assertNotIn("2019-01-01", rendered)
 
     def test_fixed_window_eto_subseason_is_capped_to_window_end_not_dataset_tail(self):
         dates = pd.date_range("2018-01-01", "2020-12-31", freq="D")
