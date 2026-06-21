@@ -676,7 +676,6 @@ def _ltm_header_ensemble(result: Dict[str, Any]) -> str:
     end          = (result.get('period') or {}).get('end_year',   0)
     start        = (result.get('period') or {}).get('start_year', 0)
     scenario     = _normalize_scenario(result.get('scenario', '')) or result.get('scenario')
-    baseline_end = BASELINE_DEFAULT_PERIOD[1]
     if scenario == "historical" and end <= 2014:
         return "BASELINE LTM SEASON SUMMARY (NEX-GDDP CMIP6 ensemble)"
     if scenario != "historical" and start >= 2015:

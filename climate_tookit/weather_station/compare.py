@@ -1263,6 +1263,18 @@ def _selection_reason_from_row(
     return " | ".join(parts)
 
 
+def _format_field_coverage(row) -> str:
+    counts = row.get("field_counts")
+    expected_days = row.get("expected_days")
+    if not isinstance(counts, dict) or expected_days in (None, 0) or pd.isna(expected_days):
+        return "n/a"
+    parts = []
+    for field, count in counts.items():
+        pct = (float(count) / float(expected_days)) * 100.0 if expected_days else 0.0
+        parts.append(f"{field}={int(count)}/{int(expected_days)} ({pct:.0f}%)")
+    return ", ".join(parts) if parts else "n/a"
+
+
 def _split_station_frame_payloads(
     station_frame: pd.DataFrame,
     *,
@@ -1885,7 +1897,7 @@ def render_compare_report(result: dict[str, Any]) -> str:
                         ),
                         (
                             "   coverage="
-                            f"{_render_variable_completeness(row.get('requested_fields'), row)} | "
+                            f"{_format_field_coverage(row)} | "
                             f"status={row.get('threshold_status') or row.get('selection_status') or 'n/a'}"
                         ),
                     ]

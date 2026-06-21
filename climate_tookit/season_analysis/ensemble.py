@@ -8,7 +8,13 @@ Use --models / --scenarios / --exclude-models to narrow.
 Use --fixed-season for fixed calendar windows (single, two-season, year-crossing).
 """
 
-import argparse, io, json, math, re, statistics, sys
+import argparse
+import io
+import json
+import math
+import re
+import statistics
+import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import contextmanager, redirect_stdout
 from datetime import date, datetime
