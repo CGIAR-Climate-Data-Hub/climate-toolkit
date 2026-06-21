@@ -748,6 +748,13 @@ Detailed guide:
 
 - [docs/weather_station_workflows.md](docs/weather_station_workflows.md)
 
+Before first run:
+
+- `--station-lat` / `--station-lon` are focal site coordinates, not necessarily final chosen station coordinates
+- start with `--selection-mode list` if you do not already know station quality nearby
+- evaluate completeness by variable before asking for full precip + Tmax + Tmin bundle
+- if DEM-based elevation guard matters, either provide `--target-elevation-m` or make sure Earth Engine auth and `GCP_PROJECT_ID` are valid
+
 ### Core concepts
 
 - `--station-source`
@@ -880,6 +887,7 @@ Custom file notes:
 - toolkit normalizes aliases, subsets requested period, converts units, then caches normalized outputs
 - if `mean_temperature` missing but `max_temperature` and `min_temperature` exist, toolkit derives mean temperature
 - if `station_id`, `station_name`, `lat`, `lon`, or `elevation` missing, toolkit fills best-effort metadata from CLI inputs and file name
+- if uploaded file has no rows in requested window, historical override workflows fall back to gridded values with warning
 
 ### Station vs Grid Comparison
 
@@ -970,6 +978,14 @@ Typical contents:
 - candidate review artifacts under chosen `--report-prefix`
 
 Keep cache under project-local `outputs/cache/...` so repeat runs can reuse saved files.
+
+If station selection fails:
+
+- widen `--max-distance-km`
+- request fewer variables
+- lower `--min-completeness-ratio`
+- inspect `--selection-mode list` output before disabling guards
+- use `best_per_variable` only if mixed-station interpretation is acceptable
 
 ### Current limitations
 

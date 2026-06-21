@@ -29,6 +29,71 @@ Python API:
 - `climate_tookit.download_station_data`
 - `climate_tookit.compare_station_to_grids`
 
+## Before you run
+
+Weather-station workflows use two different coordinate ideas:
+
+- focal coordinates: `--station-lat`, `--station-lon`
+- observed station coordinates: discovered from NOAA backend or read from custom file
+
+Important:
+
+- `--station-lat` / `--station-lon` mean focal site you care about
+- they do **not** need to equal final selected station coordinates
+- distance and elevation guards are measured relative to focal site
+
+Minimal user-input checklist by workflow:
+
+### Candidate review or NOAA download
+
+Required:
+
+- `--station-source`
+- `--station-lat`
+- `--station-lon`
+- `--start`
+- `--end`
+
+Usually also provide:
+
+- `--variables`
+- `--selection-mode`
+
+### Station vs grid comparison
+
+Required:
+
+- `--station-source`
+- `--station-lat`
+- `--station-lon`
+- `--start`
+- `--end`
+- at least one `--grid-source`
+
+Usually also provide:
+
+- `--variables`
+- `--selection-mode`
+- `--selection-strategy`
+- `--precip-source` and `--temp-source` when `paired` or `auto` participates in compare
+
+### Custom station file workflows
+
+Required:
+
+- `--station-source custom_csv`
+- `--custom-station-file`
+- `--start`
+- `--end`
+- at least one requested variable
+
+Usually also provide:
+
+- `--custom-temp-unit`
+- `--custom-precip-unit`
+- `--custom-station-name`
+- focal `--station-lat` / `--station-lon` if later compare or override work will use location context
+
 ## Station backends
 
 `--station-source` controls where observed data comes from.
@@ -260,6 +325,13 @@ Map caveat:
 
 - basemap uses live web tiles, so internet needed for background layer
 
+Map output is review aid, not GIS product:
+
+- best for quick human inspection
+- open again later by opening saved HTML file directly
+- station markers scale with completeness
+- map includes focal site label, candidate rank, distance, and backend source
+
 ## Download workflow
 
 Example:
@@ -291,6 +363,12 @@ Stage meaning:
 - `raw`: closest to source values and source naming
 - `transformed`: units / naming harmonized
 - `preprocessed`: toolkit cleaning + QC checks applied
+
+Downloaded NOAA data summary behavior:
+
+- terminal summary reports selected station(s), distance, elevation, and per-variable availability
+- list mode shows candidate table instead of daily station rows
+- output file save is optional through `--output`
 
 ## Custom station files
 
@@ -371,6 +449,11 @@ Units:
 - `--custom-temp-unit c|f|k`
 - `--custom-precip-unit mm|inch|tenth_mm`
 
+Accepted file types:
+
+- `.csv`
+- `.json`
+
 Behavior:
 
 - columns normalized
@@ -378,6 +461,18 @@ Behavior:
 - units converted
 - mean temperature derived if missing but Tmin/Tmax present
 - normalized result cached for later reuse
+
+If custom metadata missing:
+
+- `station_id` falls back to CLI station ID or file stem
+- `station_name` falls back to provided name or file stem
+- coordinates can fall back to CLI focal coordinates
+- elevation can remain missing if not supplied
+
+If uploaded file has no rows inside requested date window:
+
+- download workflow raises error
+- historical override workflows fall back to gridded values and print warning
 
 ## Station vs grid comparison
 
@@ -454,6 +549,12 @@ More independent options for historical compare often include:
 
 Toolkit already surfaces warning when comparison source is not fully independent.
 
+Practical source choice:
+
+- use `nasa_power`, `agera_5`, `era_5`, `imerg` when independence matters more
+- use `paired` when goal is practical historical workflow benchmarking, not strict independence
+- do not interpret `paired` win as independent proof if paired components are station-informed
+
 ## Comparison outputs
 
 Text / JSON output can include:
@@ -490,6 +591,18 @@ xclim annual precipitation reference indices:
 - computed only when overlap is dense enough for defensible annual reference use
 - skipped when station overlap too gappy
 
+Useful compare controls:
+
+- `--wet-day-threshold-mm`: changes wet-day hit metrics
+- `--min-overlap-days`: minimum shared records before metrics reported
+- `--report-prefix`: save candidate review artifacts during compare too
+- `--open-report`: try to open compare candidate review HTML automatically
+
+Important compare caveat:
+
+- if `best_per_variable` used, precipitation and temperature metrics may come from different observed stations
+- read station summary before ranking products
+
 ## Historical override workflow
 
 Custom station data can override selected historical variables in:
@@ -520,6 +633,12 @@ Current behavior:
 - gridded values remain for variables not supplied by station file
 - if uploaded station file has no rows in requested window, toolkit falls back to gridded values and prints warning
 
+Current override scope:
+
+- historical workflows only
+- not direct `nex_gddp` future override path
+- best used when observed station has one or two strong variables and gridded workflow can still fill rest
+
 ## Cache layout
 
 Project-local cache roots:
@@ -537,11 +656,25 @@ Typical contents:
 - custom manifest JSON files
 - DEM-derived focal-elevation lookups
 
+More specific layout:
+
+- GHCN metadata indexes under `outputs/cache/weather_stations/ghcn_daily/index`
+- GHCN station files under `outputs/cache/weather_stations/ghcn_daily/stations`
+- GSOD station history and yearly files under `outputs/cache/weather_stations/gsod`
+- custom normalized files under hashed folders inside `outputs/cache/weather_stations/custom`
+- DEM anchor cache under versioned folders inside `outputs/cache/weather_stations/dem_anchor`
+
 Custom cache behavior:
 
 - toolkit hashes source file path + size + modification time
 - cached custom outputs sit under per-file cache folder
 - stage and date-window specific CSV / JSON outputs reused unless `--refresh-cache`
+
+What `--refresh-cache` does:
+
+- forces backend refetch / regeneration where workflow supports it
+- useful after code changes, broken partial runs, or stale local artifacts
+- not needed for normal warm-cache reruns
 
 ## Practical workflow order
 
@@ -553,6 +686,14 @@ Recommended sequence:
 4. run `weather-station-download` or `weather-station-compare`
 5. only then feed custom observed data into historical override workflows if needed
 
+Recommended decision path:
+
+1. start with `--selection-mode list`
+2. inspect completeness **by variable**
+3. decide whether one station is good enough
+4. if not, decide whether `best_per_variable` is acceptable
+5. only disable completeness guard for exploratory runs, not default reporting
+
 ## Current limitations
 
 - sparse station coverage in some regions
@@ -562,6 +703,89 @@ Recommended sequence:
 - auto mode only uses current NOAA backends plus custom files
 - HTML map is review artifact, not full GIS workflow
 - best-per-variable comparison improves coverage but complicates interpretation
+
+## Common failure modes
+
+`Error: No ... station passed per-variable completeness threshold`
+
+- use `--selection-mode list` first
+- widen `--max-distance-km`
+- request fewer variables
+- lower `--min-completeness-ratio`
+- consider `best_per_variable`
+
+`Anchor elevation unavailable; continuing without elevation guard`
+
+- Earth Engine DEM lookup unavailable
+- set `--target-elevation-m` manually if you know focal elevation
+- or authenticate Earth Engine and set valid `GCP_PROJECT_ID`
+
+`Project 'projects/your-ee-project-id' not found or deleted`
+
+- placeholder Earth Engine project still in environment
+- replace with real project ID
+
+`Custom station file has no rows in requested window`
+
+- check date parsing
+- check requested `--start` / `--end`
+- check uploaded file timezone/date format consistency
+
+`Skipped xclim annual precipitation reference indices ... overlap is too gappy`
+
+- overlap not dense enough for defensible annual reference-index use
+- rely more on monthly / seasonal summaries for that station-product pair
+
+## Minimal worked examples
+
+### 1. Discover nearby stations and save map
+
+```bash
+climate-toolkit-weather-station-download \
+  --station-source auto \
+  --selection-mode list \
+  --station-lat -1.286 \
+  --station-lon 36.817 \
+  --start 2011-01-01 \
+  --end 2020-12-31 \
+  --variables precipitation,max_temperature,min_temperature \
+  --report-prefix outputs/weather_station/nairobi_candidates \
+  --open-report
+```
+
+### 2. Compare one selected station against two grid products
+
+```bash
+climate-toolkit-weather-station-compare \
+  --station-source auto \
+  --selection-mode auto \
+  --auto-select auto-1 \
+  --station-lat -1.286 \
+  --station-lon 36.817 \
+  --start 2011-01-01 \
+  --end 2020-12-31 \
+  --grid-source nasa_power \
+  --grid-source paired \
+  --precip-source chirps_v3_daily_rnl \
+  --temp-source agera_5 \
+  --variables precipitation,max_temperature,min_temperature \
+  --output outputs/weather_station/nairobi_station_vs_grid.json
+```
+
+### 3. Override historical precipitation with custom observed data
+
+```bash
+climate-toolkit-stats \
+  --location="-1.286,36.817" \
+  --start-year=2020 \
+  --end-year=2020 \
+  --source=paired \
+  --precip-source=chirps_v3_daily_rnl \
+  --temp-source=agera_5 \
+  --custom-station-file path/to/station.csv \
+  --custom-station-vars precipitation \
+  --custom-precip-unit mm
+```
 
 ## Related files
 
