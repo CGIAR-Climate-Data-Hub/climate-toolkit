@@ -54,7 +54,32 @@ normal user workflows.
    cd climate-toolkit
    ```
 
-2. Create virtual environment
+2. Preferred setup with `uv`
+
+   macOS / Linux:
+
+   ```bash
+   uv venv
+   source .venv/bin/activate
+   uv sync --group dev
+   ```
+
+   Windows PowerShell:
+
+   ```powershell
+   uv venv
+   .\.venv\Scripts\Activate.ps1
+   uv sync --group dev
+   ```
+
+   Run commands through locked environment with:
+
+   ```bash
+   uv run climate-toolkit-stats --help
+   uv run pytest -q
+   ```
+
+3. Fallback setup with `venv + pip`
 
    macOS / Linux:
 
@@ -77,7 +102,7 @@ normal user workflows.
    .\.venv\Scripts\Activate.ps1
    ```
 
-3. Install package
+4. Install package with `pip` fallback
 
    Standard editable install:
 
@@ -92,7 +117,7 @@ normal user workflows.
    python -m pip install -r requirements.txt
    ```
 
-4. Copy environment template
+5. Copy environment template
 
    ```bash
    cp .env.example .env
@@ -525,7 +550,8 @@ climate_tookit/
 - Current `nex_gddp` Earth Engine backend uses dataset version `1.1`. Future `1.2` sourcing is tracked as follow-up work, not current runtime behavior.
 - Arid-region NEX rainfall-spike warning rationale and literature links are documented in `analysis/nex_gddp_access_rnd.md`.
 - package install shape is tested through `pyproject.toml` and console-script entrypoints
-- editable install for development is `python -m pip install -e .`
+- preferred development install is `uv sync --group dev`
+- fallback editable install remains `python -m pip install -e .`
 
 
 ### Solution Architecture

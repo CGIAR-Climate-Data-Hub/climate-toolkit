@@ -20,6 +20,11 @@ dependencies = [
   "xee==0.1.0",
 ]
 
+[dependency-groups]
+dev = [
+  "pytest",
+]
+
 [project.scripts]
 climate-toolkit-fetch = "climate_tookit.fetch_data.fetch_data:main"
 climate-toolkit-seasons = "climate_tookit.season_analysis.seasons:main"
