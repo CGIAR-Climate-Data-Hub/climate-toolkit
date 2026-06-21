@@ -34,6 +34,11 @@ There are now two distinct groups:
 | Rainy days | same | `wetdays` | direct check | Uses `>= 1 mm/day` threshold convention. |
 | Dry days | same | `dry_days` | direct check | Uses `< 1 mm/day` style threshold via xclim helper. |
 | Max 1-day precipitation | same | `max_1day_precipitation_amount` | direct check | Covered in focused regression tests. |
+| Max 5-day precipitation | `weather_station.compare` / `climatology.xclim_reference` | `max_n_day_precipitation_amount` | direct check | Annual precipitation-reference comparison now regression-tested through shared xclim helper. |
+| Consecutive dry days | same compare helper | `maximum_consecutive_dry_days` | direct check | Weather-station comparison helper now regression-tested. |
+| Consecutive wet days | same compare helper | `maximum_consecutive_wet_days` | direct check | Weather-station comparison helper now regression-tested. |
+| Heavy precipitation day count | same compare helper | `wetdays` with `10 mm/day` threshold | direct check | Stored as `r10mm_days`. |
+| Very heavy precipitation day count | same compare helper | `wetdays` with `20 mm/day` threshold | direct check | Stored as `r20mm_days`. |
 | Simple intensity | same | `daily_pr_intensity` | direct check | Compared on seasonal slice. |
 | Mean Tmax | same | `tx_mean` | direct check | Celsius conversion handled in reference helper. |
 | Mean Tmin | same | `tn_mean` | direct check | Celsius conversion handled in reference helper. |
@@ -50,6 +55,8 @@ Focused tests now cover:
 
 - direct `xclim` comparison for core period metrics
 - direct `xclim` comparison for seasonal slice metrics
+- direct `xclim` comparison for weather-station annual precipitation reference indices:
+  `rx1day`, `rx5day`, `CDD`, `CWD`, `R10mm`, `R20mm`, `SDII`
 - SPI nearest-reference agreement
 - SPEI nearest-reference agreement
 - compact statistics rendering that keeps xclim/SPEI summaries visible without
@@ -85,10 +92,10 @@ These should continue to be described as:
 
 ## Remaining gaps
 
-- add direct `xclim` audit for additional precipitation extremes used in
-  weather-station and hazard workflows
-- extend comparison to `max_5day`, consecutive wet/dry days, and heavy-rain
-  day counts where exposed to users
+- extend direct `xclim` crosswalk into any future user-facing percentile-based
+  precipitation totals if we expose them beyond weather-station diagnostics
 - decide whether any currently named metrics should be renamed if their
   semantics differ from what a standard climate-indicator user would assume
-
+- keep reviewing whether more climate-statistics outputs should expose
+  xclim-backed standard extremes directly, rather than only through dedicated
+  comparison helpers
