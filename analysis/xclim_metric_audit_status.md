@@ -17,6 +17,13 @@ There are now two distinct groups:
 - Focused regression tests now verify that the package’s core period reducers
   agree with those `xclim` reference values for the overlapping standard
   metrics.
+- `climate_statistics.statistics` now also exposes these as a top-level
+  `xclim_references` block so JSON/CLI consumers can see the standardized
+  reference rows without relying on weather-station comparison helpers.
+- `compare_periods.periods` and `compare_periods.ensemble_periods` now carry
+  that block forward into baseline/focal/future comparison outputs, instead of
+  leaving standard-extremes context behind at the single-period statistics
+  layer.
 
 2. Nearest-reference checks
 - Toolkit `SPI` and `SPEI` do not use the exact same fitting machinery as
@@ -57,6 +64,9 @@ Focused tests now cover:
 - direct `xclim` comparison for seasonal slice metrics
 - direct `xclim` comparison for weather-station annual precipitation reference indices:
   `rx1day`, `rx5day`, `CDD`, `CWD`, `R10mm`, `R20mm`, `SDII`
+- climate-statistics result payload / rendering for top-level
+  `xclim_references` standard rows and skip reasons
+- compare-periods / ensemble-periods propagation of xclim reference deltas
 - SPI nearest-reference agreement
 - SPEI nearest-reference agreement
 - compact statistics rendering that keeps xclim/SPEI summaries visible without
@@ -96,6 +106,5 @@ These should continue to be described as:
   precipitation totals if we expose them beyond weather-station diagnostics
 - decide whether any currently named metrics should be renamed if their
   semantics differ from what a standard climate-indicator user would assume
-- keep reviewing whether more climate-statistics outputs should expose
-  xclim-backed standard extremes directly, rather than only through dedicated
-  comparison helpers
+- decide whether additional user-facing extremes beyond the current annual
+  xclim reference block should be elevated into core statistics outputs

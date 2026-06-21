@@ -865,6 +865,79 @@ def _spi_block(
     }
 
 
+def _xclim_references_block(df: pd.DataFrame) -> Dict[str, Any]:
+    if df.empty:
+        return {
+            "available": False,
+            "core_period_metrics": [],
+            "core_period_status": "skipped",
+            "core_period_skip_reason": "no period data",
+            "precip_reference_indices": [],
+            "precip_reference_status": "skipped",
+            "precip_reference_skip_reason": "no period data",
+        }
+    unique_dates = int(pd.to_datetime(df["date"]).dropna().nunique()) if "date" in df.columns else 0
+    if unique_dates < 3:
+        return {
+            "available": True,
+            "core_period_metrics": [],
+            "core_period_status": "skipped",
+            "core_period_skip_reason": "need at least 3 daily rows for xclim frequency inference",
+            "precip_reference_indices": [],
+            "precip_reference_status": "skipped",
+            "precip_reference_skip_reason": "need at least 3 daily rows for xclim frequency inference",
+        }
+
+    from climate_tookit.climatology import (
+        XCLIM_AVAILABLE,
+        assess_xclim_precip_annual_readiness,
+        compute_xclim_core_period_metrics,
+        compute_xclim_precip_indices,
+    )
+
+    if not XCLIM_AVAILABLE:
+        return {
+            "available": False,
+            "core_period_metrics": [],
+            "core_period_status": "unavailable",
+            "core_period_skip_reason": "xclim not installed",
+            "precip_reference_indices": [],
+            "precip_reference_status": "unavailable",
+            "precip_reference_skip_reason": "xclim not installed",
+        }
+
+    block: Dict[str, Any] = {
+        "available": True,
+        "core_period_metrics": [],
+        "core_period_status": "computed",
+        "core_period_skip_reason": None,
+        "precip_reference_indices": [],
+        "precip_reference_status": "computed",
+        "precip_reference_skip_reason": None,
+    }
+
+    core = compute_xclim_core_period_metrics(df)
+    if core.empty:
+        block["core_period_status"] = "skipped"
+        block["core_period_skip_reason"] = "xclim returned no core period metrics"
+    else:
+        block["core_period_metrics"] = core.to_dict(orient="records")
+
+    precip_skip = assess_xclim_precip_annual_readiness(df, value_column="precip")
+    if precip_skip:
+        block["precip_reference_status"] = "skipped"
+        block["precip_reference_skip_reason"] = precip_skip
+    else:
+        precip = compute_xclim_precip_indices(df, value_column="precip")
+        if precip.empty:
+            block["precip_reference_status"] = "skipped"
+            block["precip_reference_skip_reason"] = "xclim returned no precipitation reference indices"
+        else:
+            block["precip_reference_indices"] = precip.to_dict(orient="records")
+
+    return block
+
+
 def _save_index_csv_if_present(result: Dict[str, Any], json_path: Path, key: str) -> Optional[Path]:
     payload = result.get(key)
     if not payload or not payload.get("monthly_series"):
@@ -1704,6 +1777,7 @@ def analyze_climate_statistics(
                    (df['date'] <= pd.Timestamp(f"{end_year}-12-31"))]
     raw_period     = raw_climate_summary(period_df) if include_period_raw_summary else []
     overall_period = overall_statistics(period_df) if not period_df.empty else {}
+    xclim_references = _xclim_references_block(period_df)
     spei_result: Optional[Dict[str, Any]] = None
     spi_result: Optional[Dict[str, Any]] = None
     if spei_scale_months is not None and not period_df.empty:
@@ -1901,6 +1975,7 @@ def analyze_climate_statistics(
         'calendar_preset':     applied_calendar_preset,
         'raw_climate_summary': raw_period,
         'overall_statistics':  overall_period,
+        'xclim_references':    xclim_references,
         'season_statistics':   season_results,
         'ltm_season_summary':  ltm,
         'spei':                spei_result,
@@ -1935,6 +2010,34 @@ def analyze_climate_statistics(
 def _print_indented_table(df: pd.DataFrame, indent: str = "    ") -> None:
     for line in df.to_string(index=False).splitlines():
         print(f"{indent}{line}")
+
+
+def _print_xclim_references(payload: Dict[str, Any], *, detailed: bool) -> None:
+    if not payload:
+        return
+    print("\n" + "=" * 70)
+    print("XCLIM STANDARD REFERENCES")
+    print("=" * 70)
+    if not payload.get("available"):
+        reason = payload.get("core_period_skip_reason") or "xclim unavailable"
+        print(f"xclim status : unavailable ({reason})")
+        return
+
+    core_rows = payload.get("core_period_metrics") or []
+    core_status = payload.get("core_period_status") or "n/a"
+    print(f"Core period metrics : {core_status} | rows={len(core_rows)}")
+    if payload.get("core_period_skip_reason"):
+        print(f"Core note           : {payload['core_period_skip_reason']}")
+    if detailed and core_rows:
+        _print_indented_table(pd.DataFrame(core_rows).fillna("n/a"))
+
+    precip_rows = payload.get("precip_reference_indices") or []
+    precip_status = payload.get("precip_reference_status") or "n/a"
+    print(f"Precip reference indices : {precip_status} | rows={len(precip_rows)}")
+    if payload.get("precip_reference_skip_reason"):
+        print(f"Precip note              : {payload['precip_reference_skip_reason']}")
+    if detailed and precip_rows:
+        _print_indented_table(pd.DataFrame(precip_rows).fillna("n/a"))
 
 def print_raw_summary_by_season(seasons: List[Dict]) -> None:
     """One raw mean/min/max/std table per season, printed as stacked blocks."""
@@ -2263,6 +2366,7 @@ def _print_pandas(result: Dict[str, Any], *, detailed: bool = True) -> None:
                         header=_ltm_header(result))
     print_season_detection_notes(result)
     print_annual(result['annual_summary'])
+    _print_xclim_references(result.get("xclim_references") or {}, detailed=detailed)
     spei = result.get("spei")
     if spei:
         print("\n" + "=" * 70)

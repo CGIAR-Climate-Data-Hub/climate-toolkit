@@ -11,6 +11,7 @@ import pandas as pd
 from climate_tookit.climatology.xclim_reference import (
     XCLIM_AVAILABLE,
     compute_xclim_core_period_metrics,
+    compute_xclim_precip_indices,
 )
 
 def _install_test_stubs():
@@ -395,6 +396,59 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual(toolkit["temperature"]["mean_tavg"], round(xclim_metrics["mean_tavg"], 2))
         self.assertEqual(toolkit["temperature"]["max_tmax"], round(xclim_metrics["max_tmax"], 2))
         self.assertEqual(toolkit["temperature"]["min_tmin"], round(xclim_metrics["min_tmin"], 2))
+
+    @unittest.skipUnless(XCLIM_AVAILABLE, "xclim not installed")
+    def test_analyze_climate_statistics_includes_xclim_references_block(self):
+        dates = pd.date_range("2020-01-01", "2020-12-31", freq="D")
+        df = pd.DataFrame(
+            {
+                "date": dates,
+                "precip": [0.0] * len(dates),
+                "tmax": [25.0 + (i % 7) for i in range(len(dates))],
+                "tmin": [14.0 + (i % 5) for i in range(len(dates))],
+                "ET0_mm_day": [4.0] * len(dates),
+                "water_balance": [-1.0] * len(dates),
+            }
+        )
+        for idx, value in [(5, 10.0), (6, 5.0), (100, 20.0), (200, 1.0), (300, 12.0)]:
+            df.loc[idx, "precip"] = value
+
+        orig_get = stats.get_climate_data
+        orig_add_et0 = stats.add_et0
+        orig_wb = stats.calculate_water_balance
+        orig_detect_fixed = stats.detect_seasons_fixed
+        try:
+            stats.get_climate_data = lambda *args, **kwargs: df.copy()
+            stats.add_et0 = lambda frame, lat: frame
+            stats.calculate_water_balance = lambda frame: frame
+            stats.detect_seasons_fixed = lambda frame, fixed_defs, start_year, end_year, **kwargs: (
+                {2020: []},
+                {2020: {"annual_rain_mm": 48.0, "is_humid": False, "low_rain_months": 12, "result_str": "Not humid"}},
+            )
+
+            result = stats.analyze_climate_statistics(
+                location_coord=(-1.286, 36.817),
+                start_year=2020,
+                end_year=2020,
+                source="auto",
+                fixed_season="03-01:05-31",
+            )
+        finally:
+            stats.get_climate_data = orig_get
+            stats.add_et0 = orig_add_et0
+            stats.calculate_water_balance = orig_wb
+            stats.detect_seasons_fixed = orig_detect_fixed
+
+        self.assertIn("xclim_references", result)
+        refs = result["xclim_references"]
+        self.assertTrue(refs["available"])
+        self.assertEqual("computed", refs["core_period_status"])
+        self.assertEqual("computed", refs["precip_reference_status"])
+
+        xclim_core = compute_xclim_core_period_metrics(df).iloc[0].to_dict()
+        xclim_precip = compute_xclim_precip_indices(df, value_column="precip").iloc[0].to_dict()
+        self.assertEqual(round(xclim_core["total_mm"], 4), refs["core_period_metrics"][0]["total_mm"])
+        self.assertEqual(round(xclim_precip["rx1day_mm"], 4), refs["precip_reference_indices"][0]["rx1day_mm"])
 
     def test_get_climate_data_paired_mode_merges_precip_and_temperature_sources(self):
         calls = []
@@ -1309,6 +1363,19 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                     {"date": "2019-01-01", "precipitation_accumulated_mm": 10.0, "spi": -1.0},
                 ],
             },
+            "xclim_references": {
+                "available": True,
+                "core_period_status": "computed",
+                "core_period_skip_reason": None,
+                "core_period_metrics": [
+                    {"period_start": "2019-01-01", "total_mm": 100.0, "rainy_days": 10.0}
+                ],
+                "precip_reference_status": "computed",
+                "precip_reference_skip_reason": None,
+                "precip_reference_indices": [
+                    {"period_start": "2019-01-01", "rx1day_mm": 20.0, "cdd_days": 5.0}
+                ],
+            },
         }
 
         stdout = StringIO()
@@ -1319,6 +1386,9 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertNotIn("RAW CLIMATE SUMMARY BY SEASON", rendered)
         self.assertNotIn("OVERALL STATISTICS BY SEASON", rendered)
         self.assertIn("Water-balance note :", rendered)
+        self.assertIn("XCLIM STANDARD REFERENCES", rendered)
+        self.assertIn("Core period metrics : computed | rows=1", rendered)
+        self.assertIn("Precip reference indices : computed | rows=1", rendered)
         self.assertIn("SPEI-3 | fit=ub-pwm", rendered)
         self.assertIn("SPI-3 | fit=ub-pwm", rendered)
         self.assertNotIn("2019-01-01", rendered)

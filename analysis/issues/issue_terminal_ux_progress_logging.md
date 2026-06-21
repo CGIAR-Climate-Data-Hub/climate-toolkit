@@ -151,3 +151,39 @@ Still outstanding:
   ensemble workflows
 - standardized progress formatting across GEE/Xee, NEX-GDDP, TAMSAT, and
   weather-station paths
+
+## 2026-06-21 follow-up
+
+Live smoke on `compare_periods.periods` and
+`compare_periods.ensemble_periods` showed progress, but also confirmed
+remaining UX debt outside raw verbosity:
+
+- GEE/Xee chunk logging still prints two lines for same chunk lifecycle
+  (`starting` then `cache hit` / `fetched`) when one terminal line would be
+  easier to scan.
+- Low-level prefixes like `INFO gee_xee_batch.py:81` are useful for debugging
+  but not ideal as default human-facing progress language.
+- Some tables are still too wide for normal terminal windows, especially
+  ensemble and comparison outputs with many spread columns.
+- Long explanatory text in columns such as ranking notes should wrap or move to
+  a detail view instead of forcing horizontal overflow.
+- Stage naming still mixes compute concepts and transport concepts:
+  `site`, `batch`, `chunk`, `starting`, `cache hit`, `fetched`, `completed`.
+  Default mode should normalize these into clearer lifecycle language.
+
+Concrete next targets:
+
+- collapse per-chunk `starting` + terminal outcome into one progress line in
+  compact mode
+- keep machine/debug detail available only in verbose / debug-log mode
+- standardize human-facing labels for:
+  - fetch start
+  - cache reuse
+  - live download
+  - season detection
+  - aggregation
+  - completion / failure
+- add width-aware table rendering or compact column selection for large compare
+  / ensemble tables
+- wrap or truncate low-priority note fields in terminal views while preserving
+  full content in JSON
