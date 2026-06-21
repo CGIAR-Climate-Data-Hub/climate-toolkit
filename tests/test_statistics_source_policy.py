@@ -280,6 +280,53 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual(0.0, breakdown["raw_summary_seconds"])
         self.assertEqual(0.0, breakdown["overall_statistics_seconds"])
 
+    def test_shared_water_balance_summary_trims_rows_after_analysis_end(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(
+                    ["2018-03-01", "2018-03-02", "2018-03-03", "2018-03-04", "2018-03-05"]
+                ),
+                "precip": [1.0, 2.0, 3.0, 4.0, 5.0],
+                "ET0_mm_day": [4.0, 4.0, 4.0, 4.0, 4.0],
+            }
+        )
+
+        seen = {}
+        orig_calc = stats.shared_calc_water_balance
+        orig_summarize = stats.shared_summarize_water_balance
+
+        def fake_calc(frame, **kwargs):
+            seen["max_date"] = frame["date"].max()
+            return pd.DataFrame(
+                {
+                    "date": frame["date"],
+                    "ERATIO": [1.0] * len(frame),
+                    "LOGGING": [0.0] * len(frame),
+                    "RUNOFF": [0.0] * len(frame),
+                    "CROP_WATER_REQUIREMENT_MM": [1.0] * len(frame),
+                    "ACTUAL_CROP_ET_MM": [1.0] * len(frame),
+                    "AVAILABLE_SOIL_WATER_MM": [10.0] * len(frame),
+                }
+            )
+
+        stats.shared_calc_water_balance = fake_calc
+        stats.shared_summarize_water_balance = lambda wb: {
+            "NDWS": 0,
+            "NDWL0": 0,
+            "WRSI": 100.0,
+        }
+        try:
+            stats._shared_water_balance_summary(
+                df,
+                analysis_start="2018-03-02",
+                analysis_end="2018-03-03",
+            )
+        finally:
+            stats.shared_calc_water_balance = orig_calc
+            stats.shared_summarize_water_balance = orig_summarize
+
+        self.assertEqual(pd.Timestamp("2018-03-03"), seen["max_date"])
+
     def test_get_climate_data_paired_mode_merges_precip_and_temperature_sources(self):
         calls = []
 

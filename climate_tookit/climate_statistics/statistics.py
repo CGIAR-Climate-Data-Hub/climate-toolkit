@@ -499,9 +499,16 @@ def _shared_water_balance_summary(
     if not any(col in df.columns for col in ('precip', 'precipitation', 'total_precipitation')):
         return {}
 
+    working_df = df
+    if analysis_end and 'date' in df.columns:
+        end_ts = pd.Timestamp(analysis_end)
+        trimmed = df.loc[df['date'] <= end_ts]
+        if not trimmed.empty:
+            working_df = trimmed
+
     params = dict(HAZARD_DEFAULT_KC_PARAMS)
     wb = shared_calc_water_balance(
-        df,
+        working_df,
         soilcp=HAZARD_DEFAULT_SOILCP,
         soilsat=HAZARD_DEFAULT_SOILSAT,
         kc=float(params.get('kc_mid', 1.0)),
