@@ -14,6 +14,7 @@ analysis/__pycache__/
 analysis/cache/
 analysis/tmp/
 analysis/stress_*
+analysis/nex_parallel_opt_*_runs/
 tests/__pycache__/
 
 local
@@ -21,3 +22,4 @@ local
 outputs/
 climate_stats_*.json
 *.egg-info/
+dist/

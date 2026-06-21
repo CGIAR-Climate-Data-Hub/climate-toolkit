@@ -6,8 +6,10 @@ from climate_tookit.climatology.spei import (
     _cdf_generalized_logistic,
     _fit_generalized_logistic_ub_pwm,
     _ppf_generalized_logistic,
+    compute_monthly_spi,
     compute_monthly_spei,
     prepare_monthly_climatic_water_balance,
+    prepare_monthly_precipitation_totals,
 )
 
 
@@ -157,6 +159,71 @@ class SpeiTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "single site per call"):
             prepare_monthly_climatic_water_balance(frame)
+
+    def test_prepare_monthly_precipitation_totals_aggregates_daily_inputs(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.to_datetime(
+                    ["2020-01-01", "2020-01-02", "2020-02-01", "2020-02-02"]
+                ),
+                "precipitation": [10.0, 5.0, 8.0, 2.0],
+            }
+        )
+
+        monthly = prepare_monthly_precipitation_totals(frame)
+
+        self.assertEqual(2, len(monthly))
+        self.assertEqual(15.0, monthly.loc[0, "precipitation_mm"])
+        self.assertEqual("daily", monthly.attrs["spei_metadata"]["input_resolution"])
+
+    def test_compute_monthly_spi_defaults_to_standard_ub_pwm_fit(self):
+        dates = pd.date_range("2001-01-01", periods=120, freq="MS")
+        frame = pd.DataFrame(
+            {
+                "date": dates,
+                "precipitation_mm": [100 + (d.month * 5) + (d.year - 2001) * 2 for d in dates],
+            }
+        )
+
+        result = compute_monthly_spi(
+            frame,
+            scale_months=1,
+            min_points_per_calendar_month=5,
+        )
+
+        january = result[result["month"] == 1]["spi"].dropna()
+        self.assertEqual(10, len(january))
+        self.assertTrue(result["spi"].notna().all())
+        self.assertEqual(
+            "generalized_logistic_ub_pwm_by_calendar_month",
+            result.attrs["spei_metadata"]["standardization_method"],
+        )
+        self.assertEqual("SPI", result.attrs["spei_metadata"]["index_name"])
+        self.assertEqual("ub-pwm", result.attrs["spei_metadata"]["fit"])
+        self.assertIsNotNone(result.attrs["spei_metadata"]["fit_parameters_by_month"][1])
+        self.assertTrue(all(a < b for a, b in zip(january.tolist(), january.tolist()[1:])))
+
+    def test_compute_monthly_spi_empirical_fit_is_explicit_fallback(self):
+        dates = pd.date_range("2001-01-01", periods=120, freq="MS")
+        frame = pd.DataFrame(
+            {
+                "date": dates,
+                "precipitation_mm": [100 + (d.month * 5) + (d.year - 2001) * 2 for d in dates],
+            }
+        )
+
+        result = compute_monthly_spi(
+            frame,
+            scale_months=1,
+            min_points_per_calendar_month=5,
+            fit="empirical",
+        )
+
+        self.assertEqual(
+            "empirical_normal_by_calendar_month",
+            result.attrs["spei_metadata"]["standardization_method"],
+        )
+        self.assertIsNone(result.attrs["spei_metadata"]["fit_parameters_by_month"][1])
 
 
 if __name__ == "__main__":

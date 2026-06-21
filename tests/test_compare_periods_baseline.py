@@ -418,6 +418,51 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual("2020-12-31", calls[0]["spei_ref_end"])
         self.assertEqual(3, result["spei_scale_months"])
 
+    def test_compare_forwards_optional_spi_args(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(**kwargs):
+            calls.append(kwargs)
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "spi": {
+                    "config": {"scale_months": kwargs.get("spi_scale_months")},
+                    "summary": {"n_months": 12, "n_valid_spi": 12},
+                    "metadata": {},
+                    "monthly_series": [
+                        {"date": "2019-01-01", "month": 1, "spi": -1.0}
+                    ],
+                },
+            }
+
+        orig = cp.analyze_climate_statistics
+        cp.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = cp.compare(
+                location=(-1.286, 36.817),
+                baseline_start=2018,
+                baseline_end=2019,
+                focal_year=2020,
+                source="era_5",
+                fixed_season="03-01:05-31",
+                spi_scale_months=3,
+                spi_fit="ub-pwm",
+                spi_ref_start="1991-01-01",
+                spi_ref_end="2020-12-31",
+            )
+        finally:
+            cp.analyze_climate_statistics = orig
+
+        self.assertEqual(2, len(calls))
+        self.assertEqual(3, calls[0]["spi_scale_months"])
+        self.assertEqual("ub-pwm", calls[0]["spi_fit"])
+        self.assertEqual("1991-01-01", calls[0]["spi_ref_start"])
+        self.assertEqual("2020-12-31", calls[0]["spi_ref_end"])
+        self.assertEqual(3, result["spi_scale_months"])
+
     def test_compare_forwards_calendar_preset_args_and_carries_usage_flags(self):
         calls = []
 
@@ -789,6 +834,54 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual(6, result["spei_scale_months"])
         self.assertIn("spei", result)
 
+    def test_compare_one_model_forwards_optional_spi_args(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(*, start_year, end_year, source, model=None, scenario=None, **kwargs):
+            calls.append((start_year, end_year, source, kwargs))
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "spi": {
+                    "config": {"scale_months": kwargs.get("spi_scale_months")},
+                    "summary": {"n_months": 12, "n_valid_spi": 12},
+                    "metadata": {},
+                    "monthly_series": [
+                        {"date": "2050-01-01", "month": 1, "spi": -0.4}
+                    ],
+                },
+            }
+
+        orig = ep.analyze_climate_statistics
+        ep.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=2014,
+                future_start=2040,
+                future_end=2060,
+                fixed_season="03-01:05-31",
+                model="ACCESS-CM2",
+                scenario="ssp245",
+                spi_scale_months=6,
+                spi_fit="ub-pwm",
+                spi_ref_start="1991-01-01",
+                spi_ref_end="2020-12-31",
+            )
+        finally:
+            ep.analyze_climate_statistics = orig
+
+        self.assertEqual(2, len(calls))
+        self.assertEqual(6, calls[0][3]["spi_scale_months"])
+        self.assertEqual("ub-pwm", calls[0][3]["spi_fit"])
+        self.assertEqual("1991-01-01", calls[0][3]["spi_ref_start"])
+        self.assertEqual("2020-12-31", calls[0][3]["spi_ref_end"])
+        self.assertEqual(6, result["spi_scale_months"])
+        self.assertIn("spi", result)
+
     def test_compare_one_model_injects_fixed_season_spei_into_season_block(self):
         orig = ep.analyze_climate_statistics
 
@@ -1032,6 +1125,54 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertAlmostEqual(-0.7, result["spei"]["summary"]["diff"])
         self.assertEqual(2, result["spei"]["n_models"])
 
+    def test_ensemble_compare_aggregates_spi_from_per_model_results(self):
+        orig_filter = ep._filter_models
+        orig_compare = ep._compare_one_model
+        ep._filter_models = lambda location, models, exclude_models: ["ACCESS-CM2", "MRI-ESM2-0"]
+        ep._compare_one_model = lambda **kwargs: {
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": [],
+            "annual_summary": {},
+            "spi": {
+                "summary": {
+                    "focal_avg_spi": -0.5 if kwargs["model"] == "ACCESS-CM2" else -1.5,
+                    "baseline_avg_spi": -0.2 if kwargs["model"] == "ACCESS-CM2" else -0.4,
+                    "diff": -0.3 if kwargs["model"] == "ACCESS-CM2" else -1.1,
+                    "pct": -150.0 if kwargs["model"] == "ACCESS-CM2" else -275.0,
+                },
+                "monthly": [
+                    {
+                        "date": "2050-01-01",
+                        "month": 1,
+                        "focal_spi": -0.5 if kwargs["model"] == "ACCESS-CM2" else -1.5,
+                        "baseline_avg_spi": -0.2 if kwargs["model"] == "ACCESS-CM2" else -0.4,
+                        "diff": -0.3 if kwargs["model"] == "ACCESS-CM2" else -1.1,
+                        "pct": -150.0 if kwargs["model"] == "ACCESS-CM2" else -275.0,
+                    }
+                ],
+            },
+        }
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                scenario="ssp245",
+                spi_scale_months=3,
+                verbose=False,
+            )
+        finally:
+            ep._filter_models = orig_filter
+            ep._compare_one_model = orig_compare
+
+        self.assertAlmostEqual(-1.0, result["spi"]["summary"]["focal_avg_spi"])
+        self.assertAlmostEqual(-0.3, result["spi"]["summary"]["baseline_avg_spi"])
+        self.assertAlmostEqual(-0.7, result["spi"]["summary"]["diff"])
+        self.assertEqual(2, result["spi"]["n_models"])
+
     def test_ensemble_compare_keeps_wrsi_only_in_season_blocks(self):
         orig_filter = ep._filter_models
         orig_compare = ep._compare_one_model
@@ -1202,6 +1343,46 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         rendered = stdout.getvalue()
         self.assertIn("2019-01-01", rendered)
         self.assertIn("Mean SPEI", rendered)
+
+    def test_print_focal_vs_ltm_renders_spi_block(self):
+        payload = {
+            "focal_year": 2019,
+            "focal_source": "era_5",
+            "ltm_label": "future_ltm",
+            "overall_statistics": {},
+            "season_statistics": None,
+            "annual_summary": {},
+            "spi": {
+                "summary": {
+                    "focal_avg_spi": -0.8,
+                    "baseline_avg_spi": -0.2,
+                    "diff": -0.6,
+                    "pct": -300.0,
+                },
+                "monthly": [
+                    {
+                        "date": "2019-01-01",
+                        "month": 1,
+                        "focal_spi": -1.0,
+                        "baseline_avg_spi": -0.3,
+                        "diff": -0.7,
+                        "pct": -233.33,
+                    }
+                ],
+            },
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            ep._print_focal_vs_ltm(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("2019-01-01", rendered)
+        self.assertIn("Mean SPI", rendered)
 
     def test_annotate_cli_timing_promotes_command_total_and_preserves_core_timer(self):
         result = {

@@ -411,6 +411,68 @@ def _diff_spei(
         "monthly": windows,
     }
 
+
+def _diff_spi(
+    focal_spi: Optional[Dict[str, Any]],
+    baseline_spi: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not (focal_spi and baseline_spi):
+        return None
+    focal_series = focal_spi.get("monthly_series") or []
+    baseline_series = baseline_spi.get("monthly_series") or []
+    focal_cfg = focal_spi.get("config") or {}
+    baseline_cfg = baseline_spi.get("config") or {}
+
+    baseline_by_month: Dict[int, List[float]] = {}
+    for row in baseline_series:
+        month = row.get("month")
+        value = row.get("spi")
+        if isinstance(month, int) and _is_num(value):
+            baseline_by_month.setdefault(month, []).append(float(value))
+
+    windows = []
+    for row in focal_series:
+        month = row.get("month")
+        focal_value = row.get("spi")
+        if not (isinstance(month, int) and _is_num(focal_value)):
+            continue
+        base_vals = baseline_by_month.get(month) or []
+        if not base_vals:
+            continue
+        baseline_avg = sum(base_vals) / len(base_vals)
+        diff = float(focal_value) - baseline_avg
+        windows.append({
+            "date": row.get("date"),
+            "month": month,
+            "focal_spi": round(float(focal_value), 3),
+            "baseline_avg_spi": round(baseline_avg, 3),
+            "diff": round(diff, 3),
+            "pct": None,
+        })
+
+    focal_vals = [float(row["spi"]) for row in focal_series if _is_num(row.get("spi"))]
+    base_vals = [float(row["spi"]) for row in baseline_series if _is_num(row.get("spi"))]
+    summary = None
+    if focal_vals and base_vals:
+        focal_avg = sum(focal_vals) / len(focal_vals)
+        base_avg = sum(base_vals) / len(base_vals)
+        diff = focal_avg - base_avg
+        summary = {
+            "focal_avg_spi": round(focal_avg, 3),
+            "baseline_avg_spi": round(base_avg, 3),
+            "diff": round(diff, 3),
+            "pct": None,
+        }
+
+    return {
+        "config": {
+            "focal": focal_cfg,
+            "baseline": baseline_cfg,
+        },
+        "summary": summary,
+        "monthly": windows,
+    }
+
 def _annualize(stats: Dict[str, Any], n_years: int) -> Dict[str, Any]:
     """Period totals -> per-year averages. Means/maxes/mins untouched."""
     if n_years <= 0:
@@ -672,6 +734,10 @@ def compare(
     spei_fit: str = "ub-pwm",
     spei_ref_start: Optional[str] = None,
     spei_ref_end: Optional[str] = None,
+    spi_scale_months: Optional[int] = None,
+    spi_fit: str = "ub-pwm",
+    spi_ref_start: Optional[str] = None,
+    spi_ref_end: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run statistics.py for baseline + focal, diff the four sections."""
     if source.lower() not in SUPPORTED:
@@ -716,13 +782,22 @@ def compare(
         }
         if spei_scale_months is not None else {}
     )
+    spi_kw = (
+        {
+            "spi_scale_months": spi_scale_months,
+            "spi_fit": spi_fit,
+            "spi_ref_start": spi_ref_start,
+            "spi_ref_end": spi_ref_end,
+        }
+        if spi_scale_months is not None else {}
+    )
 
     print(f"\nFetching baseline {baseline_start}-{baseline_end} | source={source}")
     try:
         base = analyze_climate_statistics(
             location_coord=location,
             start_year=baseline_start, end_year=baseline_end,
-            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw)
+            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw)
     except Exception as exc:
         return {
             "error": (
@@ -743,7 +818,7 @@ def compare(
         focal = analyze_climate_statistics(
             location_coord=location,
             start_year=focal_year, end_year=focal_year,
-            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw)
+            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw)
     except Exception as exc:
         return {
             "error": (
@@ -857,6 +932,10 @@ def compare(
         focal.get("spei"),
         base.get("spei"),
     )
+    spi_diff = _diff_spi(
+        focal.get("spi"),
+        base.get("spi"),
+    )
     return {
         "focal_year":           focal_year,
         "baseline_period":      f"{baseline_start}-{baseline_end}",
@@ -874,6 +953,8 @@ def compare(
         "focal_calendar_preset": focal.get("calendar_preset"),
         "spei_scale_months":    spei_scale_months,
         "spei_fit":             spei_fit if spei_scale_months is not None else None,
+        "spi_scale_months":     spi_scale_months,
+        "spi_fit":              spi_fit if spi_scale_months is not None else None,
         "temperature_excluded": drop_temp,
         "season_detection":     season_detection,
         "raw_climate_summary":  raw_diff,
@@ -881,6 +962,7 @@ def compare(
         "season_statistics":    season_diff,
         "annual_summary":       annual_diff,
         "spei":                 spei_diff,
+        "spi":                  spi_diff,
     }
 
 #  printing 
@@ -1054,6 +1136,29 @@ def print_report(r: Dict[str, Any]) -> None:
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
             print(pd.DataFrame(rows).to_string(index=False))
+    spi = r.get("spi")
+    if spi:
+        print(f"\n--- 6. SPI (monthly/period summary, not seasonal) ---")
+        summary = spi.get("summary") or {}
+        if summary:
+            print(
+                f"  Mean SPI        : focal={summary['focal_avg_spi']:.3f} | "
+                f"baseline_avg={summary['baseline_avg_spi']:.3f} | "
+                f"Δ={summary['diff']:+.3f}"
+            )
+        monthly = spi.get("monthly") or []
+        if monthly:
+            rows = []
+            for row in monthly:
+                rows.append({
+                    "date": row["date"],
+                    "month": row["month"],
+                    "focal_spi": f"{row['focal_spi']:.3f}",
+                    "baseline_avg_spi": f"{row['baseline_avg_spi']:.3f}",
+                    "Δ": f"{row['diff']:+.3f}",
+                    "Δ%": _fmt_pct(row.get("pct")),
+                })
+            print(pd.DataFrame(rows).to_string(index=False))
     print()
 
 # CLI 
@@ -1089,6 +1194,14 @@ def main() -> int:
                    help="Optional SPEI reference-period start date, e.g. 1991-01-01.")
     p.add_argument("--spei-ref-end", default=None,
                    help="Optional SPEI reference-period end date, e.g. 2020-12-31.")
+    p.add_argument("--spi-scale-months", type=int, default=None,
+                   help="Optional SPI scale in months to compare alongside other statistics.")
+    p.add_argument("--spi-fit", choices=["ub-pwm", "empirical"], default="ub-pwm",
+                   help="SPI fitting method when --spi-scale-months is used.")
+    p.add_argument("--spi-ref-start", default=None,
+                   help="Optional SPI reference-period start date, e.g. 1991-01-01.")
+    p.add_argument("--spi-ref-end", default=None,
+                   help="Optional SPI reference-period end date, e.g. 2020-12-31.")
     p.add_argument("--format", choices=["pandas", "json"], default="pandas",
                    help="Output format: human-readable table view or raw JSON.")
     p.add_argument("--fixed-season", default=None,
@@ -1122,6 +1235,10 @@ def main() -> int:
         spei_fit=args.spei_fit,
         spei_ref_start=args.spei_ref_start,
         spei_ref_end=args.spei_ref_end,
+        spi_scale_months=args.spi_scale_months,
+        spi_fit=args.spi_fit,
+        spi_ref_start=args.spi_ref_start,
+        spi_ref_end=args.spi_ref_end,
     )
     rendered = json.dumps(result, indent=2, default=str)
     if args.format == "json":
