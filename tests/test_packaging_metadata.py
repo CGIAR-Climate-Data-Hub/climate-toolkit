@@ -13,6 +13,9 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"
 REQUIREMENTS_PATH = REPO_ROOT / "requirements.txt"
+UV_LOCK_PATH = REPO_ROOT / "uv.lock"
+README_PATH = REPO_ROOT / "README.md"
+CI_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "ci-cd.yml"
 
 
 class PackagingMetadataTests(unittest.TestCase):
@@ -76,6 +79,22 @@ class PackagingMetadataTests(unittest.TestCase):
         }
 
         self.assertEqual(runtime_requirements, pyproject_deps)
+
+    def test_uv_lockfile_exists_for_preferred_install_workflow(self):
+        self.assertTrue(UV_LOCK_PATH.exists())
+        self.assertGreater(UV_LOCK_PATH.stat().st_size, 0)
+
+    def test_readme_documents_uv_as_locked_preferred_workflow_with_pip_fallback(self):
+        readme = README_PATH.read_text(encoding="utf-8")
+        self.assertIn("Preferred setup with `uv`", readme)
+        self.assertIn("uv sync --locked --group dev", readme)
+        self.assertIn("uv lock", readme)
+        self.assertIn("Fallback setup with `venv + pip`", readme)
+        self.assertIn("python -m pip install -e .", readme)
+
+    def test_ci_uses_locked_uv_sync(self):
+        ci_workflow = CI_WORKFLOW_PATH.read_text(encoding="utf-8")
+        self.assertIn("uv sync --locked --group dev", ci_workflow)
 
     def test_pyproject_declares_console_scripts_for_current_module_clis(self):
         with PYPROJECT_PATH.open("rb") as handle:
