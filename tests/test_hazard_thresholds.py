@@ -7,6 +7,10 @@ import io
 from pathlib import Path
 from unittest import mock
 import pandas as pd
+from climate_tookit.climatology.xclim_reference import (
+    XCLIM_AVAILABLE,
+    compute_xclim_hazard_count_metrics,
+)
 
 
 def _install_test_stubs():
@@ -50,6 +54,24 @@ from climate_tookit.calculate_hazards.hazards import (
 
 
 class HazardThresholdTests(unittest.TestCase):
+    @unittest.skipUnless(XCLIM_AVAILABLE, "xclim not installed")
+    def test_calculate_season_statistics_matches_xclim_hazard_day_counts(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=10, freq="D"),
+                "precip": [0.0, 0.5, 1.0, 2.0, 0.0, 0.9, 5.0, 0.0, 0.0, 1.1],
+                "tmax": [34.0, 35.0, 36.0, 40.0, 41.0, 20.0, 35.0, 39.0, 40.0, 10.0],
+                "tmin": [20.0, 19.0, 18.0, 21.0, 22.0, 15.0, 19.0, 18.0, 20.0, 12.0],
+            }
+        )
+
+        stats = calculate_season_statistics(frame)
+        xclim_counts = compute_xclim_hazard_count_metrics(frame).iloc[0].to_dict()
+
+        self.assertEqual(int(xclim_counts["NDD"]), stats["NDD"])
+        self.assertEqual(int(xclim_counts["NTx35"]), stats["NTx35"])
+        self.assertEqual(int(xclim_counts["NTx40"]), stats["NTx40"])
+
     def test_fetch_soil_grid_snapshot_uses_callable_fetch_data_function(self):
         import climate_tookit.calculate_hazards.hazards as hazards
 
