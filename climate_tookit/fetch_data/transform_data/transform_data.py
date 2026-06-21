@@ -4,6 +4,7 @@ Maps source-native variable names and scales into toolkit canonical schema.
 Useful as library plumbing, not stable public CLI surface.
 """
 
+import sys
 from datetime import date
 from pathlib import Path
 

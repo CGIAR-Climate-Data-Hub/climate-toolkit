@@ -23,6 +23,7 @@ dependencies = [
 [dependency-groups]
 dev = [
   "pytest",
+  "ruff",
 ]
 
 [project.scripts]
@@ -54,3 +55,19 @@ climate_tookit = [
   "fetch_data/source_data/sources/utils/*.yaml",
   "fetch_data/transform_data/*.yaml",
 ]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = [
+  "build",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E402", "E701", "E702", "F401", "F541"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

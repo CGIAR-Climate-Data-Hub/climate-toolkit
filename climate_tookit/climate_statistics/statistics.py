@@ -1574,7 +1574,6 @@ def analyze_climate_statistics(
         if fixed_season:
             fetch_end = f"{end_year + 1}-12-31"
         else:
-            tail_month = min(12, 6 + 0)  # 6 extra months -> June+1 = July
             tail_end_dt = (date(end_year, 12, 31) +
                            pd.DateOffset(months=extra_months)).date()
             fetch_end = tail_end_dt.strftime('%Y-%m-%d')

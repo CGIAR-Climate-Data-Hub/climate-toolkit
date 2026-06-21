@@ -20,8 +20,9 @@ Accumulation vars (precipitation):
     monthly climatology  -> mean monthly total per calendar month
 """
 import argparse
-import os
 import json
+import os
+import sys
 from datetime import date
 import numpy as np
 import pandas as pd

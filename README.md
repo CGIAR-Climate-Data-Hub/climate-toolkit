@@ -76,6 +76,7 @@ normal user workflows.
 
    ```bash
    uv run climate-toolkit-stats --help
+   uv run ruff check .
    uv run pytest -q
    ```
 
@@ -715,9 +716,22 @@ We welcome PRs and suggestions!
 
 1. Fork the repo
 2. Work in a feature branch
-3. Follow module layout and formatting
+3. Follow module layout and Ruff checks
 4. Submit a pull request with a clear description using the repository PR template
 5. Complete every applicable PR template section, especially problem statement, implementation notes, data/auth/runtime notes, testing, and related issues
+
+Local quality commands:
+
+```bash
+uv run ruff check .
+uv run ruff format .
+uv run pytest -q
+```
+
+CI currently enforces the low-noise Ruff lint baseline with `ruff check .`.
+`ruff format` is available for local cleanup, but repository-wide formatter
+enforcement should come in a later cleanup slice rather than the initial Ruff
+adoption PR.
 
 ---
 
