@@ -110,6 +110,10 @@ def _extract_stats_timing(stats: Optional[Dict[str, Any]]) -> Dict[str, Optional
         "prep_seconds": _round_if_num(timing.get("prep_seconds")),
         "season_detection_seconds": _round_if_num(timing.get("season_detection_seconds")),
         "season_reduction_seconds": _round_if_num(timing.get("season_reduction_seconds")),
+        "season_reduction_core_seconds": _round_if_num(timing.get("season_reduction_core_seconds")),
+        "season_reduction_raw_seconds": _round_if_num(timing.get("season_reduction_raw_seconds")),
+        "season_reduction_overall_seconds": _round_if_num(timing.get("season_reduction_overall_seconds")),
+        "season_reduction_eto_seconds": _round_if_num(timing.get("season_reduction_eto_seconds")),
         "spei_seconds": _round_if_num(timing.get("spei_seconds")),
         "total_seconds": _round_if_num(timing.get("total_seconds")),
     }
@@ -187,6 +191,46 @@ def _build_runtime_summary(
         for r in per_model
         if isinstance(r.get("timing_breakdown"), dict)
     ]
+    baseline_reduce_core = [
+        r.get("timing_breakdown", {}).get("baseline", {}).get("season_reduction_core_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    future_reduce_core = [
+        r.get("timing_breakdown", {}).get("future", {}).get("season_reduction_core_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    baseline_reduce_raw = [
+        r.get("timing_breakdown", {}).get("baseline", {}).get("season_reduction_raw_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    future_reduce_raw = [
+        r.get("timing_breakdown", {}).get("future", {}).get("season_reduction_raw_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    baseline_reduce_overall = [
+        r.get("timing_breakdown", {}).get("baseline", {}).get("season_reduction_overall_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    future_reduce_overall = [
+        r.get("timing_breakdown", {}).get("future", {}).get("season_reduction_overall_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    baseline_reduce_eto = [
+        r.get("timing_breakdown", {}).get("baseline", {}).get("season_reduction_eto_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
+    future_reduce_eto = [
+        r.get("timing_breakdown", {}).get("future", {}).get("season_reduction_eto_seconds")
+        for r in per_model
+        if isinstance(r.get("timing_breakdown"), dict)
+    ]
 
     slowest_models = [
         {
@@ -221,6 +265,14 @@ def _build_runtime_summary(
             "future_detection": _summarize_runtime_stage(future_detect),
             "baseline_reduction": _summarize_runtime_stage(baseline_reduce),
             "future_reduction": _summarize_runtime_stage(future_reduce),
+            "baseline_reduction_core": _summarize_runtime_stage(baseline_reduce_core),
+            "future_reduction_core": _summarize_runtime_stage(future_reduce_core),
+            "baseline_reduction_raw": _summarize_runtime_stage(baseline_reduce_raw),
+            "future_reduction_raw": _summarize_runtime_stage(future_reduce_raw),
+            "baseline_reduction_overall": _summarize_runtime_stage(baseline_reduce_overall),
+            "future_reduction_overall": _summarize_runtime_stage(future_reduce_overall),
+            "baseline_reduction_eto": _summarize_runtime_stage(baseline_reduce_eto),
+            "future_reduction_eto": _summarize_runtime_stage(future_reduce_eto),
         },
     }
 
@@ -275,7 +327,25 @@ def _print_runtime_summary(runtime_summary: Optional[Dict[str, Any]]) -> None:
         f"baseline_reduce={_format_stage_stat(stage_summary, 'baseline_reduction')} | "
         f"future_reduce={_format_stage_stat(stage_summary, 'future_reduction')}"
     )
+    print(
+        "  Reduce det. : "
+        f"base_core={_format_stage_stat(stage_summary, 'baseline_reduction_core')} | "
+        f"fut_core={_format_stage_stat(stage_summary, 'future_reduction_core')} | "
+        f"base_raw={_format_stage_stat(stage_summary, 'baseline_reduction_raw')} | "
+        f"fut_raw={_format_stage_stat(stage_summary, 'future_reduction_raw')} | "
+        f"base_overall={_format_stage_stat(stage_summary, 'baseline_reduction_overall')} | "
+        f"fut_overall={_format_stage_stat(stage_summary, 'future_reduction_overall')} | "
+        f"base_eto={_format_stage_stat(stage_summary, 'baseline_reduction_eto')} | "
+        f"fut_eto={_format_stage_stat(stage_summary, 'future_reduction_eto')}"
+    )
     print(f"  Slowest     : {slowest_text}")
+
+
+_COMPACT_COMPARE_STATS_KWARGS = {
+    "include_season_raw_summary": False,
+    "include_season_overall_statistics": False,
+    "include_ltm_season_summary": False,
+}
 
 
 def _run_stats_call(
@@ -729,6 +799,8 @@ def _build_focal_summary(location:     Tuple[float, float],
         location_coord=location,
         start_year=focal_year, end_year=focal_year,
         source=focal_source, **fs_kw, **paired_kw, **calendar_kw,
+        include_period_raw_summary=False,
+        **_COMPACT_COMPARE_STATS_KWARGS,
         spei_scale_months=spei_scale_months,
         spei_fit=spei_fit,
         spei_ref_start=spei_ref_start,
@@ -917,6 +989,8 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
                 location_coord=location,
                 start_year=focal_year, end_year=focal_year,
                 source="nex_gddp", model=model, scenario=canon, **fs_kw, **calendar_kw,
+                include_period_raw_summary=False,
+                **_COMPACT_COMPARE_STATS_KWARGS,
                 spei_scale_months=spei_scale_months,
                 spei_fit=spei_fit,
                 spei_ref_start=spei_ref_start,
@@ -1206,6 +1280,7 @@ def _compare_one_model(
         start_year=baseline_start, end_year=baseline_end,
         source="nex_gddp",
         model=model, scenario="historical",
+        **_COMPACT_COMPARE_STATS_KWARGS,
         **fs_kw, **calendar_kw, **spei_kw,
     )
     baseline_elapsed = perf_counter() - baseline_started
@@ -1231,6 +1306,7 @@ def _compare_one_model(
         start_year=future_start, end_year=future_end,
         source="nex_gddp",
         model=model, scenario=scenario,
+        **_COMPACT_COMPARE_STATS_KWARGS,
         **fs_kw, **calendar_kw, **spei_kw,
     )
     future_elapsed = perf_counter() - future_started

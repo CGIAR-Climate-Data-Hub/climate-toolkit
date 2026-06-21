@@ -231,6 +231,55 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual(2, result[0]["water_balance"]["NDWS"])
         self.assertEqual(2, result[0]["overall_statistics"]["water_balance"]["NDWS"])
 
+    def test_compile_season_results_can_skip_report_only_season_blocks(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.date_range("2018-03-01", periods=5, freq="D"),
+                "precip": [5.0, 0.0, 1.0, 2.0, 0.0],
+                "tmax": [25.0, 26.0, 27.0, 28.0, 29.0],
+                "tmin": [15.0, 16.0, 17.0, 18.0, 19.0],
+                "ET0_mm_day": [4.0, 4.0, 4.0, 4.0, 4.0],
+                "water_balance": [1.0, -4.0, -3.0, -2.0, -4.0],
+            }
+        )
+        seasons_dict = {
+            2018: [
+                {
+                    "onset": "2018-03-01",
+                    "cessation": "2018-03-05",
+                    "length_days": 5,
+                    "regime": "unimodal",
+                }
+            ]
+        }
+
+        raw_calls = []
+        overall_calls = []
+        orig_raw = stats.raw_climate_summary
+        orig_overall = stats.overall_statistics
+
+        stats.raw_climate_summary = lambda frame: raw_calls.append(len(frame)) or []
+        stats.overall_statistics = lambda *args, **kwargs: overall_calls.append("called") or {}
+        try:
+            result, breakdown = stats._compile_season_results_with_options(
+                df,
+                seasons_dict,
+                include_season_raw_summary=False,
+                include_season_overall_statistics=False,
+                return_breakdown=True,
+            )
+        finally:
+            stats.raw_climate_summary = orig_raw
+            stats.overall_statistics = orig_overall
+
+        self.assertEqual([], raw_calls)
+        self.assertEqual([], overall_calls)
+        self.assertEqual(1, len(result))
+        self.assertNotIn("raw_climate_summary", result[0])
+        self.assertNotIn("overall_statistics", result[0])
+        self.assertEqual(0.0, breakdown["raw_summary_seconds"])
+        self.assertEqual(0.0, breakdown["overall_statistics_seconds"])
+
     def test_get_climate_data_paired_mode_merges_precip_and_temperature_sources(self):
         calls = []
 

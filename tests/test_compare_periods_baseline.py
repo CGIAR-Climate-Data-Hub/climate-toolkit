@@ -1420,6 +1420,41 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertTrue(timing["future_total_seconds"] >= 0.0)
         self.assertTrue(timing["compare_seconds"] >= 0.0)
 
+    def test_compare_one_model_requests_compact_statistics_payloads(self):
+        orig_run_stats_call = ep._run_stats_call
+        calls = []
+
+        def fake_run_stats_call(**kwargs):
+            calls.append(kwargs)
+            return {
+                "timing": {"fetch_seconds": 1.0, "season_reduction_seconds": 0.5, "total_seconds": 1.8},
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+            }
+
+        ep._run_stats_call = fake_run_stats_call
+        try:
+            ep._compare_one_model(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2050,
+                future_end=2051,
+                fixed_season=None,
+                model="ACCESS-CM2",
+                scenario="ssp245",
+            )
+        finally:
+            ep._run_stats_call = orig_run_stats_call
+
+        self.assertEqual(2, len(calls))
+        for kwargs in calls:
+            self.assertFalse(kwargs["include_season_raw_summary"])
+            self.assertFalse(kwargs["include_season_overall_statistics"])
+            self.assertFalse(kwargs["include_ltm_season_summary"])
+
     def test_ensemble_compare_parallel_path_uses_executor_and_suppresses_child_stdout(self):
         orig_resolve = ep._resolve_models_and_policy
         orig_task_runner = ep._run_compare_one_model_task
