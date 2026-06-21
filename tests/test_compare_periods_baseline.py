@@ -132,13 +132,95 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         orig_stdout = sys.stdout
         try:
             sys.stdout = stdout
-            cp.print_report(payload)
+            cp.print_report(payload, detailed=True)
         finally:
             sys.stdout = orig_stdout
 
         rendered = stdout.getvalue()
         self.assertIn("--- 5. SPEI (monthly/period summary, not seasonal) ---", rendered)
         self.assertIn("2019-01-01", rendered)
+
+    def test_print_report_compact_hides_monthly_spei_table(self):
+        payload = {
+            "focal_year": 2019,
+            "baseline_period": "2018-2018",
+            "source": "auto",
+            "fixed_season": None,
+            "temperature_excluded": False,
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": None,
+            "annual_summary": {},
+            "spei": {
+                "summary": {
+                    "focal_avg_spei": -0.8,
+                    "baseline_avg_spei": -0.2,
+                    "diff": -0.6,
+                    "pct": -300.0,
+                },
+                "monthly": [
+                    {
+                        "date": "2019-01-01",
+                        "month": 1,
+                        "focal_spei": -1.0,
+                        "baseline_avg_spei": -0.3,
+                        "diff": -0.7,
+                        "pct": -233.33,
+                    }
+                ],
+            },
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload, detailed=False)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("Mean SPEI", rendered)
+        self.assertIn("hidden in compact mode", rendered)
+        self.assertNotIn("2019-01-01", rendered)
+
+    def test_print_report_emits_custom_water_balance_note(self):
+        payload = {
+            "focal_year": 2019,
+            "baseline_period": "2018-2018",
+            "source": "auto",
+            "fixed_season": None,
+            "temperature_excluded": False,
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": {
+                "windows": [
+                    {
+                        "window": "03-01:05-31",
+                        "season_number": 1,
+                        "n_baseline": 1,
+                        "n_focal": 1,
+                        "diff": {
+                            "water_balance": {
+                                "NDWS": {"focal": 4, "baseline_avg": 2, "diff": 2, "pct": 100.0}
+                            }
+                        },
+                    }
+                ]
+            },
+            "annual_summary": {},
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload, detailed=False)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("custom crop-water-balance metrics", rendered)
 
     def test_ensemble_print_report_hides_per_model_breakdown_in_compact_mode(self):
         payload = {
@@ -350,7 +432,7 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             "season_statistics": None,
             "annual_summary": {},
         }
-        cp.print_report = lambda result: None
+        cp.print_report = lambda result, **kwargs: None
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 output_path = f"{tmpdir}/nested/results/compare_periods.json"

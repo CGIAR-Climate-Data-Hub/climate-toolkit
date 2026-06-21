@@ -784,7 +784,9 @@ def _derive_year_regime(seasons: List[Dict[str, Any]]) -> str:
 
 
 def _season_heading(season: Dict[str, Any]) -> str:
-    return f"Year {season['year']} | Season {season['season_number']}"
+    year = season.get("year", "n/a")
+    season_number = season.get("season_number", 1)
+    return f"Year {year} | Season {season_number}"
 
 
 def _spei_block(
@@ -2040,7 +2042,7 @@ def print_seasons(seasons: List[Dict]) -> None:
                 extras.append(f"CWR={w['crop_water_requirement_mm']} mm")
             if 'actual_crop_et_mm' in w:
                 extras.append(f"AET={w['actual_crop_et_mm']} mm")
-            print(f"                    shared_root_zone: {' | '.join(extras)}")
+            print(f"                    crop_model: {' | '.join(extras)}")
 
         subs = s.get('eto_sub_seasons')
         if subs is not None:
@@ -2115,7 +2117,7 @@ def print_ltm_by_season(ltm: Dict[str, Any],
                     extras.append(f"CWR={wb.get('crop_water_requirement_mm')} mm")
                 if wb.get('actual_crop_et_mm') is not None:
                     extras.append(f"AET={wb.get('actual_crop_et_mm')} mm")
-                print(f"                    shared_root_zone: {' | '.join(extras)}")
+                print(f"                    crop_model: {' | '.join(extras)}")
 
 def print_annual(annual: Dict[str, Dict]) -> None:
     print("\n" + "=" * 70)
@@ -2201,6 +2203,24 @@ def print_season_detection_notes(result: Dict[str, Any]) -> None:
             print(f"- {item}")
 
 def print_pandas(result: Dict[str, Any]) -> None:
+    _print_pandas(result, detailed=True)
+
+
+def _has_custom_water_balance_metrics(result: Dict[str, Any]) -> bool:
+    for season in result.get('season_statistics') or []:
+        water_balance = season.get('water_balance') or {}
+        if any(key in water_balance for key in ('NDWS', 'NDWL0', 'WRSI')):
+            return True
+    for window in ((result.get('ltm_season_summary') or {}).get('windows') or []):
+        water_balance = window.get('water_balance') or {}
+        if any(key in water_balance for key in ('NDWS', 'NDWL0', 'WRSI')):
+            return True
+    overall = result.get('overall_statistics') or {}
+    water_balance = overall.get('water_balance') if isinstance(overall, dict) else {}
+    return any(key in (water_balance or {}) for key in ('NDWS', 'NDWL0', 'WRSI'))
+
+
+def _print_pandas(result: Dict[str, Any], *, detailed: bool = True) -> None:
     if 'error' in result:
         print(f"Error: {result['error']}")
         return
@@ -2230,9 +2250,15 @@ def print_pandas(result: Dict[str, Any]) -> None:
         print(f"Season detect : {result['season_detection_status']}")
     if result.get('season_slot_warning'):
         print(f"Season LTM: [WARN] {result['season_slot_warning']}")
+    if _has_custom_water_balance_metrics(result):
+        print(
+            "Water-balance note : NDWS, NDWL0, and WRSI are custom crop-water-balance "
+            "metrics under model assumptions, not standard xclim/ETCCDI indicators."
+        )
 
-    print_raw_summary_by_season(result['season_statistics'])
-    print_overall_by_season(result['season_statistics'])
+    if detailed:
+        print_raw_summary_by_season(result['season_statistics'])
+        print_overall_by_season(result['season_statistics'])
     print_seasons(result['season_statistics'])
     print_ltm_by_season(result.get('ltm_season_summary', {}),
                         header=_ltm_header(result))
@@ -2250,7 +2276,7 @@ def print_pandas(result: Dict[str, Any]) -> None:
             f"months={summary.get('n_months')} | valid={summary.get('n_valid_spei')}"
         )
         rows = (spei.get("monthly_series") or [])[-12:]
-        if rows:
+        if detailed and rows:
             preview = pd.DataFrame(rows)[["date", "water_balance_accumulated_mm", "spei"]]
             _print_indented_table(preview.fillna("n/a"))
     spi = result.get("spi")
@@ -2265,7 +2291,7 @@ def print_pandas(result: Dict[str, Any]) -> None:
             f"months={summary.get('n_months')} | valid={summary.get('n_valid_spi')}"
         )
         rows = (spi.get("monthly_series") or [])[-12:]
-        if rows:
+        if detailed and rows:
             preview = pd.DataFrame(rows)[["date", "precipitation_accumulated_mm", "spi"]]
             _print_indented_table(preview.fillna("n/a"))
 
@@ -2415,7 +2441,7 @@ def main() -> int:
 
     # Display
     if args.format == 'pandas':
-        print_pandas(result)
+        _print_pandas(result, detailed=args.verbose)
         if 'error' in result:
             return 1
     else:

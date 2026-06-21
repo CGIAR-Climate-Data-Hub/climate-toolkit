@@ -106,6 +106,24 @@ For these, the audit should instead answer:
   - metrics intentionally different from `xclim`
   - custom metrics requiring separate references
 
+## Progress update
+
+Working branch status now includes:
+
+- new helper `compute_xclim_core_period_metrics()` for direct standard-metric comparisons
+- new helper `compute_xclim_spi_reference()` for nearest-reference SPI comparisons
+- new helper `compute_xclim_spei_reference()` for nearest-reference SPEI comparisons
+- focused regression tests for:
+  - core period precipitation / temperature metrics
+  - seasonal-slice precipitation / temperature metrics
+  - SPI nearest-reference agreement
+  - SPEI nearest-reference agreement
+- audit note:
+  - `analysis/xclim_metric_audit_status.md`
+
+Remaining gap is no longer "do we have any xclim audit at all?" but
+"how far do we extend it into additional extremes and downstream hazard-facing metrics?"
+
 ## Acceptance criteria
 
 - overlapping standard metrics have an explicit `xclim` comparison result

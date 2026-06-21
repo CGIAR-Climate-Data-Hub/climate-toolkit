@@ -11,6 +11,11 @@ from climate_tookit.climatology.spei import (
     prepare_monthly_climatic_water_balance,
     prepare_monthly_precipitation_totals,
 )
+from climate_tookit.climatology.xclim_reference import (
+    XCLIM_AVAILABLE,
+    compute_xclim_spei_reference,
+    compute_xclim_spi_reference,
+)
 
 
 class SpeiTests(unittest.TestCase):
@@ -224,6 +229,63 @@ class SpeiTests(unittest.TestCase):
             result.attrs["spei_metadata"]["standardization_method"],
         )
         self.assertIsNone(result.attrs["spei_metadata"]["fit_parameters_by_month"][1])
+
+    @unittest.skipUnless(XCLIM_AVAILABLE, "xclim not installed")
+    def test_compute_monthly_spi_tracks_xclim_fisk_reference(self):
+        dates = pd.date_range("2000-01-01", periods=240, freq="MS")
+        frame = pd.DataFrame(
+            {
+                "date": dates,
+                "precipitation_mm": [
+                    80 + (d.month * 4) + ((d.year - 2000) % 7) * 3
+                    for d in dates
+                ],
+            }
+        )
+
+        ours = compute_monthly_spi(
+            frame,
+            scale_months=3,
+            min_points_per_calendar_month=10,
+        )
+        xclim_ref = compute_xclim_spi_reference(
+            frame,
+            scale_months=3,
+        )
+        merged = ours.merge(xclim_ref[["date", "spi_xclim"]], on="date", how="inner").dropna()
+
+        self.assertGreater(len(merged), 100)
+        self.assertGreater(merged["spi"].corr(merged["spi_xclim"]), 0.999)
+        self.assertLess((merged["spi"] - merged["spi_xclim"]).abs().mean(), 0.05)
+
+    @unittest.skipUnless(XCLIM_AVAILABLE, "xclim not installed")
+    def test_compute_monthly_spei_tracks_xclim_fisk_reference(self):
+        dates = pd.date_range("2000-01-01", periods=240, freq="MS")
+        frame = pd.DataFrame(
+            {
+                "date": dates,
+                "precipitation_mm": [
+                    80 + (d.month * 4) + ((d.year - 2000) % 7) * 3
+                    for d in dates
+                ],
+                "et0_mm": [60 + d.month for d in dates],
+            }
+        )
+
+        ours = compute_monthly_spei(
+            frame,
+            scale_months=3,
+            min_points_per_calendar_month=10,
+        )
+        xclim_ref = compute_xclim_spei_reference(
+            frame,
+            scale_months=3,
+        )
+        merged = ours.merge(xclim_ref[["date", "spei_xclim"]], on="date", how="inner").dropna()
+
+        self.assertGreater(len(merged), 100)
+        self.assertGreater(merged["spei"].corr(merged["spei_xclim"]), 0.999)
+        self.assertLess((merged["spei"] - merged["spei_xclim"]).abs().mean(), 0.05)
 
 
 if __name__ == "__main__":

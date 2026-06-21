@@ -85,3 +85,15 @@ Recommended next validation
    - `max-lik`
    - alternate distributions
    - ensemble-period SPEI support
+
+2026-06-21 update
+
+- nearest-reference `xclim` comparison helpers now exist:
+  - `compute_xclim_spei_reference`
+  - `compute_xclim_spi_reference`
+- synthetic regression tests now show toolkit `SPEI` / `SPI` track those
+  nearest-reference outputs very closely
+- package metadata now states clearly that this is method-family alignment, not
+  exact `xclim` parity
+- supporting note:
+  - `analysis/spei_xclim_alignment_note.md`

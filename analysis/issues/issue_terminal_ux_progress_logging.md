@@ -127,3 +127,27 @@ Detailed lines like these should move out of default output:
 - standardize warning formatting
 - consider progress bars for model/site/chunk loops
 - consider log file output for reproducible run auditing
+
+## Current progress
+
+This issue is no longer untouched.
+
+Implemented so far:
+
+- `climate_statistics.statistics`
+  - default pandas output is now compact
+  - raw climate tables and monthly SPI/SPEI previews are hidden unless `--verbose`
+  - important run metadata and warnings still remain visible
+- `compare_periods.periods`
+  - added `--verbose`
+  - monthly SPI/SPEI tables are now hidden in compact mode
+  - compact mode prints a short rerun hint instead of dumping long monthly tables
+- both paths now surface a clearer note when outputs include custom
+  crop-water-balance metrics (`NDWS`, `NDWL0`, `WRSI`)
+
+Still outstanding:
+
+- broader stage/progress harmonization across fetch, season, hazard, and
+  ensemble workflows
+- standardized progress formatting across GEE/Xee, NEX-GDDP, TAMSAT, and
+  weather-station paths

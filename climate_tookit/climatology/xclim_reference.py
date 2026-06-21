@@ -26,19 +26,30 @@ def _suppress_xclim_import_noise():
 xr = None
 xclim = None
 daily_pr_intensity = None
+dry_days = None
+precip_accumulation = None
 max_1day_precipitation_amount = None
 max_n_day_precipitation_amount = None
 maximum_consecutive_dry_days = None
 maximum_consecutive_wet_days = None
+tg_mean = None
+tn_mean = None
+tn_min = None
+tx_max = None
+tx_mean = None
+standardized_index = None
 wetdays = None
 _XCLIM_RUNTIME_LOADED = False
 XCLIM_AVAILABLE = bool(find_spec("xarray")) and bool(find_spec("xclim"))
 
 
 def _load_xclim_runtime() -> None:
-    global xr, xclim, daily_pr_intensity, max_1day_precipitation_amount
+    global xr, xclim, daily_pr_intensity, dry_days, precip_accumulation
+    global max_1day_precipitation_amount
     global max_n_day_precipitation_amount, maximum_consecutive_dry_days
-    global maximum_consecutive_wet_days, wetdays, _XCLIM_RUNTIME_LOADED, XCLIM_AVAILABLE
+    global maximum_consecutive_wet_days, tg_mean, tn_mean, tn_min, tx_max
+    global tx_mean, wetdays, standardized_index
+    global _XCLIM_RUNTIME_LOADED, XCLIM_AVAILABLE
 
     if _XCLIM_RUNTIME_LOADED:
         return
@@ -49,12 +60,20 @@ def _load_xclim_runtime() -> None:
         with _suppress_xclim_import_noise():
             import xarray as _xr
             import xclim as _xclim
+            from xclim.indices.stats import standardized_index as _standardized_index
             from xclim.indicators.atmos import (
                 daily_pr_intensity as _daily_pr_intensity,
+                dry_days as _dry_days,
+                precip_accumulation as _precip_accumulation,
                 max_1day_precipitation_amount as _max_1day_precipitation_amount,
                 max_n_day_precipitation_amount as _max_n_day_precipitation_amount,
                 maximum_consecutive_dry_days as _maximum_consecutive_dry_days,
                 maximum_consecutive_wet_days as _maximum_consecutive_wet_days,
+                tg_mean as _tg_mean,
+                tn_mean as _tn_mean,
+                tn_min as _tn_min,
+                tx_max as _tx_max,
+                tx_mean as _tx_mean,
                 wetdays as _wetdays,
             )
     except Exception as exc:  # pragma: no cover - optional dependency runtime
@@ -64,10 +83,18 @@ def _load_xclim_runtime() -> None:
     xr = _xr
     xclim = _xclim
     daily_pr_intensity = _daily_pr_intensity
+    dry_days = _dry_days
+    precip_accumulation = _precip_accumulation
     max_1day_precipitation_amount = _max_1day_precipitation_amount
     max_n_day_precipitation_amount = _max_n_day_precipitation_amount
     maximum_consecutive_dry_days = _maximum_consecutive_dry_days
     maximum_consecutive_wet_days = _maximum_consecutive_wet_days
+    tg_mean = _tg_mean
+    tn_mean = _tn_mean
+    tn_min = _tn_min
+    tx_max = _tx_max
+    tx_mean = _tx_mean
+    standardized_index = _standardized_index
     wetdays = _wetdays
     _XCLIM_RUNTIME_LOADED = True
 
@@ -120,6 +147,38 @@ def _build_precip_dataarray(
     )
 
 
+def _build_series_dataarray(
+    frame: pd.DataFrame,
+    *,
+    value_column: str,
+    units: str,
+    standard_name: str | None = None,
+):
+    _ensure_xclim()
+    working = frame[["date", value_column]].copy()
+    if working.empty:
+        return None
+    working["date"] = pd.to_datetime(working["date"])
+    working[value_column] = pd.to_numeric(working[value_column], errors="coerce")
+    working = (
+        working.dropna(subset=[value_column])
+        .sort_values("date")
+        .drop_duplicates(subset=["date"], keep="last")
+        .reset_index(drop=True)
+    )
+    if working.empty:
+        return None
+    attrs = {"units": units}
+    if standard_name:
+        attrs["standard_name"] = standard_name
+    return xr.DataArray(
+        working[value_column].astype(float).to_numpy(),
+        coords={"time": working["date"].to_numpy()},
+        dims="time",
+        attrs=attrs,
+    )
+
+
 def _series_from_indicator(data_array, indicator, **kwargs) -> pd.Series:
     previous_disable = logging.root.manager.disable
     with warnings.catch_warnings():
@@ -136,6 +195,24 @@ def _series_from_indicator(data_array, indicator, **kwargs) -> pd.Series:
         finally:
             logging.disable(previous_disable)
     index = pd.to_datetime(result["time"].values).date if "time" in result.coords else range(len(result.values))
+    return pd.Series(result.values, index=index)
+
+
+def _series_from_indicator_skip_missing(data_array, indicator, **kwargs) -> pd.Series:
+    previous_disable = logging.root.manager.disable
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)
+        try:
+            logging.disable(logging.CRITICAL)
+            with xclim.set_options(
+                check_missing="skip",
+                cf_compliance="log",
+                data_validation="log",
+            ):
+                result = indicator(data_array, **kwargs)
+        finally:
+            logging.disable(previous_disable)
+    index = pd.to_datetime(result["time"].values) if "time" in result.coords else range(len(result.values))
     return pd.Series(result.values, index=index)
 
 
@@ -304,9 +381,268 @@ def compare_xclim_precip_indices(
     return records
 
 
+def compute_xclim_core_period_metrics(
+    frame: pd.DataFrame,
+    *,
+    precip_column: str = "precip",
+    tmax_column: str = "tmax",
+    tmin_column: str = "tmin",
+    freq: str = "YS",
+    wet_day_threshold: str = "1 mm/day",
+    dry_day_threshold: str = "1 mm/day",
+) -> pd.DataFrame:
+    precip_da = _build_series_dataarray(
+        frame,
+        value_column=precip_column,
+        units="mm/day",
+        standard_name="lwe_thickness_of_precipitation_amount",
+    )
+    tmax_da = _build_series_dataarray(
+        frame,
+        value_column=tmax_column,
+        units="degC",
+        standard_name="air_temperature",
+    )
+    tmin_da = _build_series_dataarray(
+        frame,
+        value_column=tmin_column,
+        units="degC",
+        standard_name="air_temperature",
+    )
+    if precip_da is None or tmax_da is None or tmin_da is None:
+        return pd.DataFrame()
+
+    tavg_frame = frame[["date", tmax_column, tmin_column]].copy()
+    tavg_frame["tavg"] = (
+        pd.to_numeric(tavg_frame[tmax_column], errors="coerce")
+        + pd.to_numeric(tavg_frame[tmin_column], errors="coerce")
+    ) / 2.0
+    tavg_da = _build_series_dataarray(
+        tavg_frame,
+        value_column="tavg",
+        units="degC",
+        standard_name="air_temperature",
+    )
+    if tavg_da is None:
+        return pd.DataFrame()
+
+    index_series = {
+        "total_mm": _series_from_indicator_skip_missing(
+            precip_da,
+            precip_accumulation,
+            freq=freq,
+        ),
+        "rainy_days": _series_from_indicator_skip_missing(
+            precip_da,
+            wetdays,
+            thresh=wet_day_threshold,
+            freq=freq,
+        ),
+        "dry_days": _series_from_indicator_skip_missing(
+            precip_da,
+            dry_days,
+            thresh=dry_day_threshold,
+            op="<",
+            freq=freq,
+        ),
+        "max_daily": _series_from_indicator_skip_missing(
+            precip_da,
+            max_1day_precipitation_amount,
+            freq=freq,
+        ),
+        "intensity": _series_from_indicator_skip_missing(
+            precip_da,
+            daily_pr_intensity,
+            thresh=wet_day_threshold,
+            freq=freq,
+        ),
+        "mean_tmax": _series_from_indicator_skip_missing(
+            tmax_da,
+            tx_mean,
+            freq=freq,
+        ),
+        "mean_tmin": _series_from_indicator_skip_missing(
+            tmin_da,
+            tn_mean,
+            freq=freq,
+        ),
+        "mean_tavg": _series_from_indicator_skip_missing(
+            tavg_da,
+            tg_mean,
+            freq=freq,
+        ),
+        "max_tmax": _series_from_indicator_skip_missing(
+            tmax_da,
+            tx_max,
+            freq=freq,
+        ),
+        "min_tmin": _series_from_indicator_skip_missing(
+            tmin_da,
+            tn_min,
+            freq=freq,
+        ),
+    }
+
+    result = pd.DataFrame(index_series)
+    if result.empty:
+        return result
+    result.index.name = "period_start"
+    result = result.reset_index()
+    result["period_start"] = pd.to_datetime(result["period_start"]).astype(str)
+    temperature_columns = {
+        "mean_tmax",
+        "mean_tmin",
+        "mean_tavg",
+        "max_tmax",
+        "min_tmin",
+    }
+    for column in result.columns:
+        if column == "period_start":
+            continue
+        result[column] = pd.to_numeric(result[column], errors="coerce")
+        if column in temperature_columns:
+            result[column] = result[column].where(result[column] < 150.0, result[column] - 273.15)
+        if column in {"rainy_days", "dry_days"}:
+            result[column] = result[column].round(0)
+        else:
+            result[column] = result[column].round(4)
+    return result
+
+
+def _compute_xclim_standardized_index_reference(
+    monthly: pd.DataFrame,
+    *,
+    value_column: str,
+    output_column: str,
+    scale_months: int,
+    dist: str = "fisk",
+    method: str = "ML",
+    ref_start: object | None = None,
+    ref_end: object | None = None,
+) -> pd.DataFrame:
+    data_array = _build_series_dataarray(
+        monthly,
+        value_column=value_column,
+        units="mm",
+    )
+    if data_array is None:
+        return pd.DataFrame()
+
+    previous_disable = logging.root.manager.disable
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)
+        try:
+            logging.disable(logging.CRITICAL)
+            reference = standardized_index(
+                data_array,
+                freq="MS",
+                window=scale_months,
+                dist=dist,
+                method=method,
+                zero_inflated=False,
+                fitkwargs=None,
+                cal_start=None if ref_start is None else str(pd.Timestamp(ref_start).date()),
+                cal_end=None if ref_end is None else str(pd.Timestamp(ref_end).date()),
+            )
+        finally:
+            logging.disable(previous_disable)
+
+    result = monthly[["date", "month"]].copy()
+    result[output_column] = pd.Series(reference.values, index=result.index).astype(float)
+    result.attrs["xclim_reference_metadata"] = {
+        "distribution": dist,
+        "fit": method,
+        "scale_months": scale_months,
+        "reference_period": {
+            "start": None if ref_start is None else str(pd.Timestamp(ref_start).date()),
+            "end": None if ref_end is None else str(pd.Timestamp(ref_end).date()),
+        },
+        "note": (
+            "Nearest xclim standardized-index reference. "
+            "Not exact parity with toolkit generalized-logistic ub-pwm method."
+        ),
+    }
+    return result
+
+
+def compute_xclim_spi_reference(
+    frame: pd.DataFrame,
+    *,
+    scale_months: int = 3,
+    date_col: str = "date",
+    precip_col: str | None = None,
+    dist: str = "fisk",
+    method: str = "ML",
+    ref_start: object | None = None,
+    ref_end: object | None = None,
+) -> pd.DataFrame:
+    monthly = frame.copy()
+    if "precipitation_mm" not in monthly.columns or "month" not in monthly.columns:
+        from .spei import prepare_monthly_precipitation_totals
+
+        monthly = prepare_monthly_precipitation_totals(
+            frame,
+            date_col=date_col,
+            precip_col=precip_col,
+        )
+    return _compute_xclim_standardized_index_reference(
+        monthly,
+        value_column="precipitation_mm",
+        output_column="spi_xclim",
+        scale_months=scale_months,
+        dist=dist,
+        method=method,
+        ref_start=ref_start,
+        ref_end=ref_end,
+    )
+
+
+def compute_xclim_spei_reference(
+    frame: pd.DataFrame,
+    *,
+    scale_months: int = 3,
+    lat: float | None = None,
+    date_col: str = "date",
+    precip_col: str | None = None,
+    et0_col: str | None = None,
+    tmax_col: str | None = None,
+    tmin_col: str | None = None,
+    dist: str = "fisk",
+    method: str = "ML",
+    ref_start: object | None = None,
+    ref_end: object | None = None,
+) -> pd.DataFrame:
+    monthly = frame.copy()
+    if "water_balance_mm" not in monthly.columns or "month" not in monthly.columns:
+        from .spei import prepare_monthly_climatic_water_balance
+
+        monthly = prepare_monthly_climatic_water_balance(
+            frame,
+            lat=lat,
+            date_col=date_col,
+            precip_col=precip_col,
+            et0_col=et0_col,
+            tmax_col=tmax_col,
+            tmin_col=tmin_col,
+        )
+    return _compute_xclim_standardized_index_reference(
+        monthly,
+        value_column="water_balance_mm",
+        output_column="spei_xclim",
+        scale_months=scale_months,
+        dist=dist,
+        method=method,
+        ref_start=ref_start,
+        ref_end=ref_end,
+    )
+
+
 __all__ = [
     "XCLIM_AVAILABLE",
     "assess_xclim_precip_annual_readiness",
     "compare_xclim_precip_indices",
+    "compute_xclim_core_period_metrics",
     "compute_xclim_precip_indices",
+    "compute_xclim_spei_reference",
+    "compute_xclim_spi_reference",
 ]
