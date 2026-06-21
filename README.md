@@ -1005,6 +1005,8 @@ Standard / xclim-audited examples:
 - precipitation total
 - rainy days
 - dry days
+- `NDD` dry-day count semantics (`< 1 mm/day`)
+- `NTx35` / `NTx40` hot-day count semantics
 - daily precipitation intensity style metrics
 - max 1-day precipitation
 - max 5-day precipitation in weather-station reference comparisons
@@ -1018,6 +1020,12 @@ Custom, non-xclim metrics:
 - `WRSI`
 - crop-calendar-aware season windows
 - crop-threshold hazard interpretation
+
+Important distinction:
+
+- some hazard *counts* are xclim-audited (`NDD`, `NTx35`, `NTx40`)
+- hazard *bands / stress labels* built on those counts are still Atlas-inspired
+  provisional interpretation, not xclim outputs
 
 Reference note:
 

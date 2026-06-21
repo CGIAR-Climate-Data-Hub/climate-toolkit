@@ -35,6 +35,7 @@ maximum_consecutive_wet_days = None
 tg_mean = None
 tn_mean = None
 tn_min = None
+tx_days_above = None
 tx_max = None
 tx_mean = None
 standardized_index = None
@@ -47,8 +48,8 @@ def _load_xclim_runtime() -> None:
     global xr, xclim, daily_pr_intensity, dry_days, precip_accumulation
     global max_1day_precipitation_amount
     global max_n_day_precipitation_amount, maximum_consecutive_dry_days
-    global maximum_consecutive_wet_days, tg_mean, tn_mean, tn_min, tx_max
-    global tx_mean, wetdays, standardized_index
+    global maximum_consecutive_wet_days, tg_mean, tn_mean, tn_min, tx_days_above
+    global tx_max, tx_mean, wetdays, standardized_index
     global _XCLIM_RUNTIME_LOADED, XCLIM_AVAILABLE
 
     if _XCLIM_RUNTIME_LOADED:
@@ -72,6 +73,7 @@ def _load_xclim_runtime() -> None:
                 tg_mean as _tg_mean,
                 tn_mean as _tn_mean,
                 tn_min as _tn_min,
+                tx_days_above as _tx_days_above,
                 tx_max as _tx_max,
                 tx_mean as _tx_mean,
                 wetdays as _wetdays,
@@ -92,6 +94,7 @@ def _load_xclim_runtime() -> None:
     tg_mean = _tg_mean
     tn_mean = _tn_mean
     tn_min = _tn_min
+    tx_days_above = _tx_days_above
     tx_max = _tx_max
     tx_mean = _tx_mean
     standardized_index = _standardized_index
@@ -509,6 +512,65 @@ def compute_xclim_core_period_metrics(
     return result
 
 
+def compute_xclim_hazard_count_metrics(
+    frame: pd.DataFrame,
+    *,
+    precip_column: str = "precip",
+    tmax_column: str = "tmax",
+    freq: str = "YS",
+    dry_day_threshold: str = "1 mm/day",
+    hot_day_threshold_35: str = "35 degC",
+    hot_day_threshold_40: str = "40 degC",
+) -> pd.DataFrame:
+    precip_da = _build_series_dataarray(
+        frame,
+        value_column=precip_column,
+        units="mm/day",
+        standard_name="lwe_thickness_of_precipitation_amount",
+    )
+    tmax_da = _build_series_dataarray(
+        frame,
+        value_column=tmax_column,
+        units="degC",
+        standard_name="air_temperature",
+    )
+    if precip_da is None or tmax_da is None:
+        return pd.DataFrame()
+
+    index_series = {
+        "NDD": _series_from_indicator_skip_missing(
+            precip_da,
+            dry_days,
+            thresh=dry_day_threshold,
+            op="<",
+            freq=freq,
+        ),
+        "NTx35": _series_from_indicator_skip_missing(
+            tmax_da,
+            tx_days_above,
+            thresh=hot_day_threshold_35,
+            op=">=",
+            freq=freq,
+        ),
+        "NTx40": _series_from_indicator_skip_missing(
+            tmax_da,
+            tx_days_above,
+            thresh=hot_day_threshold_40,
+            op=">=",
+            freq=freq,
+        ),
+    }
+    result = pd.DataFrame(index_series)
+    if result.empty:
+        return result
+    result.index.name = "period_start"
+    result = result.reset_index()
+    result["period_start"] = pd.to_datetime(result["period_start"]).astype(str)
+    for column in ("NDD", "NTx35", "NTx40"):
+        result[column] = pd.to_numeric(result[column], errors="coerce").round(0)
+    return result
+
+
 def _compute_xclim_standardized_index_reference(
     monthly: pd.DataFrame,
     *,
@@ -642,6 +704,7 @@ __all__ = [
     "assess_xclim_precip_annual_readiness",
     "compare_xclim_precip_indices",
     "compute_xclim_core_period_metrics",
+    "compute_xclim_hazard_count_metrics",
     "compute_xclim_precip_indices",
     "compute_xclim_spei_reference",
     "compute_xclim_spi_reference",

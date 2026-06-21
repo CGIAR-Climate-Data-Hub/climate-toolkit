@@ -46,6 +46,9 @@ There are now two distinct groups:
 | Consecutive wet days | same compare helper | `maximum_consecutive_wet_days` | direct check | Weather-station comparison helper now regression-tested. |
 | Heavy precipitation day count | same compare helper | `wetdays` with `10 mm/day` threshold | direct check | Stored as `r10mm_days`. |
 | Very heavy precipitation day count | same compare helper | `wetdays` with `20 mm/day` threshold | direct check | Stored as `r20mm_days`. |
+| NDD dry-day count | `calculate_hazards.calculate_season_statistics` | `dry_days` with `< 1 mm/day` | direct check | Hazard count semantics match xclim-style dry-day counting. |
+| NTx35 hot-day count | `calculate_hazards.calculate_season_statistics` | `tx_days_above` with `>= 35 degC` | direct check | Count definition audited separately from Atlas-style hazard bands. |
+| NTx40 very-hot-day count | `calculate_hazards.calculate_season_statistics` | `tx_days_above` with `>= 40 degC` | direct check | Count definition audited separately from Atlas-style hazard bands. |
 | Simple intensity | same | `daily_pr_intensity` | direct check | Compared on seasonal slice. |
 | Mean Tmax | same | `tx_mean` | direct check | Celsius conversion handled in reference helper. |
 | Mean Tmin | same | `tn_mean` | direct check | Celsius conversion handled in reference helper. |
@@ -62,6 +65,8 @@ Focused tests now cover:
 
 - direct `xclim` comparison for core period metrics
 - direct `xclim` comparison for seasonal slice metrics
+- direct `xclim` comparison for hazard threshold-count semantics:
+  `NDD`, `NTx35`, `NTx40`
 - direct `xclim` comparison for weather-station annual precipitation reference indices:
   `rx1day`, `rx5day`, `CDD`, `CWD`, `R10mm`, `R20mm`, `SDII`
 - climate-statistics result payload / rendering for top-level
@@ -108,3 +113,6 @@ These should continue to be described as:
   semantics differ from what a standard climate-indicator user would assume
 - decide whether additional user-facing extremes beyond the current annual
   xclim reference block should be elevated into core statistics outputs
+- keep count-definition audit separate from hazard-band calibration:
+  `NDD` / `NTx35` / `NTx40` day counts can align with xclim while crop stress
+  threshold bands remain Atlas-inspired provisional interpretation
