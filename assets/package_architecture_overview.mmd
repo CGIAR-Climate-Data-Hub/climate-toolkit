@@ -1,0 +1,27 @@
+flowchart TD
+    A["User CLI / Python API"] --> B["fetch_data"]
+    B --> B1["source_data"]
+    B1 --> B2["transform_data"]
+    B2 --> B3["preprocess_data"]
+
+    B3 --> C["season_analysis"]
+    B3 --> D["climate_statistics"]
+    B3 --> E["calculate_hazards"]
+    B3 --> F["compare_datasets"]
+
+    C --> D
+    D --> G["compare_periods"]
+    D --> H["ensemble_periods"]
+
+    I["weather_station.download"] --> J["station_selector / NOAA / custom station"]
+    J --> K["weather_station.compare"]
+    K --> B3
+
+    L["crop_calendar"] --> C
+    L --> D
+    L --> G
+    L --> H
+
+    M["climatology / xclim"] --> D
+    M --> G
+    M --> K

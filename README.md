@@ -519,6 +519,7 @@ climate_tookit/
 - All configuration values (e.g., API keys) are managed via `.env` using `python-dotenv`.
 - Modular dataset handlers are found in `climate_tookit/fetch_data/source_data/sources/`, each with `DownloadData` classes.
 - Common utilities like enums and settings are stored in `climate_tookit/fetch_data/source_data/sources/utils/`.
+- Current package architecture summary: `analysis/package_architecture_summary.md`
 - NEX-GDDP real-access R&D note: `analysis/nex_gddp_access_rnd.md`
 - `nex_gddp` now uses real Earth Engine/Xee retrieval. It requires Earth Engine auth plus `GCP_PROJECT_ID`.
 - Current `nex_gddp` Earth Engine backend uses dataset version `1.1`. Future `1.2` sourcing is tracked as follow-up work, not current runtime behavior.
@@ -529,135 +530,78 @@ climate_tookit/
 
 ### Solution Architecture
 
-<h3 style="margin-bottom: 1rem;">Technology Stack</h3>
+Current source-of-truth:
 
-<div style="display: flex; align-items: flex-start; gap: 24px;">
+- `analysis/package_architecture_summary.md`
 
-  <!-- Image block -->
-  <div style="flex: 0 0 400px;">
-    <img src="./assets/image.png" alt="Climate Data Workflow" style="max-width: 100%; height: auto; margin-top: 24px;" />
-    <p style="font-style: italic; font-size: 0.9em; margin-top: 8px;">
-      Climate data processing workflow diagram showing the flow from data sources through processing and analysis to end consumers.
-    </p>
-  </div>
+This README section is short operational summary. Detailed architecture,
+boundary, and maintenance rules live in file above.
 
-  <!-- Text block -->
-  <div style="flex: 1; padding-top:3rem;">
-    <ul style="list-style-type: '- '; padding-left: 1em; line-height: 1.6;">
-      <li>The core engine of the Climate Toolkit will reuse existing scripts, APIs, and code, with preference for lazy-execution engines.</li>
-      <li>Interoperability between R, Python, and other languages will be ensured via OpenAPI-compliant interfaces.</li>
-      <li>Project-local caching under <code>outputs/cache/...</code> is now supported for efficient reuse across sessions and repeated analyses.</li>
-      <li>A notebook environment will support non-technical users in exploring climate data.</li>
-      <li>Technical users will have access to source code and APIs through GitHub.</li>
-      <li>The Solution Design & Architecture is a living document and will evolve over time.</li>
-      <li>Timestamps will follow the ISO8601 format and be recorded in UTC.</li>
-    </ul>
-  </div>
+Current architectural principles:
 
-</div>
+- `fetch_data` is central ingest and harmonization layer
+- historical and future-projection workflows share as much interface as possible, but do not require identical backends
+- cache reuse under `outputs/cache/...` is part of runtime design, not incidental implementation detail
+- stable user contracts are top-level Python API names plus CLI entry points from `pyproject.toml`
+- deep internal modules remain non-stable development surface
+
+Architecture flow diagram source:
+
+- `assets/package_architecture_overview.mmd`
+
+```mermaid
+flowchart TD
+    A["User CLI / Python API"] --> B["fetch_data"]
+    B --> B1["source_data"]
+    B1 --> B2["transform_data"]
+    B2 --> B3["preprocess_data"]
+
+    B3 --> C["season_analysis"]
+    B3 --> D["climate_statistics"]
+    B3 --> E["calculate_hazards"]
+    B3 --> F["compare_datasets"]
+
+    C --> D
+    D --> G["compare_periods"]
+    D --> H["ensemble_periods"]
+
+    I["weather_station.download"] --> J["station_selector / NOAA / custom station"]
+    J --> K["weather_station.compare"]
+    K --> B3
+
+    L["crop_calendar"] --> C
+    L --> D
+    L --> G
+    L --> H
+
+    M["climatology / xclim"] --> D
+    M --> G
+    M --> K
+```
 
 ### Application Modules
 
-<div style="margin-top: 2rem;">
-  <p>
-    Below are the core modules that form the foundation of the application. Each module addresses a specific category of user stories and is designed with future scalability in mind—allowing for independent microservice deployment as the application evolves.
-  </p>
+Core current-state modules:
 
-  <table style="width: 100%; border-collapse: collapse; border: 1px solid #ccc; margin-top: 1rem;">
-    <thead style="background-color:rgb(31, 28, 28);">
-      <tr>
-        <th style="text-align: left; padding: 8px; border: 1px solid #ccc;">SN</th>
-        <th style="text-align: left; padding: 8px; border: 1px solid #ccc;">Title</th>
-        <th style="text-align: left; padding: 8px; border: 1px solid #ccc;">Type</th>
-        <th style="text-align: left; padding: 8px; border: 1px solid #ccc;">Description</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ccc;">1.a</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">fetch_data</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Module</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Fetches data from a climate database and returns an enriched, analysis-ready dataset.</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ccc;">1.b</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">source_data</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Function</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Retrieves raw data from a climate database in its native format.</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ccc;">1.c</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">transform_data</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Function</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Standardizes external source data to align with the toolkit’s internal data dictionary.</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ccc;">1.d</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">preprocess_data</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Function</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Prepares raw source data into an analysis-ready format (e.g., downscaling, bias correction). This step excludes enrichment like climate statistics, which is handled by dedicated services.</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ccc;">2</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">climate_statistics</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Module</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Generates climate statistics from pre-processed datasets.</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ccc;">3</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">calculate_hazards</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Module</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Retrieves crop hazard indices for specific locations.</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ccc;">4</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">compare_datasets</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Module</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Compares datasets from various climate sources to help users assess and select preferred datasets.</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ccc;">5</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">compare_periods</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Module</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Allows comparison of climate statistics between two time periods.</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ccc;">6</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">season_analysis</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Module</td>
-        <td style="padding: 8px; border: 1px solid #ccc;">Estimates crop growing seasons in a specific location and returns relevant climate indicators.</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+| Module | Role | Key dependencies |
+|---|---|---|
+| `fetch_data` | source dispatch, harmonization, stage handling, cache routing | `source_data`, `transform_data`, `preprocess_data`, GEE/Xee helpers |
+| `season_analysis` | ET0, water balance prep, auto/fixed season detection | fetched daily climate series |
+| `climate_statistics` | raw/overall/season/LTM/SPEI reductions | `fetch_data`, `season_analysis`, `climatology`, `crop_calendar` |
+| `compare_periods` | baseline vs focal/future comparisons | `climate_statistics` payload contracts |
+| `calculate_hazards` | hazard indicators and crop/soil-water metrics | fetched/preprocessed climate series, hazard params |
+| `compare_datasets` | source-vs-source comparison workflow | shared fetch pipeline |
+| `weather_station` | station discovery, ingestion, selection, station-vs-grid validation | NOAA/custom station inputs, gridded fetch layer |
+| `crop_calendar` | GGCMI crop calendar lookups and presets | `season_analysis`, `climate_statistics`, `compare_periods` |
+| `climatology` | SPEI and xclim-backed climatology helpers | `climate_statistics`, `compare_periods`, `weather_station` |
 
-<!-- Application Module Interaction Diagram -->
-<div style="display: flex; align-items: flex-start; gap: 24px; margin-top: 2.5rem;">
+Notes:
 
-  <!-- Image block -->
-  <div style="flex: 0 0 400px;">
-    <img src="./assets/diagram2.jpeg" alt="Module Interaction Diagram" style="max-width: 100%; height: auto; margin-top: 4px;" />
-    <p style="font-style: italic; font-size: 0.9em; margin-top: 8px;">
-      Interaction diagram showing how modules depend on and communicate with each other.
-    </p>
-  </div>
-
-  <!-- Text block -->
-  <div style="flex: 1; padding-top: 0.5rem; line-height: 1.6;">
-    <p>
-      The diagram illustrates how the different modules interact within the Climate Toolkit. The numbering on the bottom right of each module indicates the suggested implementation order.
-    </p>
-    <p>
-      At the center is the <strong><code>fetch_data</code></strong> module, which orchestrates the retrieval and preprocessing of climate data from various sources. It ensures the data is transformed and standardized before being made available for further analysis.
-    </p>
-    <p>
-      This centralized workflow enables reuse across climate analysis operations like <code>season_analysis</code>, <code>climate_statistics</code>, and <code>compare_periods</code>, ensuring consistency in results and reducing duplication of effort.
-    </p>
-    <p>
-      The <code>compare_datasets</code> module now exists as an active comparison workflow layered on top of the shared fetch pipeline. Its placement in the diagram still reflects its integration point with existing components, especially for assessing and selecting preferred historical data sources.
-    </p>
-  </div>
-</div>
+- `fetch_data` is central shared ingest layer for most package
+- `season_analysis` feeds `climate_statistics`
+- `climate_statistics` defines payload shape consumed by `compare_periods`
+- weather-station workflows run parallel to gridded path, but compare against same gridded sources and can override some historical variables
+- source/backend reality still differs by dataset; see `analysis/source_access_matrix.md`
 
 ### API Statuses & Response Format
 
