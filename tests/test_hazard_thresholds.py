@@ -54,6 +54,39 @@ from climate_tookit.calculate_hazards.hazards import (
 
 
 class HazardThresholdTests(unittest.TestCase):
+    def test_print_actual_vs_ltm_comparisons_uses_compact_headers(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        buf = io.StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = buf
+            hazards._print_actual_vs_ltm_comparisons(
+                [
+                    {
+                        "year": 2020,
+                        "metrics": {
+                            "total_precip": {
+                                "label": "Total precipitation",
+                                "actual": 800.0,
+                                "baseline_ltm": 700.0,
+                                "delta": 100.0,
+                                "pct": 14.29,
+                                "unit": "mm",
+                            }
+                        },
+                    }
+                ]
+            )
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = buf.getvalue()
+        self.assertIn("metric", rendered)
+        self.assertIn("base", rendered)
+        self.assertNotIn("Metric", rendered)
+        self.assertNotIn("baseline_ltm", rendered)
+
     @unittest.skipUnless(XCLIM_AVAILABLE, "xclim not installed")
     def test_calculate_season_statistics_matches_xclim_hazard_day_counts(self):
         frame = pd.DataFrame(

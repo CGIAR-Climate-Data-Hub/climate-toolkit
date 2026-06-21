@@ -58,10 +58,12 @@ from climate_tookit.compare_periods.periods import (
     _merge_period_methodology,
     _print_methodology_summary,
     _print_season_detection_summary,
+    _print_wrapped,
     _xclim_reference_compare_block,
     _xclim_reference_metric_map,
     _xclim_reference_status,
     _print_xclim_reference_compare,
+    _render_compact_table,
     XCLIM_FAMILY_LABELS,
     PRECIP_ONLY, SUPPORTED,
 )
@@ -2130,7 +2132,14 @@ def _print_2level(agg: Dict[str, Any],
                 if likely != "n/a":
                     row["Likely Δ"] = likely
             rows.append(row)
-    print(pd.DataFrame(rows).to_string(index=False))
+    print(
+        _render_compact_table(
+            pd.DataFrame(rows),
+            drop_constant=[outer_label],
+            truncate_columns=["Likely Δ"],
+            truncate_width=16,
+        )
+    )
 
 def _print_diff_block(diff: Dict[str, Any],
                       outer_label: str = "Category",
@@ -2154,7 +2163,12 @@ def _print_diff_block(diff: Dict[str, Any],
                 else:
                     row[k] = f"{v:.{precision}f}"
             rows.append(row)
-    print(pd.DataFrame(rows).to_string(index=False))
+    print(
+        _render_compact_table(
+            pd.DataFrame(rows),
+            drop_constant=[outer_label],
+        )
+    )
 
 def _print_focal_vs_ltm(avl: Dict[str, Any]) -> None:
     yr       = avl.get("focal_year")
@@ -2220,7 +2234,7 @@ def _print_focal_vs_ltm(avl: Dict[str, Any]) -> None:
                     "Δ": f"{row['diff']:+.3f}" if _is_num(row.get("diff")) else "n/a",
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
-            print(pd.DataFrame(rows).to_string(index=False))
+            print(_render_compact_table(pd.DataFrame(rows)))
     spi = avl.get("spi")
     if spi:
         print(f"\n--- 6. SPI (monthly/period summary, not seasonal) ---")
@@ -2243,7 +2257,7 @@ def _print_focal_vs_ltm(avl: Dict[str, Any]) -> None:
                     "Δ": f"{row['diff']:+.3f}" if _is_num(row.get("diff")) else "n/a",
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
-            print(pd.DataFrame(rows).to_string(index=False))
+            print(_render_compact_table(pd.DataFrame(rows)))
 
 def _print_per_model_breakdown(per_model: List[Dict[str, Any]]) -> None:
     """
@@ -2392,7 +2406,13 @@ def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
                     if likely != "n/a":
                         row["Likely Δ"] = likely
                 rows.append(row)
-            print(pd.DataFrame(rows).to_string(index=False))
+            print(
+                _render_compact_table(
+                    pd.DataFrame(rows),
+                    truncate_columns=["Likely Δ"],
+                    truncate_width=16,
+                )
+            )
 
     spei = r.get("spei")
     if spei:
@@ -2416,7 +2436,7 @@ def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
                     "Δ": f"{row['diff']:+.3f}" if _is_num(row.get("diff")) else "n/a",
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
-            print(pd.DataFrame(rows).to_string(index=False))
+            print(_render_compact_table(pd.DataFrame(rows)))
         print()
     spi = r.get("spi")
     if spi:
@@ -2440,7 +2460,7 @@ def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
                     "Δ": f"{row['diff']:+.3f}" if _is_num(row.get("diff")) else "n/a",
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
-            print(pd.DataFrame(rows).to_string(index=False))
+            print(_render_compact_table(pd.DataFrame(rows)))
         print()
 
     avb = r.get("focal_vs_baseline")
@@ -2650,7 +2670,7 @@ def main() -> int:
             if guidance:
                 print("    guidance:")
                 for item in guidance:
-                    print(f"      - {item}")
+                    _print_wrapped("- ", str(item), indent="      ")
             return 1
 
     all_results: Dict[str, Any] = {}

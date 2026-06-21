@@ -96,6 +96,8 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             sys.stdout = orig_stdout
 
         self.assertIn("n/a", stdout.getvalue())
+        self.assertNotIn("Category", stdout.getvalue())
+        self.assertIn("metric", stdout.getvalue())
 
     def test_print_report_renders_spei_block(self):
         payload = {
@@ -384,7 +386,7 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
 
         rendered = stdout.getvalue()
         self.assertIn("σΔ", rendered)
-        self.assertIn("Likely Δ", rendered)
+        self.assertIn("likely_Δ", rendered)
         self.assertIn("[1.20, 2.80]", rendered)
 
     def test_print_report_error_renders_season_detection_details(self):

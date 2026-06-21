@@ -19,6 +19,8 @@ Plain `chirps_v2` source is legacy behavior: statistics.py injects default tmax=
 import sys
 import json
 import argparse
+import shutil
+import textwrap
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional, List
 
@@ -52,6 +54,22 @@ XCLIM_FAMILY_LABELS = {
     "core_period_metrics": "Core standard period metrics",
     "precip_reference_indices": "Precipitation reference indices",
 }
+TERMINAL_TABLE_HEADER_ALIASES = {
+    "Category": "cat",
+    "Metric": "metric",
+    "Variable": "var",
+    "Stat": "stat",
+    "future_ltm": "future",
+    "baseline_ltm": "base",
+    "future_avg": "future",
+    "baseline_avg": "base",
+    "focal": "focal",
+    "focal_spei": "focal",
+    "baseline_avg_spei": "base",
+    "focal_spi": "focal",
+    "baseline_avg_spi": "base",
+    "Likely Δ": "likely_Δ",
+}
 
 # helpers
 def _is_num(x: Any) -> bool:
@@ -61,6 +79,76 @@ def _round(d: Any, n: int = 2) -> Any:
     if isinstance(d, dict):  return {k: _round(v, n) for k, v in d.items()}
     if isinstance(d, list):  return [_round(v, n) for v in d]
     return round(d, n) if _is_num(d) else d
+
+
+def _terminal_width(default: int = 120) -> int:
+    try:
+        return shutil.get_terminal_size((default, 20)).columns
+    except OSError:
+        return default
+
+
+def _short_cell(value: Any, max_len: int = 18) -> Any:
+    if value is None or pd.isna(value):
+        return "n/a"
+    text = str(value)
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3] + "..."
+
+
+def _drop_constant_display_columns(
+    frame: pd.DataFrame,
+    *,
+    candidates: List[str],
+) -> pd.DataFrame:
+    display = frame.copy()
+    for column in candidates:
+        if column not in display.columns:
+            continue
+        values = display[column].dropna().astype(str).str.strip()
+        if not values.empty and values.nunique() == 1:
+            display = display.drop(columns=[column])
+    return display
+
+
+def _render_compact_table(
+    frame: pd.DataFrame,
+    *,
+    drop_constant: Optional[List[str]] = None,
+    truncate_columns: Optional[List[str]] = None,
+    truncate_width: int = 18,
+) -> str:
+    display = frame.copy().fillna("n/a")
+    if drop_constant:
+        display = _drop_constant_display_columns(display, candidates=drop_constant)
+    for column in truncate_columns or []:
+        if column in display.columns:
+            display[column] = display[column].map(
+                lambda value: _short_cell(value, max_len=truncate_width)
+            )
+    display = display.rename(columns=TERMINAL_TABLE_HEADER_ALIASES)
+    rendered = display.to_string(index=False)
+    if max((len(line) for line in rendered.splitlines()), default=0) <= _terminal_width():
+        return rendered
+    for column in display.columns:
+        if display[column].dtype == object:
+            display[column] = display[column].map(
+                lambda value: _short_cell(value, max_len=min(truncate_width, 14))
+            )
+    return display.to_string(index=False)
+
+
+def _print_wrapped(prefix: str, text: str, *, indent: str = "") -> None:
+    wrapped = textwrap.fill(
+        text,
+        width=max(72, _terminal_width() - len(prefix) - len(indent)),
+        initial_indent=indent + prefix,
+        subsequent_indent=indent + (" " * len(prefix)),
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    print(wrapped)
 
 
 def _percent_change(diff: float, baseline: float) -> Optional[float]:
@@ -1126,7 +1214,12 @@ def _print_block(diff: Dict[str, Any]) -> None:
                 elif k == "pct": row["Δ%"] = _fmt_pct(v)
                 else:            row[k]    = f"{v:.2f}"
             rows.append(row)
-    print(pd.DataFrame(rows).to_string(index=False))
+    print(
+        _render_compact_table(
+            pd.DataFrame(rows),
+            drop_constant=["Category"],
+        )
+    )
 
 
 def _print_season_detection_summary(summary: Optional[Dict[str, Any]]) -> None:
@@ -1171,7 +1264,7 @@ def _print_season_detection_summary(summary: Optional[Dict[str, Any]]) -> None:
     if guidance:
         print("    guidance:")
         for item in guidance:
-            print(f"      - {item}")
+            _print_wrapped("- ", str(item), indent="      ")
 
 def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
     if "error" in r:
@@ -1213,9 +1306,10 @@ def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
     if r.get("temperature_excluded"):
         print("  [!] precipitation-only source -- temperature excluded.")
     if _has_custom_water_balance_metrics(r):
-        print(
-            "  Water balance : NDWS, NDWL0, and WRSI are custom crop-water-balance "
-            "metrics, not standard xclim/ETCCDI indicators."
+        _print_wrapped(
+            "  Water balance : ",
+            "NDWS, NDWL0, and WRSI are custom crop-water-balance metrics, "
+            "not standard xclim/ETCCDI indicators.",
         )
     _print_season_detection_summary(r.get("season_detection"))
 
@@ -1228,7 +1322,7 @@ def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
                  "Δ":        f"{v['diff']:+.3f}",
                  "Δ%":       _fmt_pct(v.get("pct"))}
                 for var, stats in raw.items() for stat, v in stats.items()]
-        print(pd.DataFrame(rows).to_string(index=False))
+        print(_render_compact_table(pd.DataFrame(rows), drop_constant=["Variable"]))
     else:
         print("  (no data)")
 
@@ -1289,7 +1383,7 @@ def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
                     "Δ": f"{row['diff']:+.3f}",
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
-            print(pd.DataFrame(rows).to_string(index=False))
+            print(_render_compact_table(pd.DataFrame(rows)))
         elif monthly:
             print("  Monthly detail  : hidden in compact mode; rerun with --verbose.")
     spi = r.get("spi")
@@ -1314,7 +1408,7 @@ def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
                     "Δ": f"{row['diff']:+.3f}",
                     "Δ%": _fmt_pct(row.get("pct")),
                 })
-            print(pd.DataFrame(rows).to_string(index=False))
+            print(_render_compact_table(pd.DataFrame(rows)))
         elif monthly:
             print("  Monthly detail  : hidden in compact mode; rerun with --verbose.")
     print()

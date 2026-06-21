@@ -187,3 +187,58 @@ Concrete next targets:
   / ensemble tables
 - wrap or truncate low-priority note fields in terminal views while preserving
   full content in JSON
+
+## 2026-06-21 implementation note
+
+Completed on branch work for this issue:
+
+- `climate_tookit.fetch_data.nex_gddp_batch`
+  - removed the duplicate per-batch lifecycle output (`batch ...` pre-line
+    followed by `cache hit` / `fetched`)
+  - compact mode now emits one batch outcome line with:
+    - progress bar
+    - batch index / total
+    - batch label
+    - status (`cache hit` / `fetched`)
+    - batch elapsed time
+    - total elapsed time
+    - ETA
+  - regression test added to lock out the old duplicated `batch ...:` starter
+    line
+- `climate_tookit.fetch_data.source_data.sources.nex_gddp_xee`
+  - human-facing progress no longer routes through `logger.info(...)`
+  - verbose mode now prints clean progress lines directly while still sending
+    the same text to debug logging
+  - regression test added to confirm compact stdout output without logger-style
+    prefixing
+- `climate_tookit.weather_station.compare`
+  - terminal compare tables now use shorter headers (`grid`, `var`, `days`,
+    `corr`, `obs_mm`, `grid_mm`, etc.)
+  - constant columns are dropped more aggressively when whole table shares same
+    station / grid / variable context
+  - annual/window labels are shortened for terminal readability
+  - ranking `notes` / `vars` columns use tighter wrapping to reduce horizontal
+    overflow
+  - regression coverage added for compact-header rendering and shortened annual
+    / ranking labels
+- `climate_tookit.compare_periods.periods`
+  - diff tables, raw-summary tables, and monthly SPI/SPEI tables now use a
+    compact renderer with shorter headers and constant-column dropping
+  - long guidance and custom-water-balance notes now wrap instead of forcing
+    very wide terminal lines
+- `climate_tookit.compare_periods.ensemble_periods`
+  - ensemble diff tables, uncertainty tables, and monthly SPI/SPEI tables now
+    reuse the compact compare-periods renderer
+  - uncertainty columns remain visible (`σΔ`, likely range) but table width is
+    reduced with shorter headers and truncation where needed
+- `climate_tookit.climate_statistics.statistics`
+  - shared indented table renderer now uses compact headers and drops redundant
+    constant variable/metric columns
+  - annual-summary table now uses same compact display path
+
+Still outstanding after this slice:
+
+- deeper cross-module harmonization of progress labels / lifecycle wording
+  across season-analysis, hazards, and slower specialty fetchers such as TAMSAT
+- possible future shared terminal rendering utility if current local helpers
+  start to diverge

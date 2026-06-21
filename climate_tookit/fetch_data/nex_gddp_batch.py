@@ -73,6 +73,25 @@ def _log_progress(message: str, verbose: bool) -> None:
     logger.debug(message)
 
 
+def _format_batch_progress_line(
+    *,
+    completed_batches: int,
+    total_batches: int,
+    batch_label: str,
+    status: str,
+    batch_elapsed: float,
+    total_elapsed: float,
+) -> str:
+    remaining_batches = max(total_batches - completed_batches, 0)
+    average_batch_seconds = (total_elapsed / completed_batches) if completed_batches else 0.0
+    eta_seconds = average_batch_seconds * remaining_batches
+    return (
+        f"{_progress_bar(completed_batches, total_batches)} "
+        f"batch {completed_batches}/{total_batches} | {batch_label} | {status} | "
+        f"batch={batch_elapsed:.2f}s | elapsed={total_elapsed:.2f}s | eta={eta_seconds:.1f}s"
+    )
+
+
 def _import_ee():
     try:
         return importlib.import_module("ee")
@@ -590,6 +609,7 @@ def run_batch_extraction(
     selected_versions: list[str] = []
     total_batches = len(date_chunks) * len(site_batches)
     completed_batches = 0
+    run_started_at = time.perf_counter()
 
     _log_progress(
         f"Starting NEX-GDDP batch fetch for {model}/{scenario} "
@@ -608,11 +628,6 @@ def run_batch_extraction(
             batch_label = (
                 f"{date_start}:{date_end} | "
                 f"{site_batch[0].name}..{site_batch[-1].name} ({len(site_batch)} sites)"
-            )
-            _log_progress(
-                f"{_progress_bar(completed_batches - 1, total_batches)} "
-                f"batch {completed_batches}/{total_batches}: {batch_label}",
-                verbose,
             )
 
             data_path, manifest_path = cache_paths_for_batch(
@@ -641,6 +656,7 @@ def run_batch_extraction(
                 if version:
                     selected_versions.append(version)
                 elapsed = time.perf_counter() - batch_start
+                total_elapsed = time.perf_counter() - run_started_at
                 batch_stats.append(
                     {
                         "date_start": date_start,
@@ -654,7 +670,14 @@ def run_batch_extraction(
                     }
                 )
                 _log_progress(
-                    f"Cache hit for {batch_label} in {elapsed:.2f}s.",
+                    _format_batch_progress_line(
+                        completed_batches=completed_batches,
+                        total_batches=total_batches,
+                        batch_label=batch_label,
+                        status="cache hit",
+                        batch_elapsed=elapsed,
+                        total_elapsed=total_elapsed,
+                    ),
                     verbose,
                 )
                 continue
@@ -695,6 +718,7 @@ def run_batch_extraction(
             frames.append(frame)
             selected_versions.extend(versions)
             elapsed = time.perf_counter() - batch_start
+            total_elapsed = time.perf_counter() - run_started_at
             batch_stats.append(
                 {
                     "date_start": date_start,
@@ -705,10 +729,17 @@ def run_batch_extraction(
                     "label": batch_label,
                     "cache_hit": False,
                     "cache_path": str(data_path),
-                }
-            )
+                    }
+                )
             _log_progress(
-                f"Fetched {batch_label} in {elapsed:.2f}s and saved cache to {data_path}.",
+                _format_batch_progress_line(
+                    completed_batches=completed_batches,
+                    total_batches=total_batches,
+                    batch_label=batch_label,
+                    status="fetched",
+                    batch_elapsed=elapsed,
+                    total_elapsed=total_elapsed,
+                ),
                 verbose,
             )
 

@@ -1,4 +1,5 @@
 from datetime import date
+from io import StringIO
 import tempfile
 from pathlib import Path
 import sys
@@ -283,6 +284,29 @@ class NexGddpXeePocTests(unittest.TestCase):
 
     def test_progress_bar_reaches_full_width(self):
         self.assertEqual(nex_gddp_xee._progress_bar(5, 5, width=5), "[#####]")
+
+    def test_log_progress_prints_cleanly_without_info_logger_prefix(self):
+        downloader = nex_gddp_xee.DownloadData(
+            variables=[ClimateVariable.precipitation],
+            location_coord=(-1.286, 36.817),
+            date_from_utc=date(2050, 1, 1),
+            date_to_utc=date(2050, 1, 1),
+            settings=Settings.load(),
+            source=ClimateDataset.nex_gddp,
+            model="MRI-ESM2-0",
+            scenario="ssp245",
+            verbose=True,
+        )
+
+        stdout = StringIO()
+        with mock.patch("sys.stdout", stdout), mock.patch.object(
+            nex_gddp_xee.logger,
+            "debug",
+        ) as debug_mock:
+            downloader._log_progress("chunk ready")
+
+        self.assertEqual("chunk ready\n", stdout.getvalue())
+        debug_mock.assert_called_once_with("chunk ready")
 
     def test_cache_coord_normalization_treats_equivalent_precision_as_same_fragment(self):
         a = nex_gddp_xee._safe_coord_fragment(31.111111111111)

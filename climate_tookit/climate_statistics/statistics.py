@@ -20,6 +20,7 @@ import sys
 import math
 import json
 import argparse
+import shutil
 from datetime import datetime, date
 from pathlib import Path
 from time import perf_counter
@@ -2007,8 +2008,52 @@ def analyze_climate_statistics(
     }
 
 # Display
+TERMINAL_TABLE_HEADER_ALIASES = {
+    "Variable": "var",
+    "Metric": "metric",
+    "Value": "value",
+    "Year": "year",
+    "Annual rainfall": "rain_mm",
+    "Low-rain months": "low_rain_mo",
+    "Humid test": "humid_test",
+}
+
+
+def _terminal_width(default: int = 120) -> int:
+    try:
+        return shutil.get_terminal_size((default, 20)).columns
+    except OSError:
+        return default
+
+
+def _short_cell(value: Any, max_len: int = 18) -> Any:
+    if value is None or pd.isna(value):
+        return "n/a"
+    text = str(value)
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3] + "..."
+
+
+def _compact_display_frame(df: pd.DataFrame) -> pd.DataFrame:
+    display = df.copy().fillna("n/a")
+    for column in ["Variable", "Metric"]:
+        if column in display.columns:
+            values = display[column].dropna().astype(str).str.strip()
+            if not values.empty and values.nunique() == 1:
+                display = display.drop(columns=[column])
+    display = display.rename(columns=TERMINAL_TABLE_HEADER_ALIASES)
+    rendered = display.to_string(index=False)
+    if max((len(line) for line in rendered.splitlines()), default=0) <= _terminal_width():
+        return display
+    for column in display.columns:
+        if display[column].dtype == object:
+            display[column] = display[column].map(lambda value: _short_cell(value, max_len=14))
+    return display
+
+
 def _print_indented_table(df: pd.DataFrame, indent: str = "    ") -> None:
-    for line in df.to_string(index=False).splitlines():
+    for line in _compact_display_frame(df).to_string(index=False).splitlines():
         print(f"{indent}{line}")
 
 
@@ -2238,7 +2283,7 @@ def print_annual(annual: Dict[str, Dict]) -> None:
             'Low-rain months':   info.get('low_rain_months', 'n/a'),
             'Humid test':        info.get('humid_test', 'n/a'),
         })
-    print(pd.DataFrame(rows).to_string(index=False))
+    print(_compact_display_frame(pd.DataFrame(rows)).to_string(index=False))
 
 def _ltm_header(result: Dict[str, Any]) -> str:
     """Pick BASELINE / FUTURE / generic LTM header based on the run window."""

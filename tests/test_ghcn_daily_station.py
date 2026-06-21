@@ -1596,6 +1596,64 @@ class PreprocessClimateDataTests(unittest.TestCase):
         self.assertIn("annual: descriptive_only=1 screening_only=0 preliminary_ranking=0 period_average=2", rendered)
         self.assertIn("pooled_annual: descriptive_only=0 screening_only=0 preliminary_ranking=1", rendered)
 
+    def test_render_metric_core_table_uses_compact_headers_and_drops_constant_columns(self):
+        rendered = station_compare._render_metric_core_table(
+            [
+                {
+                    "station_id": "ALL",
+                    "grid_source": "nasa_power",
+                    "variable": "precipitation",
+                    "overlap_days": 3614,
+                    "confidence_class": "high",
+                    "bias": -0.3696,
+                    "mae": 2.3448,
+                    "rmse": 6.5679,
+                    "correlation": 0.3461,
+                }
+            ]
+        )
+        self.assertIn("days", rendered)
+        self.assertIn("corr", rendered)
+        self.assertNotIn("grid_source", rendered)
+        self.assertNotIn("overlap_days", rendered)
+        self.assertNotIn("precipitation", rendered)
+
+    def test_render_annual_and_rankings_tables_use_shortened_labels(self):
+        annual = station_compare._render_annual_core_table(
+            [
+                {
+                    "station_id": "ALL",
+                    "grid_source": "nasa_power",
+                    "variable": "precipitation",
+                    "overlap_days": 3614,
+                    "window_years": 9.9,
+                    "window_status": "period_average",
+                    "coverage_ratio": 0.9893,
+                    "confidence_note": "suitable for annual interpretation",
+                    "bias": -133.557,
+                    "mae": 141.095,
+                    "rmse": 188.238,
+                    "correlation": 0.5391,
+                }
+            ]
+        )
+        rankings = station_compare._render_use_case_rankings(
+            [
+                {
+                    "use_case": "temperature_climatology",
+                    "rank": 1,
+                    "grid_source": "paired",
+                    "score": 0.8277,
+                    "variables_used": ["min_temperature", "max_temperature"],
+                    "notes": "Uses temperature bias, RMSE, and daily or monthly agreement summaries to rank candidate products.",
+                }
+            ]
+        )
+        self.assertIn("period_avg", annual)
+        self.assertIn("annual", annual)
+        self.assertIn("vars", rankings)
+        self.assertNotIn("variables_used", rankings)
+
     def test_get_climate_data_applies_custom_station_override(self):
         stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
         base_frame = pd.DataFrame(
