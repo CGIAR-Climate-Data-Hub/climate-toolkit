@@ -42,3 +42,30 @@ Current behavior is growing fast and is no longer self-evident from CLI help alo
 
 ## Timing
 Do after weather-station workflows and CLI/API settle enough that docs will not immediately drift.
+
+## 2026-06-21 progress
+
+Delivered in current repo docs:
+
+- expanded README weather-station quickstart and caveat section
+- dedicated user-facing workflow page:
+  - `docs/weather_station_workflows.md`
+
+Now documented:
+
+- backend choices
+- selection modes
+- `auto-1` / `auto-n` / `auto-all`
+- compare `selection-strategy`
+- default guardrails and completeness relaxation
+- custom file inputs, aliases, metadata, and units
+- candidate review artifacts and HTML map
+- compare outputs and interpretation caveats
+- historical override workflow
+- cache layout and reuse behavior
+- current limitations
+
+Remaining follow-up, if wanted later:
+
+- sync same content into project wiki
+- add screenshots / rendered examples of candidate-review map and compare output
