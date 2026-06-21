@@ -1726,7 +1726,6 @@ def ensemble_compare(
             f"\nCompleted ensemble comparison in {_format_elapsed(total_elapsed)} "
             f"(models_ok={len(per_model)}, models_failed={len(failed)})"
         )
-        _print_runtime_summary(runtime_summary)
 
     return result
 
