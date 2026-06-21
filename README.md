@@ -980,6 +980,33 @@ Keep cache under project-local `outputs/cache/...` so repeat runs can reuse save
 - mixed-station compare strategies can improve variable coverage, but reduce simplicity of interpretation
 - Earth Engine-backed helper pieces such as anchor elevation need valid project/auth if DEM lookup is used automatically
 
+## Metric Provenance
+
+Not all toolkit metrics belong to same methodological family.
+
+Standard / xclim-audited examples:
+
+- precipitation total
+- rainy days
+- dry days
+- daily precipitation intensity style metrics
+- max 1-day precipitation
+- max 5-day precipitation in weather-station reference comparisons
+- core Tmax / Tmin / Tavg period summaries
+- nearest-reference SPI / SPEI comparisons
+
+Custom, non-xclim metrics:
+
+- `NDWS`
+- `NDWL0`
+- `WRSI`
+- crop-calendar-aware season windows
+- crop-threshold hazard interpretation
+
+Reference note:
+
+- [analysis/xclim_metric_audit_status.md](analysis/xclim_metric_audit_status.md)
+
 ---
 
 ## License

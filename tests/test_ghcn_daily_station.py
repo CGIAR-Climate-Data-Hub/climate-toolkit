@@ -1917,10 +1917,20 @@ class PreprocessClimateDataTests(unittest.TestCase):
                 "precipitation_grid": [0.0] * 366,
             }
         )
+        overlap.loc[1, "precipitation_station"] = 1.0
+        overlap.loc[2, "precipitation_station"] = 5.0
+        overlap.loc[4, "precipitation_station"] = 10.0
+        overlap.loc[5, "precipitation_station"] = 2.0
         overlap.loc[8, "precipitation_station"] = 20.0
-        overlap.loc[8, "precipitation_grid"] = 18.0
         overlap.loc[30, "precipitation_station"] = 11.0
+
+        overlap.loc[2, "precipitation_grid"] = 6.0
+        overlap.loc[4, "precipitation_grid"] = 12.0
+        overlap.loc[5, "precipitation_grid"] = 3.0
+        overlap.loc[8, "precipitation_grid"] = 18.0
+        overlap.loc[29, "precipitation_grid"] = 4.0
         overlap.loc[30, "precipitation_grid"] = 13.0
+        overlap.loc[31, "precipitation_grid"] = 9.0
 
         result = compare_xclim_precip_indices(overlap)
 
@@ -1930,6 +1940,24 @@ class PreprocessClimateDataTests(unittest.TestCase):
         self.assertEqual(20.0, row["rx1day_mm_station"])
         self.assertEqual(18.0, row["rx1day_mm_grid"])
         self.assertEqual(-2.0, row["rx1day_mm_delta"])
+        self.assertEqual(32.0, row["rx5day_mm_station"])
+        self.assertEqual(33.0, row["rx5day_mm_grid"])
+        self.assertEqual(1.0, row["rx5day_mm_delta"])
+        self.assertEqual(335.0, row["cdd_days_station"])
+        self.assertEqual(334.0, row["cdd_days_grid"])
+        self.assertEqual(-1.0, row["cdd_days_delta"])
+        self.assertEqual(2.0, row["cwd_days_station"])
+        self.assertEqual(3.0, row["cwd_days_grid"])
+        self.assertEqual(1.0, row["cwd_days_delta"])
+        self.assertEqual(3.0, row["r10mm_days_station"])
+        self.assertEqual(3.0, row["r10mm_days_grid"])
+        self.assertEqual(0.0, row["r10mm_days_delta"])
+        self.assertEqual(1.0, row["r20mm_days_station"])
+        self.assertEqual(0.0, row["r20mm_days_grid"])
+        self.assertEqual(-1.0, row["r20mm_days_delta"])
+        self.assertAlmostEqual(8.1667, row["sdii_mm_per_day_station"], places=4)
+        self.assertAlmostEqual(9.2857, row["sdii_mm_per_day_grid"], places=4)
+        self.assertAlmostEqual(1.119, row["sdii_mm_per_day_delta"], places=4)
 
     @unittest.skipUnless(XCLIM_AVAILABLE, "xclim not installed")
     def test_compute_xclim_precip_indices_tolerates_small_daily_gaps(self):

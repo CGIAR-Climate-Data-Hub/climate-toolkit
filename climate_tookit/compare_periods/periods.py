@@ -48,6 +48,10 @@ PRECIP_ONLY  = {"chirps", "chirps_v2", "chirps_v3_daily_rnl", "imerg", "tamsat"}
 SUPPORTED    = {"era_5", "agera_5", "chirps+chirts", "chirps_v2+chirts", "nasa_power",
                 "chirps", "chirps_v2", "chirps_v3_daily_rnl", "chirts", "terraclimate", "imerg", "tamsat", "auto",
                 "paired"}
+XCLIM_FAMILY_LABELS = {
+    "core_period_metrics": "Core standard period metrics",
+    "precip_reference_indices": "Precipitation reference indices",
+}
 
 # helpers
 def _is_num(x: Any) -> bool:
@@ -216,6 +220,122 @@ def _has_custom_water_balance_metrics(payload: Dict[str, Any]) -> bool:
     overall = payload.get("overall_statistics") or {}
     water_balance = overall.get("water_balance") if isinstance(overall, dict) else {}
     return any(key in (water_balance or {}) for key in ("NDWS", "NDWL0", "WRSI"))
+
+
+def _collapse_xclim_reference_rows(rows: Optional[List[Dict[str, Any]]], *, round_n: int = 4) -> Dict[str, float]:
+    pool: Dict[str, List[float]] = {}
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        for key, value in row.items():
+            if key == "period_start":
+                continue
+            if _is_num(value):
+                pool.setdefault(key, []).append(float(value))
+    return {
+        key: round(sum(values) / len(values), round_n)
+        for key, values in pool.items()
+        if values
+    }
+
+
+def _xclim_reference_metric_map(payload: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
+    block = payload or {}
+    out: Dict[str, Dict[str, float]] = {}
+    core = _collapse_xclim_reference_rows(block.get("core_period_metrics"))
+    precip = _collapse_xclim_reference_rows(block.get("precip_reference_indices"))
+    if core:
+        out["core_period_metrics"] = core
+    if precip:
+        out["precip_reference_indices"] = precip
+    return out
+
+
+def _xclim_reference_status(block: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    payload = block or {}
+    return {
+        "available": bool(payload.get("available")),
+        "core_period_status": payload.get("core_period_status"),
+        "core_period_skip_reason": payload.get("core_period_skip_reason"),
+        "precip_reference_status": payload.get("precip_reference_status"),
+        "precip_reference_skip_reason": payload.get("precip_reference_skip_reason"),
+    }
+
+
+def _xclim_reference_compare_block(
+    left: Optional[Dict[str, Any]],
+    right: Optional[Dict[str, Any]],
+    left_label: str,
+    right_label: str,
+) -> Dict[str, Any]:
+    left_map = _xclim_reference_metric_map(left)
+    right_map = _xclim_reference_metric_map(right)
+    diff: Dict[str, Any] = {}
+    for family, left_metrics in left_map.items():
+        right_metrics = right_map.get(family)
+        if not isinstance(right_metrics, dict):
+            continue
+        family_diff: Dict[str, Any] = {}
+        for metric, left_value in left_metrics.items():
+            right_value = right_metrics.get(metric)
+            if not (_is_num(left_value) and _is_num(right_value)):
+                continue
+            delta = left_value - right_value
+            pct = _percent_change(delta, right_value)
+            family_diff[metric] = {
+                left_label: round(float(left_value), 2),
+                right_label: round(float(right_value), 2),
+                "diff": round(float(delta), 2),
+                "pct": round(float(pct), 2) if _is_num(pct) else None,
+            }
+        if family_diff:
+            diff[family] = family_diff
+    return {
+        "status": {
+            right_label: _xclim_reference_status(right),
+            left_label: _xclim_reference_status(left),
+        },
+        "diff": diff,
+    }
+
+
+def _print_xclim_reference_compare(payload: Optional[Dict[str, Any]]) -> None:
+    if not payload:
+        return
+    print(f"\n--- XCLIM STANDARD REFERENCES ---")
+    status = payload.get("status") or {}
+    for label in ("focal", "baseline_avg", "future_avg", "baseline_ltm", "future_ltm"):
+        info = status.get(label)
+        if not isinstance(info, dict):
+            continue
+        parts = [f"{label}: available={info.get('available')}"]
+        if info.get("core_period_status"):
+            parts.append(f"core={info.get('core_period_status')}")
+        if info.get("precip_reference_status"):
+            parts.append(f"precip={info.get('precip_reference_status')}")
+        print("  " + " | ".join(parts))
+        if info.get("core_period_skip_reason"):
+            print(f"    core note   : {info['core_period_skip_reason']}")
+        if info.get("precip_reference_skip_reason"):
+            print(f"    precip note : {info['precip_reference_skip_reason']}")
+    diff = payload.get("diff", {}) or {}
+    for family in ("core_period_metrics", "precip_reference_indices"):
+        metrics = diff.get(family)
+        if not isinstance(metrics, dict) or not metrics:
+            continue
+        print(f"\n  {XCLIM_FAMILY_LABELS.get(family, family)}")
+        rows = []
+        for metric, vals in metrics.items():
+            row = {"Metric": metric}
+            for key, value in vals.items():
+                if key == "diff":
+                    row["Δ"] = f"{value:+.2f}"
+                elif key == "pct":
+                    row["Δ%"] = _fmt_pct(value)
+                else:
+                    row[key] = f"{value:.2f}"
+            rows.append(row)
+        print(pd.DataFrame(rows).to_string(index=False))
 
 
 def _month_day_in_window(
@@ -948,6 +1068,12 @@ def compare(
     annual_diff = _diff_annual(focal.get("annual_summary", {}),
                                base.get("annual_summary",  {}),
                                focal_year)
+    xclim_diff = _xclim_reference_compare_block(
+        focal.get("xclim_references"),
+        base.get("xclim_references"),
+        "focal",
+        "baseline_avg",
+    )
     spei_diff = _diff_spei(
         focal.get("spei"),
         base.get("spei"),
@@ -981,6 +1107,7 @@ def compare(
         "overall_statistics":   overall_diff,
         "season_statistics":    season_diff,
         "annual_summary":       annual_diff,
+        "xclim_references":     xclim_diff,
         "spei":                 spei_diff,
         "spi":                  spi_diff,
     }
@@ -1137,6 +1264,8 @@ def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
               f"baseline={hs.get('baseline_humid', 'n/a')}")
         if hs.get("focal_humid_test"):
             print(f"                    test: {hs['focal_humid_test']}")
+
+    _print_xclim_reference_compare(r.get("xclim_references"))
 
     spei = r.get("spei")
     if spei:

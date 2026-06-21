@@ -58,6 +58,11 @@ from climate_tookit.compare_periods.periods import (
     _merge_period_methodology,
     _print_methodology_summary,
     _print_season_detection_summary,
+    _xclim_reference_compare_block,
+    _xclim_reference_metric_map,
+    _xclim_reference_status,
+    _print_xclim_reference_compare,
+    XCLIM_FAMILY_LABELS,
     PRECIP_ONLY, SUPPORTED,
 )
 from climate_tookit.crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES, resolve_calendar_preset
@@ -999,6 +1004,7 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
     overalls:   List[Dict[str, Any]] = []
     win_blocks: Dict[int, List[Dict[str, Any]]] = {}
     lump_blocks: List[Dict[str, Any]] = []
+    xclim_blocks: List[Dict[str, Any]] = []
     spei_blocks: List[Dict[str, Any]] = []
     spi_blocks: List[Dict[str, Any]] = []
     rains:      List[float] = []
@@ -1057,6 +1063,8 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
             spei_blocks.append(stats["spei"])
         if stats.get("spi"):
             spi_blocks.append(stats["spi"])
+        if stats.get("xclim_references"):
+            xclim_blocks.append(stats["xclim_references"])
         if stats.get("calendar_preset"):
             calendar_presets.append(stats["calendar_preset"])
         if _is_num(ann.get("annual_rain_mm")):
@@ -1090,6 +1098,7 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
         "calendar_preset": calendar_presets[0] if calendar_presets else None,
         "overall":     _mean_2level(overalls),
         "seasons":     season_summary,
+        "xclim_references": _aggregate_simple_xclim_references(xclim_blocks),
         "spei":        focal_spei,
         "spi":         focal_spi,
         "annual_rain": round(sum(rains) / len(rains), 1) if rains else None,
@@ -1169,6 +1178,37 @@ def _aggregate_simple_spi_blocks(blocks: List[Dict[str, Any]]) -> Optional[Dict[
         },
         "metadata": blocks[0].get("metadata", {}),
         "monthly_series": monthly_rows,
+    }
+
+
+def _aggregate_simple_xclim_references(blocks: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not blocks:
+        return None
+    metric_maps = [_xclim_reference_metric_map(block) for block in blocks if isinstance(block, dict)]
+    pool: Dict[str, Dict[str, List[float]]] = {}
+    for metric_map in metric_maps:
+        for family, metrics in metric_map.items():
+            for metric, value in (metrics or {}).items():
+                if _is_num(value):
+                    pool.setdefault(family, {}).setdefault(metric, []).append(float(value))
+    core_metrics = {
+        metric: round(sum(values) / len(values), 4)
+        for metric, values in (pool.get("core_period_metrics") or {}).items()
+        if values
+    }
+    precip_metrics = {
+        metric: round(sum(values) / len(values), 4)
+        for metric, values in (pool.get("precip_reference_indices") or {}).items()
+        if values
+    }
+    return {
+        "available": True,
+        "core_period_metrics": ([core_metrics] if core_metrics else []),
+        "core_period_status": "computed" if core_metrics else "skipped",
+        "core_period_skip_reason": None if core_metrics else "ensemble focal xclim core metrics unavailable",
+        "precip_reference_indices": ([precip_metrics] if precip_metrics else []),
+        "precip_reference_status": "computed" if precip_metrics else "skipped",
+        "precip_reference_skip_reason": None if precip_metrics else "ensemble focal xclim precip reference indices unavailable",
     }
 
 
@@ -1261,6 +1301,19 @@ def _diff_focal_vs_ltm(focal:   Dict[str, Any],
         "ltm_humid":         ensemble.get("annual_summary", {}).get(humid_key, "n/a"),
     }
 
+    ltm_xclim_key = "future_avg" if ltm_label == "future_ltm" else "baseline_avg"
+    xclim = {
+        "status": {
+            "focal": _xclim_reference_status(focal.get("xclim_references")),
+            ltm_label: ((ensemble.get("xclim_references") or {}).get("status", {}) or {}).get(ltm_xclim_key, {}),
+        },
+        "diff": _diff_value_2level(
+            _xclim_reference_metric_map(focal.get("xclim_references")),
+            _future_ltm_from_agg((ensemble.get("xclim_references") or {}).get("diff", {}), mean_key),
+            a_lbl,
+            b_lbl,
+        ),
+    }
     spei = _diff_spei(focal.get("spei"), ensemble.get("spei"))
     spi = _diff_spi(focal.get("spi"), ensemble.get("spi"))
 
@@ -1271,6 +1324,7 @@ def _diff_focal_vs_ltm(focal:   Dict[str, Any],
         "overall_statistics": overall_diff,
         "season_statistics":  season_diff,
         "annual_summary":     annual,
+        "xclim_references":   xclim,
         "spei":               spei,
         "spi":                spi,
     }
@@ -1512,6 +1566,12 @@ def _compare_one_model(
     # 4. annual_summary -- future is now a period
     annual_diff = _diff_annual_period(future.get("annual_summary", {}),
                                       base.get("annual_summary",  {}))
+    xclim_diff = _xclim_reference_compare_block(
+        future.get("xclim_references"),
+        base.get("xclim_references"),
+        "future_avg",
+        "baseline_avg",
+    )
     spei_diff = _diff_spei(
         future.get("spei"),
         base.get("spei"),
@@ -1545,6 +1605,7 @@ def _compare_one_model(
         "overall_statistics":   overall_diff,
         "season_statistics":    season_diff,
         "annual_summary":       annual_diff,
+        "xclim_references":     xclim_diff,
         "spei":                 spei_diff,
         "spi":                  spi_diff,
         "timing_breakdown": {
@@ -1798,6 +1859,40 @@ def _aggregate_spi_diff(per_model: List[Optional[Dict[str, Any]]]) -> Optional[D
         "config": {"derived_from": "ensemble mean of per-model SPI diffs"},
     }
 
+
+def _aggregate_xclim_reference_diffs(per_model: List[Optional[Dict[str, Any]]]) -> Optional[Dict[str, Any]]:
+    samples = [r.get("xclim_references") for r in per_model if isinstance(r, dict) and r.get("xclim_references")]
+    if not samples:
+        return None
+    return {
+        "status": {
+            "n_models": len(samples),
+            "baseline_avg": {
+                "core_period_computed_models": sum(
+                    1 for sample in samples
+                    if (sample.get("status", {}).get("baseline_avg") or {}).get("core_period_status") == "computed"
+                ),
+                "precip_reference_computed_models": sum(
+                    1 for sample in samples
+                    if (sample.get("status", {}).get("baseline_avg") or {}).get("precip_reference_status") == "computed"
+                ),
+            },
+            "future_avg": {
+                "core_period_computed_models": sum(
+                    1 for sample in samples
+                    if (sample.get("status", {}).get("future_avg") or {}).get("core_period_status") == "computed"
+                ),
+                "precip_reference_computed_models": sum(
+                    1 for sample in samples
+                    if (sample.get("status", {}).get("future_avg") or {}).get("precip_reference_status") == "computed"
+                ),
+            },
+        },
+        "diff": _aggregate_2level([
+            sample.get("diff", {}) for sample in samples if isinstance(sample, dict)
+        ]),
+    }
+
 # main API
 def ensemble_compare(
     location:       Tuple[float, float],
@@ -1965,6 +2060,7 @@ def ensemble_compare(
         "season_detection":    _aggregate_compare_season_detection(per_model),
         "annual_summary":      _aggregate_annual(
             [r.get("annual_summary") for r in per_model]),
+        "xclim_references":    _aggregate_xclim_reference_diffs(per_model),
         "spei":               _aggregate_spei_diff(per_model),
         "spi":                _aggregate_spi_diff(per_model),
         "metadata": {
@@ -2099,6 +2195,8 @@ def _print_focal_vs_ltm(avl: Dict[str, Any]) -> None:
               f"{ltm_lbl}={hs.get('ltm_humid', 'n/a')}")
         if hs.get("focal_humid_test"):
             print(f"                    test: {hs['focal_humid_test']}")
+
+    _print_xclim_reference_compare(avl.get("xclim_references"))
 
     spei = avl.get("spei")
     if spei:
@@ -2250,6 +2348,51 @@ def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
     print(f"  Humid (future)   : {ann.get('humid_future', 'n/a')}")
     print(f"  Humid (baseline) : {ann.get('humid_baseline', 'n/a')}")
     print()
+
+    xclim = r.get("xclim_references")
+    if xclim:
+        print(f"\n--- XCLIM STANDARD REFERENCES (ensemble) ---")
+        status = xclim.get("status") or {}
+        print(
+            "  Coverage       : "
+            f"n_models={status.get('n_models', 'n/a')} | "
+            f"baseline_core={((status.get('baseline_avg') or {}).get('core_period_computed_models', 'n/a'))} | "
+            f"future_core={((status.get('future_avg') or {}).get('core_period_computed_models', 'n/a'))} | "
+            f"baseline_precip={((status.get('baseline_avg') or {}).get('precip_reference_computed_models', 'n/a'))} | "
+            f"future_precip={((status.get('future_avg') or {}).get('precip_reference_computed_models', 'n/a'))}"
+        )
+        for family in ("core_period_metrics", "precip_reference_indices"):
+            metrics = (xclim.get("diff") or {}).get(family)
+            if not isinstance(metrics, dict) or not metrics:
+                continue
+            print(f"\n  {XCLIM_FAMILY_LABELS.get(family, family)}")
+            rows = []
+            for metric, vals in metrics.items():
+                row = {"Metric": metric}
+                spread = vals.get("model_spread") or {}
+                for k, v in vals.items():
+                    if k == "model_spread" or not _is_num(v):
+                        continue
+                    short = k.replace("_ensemble_mean", "")
+                    if short == "diff":
+                        row["Δ"] = f"{v:+.2f}"
+                    elif short == "pct":
+                        row["Δ%"] = _fmt_pct(v)
+                    elif short == "future_avg":
+                        row["future_ltm"] = f"{v:.2f}"
+                    elif short == "baseline_avg":
+                        row["baseline_ltm"] = f"{v:.2f}"
+                    else:
+                        row[short] = f"{v:.2f}"
+                diff_spread = spread.get("diff")
+                if isinstance(diff_spread, dict):
+                    if _is_num(diff_spread.get("std")):
+                        row["σΔ"] = f"{diff_spread['std']:.2f}"
+                    likely = _fmt_likely_range(diff_spread, precision=2)
+                    if likely != "n/a":
+                        row["Likely Δ"] = likely
+                rows.append(row)
+            print(pd.DataFrame(rows).to_string(index=False))
 
     spei = r.get("spei")
     if spei:

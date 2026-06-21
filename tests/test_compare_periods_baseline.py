@@ -222,6 +222,50 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         rendered = stdout.getvalue()
         self.assertIn("custom crop-water-balance metrics", rendered)
 
+    def test_print_report_renders_xclim_reference_block(self):
+        payload = {
+            "focal_year": 2019,
+            "baseline_period": "2018-2018",
+            "source": "auto",
+            "fixed_season": None,
+            "temperature_excluded": False,
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": None,
+            "annual_summary": {},
+            "xclim_references": {
+                "status": {
+                    "baseline_avg": {
+                        "available": True,
+                        "core_period_status": "computed",
+                        "precip_reference_status": "computed",
+                    },
+                    "focal": {
+                        "available": True,
+                        "core_period_status": "computed",
+                        "precip_reference_status": "computed",
+                    },
+                },
+                "diff": {
+                    "core_period_metrics": {
+                        "total_mm": {"focal": 100.0, "baseline_avg": 80.0, "diff": 20.0, "pct": 25.0}
+                    }
+                },
+            },
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload, detailed=False)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("--- XCLIM STANDARD REFERENCES ---", rendered)
+        self.assertIn("Core standard period metrics", rendered)
+
     def test_ensemble_print_report_hides_per_model_breakdown_in_compact_mode(self):
         payload = {
             "baseline_period": "1995-2013",
@@ -499,6 +543,62 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual("1991-01-01", calls[0]["spei_ref_start"])
         self.assertEqual("2020-12-31", calls[0]["spei_ref_end"])
         self.assertEqual(3, result["spei_scale_months"])
+
+    def test_compare_computes_xclim_reference_diffs(self):
+        calls = []
+
+        def fake_analyze_climate_statistics(**kwargs):
+            calls.append(kwargs)
+            if kwargs["start_year"] == 2018:
+                return {
+                    "raw_climate_summary": [],
+                    "overall_statistics": {},
+                    "season_statistics": [],
+                    "annual_summary": {},
+                    "xclim_references": {
+                        "available": True,
+                        "core_period_metrics": [{"period_start": "2018-01-01", "total_mm": 80.0, "mean_tmax": 25.0}],
+                        "core_period_status": "computed",
+                        "core_period_skip_reason": None,
+                        "precip_reference_indices": [{"period_start": "2018-01-01", "rx1day_mm": 10.0}],
+                        "precip_reference_status": "computed",
+                        "precip_reference_skip_reason": None,
+                    },
+                }
+            return {
+                "raw_climate_summary": [],
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "xclim_references": {
+                    "available": True,
+                    "core_period_metrics": [{"period_start": "2019-01-01", "total_mm": 100.0, "mean_tmax": 27.0}],
+                    "core_period_status": "computed",
+                    "core_period_skip_reason": None,
+                    "precip_reference_indices": [{"period_start": "2019-01-01", "rx1day_mm": 14.0}],
+                    "precip_reference_status": "computed",
+                    "precip_reference_skip_reason": None,
+                },
+            }
+
+        orig_analyze = cp.analyze_climate_statistics
+        cp.analyze_climate_statistics = fake_analyze_climate_statistics
+        try:
+            result = cp.compare(
+                location=(-1.286, 36.817),
+                baseline_start=2018,
+                baseline_end=2018,
+                focal_year=2019,
+                source="auto",
+            )
+        finally:
+            cp.analyze_climate_statistics = orig_analyze
+
+        self.assertEqual(2, len(calls))
+        self.assertIn("xclim_references", result)
+        diff = result["xclim_references"]["diff"]
+        self.assertAlmostEqual(20.0, diff["core_period_metrics"]["total_mm"]["diff"])
+        self.assertAlmostEqual(4.0, diff["precip_reference_indices"]["rx1day_mm"]["diff"])
 
     def test_compare_forwards_optional_spi_args(self):
         calls = []
@@ -1206,6 +1306,77 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertAlmostEqual(-0.3, result["spei"]["summary"]["baseline_avg_spei"])
         self.assertAlmostEqual(-0.7, result["spei"]["summary"]["diff"])
         self.assertEqual(2, result["spei"]["n_models"])
+
+    def test_ensemble_compare_aggregates_xclim_reference_diffs(self):
+        def fake_compare_one_model(*args, **kwargs):
+            model = kwargs["model"]
+            return {
+                "overall_statistics": {},
+                "season_statistics": [],
+                "annual_summary": {},
+                "xclim_references": {
+                    "status": {
+                        "baseline_avg": {
+                            "core_period_status": "computed",
+                            "precip_reference_status": "computed",
+                        },
+                        "future_avg": {
+                            "core_period_status": "computed",
+                            "precip_reference_status": "computed",
+                        },
+                    },
+                    "diff": {
+                        "core_period_metrics": {
+                            "total_mm": {
+                                "future_avg": 120.0 if model == "ACCESS-CM2" else 140.0,
+                                "baseline_avg": 80.0 if model == "ACCESS-CM2" else 90.0,
+                                "diff": 40.0 if model == "ACCESS-CM2" else 50.0,
+                                "pct": 50.0 if model == "ACCESS-CM2" else 55.56,
+                            }
+                        }
+                    },
+                },
+                "spei": None,
+                "spi": None,
+                "season_detection": {"compare_status": "ok", "baseline": {}, "focal": {}, "guidance": []},
+                "timing_breakdown": {
+                    "baseline": {},
+                    "future": {},
+                    "baseline_total_seconds": 1.0,
+                    "future_total_seconds": 1.0,
+                    "compare_seconds": 0.1,
+                },
+                "_elapsed_seconds": 2.1,
+                "_model": model,
+            }
+
+        orig_compare_one_model = ep._compare_one_model
+        orig_execute = ep._execute_model_tasks
+        ep._compare_one_model = fake_compare_one_model
+        ep._execute_model_tasks = lambda tasks, model_workers, verbose, diagnostic_verbose: (
+            [fake_compare_one_model(model=task["model"]) for task in tasks],
+            [],
+            1,
+            4.2,
+        )
+        try:
+            result = ep.ensemble_compare(
+                location=(-1.286, 36.817),
+                baseline_start=1991,
+                baseline_end=1992,
+                future_start=2041,
+                future_end=2042,
+                scenario="ssp245",
+                models=["ACCESS-CM2", "MRI-ESM2-0"],
+                verbose=False,
+            )
+        finally:
+            ep._compare_one_model = orig_compare_one_model
+            ep._execute_model_tasks = orig_execute
+
+        self.assertIn("xclim_references", result)
+        self.assertAlmostEqual(45.0, result["xclim_references"]["diff"]["core_period_metrics"]["total_mm"]["diff_ensemble_mean"])
+        self.assertEqual(2, result["xclim_references"]["status"]["n_models"])
 
     def test_ensemble_compare_aggregates_spi_from_per_model_results(self):
         orig_filter = ep._filter_models
