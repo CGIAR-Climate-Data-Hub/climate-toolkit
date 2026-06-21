@@ -14,6 +14,8 @@ Dependencies: pandas, season_analysis.seasons module
 import sys
 import os
 import logging
+import shutil
+import textwrap
 from contextlib import redirect_stdout
 from copy import deepcopy
 from datetime import date, datetime, timedelta
@@ -36,6 +38,11 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import (
     normalize_climate_dataset_name,
 )
 from climate_tookit.season_analysis.season_identity import build_season_identity
+
+TERMINAL_TABLE_HEADER_ALIASES = {
+    "Metric": "metric",
+    "baseline_ltm": "base",
+}
 
 CROP_WATER_BALANCE_PARAMS_PACKAGE = "climate_tookit.calculate_hazards"
 CROP_WATER_BALANCE_PARAMS_RESOURCE = "crop_water_balance_params.json"
@@ -627,7 +634,47 @@ def _print_hazard_season_detection_summary(summary: Optional[Dict[str, Any]]) ->
     if guidance:
         print("    guidance:")
         for item in guidance:
-            print(f"      - {item}")
+            _print_wrapped("- ", str(item), indent="      ")
+
+
+def _terminal_width(default: int = 120) -> int:
+    try:
+        return shutil.get_terminal_size((default, 20)).columns
+    except OSError:
+        return default
+
+
+def _short_cell(value: Any, max_len: int = 16) -> Any:
+    if value is None or pd.isna(value):
+        return "n/a"
+    text = str(value)
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3] + "..."
+
+
+def _compact_display_frame(df: pd.DataFrame) -> pd.DataFrame:
+    display = df.copy().fillna("n/a").rename(columns=TERMINAL_TABLE_HEADER_ALIASES)
+    rendered = display.to_string(index=False)
+    if max((len(line) for line in rendered.splitlines()), default=0) <= _terminal_width():
+        return display
+    for column in display.columns:
+        if display[column].dtype == object:
+            display[column] = display[column].map(_short_cell)
+    return display
+
+
+def _print_wrapped(prefix: str, text: str, *, indent: str = "") -> None:
+    print(
+        textwrap.fill(
+            text,
+            width=max(72, _terminal_width() - len(prefix) - len(indent)),
+            initial_indent=indent + prefix,
+            subsequent_indent=indent + (" " * len(prefix)),
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
+    )
 
 
 def _resolve_calendar_preset_request(
@@ -2225,7 +2272,7 @@ def _print_actual_vs_ltm_comparisons(comparisons: List[Dict[str, Any]]) -> None:
                 'unit': metric['unit'],
             })
         if rows:
-            for line in pd.DataFrame(rows).to_string(index=False).splitlines():
+            for line in _compact_display_frame(pd.DataFrame(rows)).to_string(index=False).splitlines():
                 print(f"  {line}")
         hazard_cmp = cmp_block.get('hazard_status_comparison') or {}
         if hazard_cmp:

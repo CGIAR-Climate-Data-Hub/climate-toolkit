@@ -25,10 +25,54 @@ from climate_tookit.fetch_data.nex_gddp_batch import (
     cache_paths_for_batch,
     fetch_nex_gddp_batch_data,
     load_sites,
+    run_batch_extraction,
 )
 
 
 class NexGddpBatchTests(unittest.TestCase):
+    def test_run_batch_extraction_logs_single_compact_cache_hit_line_per_batch(self):
+        cached_df = pd.DataFrame(
+            {
+                "site": ["Nairobi"],
+                "lat": [-1.286],
+                "lon": [36.817],
+                "date": pd.to_datetime(["2050-01-01"]),
+                "pr": [1.2],
+                "tasmax": [25.0],
+                "tasmin": [15.0],
+                "model": ["MRI-ESM2-0"],
+                "scenario": ["ssp245"],
+            }
+        )
+        cached_manifest = {"selected_version": "1.1"}
+        sites = load_sites(sites=[("Nairobi", -1.286, 36.817)])
+
+        with mock.patch(
+            "climate_tookit.fetch_data.nex_gddp_batch._requested_band_names",
+            return_value=["pr", "tasmax", "tasmin"],
+        ), mock.patch(
+            "climate_tookit.fetch_data.nex_gddp_batch._load_valid_cached_batch",
+            return_value=(cached_df, cached_manifest),
+        ), mock.patch(
+            "climate_tookit.fetch_data.nex_gddp_batch._log_progress",
+        ) as progress_log:
+            result, summary, manifest = run_batch_extraction(
+                sites=sites,
+                date_from=date(2050, 1, 1),
+                date_to=date(2050, 1, 1),
+                verbose=True,
+            )
+
+        self.assertEqual(1, len(result))
+        self.assertEqual(1, len(summary))
+        self.assertEqual(1, len(manifest))
+
+        messages = [call.args[0] for call in progress_log.call_args_list]
+        self.assertTrue(
+            any("batch 1/1 | 2050-01-01:2050-01-01 | Nairobi..Nairobi (1 sites) | cache hit |" in msg for msg in messages)
+        )
+        self.assertFalse(any("batch 1/1: 2050-01-01:2050-01-01" in msg for msg in messages))
+
     def test_load_sites_dedupes_same_site_after_cache_coord_rounding(self):
         sites = load_sites(
             sites=[

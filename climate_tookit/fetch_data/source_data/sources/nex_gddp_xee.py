@@ -372,7 +372,8 @@ class DownloadData(models.DataDownloadBase):
 
     def _log_progress(self, message: str) -> None:
         if self.verbose:
-            logger.info(message)
+            print(message, flush=True)
+        logger.debug(message)
 
     def _ensure_ee_initialized(self, ee_module) -> None:
         initialize_earth_engine(

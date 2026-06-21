@@ -1577,6 +1577,24 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertIn("Historical GEE/Xee fetch note", rendered)
         self.assertIn("outputs/cache/...", rendered)
 
+    def test_print_indented_table_uses_compact_headers(self):
+        frame = pd.DataFrame(
+            [
+                {"Variable": "Precipitation", "Metric": "total_mm", "Value": 120.5},
+                {"Variable": "Precipitation", "Metric": "rainy_days", "Value": 42},
+            ]
+        )
+
+        stdout = StringIO()
+        with mock.patch("sys.stdout", stdout):
+            stats._print_indented_table(frame)
+
+        rendered = stdout.getvalue()
+        self.assertIn("metric", rendered)
+        self.assertIn("value", rendered)
+        self.assertNotIn("Variable", rendered)
+        self.assertNotIn("Value", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

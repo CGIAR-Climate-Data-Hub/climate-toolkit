@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import textwrap
 from datetime import date
 from pathlib import Path
@@ -155,6 +156,45 @@ GRID_SOURCE_METADATA = {
     },
 }
 
+TERMINAL_COLUMN_ALIASES = {
+    "station_id": "station",
+    "grid_source": "grid",
+    "variable": "var",
+    "overlap_days": "days",
+    "period_count": "n",
+    "confidence_class": "conf",
+    "coverage_ratio": "cover",
+    "window_years": "yrs",
+    "window_status": "window",
+    "correlation": "corr",
+    "station_total_mm": "obs_mm",
+    "grid_total_mm": "grid_mm",
+    "wet_day_hit_rate": "hit",
+    "false_alarm_ratio": "far",
+    "critical_success_index": "csi",
+    "frequency_bias": "f_bias",
+    "wet_day_agreement": "agree",
+    "validation_independence": "indep",
+    "product_class": "class",
+    "variables_used": "vars",
+    "annual_flag": "annual",
+}
+
+TERMINAL_VALUE_ALIASES = {
+    "confidence_class": {
+        "very_low": "vlow",
+        "medium": "med",
+    },
+    "window_status": {
+        "descriptive_only": "descriptive",
+        "screening_only": "screening",
+        "preliminary_ranking": "prelim_rank",
+        "period_average": "period_avg",
+        "near_climatology": "near_clim",
+        "climatology_grade": "clim_grade",
+    },
+}
+
 
 def _variable_name(variable: ClimateVariable | str) -> str:
     if hasattr(variable, "name"):
@@ -278,7 +318,45 @@ def _apply_terminal_aliases(frame: pd.DataFrame) -> pd.DataFrame:
                 "mean_temperature": "tmean",
             }
         )
+    for column, replacements in TERMINAL_VALUE_ALIASES.items():
+        if column in display.columns:
+            display[column] = display[column].replace(replacements)
+    display = display.rename(columns=TERMINAL_COLUMN_ALIASES)
     return display
+
+
+def _terminal_width(default: int = 120) -> int:
+    try:
+        return shutil.get_terminal_size((default, 20)).columns
+    except OSError:
+        return default
+
+
+def _compact_maxcolwidths(
+    headers: list[str],
+    widths: list[int | None] | None,
+) -> list[int | None] | None:
+    if widths is None:
+        return None
+    width_map = {
+        "station": 12,
+        "grid": 10,
+        "var": 10,
+        "annual": 12,
+        "window": 12,
+        "indep": 28,
+        "vars": 18,
+        "notes": 28,
+    }
+    compact = []
+    for index, header in enumerate(headers):
+        base = widths[index] if index < len(widths) else None
+        limit = width_map.get(header)
+        if base is None or limit is None:
+            compact.append(base)
+            continue
+        compact.append(min(base, limit))
+    return compact
 
 
 def _render_display_table(
@@ -292,14 +370,33 @@ def _render_display_table(
     selected = _drop_empty_display_columns(selected)
     if selected.empty:
         return "(no rows)"
+    terminal_width = _terminal_width()
+    compact_widths = _compact_maxcolwidths(list(selected.columns), maxcolwidths)
     if tabulate is not None:
+        rendered = tabulate(
+            selected.to_dict(orient="records"),
+            headers="keys",
+            tablefmt="plain",
+            showindex=False,
+            disable_numparse=True,
+            maxcolwidths=compact_widths,
+        )
+        if max((len(line) for line in rendered.splitlines()), default=0) <= terminal_width:
+            return rendered
+        tighter = _compact_maxcolwidths(
+            list(selected.columns),
+            [
+                min(width, 10) if isinstance(width, int) and width > 10 else width
+                for width in (compact_widths or [])
+            ],
+        )
         return tabulate(
             selected.to_dict(orient="records"),
             headers="keys",
             tablefmt="plain",
             showindex=False,
             disable_numparse=True,
-            maxcolwidths=maxcolwidths,
+            maxcolwidths=tighter,
         )
     return selected.to_string(index=False)
 
@@ -328,7 +425,7 @@ def _render_metric_core_table(
     preferred = [column for column in preferred if column]
     frame = _drop_constant_display_columns(
         frame,
-        candidates=["station_id", "confidence_class"],
+        candidates=["station_id", "confidence_class", "grid_source", "variable"],
     )
     return _render_display_table(
         frame,
@@ -342,7 +439,10 @@ def _render_precip_skill_table(rows: list[dict[str, Any]]) -> str:
     if not precip_rows:
         return "(no precipitation skill rows)"
     frame = _round_frame_for_display(pd.DataFrame(precip_rows))
-    frame = _drop_constant_display_columns(frame, candidates=["station_id"])
+    frame = _drop_constant_display_columns(
+        frame,
+        candidates=["station_id", "grid_source", "variable"],
+    )
     preferred = [
         "station_id",
         "grid_source",
@@ -374,7 +474,10 @@ def _render_annual_core_table(rows: list[dict[str, Any]]) -> str:
                 else _short_text(value, max_len=18)
             )
         )
-    frame = _drop_constant_display_columns(frame, candidates=["station_id"])
+    frame = _drop_constant_display_columns(
+        frame,
+        candidates=["station_id", "grid_source", "variable"],
+    )
     preferred = [
         "station_id",
         "grid_source",
@@ -401,7 +504,10 @@ def _render_annual_precip_totals_table(rows: list[dict[str, Any]]) -> str:
     if not precip_rows:
         return "(no annual precipitation totals)"
     frame = _round_frame_for_display(pd.DataFrame(precip_rows))
-    frame = _drop_constant_display_columns(frame, candidates=["station_id"])
+    frame = _drop_constant_display_columns(
+        frame,
+        candidates=["station_id", "grid_source", "variable"],
+    )
     preferred = [
         "station_id",
         "grid_source",
@@ -1805,10 +1911,10 @@ def _render_use_case_rankings(rows: list[dict[str, Any]]) -> str:
         return "(no ranking rows)"
     frame = _round_frame_for_display(pd.DataFrame(rows))
     if "notes" in frame.columns:
-        frame["notes"] = frame["notes"].map(lambda value: _wrap_text(value, width=38))
+        frame["notes"] = frame["notes"].map(lambda value: _wrap_text(value, width=28))
     if "variables_used" in frame.columns:
         frame["variables_used"] = frame["variables_used"].map(
-            lambda value: _wrap_text(value, width=28)
+            lambda value: _wrap_text(value, width=18)
         )
     preferred = [
         "use_case",
@@ -1821,7 +1927,7 @@ def _render_use_case_rankings(rows: list[dict[str, Any]]) -> str:
     return _render_display_table(
         frame,
         columns=preferred,
-        maxcolwidths=[24, 5, 12, 8, 28, 38],
+        maxcolwidths=[18, 4, 10, 6, 18, 28],
     )
 
 
