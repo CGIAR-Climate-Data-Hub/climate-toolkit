@@ -581,6 +581,7 @@ def overall_statistics(
     full_df: Optional[pd.DataFrame] = None,
     analysis_start: Optional[str] = None,
     analysis_end: Optional[str] = None,
+    shared_water_balance_summary: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Essential agro metrics for the full period.
@@ -591,10 +592,14 @@ def overall_statistics(
     tn  = df['tmin']
     et0 = df['ET0_mm_day'].fillna(0)
     wb  = df['water_balance']
-    shared_wb = _shared_water_balance_summary(
-        full_df if full_df is not None else df,
-        analysis_start=analysis_start,
-        analysis_end=analysis_end,
+    shared_wb = (
+        dict(shared_water_balance_summary)
+        if isinstance(shared_water_balance_summary, dict)
+        else _shared_water_balance_summary(
+            full_df if full_df is not None else df,
+            analysis_start=analysis_start,
+            analysis_end=analysis_end,
+        )
     )
 
     water_balance_stats = {
@@ -627,7 +632,12 @@ def overall_statistics(
         'water_balance': water_balance_stats,
     }
 
-def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
+def season_statistics(
+    df: pd.DataFrame,
+    season: Dict,
+    *,
+    shared_water_balance_summary: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """
     Essential agro metrics for one season.
     Slices df to [onset, cessation] and computes the trimmed metric set:
@@ -654,10 +664,14 @@ def season_statistics(df: pd.DataFrame, season: Dict) -> Dict[str, Any]:
     length_days = int(season.get('length_days',
                                  (cess_ts - onset_ts).days + 1))
     intensity = _r(p.sum() / rainy_days, 2) if rainy_days else 0.0
-    shared_wb = _shared_water_balance_summary(
-        df,
-        analysis_start=onset_ts.strftime('%Y-%m-%d'),
-        analysis_end=cess_ts.strftime('%Y-%m-%d'),
+    shared_wb = (
+        dict(shared_water_balance_summary)
+        if isinstance(shared_water_balance_summary, dict)
+        else _shared_water_balance_summary(
+            df,
+            analysis_start=onset_ts.strftime('%Y-%m-%d'),
+            analysis_end=cess_ts.strftime('%Y-%m-%d'),
+        )
     )
 
     water_balance_stats = {
@@ -1250,7 +1264,21 @@ def _compile_season_results(
     for year in sorted(seasons_dict.keys()):
         year_regime = _derive_year_regime(seasons_dict[year])
         for i, season in enumerate(seasons_dict[year], 1):
-            stats = season_statistics(df, season)
+            shared_wb = _shared_water_balance_summary(
+                df,
+                analysis_start=season['onset'],
+                analysis_end=season['cessation'],
+            )
+            try:
+                stats = season_statistics(
+                    df,
+                    season,
+                    shared_water_balance_summary=shared_wb,
+                )
+            except TypeError as exc:
+                if "shared_water_balance_summary" not in str(exc):
+                    raise
+                stats = season_statistics(df, season)
             if not stats:
                 continue
             stats['year'] = year
@@ -1280,6 +1308,7 @@ def _compile_season_results(
                     full_df=df,
                     analysis_start=season['onset'],
                     analysis_end=season['cessation'],
+                    shared_water_balance_summary=shared_wb,
                 )
 
             sub_results: List[Dict] = []
