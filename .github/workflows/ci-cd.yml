@@ -33,7 +33,7 @@ jobs:
       # Install Python dependencies
       - name: Install Python dependencies with uv
         run: |
-          uv sync --group dev
+          uv sync --locked --group dev
 
       - name: Run Ruff baseline checks
         run: |

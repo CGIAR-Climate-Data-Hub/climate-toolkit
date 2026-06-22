@@ -61,7 +61,7 @@ normal user workflows.
    ```bash
    uv venv
    source .venv/bin/activate
-   uv sync --group dev
+   uv sync --locked --group dev
    ```
 
    Windows PowerShell:
@@ -69,13 +69,21 @@ normal user workflows.
    ```powershell
    uv venv
    .\.venv\Scripts\Activate.ps1
-   uv sync --group dev
+   uv sync --locked --group dev
+   ```
+
+   Repository commits `uv.lock`, so normal setup should stay on locked sync.
+   After dependency edits, refresh lockfile with:
+
+   ```bash
+   uv lock
    ```
 
    Run commands through locked environment with:
 
    ```bash
    uv run climate-toolkit-stats --help
+   uv run python -c "import climate_tookit; print('import ok')"
    uv run ruff check .
    uv run pytest -q
    ```
@@ -550,8 +558,8 @@ climate_tookit/
 - `nex_gddp` now uses real Earth Engine/Xee retrieval. It requires Earth Engine auth plus `GCP_PROJECT_ID`.
 - Current `nex_gddp` Earth Engine backend uses dataset version `1.1`. Future `1.2` sourcing is tracked as follow-up work, not current runtime behavior.
 - Arid-region NEX rainfall-spike warning rationale and literature links are documented in `analysis/nex_gddp_access_rnd.md`.
-- package install shape is tested through `pyproject.toml` and console-script entrypoints
-- preferred development install is `uv sync --group dev`
+- package install shape is tested through `pyproject.toml`, `uv.lock`, and console-script entrypoints
+- preferred development install is `uv sync --locked --group dev`
 - fallback editable install remains `python -m pip install -e .`
 
 
@@ -723,6 +731,7 @@ We welcome PRs and suggestions!
 Local quality commands:
 
 ```bash
+uv sync --locked --group dev
 uv run ruff check .
 uv run ruff format .
 uv run pytest -q
