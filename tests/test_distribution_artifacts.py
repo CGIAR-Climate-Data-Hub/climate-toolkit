@@ -57,14 +57,11 @@ class DistributionArtifactSmokeTests(unittest.TestCase):
         return wheels[0], sdists[0]
 
     def _create_temp_venv(self, target_dir: Path) -> Path:
-        venv.EnvBuilder(with_pip=True, system_site_packages=True).create(target_dir)
+        venv.EnvBuilder(with_pip=True, system_site_packages=False).create(target_dir)
         return _venv_python(target_dir)
 
     def _install_artifact(self, python_path: Path, artifact_path: Path) -> None:
-        install_cmd = [str(python_path), "-m", "pip", "install", "--no-deps"]
-        if artifact_path.suffixes[-2:] == [".tar", ".gz"]:
-            install_cmd.append("--no-build-isolation")
-        install_cmd.append(str(artifact_path))
+        install_cmd = [str(python_path), "-m", "pip", "install", str(artifact_path)]
 
         subprocess.run(
             install_cmd,
