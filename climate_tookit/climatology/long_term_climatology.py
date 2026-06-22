@@ -36,6 +36,7 @@ from time import perf_counter
 from typing import Dict, List, Any, Tuple, Optional
 
 import pandas as pd
+import numpy as np
 import typer
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import redirect_stdout
@@ -309,6 +310,32 @@ def _load_matplotlib():
     except ImportError:
         return None, None
     return plt, MaxNLocator
+
+
+def _plot_runtime_warning() -> str:
+    return (
+        "Plot writing skipped: matplotlib runtime missing in current environment. "
+        "Reinstall toolkit dependencies to enable climatology PNG outputs."
+    )
+
+
+def _json_sanitize(value, decimals: int = 4):
+    """Convert payload into stable JSON-friendly structure."""
+    if isinstance(value, dict):
+        return {str(k): _json_sanitize(v, decimals=decimals) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_sanitize(v, decimals=decimals) for v in value]
+    if isinstance(value, tuple):
+        return [_json_sanitize(v, decimals=decimals) for v in value]
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    if isinstance(value, np.generic):
+        return _json_sanitize(value.item(), decimals=decimals)
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            return None
+        return round(value, decimals)
+    return value
 
 SSP_SCENARIOS: List[str] = ['ssp126', 'ssp245', 'ssp585', 'historical']
 SCENARIO_ALIASES: Dict[str, str] = {
@@ -812,21 +839,25 @@ def calculate_climatology(
         }
     # Emit plots if requested
     plots_written: List[str] = []
+    plot_warnings: List[str] = []
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         period_label = f"{start_year}-{end_year}"
+        plt, max_n_locator = _load_matplotlib()
+        if plt is None or max_n_locator is None:
+            plot_warnings.append(_plot_runtime_warning())
+        else:
+            annual_plot_path = os.path.join(
+                output_dir, f"{source}_{period_label}_annual_timeseries.png"
+            )
+            if plot_annual_timeseries(annual_stats, source, period_label, annual_plot_path):
+                plots_written.append(annual_plot_path)
 
-        annual_plot_path = os.path.join(
-            output_dir, f"{source}_{period_label}_annual_timeseries.png"
-        )
-        if plot_annual_timeseries(annual_stats, source, period_label, annual_plot_path):
-            plots_written.append(annual_plot_path)
-
-        monthly_plot_path = os.path.join(
-            output_dir, f"{source}_{period_label}_monthly_climatology.png"
-        )
-        if plot_monthly_climatology(monthly_climatology, source, period_label, monthly_plot_path):
-            plots_written.append(monthly_plot_path)
+            monthly_plot_path = os.path.join(
+                output_dir, f"{source}_{period_label}_monthly_climatology.png"
+            )
+            if plot_monthly_climatology(monthly_climatology, source, period_label, monthly_plot_path):
+                plots_written.append(monthly_plot_path)
 
     # Strip the private daily-data attachments before returning a serializable result
     for s in annual_stats:
@@ -849,6 +880,7 @@ def calculate_climatology(
         'annual_statistics': annual_stats,
         'annual_time_series': annual_time_series if annual_time_series else None,
         'plots': plots_written if plots_written else None,
+        'plot_warnings': plot_warnings if plot_warnings else None,
         'notes': notes if notes else None,
         'metadata': {
             'wmo_standard': n_years == 30,
@@ -1029,6 +1061,14 @@ def print_climatology_report(result: Dict[str, Any]):
         print(f"  {'─'*66}")
         for p in result['plots']:
             print(f"    📊 {p}")
+        print()
+
+    if result.get('plot_warnings'):
+        print(f"  {'─'*66}")
+        print("  PLOT WARNINGS")
+        print(f"  {'─'*66}")
+        for warning in result['plot_warnings']:
+            print(f"    - {warning}")
         print()
 
     print(f"{'='*70}\n")
@@ -1273,6 +1313,7 @@ def calculate_climatology_ensemble(
 
     # Plots from the ensemble-mean series (reconstruct an annual_stats shape)
     plots_written: List[str] = []
+    plot_warnings: List[str] = []
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         period_label = f"{start_year}-{end_year}"
@@ -1292,13 +1333,17 @@ def calculate_climatology_ensemble(
                     'annual_mean_tmin_c': tmin.get(y),
                 }
             synth.append(s)
-        tag = f"nex_gddp_ensemble_{canon}"
-        annual_path = os.path.join(output_dir, f"{tag}_{period_label}_annual_timeseries.png")
-        if synth and plot_annual_timeseries(synth, source_label, period_label, annual_path):
-            plots_written.append(annual_path)
-        monthly_path = os.path.join(output_dir, f"{tag}_{period_label}_monthly_climatology.png")
-        if monthly and plot_monthly_climatology(monthly, source_label, period_label, monthly_path):
-            plots_written.append(monthly_path)
+        plt, max_n_locator = _load_matplotlib()
+        if plt is None or max_n_locator is None:
+            plot_warnings.append(_plot_runtime_warning())
+        else:
+            tag = f"nex_gddp_ensemble_{canon}"
+            annual_path = os.path.join(output_dir, f"{tag}_{period_label}_annual_timeseries.png")
+            if synth and plot_annual_timeseries(synth, source_label, period_label, annual_path):
+                plots_written.append(annual_path)
+            monthly_path = os.path.join(output_dir, f"{tag}_{period_label}_monthly_climatology.png")
+            if monthly and plot_monthly_climatology(monthly, source_label, period_label, monthly_path):
+                plots_written.append(monthly_path)
 
     return {
         'location': {'latitude': lat, 'longitude': lon},
@@ -1323,6 +1368,7 @@ def calculate_climatology_ensemble(
             for m, r in per_model_results.items()
         },
         'plots': plots_written if plots_written else None,
+        'plot_warnings': plot_warnings if plot_warnings else None,
         'metadata': {
             'wmo_standard': n_years == 30,
             'data_completeness_pct': round(years_with_data_min / n_years * 100, 1),
@@ -1634,7 +1680,7 @@ def _run_climatology_cli(
 
         payload = all_results[scenarios[0]] if len(scenarios) == 1 else all_results
         if output_format == "json":
-            rendered = json.dumps(payload, indent=2, default=str)
+            rendered = json.dumps(_json_sanitize(payload), indent=2, default=str)
             if output_path:
                 os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
                 with open(output_path, "w") as handle:
@@ -1645,7 +1691,7 @@ def _run_climatology_cli(
         elif output_path:
             os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
             with open(output_path, "w") as handle:
-                json.dump(payload, handle, indent=2, default=str)
+                json.dump(_json_sanitize(payload), handle, indent=2, default=str)
             print(f"✓ JSON data saved to {output_path}")
 
         if not any_ok:
@@ -1660,7 +1706,7 @@ def _run_climatology_cli(
         output_dir=plot_dir,
     )
     if output_format == "json":
-        rendered = json.dumps(result, indent=2, default=str)
+        rendered = json.dumps(_json_sanitize(result), indent=2, default=str)
         if output_path:
             os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
             with open(output_path, "w") as handle:
@@ -1673,7 +1719,7 @@ def _run_climatology_cli(
         if output_path:
             os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
             with open(output_path, "w") as handle:
-                json.dump(result, handle, indent=2, default=str)
+                json.dump(_json_sanitize(result), handle, indent=2, default=str)
             print(f"✓ JSON data saved to {output_path}")
     return 0
 
