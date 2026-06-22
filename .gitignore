@@ -23,3 +23,5 @@ outputs/
 climate_stats_*.json
 *.egg-info/
 dist/
+build/
+.tmp/

@@ -26,8 +26,12 @@ import sys
 from datetime import date
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
+except ModuleNotFoundError:  # pragma: no cover - optional plotting dependency at import time
+    plt = None
+    MaxNLocator = None
 from ..fetch_data.preprocess_data.preprocess_data import preprocess_data
 from ..climate_statistics.statistics import (
     _fetch_auto as _fetch_auto_dataset,
@@ -208,6 +212,14 @@ PALETTE = [
     "#8338EC", "#FB5607", "#06D6A0", "#FFBE0B",
 ]
 
+
+def _require_matplotlib():
+    if plt is None or MaxNLocator is None:
+        raise ModuleNotFoundError(
+            "matplotlib is required for compare_datasets plotting outputs. "
+            "Install matplotlib to generate plots."
+        )
+
 def _style_ax(ax, title="", xlabel="", ylabel=""):
     ax.set_facecolor("#F7F9FC")
     ax.spines[["top", "right"]].set_visible(False)
@@ -234,6 +246,7 @@ def _autoscale_state_axis(ax, values):
     ax.set_ylim(lo - pad, hi + pad)
 
 def _save(fig, path):
+    _require_matplotlib()
     fig.savefig(path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"  📊  Saved → {path}")
@@ -364,6 +377,7 @@ def plot_annual_timeseries(df: pd.DataFrame, source: str, output_dir: str):
     num_cols = df.select_dtypes(include="number").columns.tolist()
     if not num_cols:
         return
+    _require_matplotlib()
     n = len(num_cols)
     fig, axes = plt.subplots(n, 1, figsize=(9, 3 * n), squeeze=False)
     fig.suptitle(f"Annual Time Series — {source}", fontsize=12,
@@ -402,6 +416,7 @@ def plot_monthly_climatology(df: pd.DataFrame, source: str, output_dir: str):
     num_cols = df.select_dtypes(include="number").columns.tolist()
     if not num_cols:
         return
+    _require_matplotlib()
     n = len(num_cols)
     fig, axes = plt.subplots(n, 1, figsize=(9, 3 * n), squeeze=False)
     fig.suptitle(f"Monthly Climatology — {source}", fontsize=12,
@@ -446,6 +461,7 @@ def plot_multisource_annual(results: dict, output_dir: str):
         }
         if len(sources_with_var) < 2:
             continue
+        _require_matplotlib()
         use_total = _is_accum(var)
         fig, ax = plt.subplots(figsize=(10, 4))
         for i, (src, df) in enumerate(sources_with_var.items()):
@@ -480,6 +496,7 @@ def plot_multisource_monthly_climatology(results: dict, output_dir: str):
         sources_with_var = _sources_with_var(results, var)
         if len(sources_with_var) < 2:
             continue
+        _require_matplotlib()
         use_total = _is_accum(var)
         fig, ax = plt.subplots(figsize=(10, 4))
         for i, (src, df) in enumerate(sources_with_var.items()):

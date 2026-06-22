@@ -16,6 +16,7 @@ REQUIREMENTS_PATH = REPO_ROOT / "requirements.txt"
 UV_LOCK_PATH = REPO_ROOT / "uv.lock"
 README_PATH = REPO_ROOT / "README.md"
 CI_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "ci-cd.yml"
+LICENSE_PATH = REPO_ROOT / "LICENSE"
 
 
 class PackagingMetadataTests(unittest.TestCase):
@@ -95,6 +96,40 @@ class PackagingMetadataTests(unittest.TestCase):
     def test_ci_uses_locked_uv_sync(self):
         ci_workflow = CI_WORKFLOW_PATH.read_text(encoding="utf-8")
         self.assertIn("uv sync --locked --group dev", ci_workflow)
+        self.assertIn("uv run python -m build --no-isolation --outdir .tmp/dist-release", ci_workflow)
+        self.assertIn("uv run twine check .tmp/dist-release/*", ci_workflow)
+
+    def test_pyproject_distribution_metadata_is_not_placeholder_shape(self):
+        with PYPROJECT_PATH.open("rb") as handle:
+            pyproject = tomllib.load(handle)
+
+        project = pyproject["project"]
+        self.assertNotEqual("Climate toolkit", project["description"])
+        self.assertEqual("README.md", project["readme"])
+        self.assertEqual("MIT", project["license"])
+        self.assertEqual(["LICENSE"], project["license-files"])
+        self.assertRegex(project["version"], r"^\d+\.\d+\.\d+(a\d+|b\d+|rc\d+|\.dev\d+)?$")
+
+        classifiers = set(project["classifiers"])
+        self.assertIn("Programming Language :: Python :: 3.10", classifiers)
+        self.assertIn("Topic :: Scientific/Engineering :: Atmospheric Science", classifiers)
+
+        self.assertEqual(
+            "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit",
+            project["urls"]["Repository"],
+        )
+        self.assertEqual(
+            "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues",
+            project["urls"]["Issues"],
+        )
+
+    def test_license_file_exists_and_matches_readme_claim(self):
+        self.assertTrue(LICENSE_PATH.exists())
+        license_text = LICENSE_PATH.read_text(encoding="utf-8")
+        self.assertIn("MIT License", license_text)
+
+        readme = README_PATH.read_text(encoding="utf-8")
+        self.assertIn("[MIT License](./LICENSE)", readme)
 
     def test_pyproject_declares_console_scripts_for_current_module_clis(self):
         with PYPROJECT_PATH.open("rb") as handle:

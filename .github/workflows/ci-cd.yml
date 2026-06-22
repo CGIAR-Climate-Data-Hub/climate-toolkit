@@ -39,6 +39,12 @@ jobs:
         run: |
           uv run ruff check .
 
+      - name: Build Python distribution artifacts
+        run: |
+          rm -rf .tmp/dist-release
+          uv run python -m build --no-isolation --outdir .tmp/dist-release
+          uv run twine check .tmp/dist-release/*
+
       # Setup R
       - name: Set up R ${{ matrix.r-version }}
         uses: r-lib/actions/setup-r@v2
