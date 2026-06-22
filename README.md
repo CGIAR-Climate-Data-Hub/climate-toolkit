@@ -120,6 +120,12 @@ normal user workflows.
    python -m pip install -e .
    ```
 
+   Standard non-editable install:
+
+   ```bash
+   python -m pip install .
+   ```
+
    Fallback if you want raw dependency install only:
 
    ```bash
@@ -131,6 +137,33 @@ normal user workflows.
    ```bash
    cp .env.example .env
    ```
+
+### Distribution smoke path
+
+Local build / install verification:
+
+```bash
+rm -rf .tmp/dist-release
+uv run python -m build --no-isolation --outdir .tmp/dist-release
+uv run twine check .tmp/dist-release/*
+python -m pip install .tmp/dist-release/climate_tookit-*.whl
+```
+
+If you only want artifact verification without mutating current environment,
+rely on automated smoke tests and CI build checks.
+
+### Release strategy
+
+Current decision:
+
+- GitHub releases only for now
+- no direct PyPI publish yet
+- TestPyPI can come later once auth-heavy runtime expectations, install docs,
+  and wheel smoke behavior stay stable across contributor machines
+
+Reference note:
+
+- `docs/distribution_workflow.md`
 
 ### Earth Engine setup
 
@@ -561,6 +594,7 @@ climate_tookit/
 - package install shape is tested through `pyproject.toml`, `uv.lock`, and console-script entrypoints
 - preferred development install is `uv sync --locked --group dev`
 - fallback editable install remains `python -m pip install -e .`
+- non-editable smoke install path is `python -m pip install .`
 
 
 ### Solution Architecture
@@ -732,6 +766,9 @@ Local quality commands:
 
 ```bash
 uv sync --locked --group dev
+rm -rf .tmp/dist-release
+uv run python -m build --no-isolation --outdir .tmp/dist-release
+uv run twine check .tmp/dist-release/*
 uv run ruff check .
 uv run ruff format .
 uv run pytest -q

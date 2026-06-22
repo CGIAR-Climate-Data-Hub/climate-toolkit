@@ -4,9 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "climate-tookit"
-version = "0.0.0"
-description = "Climate toolkit"
+version = "0.1.0a0"
+description = "Climate toolkit for location-based climate, season, climatology, hazard, and projection analysis."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
+keywords = [
+  "climate",
+  "agriculture",
+  "hazards",
+  "seasonality",
+  "nex-gddp",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
 dependencies = [
   "earthengine_api==1.6.12",
   "pandas==2.3.1",
@@ -22,9 +39,17 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "build",
   "pytest",
   "ruff",
+  "setuptools>=68",
+  "twine",
+  "wheel",
 ]
+
+[project.urls]
+Repository = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit"
+Issues = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues"
 
 [project.scripts]
 climate-toolkit-fetch = "climate_tookit.fetch_data.fetch_data:main"
