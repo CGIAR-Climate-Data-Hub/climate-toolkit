@@ -150,6 +150,8 @@ class PackagingMetadataTests(unittest.TestCase):
             "climate-toolkit-weather-station-compare": "climate_tookit.weather_station.compare:main",
             "climate-toolkit-compare-datasets": "climate_tookit.compare_datasets.compare_datasets:main",
             "climate-toolkit-climatology": "climate_tookit.climatology.long_term_climatology:main",
+            "climate-toolkit-spei": "climate_tookit.climatology.spei:main",
+            "climate-toolkit-xclim-reference": "climate_tookit.climatology.xclim_reference:main",
         }
         self.assertEqual(expected, scripts)
 

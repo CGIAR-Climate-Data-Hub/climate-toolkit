@@ -16,10 +16,20 @@ empirical z-score shortcut. An explicit empirical fallback is still available.
 from __future__ import annotations
 
 import math
+import os
+import sys
 from statistics import NormalDist
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
+import typer
+
+from ._cli_common import (
+    build_frame_payload,
+    fetch_standardized_climate_frame,
+    render_frame_text,
+    save_payload,
+)
 
 DEFAULT_MIN_POINTS_PER_MONTH = 4
 _CDF_EPSILON = 1e-12
@@ -540,3 +550,186 @@ def compute_monthly_spi(
         ),
     }
     return monthly
+
+
+app = typer.Typer(
+    add_completion=False,
+    help="Compute monthly SPI or SPEI from daily climate inputs.",
+)
+
+
+@app.command()
+def spei_cli(
+    location: str = typer.Option(
+        ...,
+        "--location",
+        help='Location as "lat,lon" (e.g., "-1.286,36.817")',
+    ),
+    source: str = typer.Option(
+        ...,
+        "--source",
+        help="Input source (e.g., agera_5, paired, nasa_power, nex_gddp).",
+    ),
+    start: str = typer.Option(..., "--start", help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Option(..., "--end", help="End date (YYYY-MM-DD)"),
+    index_name: str = typer.Option(
+        "spei",
+        "--index",
+        help="Standardized index to compute: spei or spi.",
+    ),
+    scale_months: int = typer.Option(3, "--scale-months", help="Accumulation scale in months."),
+    fit: str = typer.Option(
+        "ub-pwm",
+        "--fit",
+        help="Fitting method: ub-pwm or empirical.",
+    ),
+    ref_start: Optional[str] = typer.Option(
+        None,
+        "--ref-start",
+        help="Optional calibration/reference period start (YYYY-MM-DD).",
+    ),
+    ref_end: Optional[str] = typer.Option(
+        None,
+        "--ref-end",
+        help="Optional calibration/reference period end (YYYY-MM-DD).",
+    ),
+    precip_source: Optional[str] = typer.Option(
+        None,
+        "--precip-source",
+        help="Paired mode only. Precipitation source.",
+    ),
+    temp_source: Optional[str] = typer.Option(
+        None,
+        "--temp-source",
+        help="Paired mode only. Temperature source.",
+    ),
+    model: Optional[str] = typer.Option(
+        None,
+        "--model",
+        help="NEX-GDDP only. Single model name.",
+    ),
+    scenario: Optional[str] = typer.Option(
+        None,
+        "--scenario",
+        help="NEX-GDDP only. Scenario name.",
+    ),
+    output_format: str = typer.Option(
+        "text",
+        "--format",
+        help="Output format: text, json, or csv.",
+    ),
+    output_path: Optional[str] = typer.Option(
+        None,
+        "--output",
+        help="Optional output path for json/csv export.",
+    ),
+) -> None:
+    normalized_index = str(index_name).strip().lower()
+    normalized_format = str(output_format).strip().lower()
+    if normalized_index not in {"spei", "spi"}:
+        raise typer.BadParameter(
+            f"Invalid index '{index_name}'. Use 'spei' or 'spi'.",
+            param_hint="--index",
+        )
+    if normalized_format not in {"text", "json", "csv"}:
+        raise typer.BadParameter(
+            f"Invalid format '{output_format}'. Use 'text', 'json', or 'csv'.",
+            param_hint="--format",
+        )
+
+    frame = fetch_standardized_climate_frame(
+        location=location,
+        source=source,
+        start=start,
+        end=end,
+        precip_source=precip_source,
+        temp_source=temp_source,
+        model=model,
+        scenario=scenario,
+    )
+    lat = float(location.split(",", 1)[0].strip())
+
+    if normalized_index == "spei":
+        result = compute_monthly_spei(
+            frame,
+            scale_months=scale_months,
+            lat=lat,
+            precip_col="precip",
+            tmax_col="tmax",
+            tmin_col="tmin",
+            fit=fit,
+            ref_start=ref_start,
+            ref_end=ref_end,
+        )
+    else:
+        result = compute_monthly_spi(
+            frame,
+            scale_months=scale_months,
+            precip_col="precip",
+            fit=fit,
+            ref_start=ref_start,
+            ref_end=ref_end,
+        )
+
+    payload = build_frame_payload(
+        tool="spei",
+        mode=normalized_index,
+        frame=result,
+        metadata=result.attrs.get("spei_metadata", {}),
+        location=location,
+        source=source,
+        start=start,
+        end=end,
+        extra={
+            "parameters": {
+                "scale_months": scale_months,
+                "fit": fit,
+                "precip_source": precip_source,
+                "temp_source": temp_source,
+                "model": model,
+                "scenario": scenario,
+                "ref_start": ref_start,
+                "ref_end": ref_end,
+            }
+        },
+    )
+
+    if normalized_format == "text":
+        print(
+            render_frame_text(
+                title=f"{normalized_index.upper()} monthly output",
+                frame=result,
+                metadata=result.attrs.get("spei_metadata", {}),
+            )
+        )
+        return
+
+    if not output_path:
+        default_name = f"{normalized_index}_{source}_{start}_{end}.{normalized_format}"
+        output_path = os.path.join("outputs", "climatology", default_name)
+    saved_path = save_payload(
+        payload=payload,
+        frame=result,
+        output_format=normalized_format,
+        output_path=output_path,
+    )
+    print(f"{normalized_index.upper()} output saved: {saved_path}")
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """Command-line entry point for SPI/SPEI climatology helpers."""
+    command = typer.main.get_command(app)
+    args = list(sys.argv[1:] if argv is None else argv)
+    prog_name = os.path.basename(sys.argv[0]) if sys.argv else "climate-toolkit-spei"
+    try:
+        command.main(args=args, prog_name=prog_name, standalone_mode=False)
+    except Exception as exc:
+        if hasattr(exc, "show") and hasattr(exc, "exit_code"):
+            exc.show()
+            return int(exc.exit_code)
+        raise
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
