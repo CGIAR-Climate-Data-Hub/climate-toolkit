@@ -251,6 +251,16 @@ def _save(fig, path):
     plt.close(fig)
     print(f"  📊  Saved → {path}")
 
+
+def _run_plot_step(label: str, callback, *args, **kwargs):
+    """Run plotting step without letting one plot failure kill whole report."""
+    try:
+        callback(*args, **kwargs)
+        return None
+    except Exception as exc:
+        print(f"  ⚠️   Plot step failed for {label}: {exc}")
+        return str(exc)
+
 # Export helpers
 def export_data(df, source, output_dir):
     os.makedirs(output_dir, exist_ok=True)
@@ -659,6 +669,7 @@ def print_report(results: dict, output_dir: str = "./outputs"):
     _sep("═")
     print("  CLIMATE DATA REPORT")
     _sep("═")
+    plot_failures = []
 
     # All numeric variables observed across any source
     all_vars: set = set()
@@ -671,8 +682,32 @@ def print_report(results: dict, output_dir: str = "./outputs"):
     print(f"{'─'*60}")
     for source, df in results.items():
         print(f"\n  [{source}]")
-        plot_annual_timeseries(df, source, output_dir)
-        plot_monthly_climatology(df, source, output_dir)
+        annual_failure = _run_plot_step(
+            f"{source} annual_timeseries",
+            plot_annual_timeseries,
+            df,
+            source,
+            output_dir,
+        )
+        if annual_failure:
+            plot_failures.append({
+                "step": "annual_timeseries",
+                "source": source,
+                "error": annual_failure,
+            })
+        monthly_failure = _run_plot_step(
+            f"{source} monthly_climatology",
+            plot_monthly_climatology,
+            df,
+            source,
+            output_dir,
+        )
+        if monthly_failure:
+            plot_failures.append({
+                "step": "monthly_climatology",
+                "source": source,
+                "error": monthly_failure,
+            })
 
     # Consolidated tables per variable
     annual_tables: dict = {}
@@ -713,8 +748,30 @@ def print_report(results: dict, output_dir: str = "./outputs"):
     print(f"\n{'─'*60}")
     print("  MULTI-SOURCE COMPARISON PLOTS")
     print(f"{'─'*60}")
-    plot_multisource_annual(results, output_dir)
-    plot_multisource_monthly_climatology(results, output_dir)
+    multisource_annual_failure = _run_plot_step(
+        "multisource annual comparison",
+        plot_multisource_annual,
+        results,
+        output_dir,
+    )
+    if multisource_annual_failure:
+        plot_failures.append({
+            "step": "multisource_annual",
+            "source": "ALL",
+            "error": multisource_annual_failure,
+        })
+    multisource_monthly_failure = _run_plot_step(
+        "multisource monthly climatology comparison",
+        plot_multisource_monthly_climatology,
+        results,
+        output_dir,
+    )
+    if multisource_monthly_failure:
+        plot_failures.append({
+            "step": "multisource_monthly_climatology",
+            "source": "ALL",
+            "error": multisource_monthly_failure,
+        })
 
     # Pairwise climatology correlations
     all_climatology = {src: compute_monthly_climatology(df)
@@ -736,6 +793,7 @@ def print_report(results: dict, output_dir: str = "./outputs"):
         "annual_statistics":  {v: t.to_dict(orient="index") for v, t in stats_tables.items()},
         "climatology":        {v: t.to_dict() for v, t in clim_tables.items()},
         "pairwise_clim_corr": pairwise,
+        "plot_failures": plot_failures or None,
     }
 
 # CLI
