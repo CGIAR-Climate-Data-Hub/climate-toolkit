@@ -526,6 +526,12 @@ Supported end-user CLI contracts:
 - `climate-toolkit-compare-datasets`
 - `climate-toolkit-climatology`
 
+CLI implementation note:
+
+- `climate-toolkit-climatology` is the current Typer prototype from issue `#34`
+- the remaining public CLI entry points still use their existing `argparse`
+  wrappers while compatibility and migration cost are evaluated
+
 Preferred stable import paths:
 
 - top-level package for end-user workflows:

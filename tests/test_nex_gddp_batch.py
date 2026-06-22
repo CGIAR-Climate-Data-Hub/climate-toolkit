@@ -25,11 +25,92 @@ from climate_tookit.fetch_data.nex_gddp_batch import (
     cache_paths_for_batch,
     fetch_nex_gddp_batch_data,
     load_sites,
+    main,
+    parse_args,
     run_batch_extraction,
 )
 
 
 class NexGddpBatchTests(unittest.TestCase):
+    def test_parse_args_accepts_legacy_from_to_and_lat_lon(self):
+        args = parse_args(
+            [
+                "--variables",
+                "precipitation,max_temperature,min_temperature",
+                "--from",
+                "2050-01-01",
+                "--to",
+                "2050-01-10",
+                "--lon",
+                "36.817",
+                "--lat",
+                "-1.286",
+                "--model",
+                "GFDL-ESM4",
+                "--scenario",
+                "ssp245",
+            ]
+        )
+
+        self.assertEqual(date(2050, 1, 1), args.start)
+        self.assertEqual(date(2050, 1, 10), args.end)
+        self.assertEqual(-1.286, args.single_lat)
+        self.assertEqual(36.817, args.single_lon)
+        self.assertEqual("GFDL-ESM4", args.model)
+
+    def test_parse_args_accepts_station_lat_lon_aliases(self):
+        args = parse_args(
+            [
+                "--variables",
+                "precipitation,max_temperature,min_temperature",
+                "--start",
+                "2050-01-01",
+                "--end",
+                "2050-01-10",
+                "--station-lon",
+                "36.817",
+                "--station-lat",
+                "-1.286",
+            ]
+        )
+
+        self.assertEqual(date(2050, 1, 1), args.start)
+        self.assertEqual(date(2050, 1, 10), args.end)
+        self.assertEqual(-1.286, args.single_lat)
+        self.assertEqual(36.817, args.single_lon)
+
+    def test_main_builds_single_site_from_scalar_coords(self):
+        fake_data = pd.DataFrame({"date": pd.to_datetime(["2050-01-01"])})
+        fake_summary = pd.DataFrame({"rows": [1]})
+        fake_manifest = pd.DataFrame({"cache_hit": [False]})
+        argv = [
+            "nex_gddp_batch.py",
+            "--start",
+            "2050-01-01",
+            "--end",
+            "2050-01-01",
+            "--station-lat",
+            "-1.286",
+            "--station-lon",
+            "36.817",
+            "--site-name",
+            "Nairobi",
+            "--quiet",
+        ]
+
+        with mock.patch(
+            "climate_tookit.fetch_data.nex_gddp_batch.fetch_nex_gddp_batch_data",
+            return_value=(fake_data, fake_summary, fake_manifest),
+        ) as fetch_mock, mock.patch("sys.argv", argv):
+            rc = main()
+
+        self.assertEqual(0, rc)
+        sites = fetch_mock.call_args.kwargs["sites"]
+        self.assertEqual(1, len(sites))
+        self.assertEqual("Nairobi", sites[0].name)
+        self.assertEqual(-1.286, sites[0].lat)
+        self.assertEqual(36.817, sites[0].lon)
+
     def test_run_batch_extraction_logs_single_compact_cache_hit_line_per_batch(self):
         cached_df = pd.DataFrame(
             {
