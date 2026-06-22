@@ -451,6 +451,61 @@ In Jupyter, prefix shell commands with `!`:
 !python -m climate_tookit.fetch_data.fetch_data --help
 ```
 
+### Climatology
+
+`climate-toolkit-climatology` writes annual and monthly climatology PNGs by
+default under `./outputs`. Those plots now rely on the standard package
+dependency set, including `matplotlib`.
+
+NASA POWER example:
+
+```bash
+climate-toolkit-climatology \
+  --location="-1.286,36.817" \
+  --start-year=1991 \
+  --end-year=2020 \
+  --source=nasa_power
+```
+
+Earth Engine-backed historical example:
+
+```bash
+export GCP_PROJECT_ID=YOUR_PROJECT_ID
+climate-toolkit-climatology \
+  --location="-1.286,36.817" \
+  --start-year=1991 \
+  --end-year=2020 \
+  --source=agera_5
+```
+
+Important source notes:
+
+- `agera_5`, `era_5`, `chirps_v2`, `chirps_v3_daily_rnl`, `chirts`, `imerg`,
+  and similar historical gridded sources are Earth Engine-backed in this
+  toolkit. They need Earth Engine auth plus `GCP_PROJECT_ID`.
+- `era_5` daily coverage currently ends on `2020-07-09` in this package. Use
+  `agera_5` for a full `1991-2020` climatology window, or stop ERA5 at `2019`.
+- `chirps_v2` / `chirps_v3_daily_rnl` are precipitation-only, so climatology
+  will omit temperature outputs.
+- `chirts` is temperature-only, so climatology will omit precipitation outputs.
+
+SPEI and xclim helpers are library functions, not standalone console scripts.
+Use them from Python after fetching/preprocessing climate data:
+
+```python
+from climate_tookit.climatology.spei import (
+    compute_monthly_spei,
+    prepare_monthly_climatic_water_balance,
+)
+from climate_tookit.climatology.xclim_reference import (
+    compute_xclim_precip_indices,
+)
+
+monthly_balance = prepare_monthly_climatic_water_balance(df, lat=-1.286)
+spei_12 = compute_monthly_spei(monthly_balance, scale=12)
+xclim_precip = compute_xclim_precip_indices(df)
+```
+
 ---
 
 ## Stable vs Internal Entry Points
