@@ -1,11 +1,13 @@
 import sys
 import types
 import unittest
+import json
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+import numpy as np
 import pandas as pd
 
 
@@ -246,6 +248,98 @@ class ClimatologyOutputTests(unittest.TestCase):
 
             self.assertTrue(output_path.exists())
             self.assertIn("JSON data saved", stdout.getvalue())
+
+    def test_calculate_climatology_returns_plot_warning_when_matplotlib_missing(self):
+        valid_stats = {
+            "year": 2020,
+            "observed_days": 366,
+            "expected_days": 366,
+            "data_completeness": 100.0,
+            "precipitation": {
+                "annual_total_mm": 1000.0,
+                "annual_mean_daily_mm": 2.73,
+                "annual_median_daily_mm": 1.0,
+                "annual_max_daily_mm": 20.0,
+                "annual_std_daily_mm": 3.0,
+                "rainy_days": 100,
+                "dry_days": 266,
+                "days_with_data": 366,
+            },
+            "temperature": {
+                "annual_mean_tmax_c": 28.0,
+                "annual_mean_tmin_c": 16.0,
+                "annual_mean_tavg_c": 22.0,
+                "annual_max_tmax_c": 35.0,
+                "annual_min_tmin_c": 10.0,
+                "annual_std_tmax_c": 2.0,
+                "annual_std_tmin_c": 1.5,
+                "annual_diurnal_range_c": 12.0,
+                "days_with_data": 366,
+            },
+            "_daily_df": pd.DataFrame(
+                {
+                    "date": pd.date_range("2020-01-01", "2020-12-31", freq="D"),
+                    "precipitation": [1.0] * 366,
+                    "max_temperature": [28.0] * 366,
+                    "min_temperature": [16.0] * 366,
+                }
+            ),
+            "_columns": {"precip": "precipitation", "tmax": "max_temperature", "tmin": "min_temperature"},
+        }
+
+        with TemporaryDirectory() as tmpdir, \
+             mock.patch.object(ltc, "calculate_annual_statistics", return_value=(valid_stats, None)), \
+             mock.patch.object(ltc, "_load_matplotlib", return_value=(None, None)):
+            result = ltc.calculate_climatology(
+                location_coord=(-1.286, 36.817),
+                start_year=2020,
+                end_year=2020,
+                source="nasa_power",
+                output_dir=tmpdir,
+                verbose=False,
+            )
+
+        self.assertIsNone(result["plots"])
+        self.assertEqual(
+            [ltc._plot_runtime_warning()],
+            result["plot_warnings"],
+        )
+
+    def test_main_single_source_json_sanitizes_nan_and_surfaces_plot_warning(self):
+        payload = {
+            "source": "era_5",
+            "period": {"start_year": 1991, "end_year": 2020},
+            "plot_warnings": [ltc._plot_runtime_warning()],
+            "climatology": {
+                "temperature": {
+                    "mean_annual_tavg_c": np.float32(23.302000045776367),
+                    "std_annual_tavg_c": float("nan"),
+                }
+            },
+        }
+
+        with TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "nested" / "results" / "climatology.json"
+            argv = [
+                "long_term_climatology.py",
+                "--location=-1.286,36.817",
+                "--start-year=1991",
+                "--end-year=2020",
+                "--source=era_5",
+                "--format=json",
+                f"--output={output_path}",
+            ]
+
+            stdout = StringIO()
+            with mock.patch("sys.argv", argv), \
+                 mock.patch("sys.stdout", stdout), \
+                 mock.patch.object(ltc, "calculate_climatology", return_value=payload):
+                ltc.main()
+
+            saved = json.loads(output_path.read_text())
+            self.assertEqual(23.302, saved["climatology"]["temperature"]["mean_annual_tavg_c"])
+            self.assertIsNone(saved["climatology"]["temperature"]["std_annual_tavg_c"])
+            self.assertEqual([ltc._plot_runtime_warning()], saved["plot_warnings"])
 
     def test_ensemble_worker_metadata_recorded_in_serial_mode(self):
         payload_a = {
