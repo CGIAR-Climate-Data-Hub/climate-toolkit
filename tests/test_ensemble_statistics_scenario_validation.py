@@ -309,6 +309,32 @@ class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):
         self.assertEqual(1, timing["model_workers_used"])
         self.assertEqual(2, result["n_models_ok"])
 
+    def test_child_error_payload_is_preserved_in_failed_models(self):
+        fake_result = {
+            "error": "Climate data fetch failed: oauth2.googleapis.com DNS failure",
+        }
+
+        with mock.patch.object(
+            es,
+            "resolve_ensemble_policy_for_location",
+            return_value={"models": ["MRI-ESM2-0"], "policy_id": "unit-test"},
+        ), mock.patch.object(es, "analyze_climate_statistics", return_value=fake_result):
+            result = es.analyze_ensemble_nex_gddp(
+                location_coord=(-1.286, 36.817),
+                start_year=2040,
+                end_year=2060,
+                scenario="ssp585",
+                fixed_season="03-01:05-31",
+                verbose=False,
+                model_workers=1,
+            )
+
+        self.assertEqual("All models failed.", result["error"])
+        self.assertEqual(
+            "Climate data fetch failed: oauth2.googleapis.com DNS failure",
+            result["failed_models"][0]["error"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
