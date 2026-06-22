@@ -1014,6 +1014,35 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertIn("error", result)
         self.assertIn("precipitation-only", result["error"])
 
+    def test_calculate_hazards_rejects_out_of_range_era5_before_fetch(self):
+        result = calculate_hazards(
+            crop_name="maize",
+            location_coord=(-1.286, 36.817),
+            date_from="2018-01-01",
+            date_to="2022-12-31",
+            source="era_5",
+            fixed_season="03-01:06-30",
+        )
+
+        self.assertIn("error", result)
+        self.assertIn("Requested range for source 'era_5' is outside current coverage", result["error"])
+        self.assertIn("Use 'agera_5' or 'auto' for later periods.", result["error"])
+
+    def test_calculate_hazards_rejects_paired_temp_partner_out_of_range(self):
+        result = calculate_hazards(
+            crop_name="maize",
+            location_coord=(-1.286, 36.817),
+            date_from="2019-01-01",
+            date_to="2022-12-31",
+            source="paired",
+            precip_source="chirps_v3_daily_rnl",
+            temp_source="era_5",
+            fixed_season="03-01:06-30",
+        )
+
+        self.assertIn("error", result)
+        self.assertIn("Requested range for source 'era_5' is outside current coverage", result["error"])
+
     def test_calculate_hazards_auto_detect_keeps_no_season_message_for_true_empty_detection(self):
         import climate_tookit.calculate_hazards.hazards as hazards
 

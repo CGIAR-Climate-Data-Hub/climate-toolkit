@@ -36,6 +36,7 @@ from climate_tookit.crop_calendar.ggcmi import (
 )
 from climate_tookit.fetch_data.source_data.sources.utils.models import (
     normalize_climate_dataset_name,
+    source_date_coverage_error,
 )
 from climate_tookit.season_analysis.season_identity import build_season_identity
 
@@ -731,6 +732,58 @@ def _validate_paired_sources(
             "Temperature partner chirts is unavailable for this window because "
             "CHIRTS daily coverage ends in 2016."
         )
+
+
+def _validate_source_coverage(source: str, start_date: str, end_date: str) -> None:
+    coverage_error = source_date_coverage_error(
+        source,
+        date.fromisoformat(start_date),
+        date.fromisoformat(end_date),
+    )
+    if coverage_error:
+        raise ValueError(coverage_error)
+
+
+def _validate_paired_coverage(
+    precip_source: Optional[str],
+    temp_source: Optional[str],
+    start_date: str,
+    end_date: str,
+) -> None:
+    precip_lc = normalize_climate_dataset_name(precip_source)
+    temp_lc = normalize_climate_dataset_name(temp_source)
+    if precip_lc:
+        _validate_source_coverage(precip_lc, start_date, end_date)
+    if temp_lc:
+        _validate_source_coverage(temp_lc, start_date, end_date)
+
+
+def _validate_request_coverage(
+    source: str,
+    start_date: str,
+    end_date: str,
+    precip_source: Optional[str] = None,
+    temp_source: Optional[str] = None,
+) -> None:
+    source_lc = normalize_climate_dataset_name(source) or source
+    if source_lc == PAIRED_SOURCE_SENTINEL:
+        _validate_paired_coverage(precip_source, temp_source, start_date, end_date)
+        return
+    if source_lc in {"auto", "chirps+chirts", "chirps_v2+chirts"}:
+        return
+    _validate_source_coverage(source_lc, start_date, end_date)
+
+
+def _fixed_window_dates_for_year(
+    year: int,
+    season_def: Dict[str, Any],
+) -> Tuple[str, str]:
+    onset_mm, onset_dd = season_def["onset_md"]
+    cess_mm, cess_dd = season_def["cessation_md"]
+    cessation_year = year + 1 if (cess_mm, cess_dd) < (onset_mm, onset_dd) else year
+    onset_date = date(year, onset_mm, onset_dd).isoformat()
+    cessation_date = date(cessation_year, cess_mm, cess_dd).isoformat()
+    return onset_date, cessation_date
 
 
 def _extract_detection_errors(annual_dict: Dict[int, Dict[str, Any]]) -> List[str]:
@@ -1791,6 +1844,13 @@ def calculate_hazards(
         print(f"Climate data source: {source}")
         fetch_start = _shift_iso_date(season_start, -spinup_days)
         try:
+            _validate_request_coverage(
+                source,
+                fetch_start,
+                season_end,
+                precip_source=precip_source,
+                temp_source=temp_source,
+            )
             df = get_climate_data_for_season(
                 lat,
                 lon,
@@ -1829,6 +1889,20 @@ def calculate_hazards(
 
         start_year = datetime.fromisoformat(date_from).year
         end_year   = datetime.fromisoformat(date_to).year
+        try:
+            for year in range(start_year, end_year + 1):
+                for season_def in fixed_defs:
+                    s_start, s_end = _fixed_window_dates_for_year(year, season_def)
+                    fetch_start = _shift_iso_date(s_start, -spinup_days)
+                    _validate_request_coverage(
+                        source,
+                        fetch_start,
+                        s_end,
+                        precip_source=precip_source,
+                        temp_source=temp_source,
+                    )
+        except ValueError as exc:
+            return {'error': str(exc)}
 
         seasons_dict, annual_dict = fetch_and_analyze_years_fixed(
             lat, lon,
@@ -1911,6 +1985,16 @@ def calculate_hazards(
             print(f"Climate data source: {detection_source}")
         start_year = datetime.fromisoformat(date_from).year
         end_year   = datetime.fromisoformat(date_to).year
+        try:
+            _validate_request_coverage(
+                detection_source,
+                date_from,
+                date_to,
+                precip_source=precip_source,
+                temp_source=temp_source,
+            )
+        except ValueError as exc:
+            return {'error': str(exc)}
         auto_master_df = None
         if requested_calendar_preset:
             auto_master_df = fetch_master_range_with_tail(
