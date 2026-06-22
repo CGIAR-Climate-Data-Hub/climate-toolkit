@@ -52,6 +52,32 @@ import climate_tookit.climatology.long_term_climatology as ltc
 
 
 class ClimatologyOutputTests(unittest.TestCase):
+    def test_calculate_annual_statistics_uses_precip_only_defaults_for_chirps(self):
+        dates = pd.date_range("2020-01-01", "2020-12-31", freq="D")
+        df = pd.DataFrame({
+            "date": dates,
+            "precipitation": [1.0] * len(dates),
+        })
+        captured = {}
+
+        def _fake_preprocess_data(**kwargs):
+            captured.update(kwargs)
+            return df
+
+        with mock.patch.object(ltc, "PREPROCESS_AVAILABLE", True), \
+             mock.patch.object(ltc, "preprocess_data", side_effect=_fake_preprocess_data):
+            stats = ltc.calculate_annual_statistics(
+                lat=-1.286,
+                lon=36.817,
+                year=2020,
+                source="chirps",
+                variables=None,
+                verbose=False,
+            )
+
+        self.assertIsNotNone(stats)
+        self.assertEqual(["precipitation"], [item.name for item in captured["variables"]])
+
     def test_calculate_annual_statistics_uses_leap_year_day_count(self):
         dates = pd.date_range("2020-01-01", "2020-12-31", freq="D")
         df = pd.DataFrame({
@@ -99,6 +125,30 @@ class ClimatologyOutputTests(unittest.TestCase):
             )
 
         self.assertIsNone(stats)
+
+    def test_calculate_climatology_error_surfaces_year_failure_summary_and_notes(self):
+        def _fake_annual_stats(*args, **kwargs):
+            self.assertTrue(kwargs["return_error"])
+            return None, (
+                "Earth Engine project ID is required. Pass ee_project_id or set one of "
+                "GCP_PROJECT_ID, GOOGLE_CLOUD_PROJECT, or EE_PROJECT_ID."
+            )
+
+        with mock.patch.object(ltc, "calculate_annual_statistics", side_effect=_fake_annual_stats):
+            result = ltc.calculate_climatology(
+                location_coord=(-1.286, 36.817),
+                start_year=1991,
+                end_year=1992,
+                source="agera_5",
+                verbose=False,
+            )
+
+        self.assertIn("error", result)
+        self.assertIn("failure_summary", result)
+        self.assertEqual(1, len(result["failure_summary"]))
+        self.assertEqual(2, result["failure_summary"][0]["count"])
+        notes = result.get("notes") or []
+        self.assertTrue(any("Earth Engine-backed" in note for note in notes))
 
     def test_ensemble_completeness_uses_conservative_minimum_not_rounded_mean(self):
         payload_a = {

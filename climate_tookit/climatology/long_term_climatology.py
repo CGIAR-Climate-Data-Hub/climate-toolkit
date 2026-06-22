@@ -20,7 +20,7 @@ Outputs (resolves #81):
 - Annual time-series plots (PNG)
 - Monthly climatology plots (PNG)
 
-Dependencies: pandas, matplotlib (optional, for plots), preprocess_data pipeline
+Dependencies: pandas, matplotlib, preprocess_data pipeline
 """
 
 import sys
@@ -50,12 +50,16 @@ from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
 
 try:
     from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-    from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+    from climate_tookit.fetch_data.source_data.sources.utils.models import (
+        ClimateVariable,
+        normalize_climate_dataset_name,
+    )
 
     PREPROCESS_AVAILABLE = True
 except Exception:
     preprocess_data = None
     ClimateVariable = None
+    normalize_climate_dataset_name = None
     PREPROCESS_AVAILABLE = False
 
 
@@ -204,6 +208,97 @@ PALETTE = {
     'tavg': '#F4A261',
     'tmin': '#3BB273',
 }
+GEE_CLIMATOLOGY_SOURCES = {
+    "agera_5",
+    "era_5",
+    "terraclimate",
+    "imerg",
+    "chirps",
+    "chirps_v2",
+    "chirps_v3_daily_rnl",
+    "chirts",
+    "cmip_6",
+}
+PRECIP_ONLY_CLIMATOLOGY_SOURCES = {
+    "chirps",
+    "chirps_v2",
+    "chirps_v3_daily_rnl",
+    "imerg",
+    "tamsat",
+}
+TEMP_ONLY_CLIMATOLOGY_SOURCES = {"chirts"}
+
+
+def _normalize_source_name(source: str) -> str:
+    if normalize_climate_dataset_name is not None:
+        normalized = normalize_climate_dataset_name(source)
+        if normalized:
+            return normalized
+    return str(source or "").strip().lower()
+
+
+def _default_climatology_variables_for_source(source: str, climate_variable_enum) -> List:
+    source_name = _normalize_source_name(source)
+    if source_name in PRECIP_ONLY_CLIMATOLOGY_SOURCES:
+        return [climate_variable_enum.precipitation]
+    if source_name in TEMP_ONLY_CLIMATOLOGY_SOURCES:
+        return [
+            climate_variable_enum.max_temperature,
+            climate_variable_enum.min_temperature,
+        ]
+    return [
+        climate_variable_enum.precipitation,
+        climate_variable_enum.max_temperature,
+        climate_variable_enum.min_temperature,
+    ]
+
+
+def _source_usage_notes(source: str) -> List[str]:
+    source_name = _normalize_source_name(source)
+    notes: List[str] = []
+    if source_name in GEE_CLIMATOLOGY_SOURCES:
+        notes.append(
+            "This source is Earth Engine-backed. Authenticate Earth Engine and set "
+            "GCP_PROJECT_ID before running climatology."
+        )
+    if source_name == "era_5":
+        notes.append(
+            "ERA5 daily coverage in this toolkit currently ends on 2020-07-09. "
+            "Use agera_5 for full 1991-2020 normals or later historical windows."
+        )
+    if source_name in PRECIP_ONLY_CLIMATOLOGY_SOURCES:
+        notes.append(
+            "This source is precipitation-only. Temperature climatology outputs are "
+            "expected to be absent."
+        )
+    if source_name in TEMP_ONLY_CLIMATOLOGY_SOURCES:
+        notes.append(
+            "This source is temperature-only. Precipitation climatology outputs are "
+            "expected to be absent."
+        )
+    return notes
+
+
+def _summarize_year_failures(year_failures: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    grouped: Dict[str, List[int]] = {}
+    for failure in year_failures:
+        reason = str(failure.get("error") or "Unknown error")
+        grouped.setdefault(reason, []).append(int(failure["year"]))
+
+    summary = []
+    for reason, years in grouped.items():
+        ordered_years = sorted(years)
+        summary.append(
+            {
+                "error": reason,
+                "count": len(ordered_years),
+                "year_start": ordered_years[0],
+                "year_end": ordered_years[-1],
+                "sample_years": ordered_years[:5],
+            }
+        )
+    summary.sort(key=lambda item: (-item["count"], item["error"]))
+    return summary
 
 
 def _load_matplotlib():
@@ -264,7 +359,8 @@ def calculate_annual_statistics(
     variables: Optional[List] = None,
     model: Optional[str] = None,
     scenario: Optional[str] = None,
-    verbose: bool = True
+    verbose: bool = True,
+    return_error: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """
     Calculate annual statistics for a single year.
@@ -272,11 +368,9 @@ def calculate_annual_statistics(
     """
     preprocess_data, ClimateVariable = _import_preprocess_runtime()
     if variables is None:
-        variables = [
-            ClimateVariable.precipitation,
-            ClimateVariable.max_temperature,
-            ClimateVariable.min_temperature
-        ]
+        variables = _default_climatology_variables_for_source(source, ClimateVariable)
+
+    failure_reason = None
     try:
         date_from = date(year, 1, 1)
         date_to = date(year, 12, 31)
@@ -299,9 +393,10 @@ def calculate_annual_statistics(
         expected_days = _expected_days_in_year(year)
 
         if df.empty or observed_days < 300:
+            failure_reason = f"Insufficient data ({observed_days}/{expected_days} days)"
             if verbose:
-                print(f"  ✗ {year}: Insufficient data ({observed_days}/{expected_days} days)")
-            return None
+                print(f"  ✗ {year}: {failure_reason}")
+            return (None, failure_reason) if return_error else None
 
         precip_col, tmax_col, tmin_col = _detect_columns(df)
         df = _normalize_units(df, tmax_col, tmin_col)
@@ -343,9 +438,10 @@ def calculate_annual_statistics(
                 has_data = True
 
         if not has_data:
+            failure_reason = "No valid precipitation or temperature data"
             if verbose:
-                print(f"  ✗ {year}: No valid precipitation or temperature data")
-            return None
+                print(f"  ✗ {year}: {failure_reason}")
+            return (None, failure_reason) if return_error else None
 
         stats['year'] = year
         stats['observed_days'] = observed_days
@@ -354,12 +450,13 @@ def calculate_annual_statistics(
         stats['_daily_df'] = df
         stats['_columns'] = {'precip': precip_col, 'tmax': tmax_col, 'tmin': tmin_col}
 
-        return stats
+        return (stats, None) if return_error else stats
         
     except Exception as e:
+        failure_reason = str(e)
         if verbose:
-            print(f"  ✗ {year}: {str(e)}")
-        return None
+            print(f"  ✗ {year}: {failure_reason}")
+        return (None, failure_reason) if return_error else None
 
 def compute_monthly_climatology(
     combined_df: pd.DataFrame,
@@ -446,7 +543,7 @@ def plot_annual_timeseries(
     """Plot annual precipitation totals and annual mean temperature over the period."""
     plt, MaxNLocator = _load_matplotlib()
     if plt is None or MaxNLocator is None:
-        print("  (matplotlib not available — skipping annual time-series plot)")
+        print("  (matplotlib runtime missing — reinstall toolkit dependencies to enable plots)")
         return False
     years = [s['year'] for s in annual_stats]
     has_precip = any('precipitation' in s for s in annual_stats)
@@ -505,7 +602,7 @@ def plot_monthly_climatology(
     """Plot monthly climatology: bar chart for precipitation, line plot for temperature."""
     plt, _ = _load_matplotlib()
     if plt is None:
-        print("  (matplotlib not available — skipping monthly climatology plot)")
+        print("  (matplotlib runtime missing — reinstall toolkit dependencies to enable plots)")
         return False
 
     has_precip = bool(monthly.get('precipitation'))
@@ -583,29 +680,46 @@ def calculate_climatology(
         print(f"  Processing {n_years} years...\n")
 
     annual_stats = []
+    year_failures: List[Dict[str, Any]] = []
+    notes = _source_usage_notes(source)
 
     for year in range(start_year, end_year + 1):
         if verbose:
             print(f"  [{year - start_year + 1}/{n_years}] {year}...", end=' ')
 
-        stats = calculate_annual_statistics(lat, lon, year, source, variables,
-                                            model=model, scenario=scenario,
-                                            verbose=verbose)
+        stats, failure_reason = calculate_annual_statistics(
+            lat,
+            lon,
+            year,
+            source,
+            variables,
+            model=model,
+            scenario=scenario,
+            verbose=verbose,
+            return_error=True,
+        )
         if stats:
             annual_stats.append(stats)
             if verbose:
                 print("✓")
+        elif failure_reason:
+            year_failures.append({"year": year, "error": failure_reason})
 
     if verbose:
         print(f"\n  Complete: {len(annual_stats)}/{n_years} years with valid data\n")
     
-    if len(annual_stats) < n_years * 0.8:  
-        return {
+    if len(annual_stats) < n_years * 0.8:
+        result = {
             'error': f'Insufficient data: only {len(annual_stats)}/{n_years} years available',
             'location': {'latitude': lat, 'longitude': lon},
             'period': {'start_year': start_year, 'end_year': end_year},
-            'source': source
+            'source': source,
         }
+        if year_failures:
+            result['failure_summary'] = _summarize_year_failures(year_failures)
+        if notes:
+            result['notes'] = notes
+        return result
     # Calculate climatology (long-term means)
     climatology = {}
     
@@ -734,6 +848,7 @@ def calculate_climatology(
         'annual_statistics': annual_stats,
         'annual_time_series': annual_time_series if annual_time_series else None,
         'plots': plots_written if plots_written else None,
+        'notes': notes if notes else None,
         'metadata': {
             'wmo_standard': n_years == 30,
             'data_completeness_pct': round(len(annual_stats) / n_years * 100, 1),
@@ -768,6 +883,20 @@ def print_climatology_report(result: Dict[str, Any]):
     
     if 'error' in result:
         print(f"\nError: {result['error']}")
+        notes = result.get('notes') or []
+        if notes:
+            print("\nNotes:")
+            for note in notes:
+                print(f"  - {note}")
+        failure_summary = result.get('failure_summary') or []
+        if failure_summary:
+            print("\nFailure summary:")
+            for item in failure_summary:
+                print(
+                    "  - "
+                    f"{item['count']} year(s) "
+                    f"({item['year_start']}-{item['year_end']}): {item['error']}"
+                )
         return
     
     print(f"\n{'='*70}")
@@ -783,6 +912,15 @@ def print_climatology_report(result: Dict[str, Any]):
         print(f"  WMO Standard: ✓ (30-year normal)")
     
     print(f"{'='*70}\n")
+
+    notes = result.get('notes') or []
+    if notes:
+        print(f"  {'─'*66}")
+        print("  NOTES")
+        print(f"  {'─'*66}")
+        for note in notes:
+            print(f"    - {note}")
+        print()
     
     clim = result['climatology']
     
@@ -1376,8 +1514,9 @@ Examples:
     parser.add_argument('--end-year', required=True, type=int,
                        help='End year of climatology period (inclusive)')
     parser.add_argument('--source', required=True, type=str,
-                       help='Data source (e.g., nasa_power, chirps_v2, chirts). '
-                            "'nex_gddp' runs the CMIP6 ensemble (averaged across models).")
+                       help='Data source (e.g., nasa_power, agera_5, era_5, chirps_v2, chirts). '
+                            "'nex_gddp' runs the CMIP6 ensemble (averaged across models). "
+                            "Most non-NASA historical sources are Earth Engine-backed.")
     parser.add_argument('--scenarios', type=str, default='ssp245',
                        metavar='ssp245[,ssp585]',
                        help='NEX-GDDP only. Comma-separated SSP scenarios. Canonical: '
@@ -1396,7 +1535,7 @@ Examples:
                        help='Output file path (for JSON format)')
     parser.add_argument('--output-dir', type=str, default='./outputs',
                        help='Directory for plot PNGs (default: ./outputs). '
-                            'Pass empty string to disable plotting.')
+                            'Pass empty string to disable plotting. Plot writing requires matplotlib.')
     parser.add_argument('--model-workers', type=int, default=8,
                        help=("Parallel NEX-GDDP model workers for ensemble runs. "
                              "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
