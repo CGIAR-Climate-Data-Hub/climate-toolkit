@@ -3,6 +3,7 @@ import types
 import unittest
 from io import StringIO
 from pathlib import Path
+import re
 from tempfile import TemporaryDirectory
 from unittest import mock
 
@@ -51,23 +52,30 @@ _install_test_stubs()
 import climate_tookit.climatology.long_term_climatology as ltc
 
 
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
 class ClimatologyTyperCliTests(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
+    def _plain(self, text: str) -> str:
+        return ANSI_ESCAPE_RE.sub("", text)
+
     def test_typer_help_exposes_existing_root_options_without_completion_noise(self):
         result = self.runner.invoke(ltc.app, ["--help"])
+        plain = self._plain(result.output)
 
         self.assertEqual(0, result.exit_code)
-        self.assertIn("Usage:", result.output)
-        self.assertIn("[OPTIONS]", result.output)
-        self.assertIn("--location", result.output)
-        self.assertIn("--start-year", result.output)
-        self.assertIn("--end-year", result.output)
-        self.assertIn("--source", result.output)
-        self.assertNotIn("COMMAND [ARGS]", result.output)
-        self.assertNotIn("--install-completion", result.output)
-        self.assertNotIn("--show-completion", result.output)
+        self.assertIn("Usage:", plain)
+        self.assertIn("[OPTIONS]", plain)
+        self.assertIn("--location", plain)
+        self.assertIn("--start-year", plain)
+        self.assertIn("--end-year", plain)
+        self.assertIn("--source", plain)
+        self.assertNotIn("COMMAND [ARGS]", plain)
+        self.assertNotIn("--install-completion", plain)
+        self.assertNotIn("--show-completion", plain)
 
     def test_typer_reports_invalid_format_before_running(self):
         result = self.runner.invoke(
