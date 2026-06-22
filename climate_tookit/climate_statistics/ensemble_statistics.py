@@ -535,6 +535,22 @@ def analyze_ensemble_nex_gddp(
                 )
             return
         r = outcome["result"]
+        child_error = ""
+        if isinstance(r, dict) and r.get("error"):
+            child_error = str(r.get("error")).strip()
+        if child_error:
+            failed.append({'model': model, 'error': child_error})
+            if verbose:
+                _print_worker_progress(
+                    done=done,
+                    total=len(active),
+                    model=model,
+                    ok=False,
+                    elapsed_seconds=float(outcome.get("elapsed_seconds", 0.0)),
+                    run_started=run_started,
+                    error=child_error,
+                )
+            return
         attempted_results.append((model, r))
         seasons = r.get('season_statistics') or []
         ltm_model = r.get('ltm_season_summary') or {}
