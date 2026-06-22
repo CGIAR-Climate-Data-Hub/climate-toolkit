@@ -30,12 +30,13 @@ import logging
 import contextlib
 import calendar
 import io
+import json
 from datetime import date
 from time import perf_counter
 from typing import Dict, List, Any, Tuple, Optional
+
 import pandas as pd
-import json
-import argparse
+import typer
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import redirect_stdout
 from statistics import mean, stdev, median
@@ -1356,87 +1357,51 @@ def print_ensemble_climatology_report(result: Dict[str, Any]) -> None:
     _print_per_model_monthly_breakdown(result)
     print_climatology_report(result)
 
-def main() -> int:
-    """Command-line interface for climatology analysis."""
-    parser = argparse.ArgumentParser(
-        description='Calculate long-term climate normals (WMO 30-year standards)',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Calculate 1991-2020 climatology (current WMO standard)
-  # Calculate with JSON output
-  # NEX-GDDP runs the documented model ensemble (averaged); pick scenario(s) and models
-        """
-    )
-
-    parser.add_argument('--location', required=True, type=str,
-                       help='Location as "lat,lon" (e.g., "-1.286,36.817")')
-    parser.add_argument('--start-year', required=True, type=int,
-                       help='Start year of climatology period')
-    parser.add_argument('--end-year', required=True, type=int,
-                       help='End year of climatology period (inclusive)')
-    parser.add_argument('--source', required=True, type=str,
-                       help='Data source (e.g., nasa_power, chirps_v2, chirts). '
-                            "'nex_gddp' runs the CMIP6 ensemble (averaged across models).")
-    parser.add_argument('--scenarios', type=str, default='ssp245',
-                       metavar='ssp245[,ssp585]',
-                       help='NEX-GDDP only. Comma-separated SSP scenarios. Canonical: '
-                            f"{', '.join(SSP_SCENARIOS)} (default: ssp245). "
-                            'Aliases also accepted: SSP1-2.6, SSP2-4.5, SSP5-8.5.')
-    parser.add_argument('--models', type=str, default=None,
-                       help='NEX-GDDP only. Comma-separated subset of CMIP6 models '
-                            '(default: all 16).')
-    parser.add_argument('--exclude-models', type=str, default=None,
-                       help='NEX-GDDP only. Comma-separated CMIP6 models to drop.')
-    parser.add_argument('--policy-profile', choices=POLICY_PROFILE_CHOICES, default='default',
-                       help=f"NEX-GDDP only. {POLICY_PROFILE_HELP}")
-    parser.add_argument('--format', choices=['text', 'json'], default='text',
-                       help='Output format (default: text)')
-    parser.add_argument('--output', type=str,
-                       help='Output file path (for JSON format)')
-    parser.add_argument('--output-dir', type=str, default='./outputs',
-                       help='Directory for plot PNGs (default: ./outputs). '
-                            'Pass empty string to disable plotting.')
-    parser.add_argument('--model-workers', type=int, default=8,
-                       help=("Parallel NEX-GDDP model workers for ensemble runs. "
-                             "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
-                             "Use 1 for serial deep debugging."))
-
-    args = parser.parse_args()
-
-    # Parse location
+def _run_climatology_cli(
+    *,
+    location: str,
+    start_year: int,
+    end_year: int,
+    source: str,
+    scenarios_text: str,
+    models: Optional[str],
+    exclude_models: Optional[str],
+    policy_profile: str,
+    output_format: str,
+    output_path: Optional[str],
+    output_dir: str,
+    model_workers: int,
+) -> int:
     try:
-        lat, lon = map(float, args.location.split(','))
+        lat, lon = map(float, location.split(","))
     except ValueError:
         print("Error: Invalid location format. Use 'lat,lon' format.")
         return 1
 
-    # Validate years
-    if args.end_year < args.start_year:
+    if end_year < start_year:
         print("Error: End year must be >= start year")
         return 1
 
-    n_years = args.end_year - args.start_year + 1
+    n_years = end_year - start_year + 1
     if n_years < 10:
         print(f"Warning: {n_years} years may be insufficient for robust climatology")
         print("         WMO recommends 30-year periods for climate normals")
 
-    plot_dir = args.output_dir if args.output_dir else None
+    plot_dir = output_dir if output_dir else None
 
-    # NEX-GDDP -> ensemble across models, one result per requested scenario.
-    if args.source == 'nex_gddp':
-        sub_models = [m.strip() for m in args.models.split(',')] if args.models else None
-        excl = [m.strip() for m in args.exclude_models.split(',')] if args.exclude_models else None
+    if source == "nex_gddp":
+        sub_models = [m.strip() for m in models.split(",")] if models else None
+        excl = [m.strip() for m in exclude_models.split(",")] if exclude_models else None
 
-        raw_scenarios = [s.strip() for s in args.scenarios.split(',') if s.strip()]
+        raw_scenarios = [s.strip() for s in scenarios_text.split(",") if s.strip()]
         scenarios: List[str] = []
         invalid: List[str] = []
-        for s in raw_scenarios:
-            canon = _normalize_scenario(s)
+        for scenario_name in raw_scenarios:
+            canon = _normalize_scenario(scenario_name)
             if canon and canon not in scenarios:
                 scenarios.append(canon)
             elif not canon:
-                invalid.append(s)
+                invalid.append(scenario_name)
         if invalid:
             print(f"Error: invalid scenario(s) {invalid}. "
                   f"Accepted: {sorted(SCENARIO_ALIASES)}")
@@ -1448,142 +1413,246 @@ Examples:
         all_results: Dict[str, Any] = {}
         any_ok = False
         multi = len(scenarios) > 1
-        verbose_text = (args.format != 'json')
+        verbose_text = output_format != "json"
 
         if multi and verbose_text:
             print(f"\n{'#'*70}")
             print(f"  MULTI-SCENARIO RUN ({len(scenarios)} scenarios): "
                   f"{', '.join(scenarios)}")
             print(f"  Location: ({lat:.4f}, {lon:.4f})   "
-                  f"Period: {args.start_year}-{args.end_year}")
-            print(f"  Reports will be printed together below, after all "
-                  f"fetches finish.")
+                  f"Period: {start_year}-{end_year}")
+            print("  Reports will be printed together below, after all "
+                  "fetches finish.")
             print(f"{'#'*70}")
 
-        # --- Phase 1: fetch each scenario, defer report printing ---
-        for idx, scenario in enumerate(scenarios, 1):
+        for idx, scenario_name in enumerate(scenarios, 1):
             if multi and verbose_text:
                 print(f"\n{'>'*70}")
                 print(f"  >>>  FETCHING SCENARIO {idx}/{len(scenarios)}: "
-                      f"{scenario}  <<<")
+                      f"{scenario_name}  <<<")
                 print(f"{'>'*70}")
             with _quiet_fetch_logs():
                 result = calculate_climatology_ensemble(
                     location_coord=(lat, lon),
-                    start_year=args.start_year,
-                    end_year=args.end_year,
-                    scenario=scenario,
+                    start_year=start_year,
+                    end_year=end_year,
+                    scenario=scenario_name,
                     models=sub_models,
                     exclude_models=excl,
-                    policy_profile=None if args.policy_profile == 'default' else args.policy_profile,
+                    policy_profile=None if policy_profile == "default" else policy_profile,
                     output_dir=plot_dir,
                     verbose=verbose_text,
-                    model_workers=args.model_workers,
+                    model_workers=model_workers,
                 )
-            all_results[scenario] = result
-            if 'error' not in result:
+            all_results[scenario_name] = result
+            if "error" not in result:
                 any_ok = True
 
-        # --- Phase 2: print every scenario's report, back-to-back ---
         if verbose_text:
             if multi:
                 print(f"\n{'#'*70}")
                 print(f"  RESULTS — ALL {len(scenarios)} SCENARIOS BELOW, IN ORDER")
                 print(f"{'#'*70}")
-            for idx, scenario in enumerate(scenarios, 1):
+            for idx, scenario_name in enumerate(scenarios, 1):
                 if multi:
                     print(f"\n{'='*70}")
                     print(f"  ===  RESULTS FOR SCENARIO {idx}/{len(scenarios)}: "
-                          f"{scenario}  ===")
+                          f"{scenario_name}  ===")
                     print(f"{'='*70}")
-                print_ensemble_climatology_report(all_results[scenario])
+                print_ensemble_climatology_report(all_results[scenario_name])
 
-        # --- Phase 3: cross-scenario summary ---
         if multi and verbose_text:
             print(f"\n{'#'*70}")
             print(f"  CROSS-SCENARIO SUMMARY ({len(scenarios)} scenarios)")
             print(f"{'#'*70}")
             rows: List[Dict[str, Any]] = []
-            for sc, r in all_results.items():
-                if 'error' in r:
+            for scenario_name, result in all_results.items():
+                if "error" in result:
                     rows.append({
-                        'Scenario': sc,
-                        'Status': f"FAILED ({r['error']})",
-                        'AnnPrecip_mm': 'n/a',
-                        'Tavg_c': 'n/a',
-                        'Tmax_c': 'n/a',
-                        'Tmin_c': 'n/a',
+                        "Scenario": scenario_name,
+                        "Status": f"FAILED ({result['error']})",
+                        "AnnPrecip_mm": "n/a",
+                        "Tavg_c": "n/a",
+                        "Tmax_c": "n/a",
+                        "Tmin_c": "n/a",
                     })
                     continue
-                cl = r.get('climatology') or {}
-                p = cl.get('precipitation') or {}
-                t = cl.get('temperature') or {}
-                n_ok = r.get('n_models_ok', 0)
-                n_fail = len(r.get('models_failed') or [])
+                clim = result.get("climatology") or {}
+                precip = clim.get("precipitation") or {}
+                temp = clim.get("temperature") or {}
+                n_ok = result.get("n_models_ok", 0)
+                n_fail = len(result.get("models_failed") or [])
                 rows.append({
-                    'Scenario':     sc,
-                    'Status':       f"{n_ok}/{n_ok + n_fail} models ok",
-                    'AnnPrecip_mm': _fmt_num(p.get('mean_annual_total_mm')),
-                    'Tavg_c':       _fmt_num(t.get('mean_annual_tavg_c')),
-                    'Tmax_c':       _fmt_num(t.get('mean_annual_tmax_c')),
-                    'Tmin_c':       _fmt_num(t.get('mean_annual_tmin_c')),
+                    "Scenario": scenario_name,
+                    "Status": f"{n_ok}/{n_ok + n_fail} models ok",
+                    "AnnPrecip_mm": _fmt_num(precip.get("mean_annual_total_mm")),
+                    "Tavg_c": _fmt_num(temp.get("mean_annual_tavg_c")),
+                    "Tmax_c": _fmt_num(temp.get("mean_annual_tmax_c")),
+                    "Tmin_c": _fmt_num(temp.get("mean_annual_tmin_c")),
                 })
             for line in pd.DataFrame(rows).to_string(index=False).splitlines():
                 print(f"  {line}")
             print(f"{'#'*70}\n")
 
-        payload = (all_results[scenarios[0]] if len(scenarios) == 1 else all_results)
-        if args.format == 'json':
-            output = json.dumps(payload, indent=2, default=str)
-            if args.output:
-                os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
-                with open(args.output, 'w') as f:
-                    f.write(output)
-                print(f"\n✓ Climatology saved to {args.output}")
+        payload = all_results[scenarios[0]] if len(scenarios) == 1 else all_results
+        if output_format == "json":
+            rendered = json.dumps(payload, indent=2, default=str)
+            if output_path:
+                os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
+                with open(output_path, "w") as handle:
+                    handle.write(rendered)
+                print(f"\n✓ Climatology saved to {output_path}")
             else:
-                print(output)
-        elif args.output:
-            os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
-            with open(args.output, 'w') as f:
-                json.dump(payload, f, indent=2, default=str)
-            print(f"✓ JSON data saved to {args.output}")
+                print(rendered)
+        elif output_path:
+            os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
+            with open(output_path, "w") as handle:
+                json.dump(payload, handle, indent=2, default=str)
+            print(f"✓ JSON data saved to {output_path}")
 
         if not any_ok:
             return 1
         return 0
 
-    # Single-source climatology (non-NEX-GDDP)
     result = calculate_climatology(
         location_coord=(lat, lon),
-        start_year=args.start_year,
-        end_year=args.end_year,
-        source=args.source,
+        start_year=start_year,
+        end_year=end_year,
+        source=source,
         output_dir=plot_dir,
     )
-    # Output
-    if args.format == 'json':
-        output = json.dumps(result, indent=2, default=str)
-
-        if args.output:
-            os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
-            with open(args.output, 'w') as f:
-                f.write(output)
-            print(f"\n✓ Climatology saved to {args.output}")
+    if output_format == "json":
+        rendered = json.dumps(result, indent=2, default=str)
+        if output_path:
+            os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
+            with open(output_path, "w") as handle:
+                handle.write(rendered)
+            print(f"\n✓ Climatology saved to {output_path}")
         else:
-            print(output)
+            print(rendered)
     else:
         print_climatology_report(result)
-
-        if args.output:
-            os.makedirs(os.path.dirname(os.path.abspath(args.output)) or ".", exist_ok=True)
-            with open(args.output, 'w') as f:
-                json.dump(result, f, indent=2, default=str)
-            print(f"✓ JSON data saved to {args.output}")
+        if output_path:
+            os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
+            with open(output_path, "w") as handle:
+                json.dump(result, handle, indent=2, default=str)
+            print(f"✓ JSON data saved to {output_path}")
     return 0
+
+
+app = typer.Typer(
+    add_completion=False,
+    help="Calculate long-term climate normals (WMO 30-year standards).",
+)
+
+
+@app.command()
+def climatology_cli(
+    location: str = typer.Option(
+        ...,
+        "--location",
+        help='Location as "lat,lon" (e.g., "-1.286,36.817")',
+    ),
+    start_year: int = typer.Option(..., "--start-year", help="Start year of climatology period"),
+    end_year: int = typer.Option(..., "--end-year", help="End year of climatology period (inclusive)"),
+    source: str = typer.Option(
+        ...,
+        "--source",
+        help=(
+            "Data source (e.g., nasa_power, chirps_v2, chirts). "
+            "'nex_gddp' runs the CMIP6 ensemble (averaged across models)."
+        ),
+    ),
+    scenarios_text: str = typer.Option(
+        "ssp245",
+        "--scenarios",
+        help=(
+            "NEX-GDDP only. Comma-separated SSP scenarios. Canonical: "
+            f"{', '.join(SSP_SCENARIOS)} (default: ssp245). "
+            "Aliases also accepted: SSP1-2.6, SSP2-4.5, SSP5-8.5."
+        ),
+    ),
+    models: Optional[str] = typer.Option(
+        None,
+        "--models",
+        help="NEX-GDDP only. Comma-separated subset of CMIP6 models (default: all 16).",
+    ),
+    exclude_models: Optional[str] = typer.Option(
+        None,
+        "--exclude-models",
+        help="NEX-GDDP only. Comma-separated CMIP6 models to drop.",
+    ),
+    policy_profile: str = typer.Option(
+        "default",
+        "--policy-profile",
+        help=f"NEX-GDDP only. {POLICY_PROFILE_HELP}",
+    ),
+    output_format: str = typer.Option("text", "--format", help="Output format: text or json"),
+    output_path: Optional[str] = typer.Option(None, "--output", help="Output file path (for JSON format)"),
+    output_dir: str = typer.Option(
+        "./outputs",
+        "--output-dir",
+        help="Directory for plot PNGs (default: ./outputs). Pass empty string to disable plotting.",
+    ),
+    model_workers: int = typer.Option(
+        8,
+        "--model-workers",
+        help=(
+            "Parallel NEX-GDDP model workers for ensemble runs. "
+            "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
+            "Use 1 for serial deep debugging."
+        ),
+    ),
+) -> None:
+    output_format = output_format.lower()
+    if output_format not in {"text", "json"}:
+        raise typer.BadParameter(
+            f"Invalid format '{output_format}'. Use 'text' or 'json'.",
+            param_hint="--format",
+        )
+    if policy_profile not in POLICY_PROFILE_CHOICES:
+        raise typer.BadParameter(
+            f"Invalid policy profile '{policy_profile}'. "
+            f"Valid options: {', '.join(POLICY_PROFILE_CHOICES)}",
+            param_hint="--policy-profile",
+        )
+
+    rc = _run_climatology_cli(
+        location=location,
+        start_year=start_year,
+        end_year=end_year,
+        source=source,
+        scenarios_text=scenarios_text,
+        models=models,
+        exclude_models=exclude_models,
+        policy_profile=policy_profile,
+        output_format=output_format,
+        output_path=output_path,
+        output_dir=output_dir,
+        model_workers=model_workers,
+    )
+    if rc:
+        raise typer.Exit(code=rc)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """Command-line entry point for climatology analysis."""
+    command = typer.main.get_command(app)
+    args = list(sys.argv[1:] if argv is None else argv)
+    prog_name = os.path.basename(sys.argv[0]) if sys.argv else "climate-toolkit-climatology"
+    try:
+        command.main(args=args, prog_name=prog_name, standalone_mode=False)
+    except Exception as exc:
+        if hasattr(exc, "show") and hasattr(exc, "exit_code"):
+            exc.show()
+            return int(exc.exit_code)
+        raise
+    return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
-    
+
 # Calculate 1991-2020 climatology (current WMO standard)
 # python -m climate_tookit.climatology.long_term_climatology --location="-1.286,36.817" --start-year 1991 --end-year 2020 --source nasa_power
 
