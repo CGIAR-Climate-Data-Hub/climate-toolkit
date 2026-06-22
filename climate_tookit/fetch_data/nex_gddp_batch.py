@@ -859,7 +859,7 @@ def _parse_variables(raw: str | None):
     return resolved
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Package-native many-site NEX-GDDP extraction."
     )
@@ -870,8 +870,43 @@ def parse_args() -> argparse.Namespace:
         help='Repeatable site spec: "name,lat,lon"',
     )
     parser.add_argument("--sites-csv", default=None)
-    parser.add_argument("--start", type=date.fromisoformat, required=True)
-    parser.add_argument("--end", type=date.fromisoformat, required=True)
+    parser.add_argument(
+        "--site-name",
+        default="site",
+        help="Single-site name used with --lat/--lon or --station-lat/--station-lon.",
+    )
+    parser.add_argument(
+        "--lat",
+        "--station-lat",
+        dest="single_lat",
+        type=float,
+        default=None,
+        help="Single-site latitude. Backward-compatible aliases: --lat, --station-lat.",
+    )
+    parser.add_argument(
+        "--lon",
+        "--station-lon",
+        dest="single_lon",
+        type=float,
+        default=None,
+        help="Single-site longitude. Backward-compatible aliases: --lon, --station-lon.",
+    )
+    parser.add_argument(
+        "--start",
+        "--from",
+        dest="start",
+        type=date.fromisoformat,
+        required=True,
+        help="Start date (YYYY-MM-DD). Backward-compatible alias: --from.",
+    )
+    parser.add_argument(
+        "--end",
+        "--to",
+        dest="end",
+        type=date.fromisoformat,
+        required=True,
+        help="End date (YYYY-MM-DD). Backward-compatible alias: --to.",
+    )
     parser.add_argument("--model", default="MRI-ESM2-0")
     parser.add_argument("--scenario", default="ssp245")
     parser.add_argument("--project-id", default=None)
@@ -892,7 +927,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--summary-output", default=None)
     parser.add_argument("--manifest-output", default=None)
     parser.add_argument("--quiet", action="store_true")
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def main() -> int:
@@ -903,8 +938,24 @@ def main() -> int:
         print(f"Error: {exc}")
         return 1
 
+    if (args.single_lat is None) ^ (args.single_lon is None):
+        print("Error: provide both --lat and --lon (or --station-lat and --station-lon).")
+        return 1
+
+    if args.single_lat is not None and (args.site or args.sites_csv):
+        print("Error: use either single-site coords (--lat/--lon) or --site/--sites-csv, not both.")
+        return 1
+
+    site_specs = list(args.site)
+    if args.single_lat is not None and args.single_lon is not None:
+        site_specs.append(f"{args.site_name},{args.single_lat},{args.single_lon}")
+
+    if not site_specs and not args.sites_csv:
+        print("Error: provide --lat/--lon for one site, or use --site/--sites-csv.")
+        return 1
+
     try:
-        sites = [parse_site_spec(raw) for raw in args.site]
+        sites = [parse_site_spec(raw) for raw in site_specs]
         data_df, summary_df, manifest_df = fetch_nex_gddp_batch_data(
             sites=sites,
             sites_csv=args.sites_csv,
