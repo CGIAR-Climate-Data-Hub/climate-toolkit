@@ -4,11 +4,24 @@ from __future__ import annotations
 
 from importlib.util import find_spec
 import logging
+import os
+import sys
 import warnings
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, List, Optional
 
 import pandas as pd
+import typer
+
+from ._cli_common import (
+    build_frame_payload,
+    build_status_payload,
+    fetch_standardized_climate_frame,
+    parse_location,
+    render_frame_text,
+    render_status_text,
+    save_payload,
+)
 
 
 @contextmanager
@@ -709,3 +722,267 @@ __all__ = [
     "compute_xclim_spei_reference",
     "compute_xclim_spi_reference",
 ]
+
+
+app = typer.Typer(
+    add_completion=False,
+    help="Run xclim-backed reference and readiness helpers on toolkit climate inputs.",
+)
+
+
+@app.command()
+def xclim_reference_cli(
+    location: str = typer.Option(
+        ...,
+        "--location",
+        help='Location as "lat,lon" (e.g., "-1.286,36.817")',
+    ),
+    source: str = typer.Option(
+        ...,
+        "--source",
+        help="Input source (e.g., agera_5, paired, nasa_power, nex_gddp).",
+    ),
+    start: str = typer.Option(..., "--start", help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Option(..., "--end", help="End date (YYYY-MM-DD)"),
+    mode: str = typer.Option(
+        "annual-readiness",
+        "--mode",
+        help=(
+            "Reference helper mode: annual-readiness, precip-indices, core-period, "
+            "hazard-counts, spi-reference, or spei-reference."
+        ),
+    ),
+    scale_months: int = typer.Option(3, "--scale-months", help="SPI/SPEI scale in months."),
+    freq: str = typer.Option(
+        "YS",
+        "--freq",
+        help="Aggregation frequency for annual/period metrics (e.g., YS, QS-DEC, MS).",
+    ),
+    min_days_per_year: int = typer.Option(
+        330,
+        "--min-days-per-year",
+        help="Minimum daily rows per year for annual precipitation readiness.",
+    ),
+    precip_source: Optional[str] = typer.Option(
+        None,
+        "--precip-source",
+        help="Paired mode only. Precipitation source.",
+    ),
+    temp_source: Optional[str] = typer.Option(
+        None,
+        "--temp-source",
+        help="Paired mode only. Temperature source.",
+    ),
+    model: Optional[str] = typer.Option(
+        None,
+        "--model",
+        help="NEX-GDDP only. Single model name.",
+    ),
+    scenario: Optional[str] = typer.Option(
+        None,
+        "--scenario",
+        help="NEX-GDDP only. Scenario name.",
+    ),
+    ref_start: Optional[str] = typer.Option(
+        None,
+        "--ref-start",
+        help="Optional calibration/reference period start (YYYY-MM-DD).",
+    ),
+    ref_end: Optional[str] = typer.Option(
+        None,
+        "--ref-end",
+        help="Optional calibration/reference period end (YYYY-MM-DD).",
+    ),
+    output_format: str = typer.Option(
+        "text",
+        "--format",
+        help="Output format: text, json, or csv.",
+    ),
+    output_path: Optional[str] = typer.Option(
+        None,
+        "--output",
+        help="Optional output path for json/csv export.",
+    ),
+) -> None:
+    normalized_mode = str(mode).strip().lower()
+    normalized_format = str(output_format).strip().lower()
+    valid_modes = {
+        "annual-readiness",
+        "precip-indices",
+        "core-period",
+        "hazard-counts",
+        "spi-reference",
+        "spei-reference",
+    }
+    if normalized_mode not in valid_modes:
+        raise typer.BadParameter(
+            f"Invalid mode '{mode}'. Valid options: {', '.join(sorted(valid_modes))}.",
+            param_hint="--mode",
+        )
+    if normalized_format not in {"text", "json", "csv"}:
+        raise typer.BadParameter(
+            f"Invalid format '{output_format}'. Use 'text', 'json', or 'csv'.",
+            param_hint="--format",
+        )
+
+    frame = fetch_standardized_climate_frame(
+        location=location,
+        source=source,
+        start=start,
+        end=end,
+        precip_source=precip_source,
+        temp_source=temp_source,
+        model=model,
+        scenario=scenario,
+    )
+    lat, _ = parse_location(location)
+    metadata = {
+        "frequency": freq,
+        "scale_months": scale_months,
+        "min_days_per_year": min_days_per_year,
+        "precip_source": precip_source,
+        "temp_source": temp_source,
+        "model": model,
+        "scenario": scenario,
+        "ref_start": ref_start,
+        "ref_end": ref_end,
+    }
+
+    if normalized_mode == "annual-readiness":
+        message = assess_xclim_precip_annual_readiness(
+            frame.rename(columns={"precip": "precipitation"}),
+            value_column="precipitation",
+            min_days_per_year=min_days_per_year,
+        )
+        ready = message is None
+        payload = build_status_payload(
+            tool="xclim-reference",
+            mode=normalized_mode,
+            ready=ready,
+            message=message,
+            location=location,
+            source=source,
+            start=start,
+            end=end,
+            extra={"parameters": metadata},
+        )
+        if normalized_format == "text":
+            print(
+                render_status_text(
+                    title="xclim annual precipitation readiness",
+                    ready=ready,
+                    message=message,
+                    extra={"parameters": metadata},
+                )
+            )
+            return
+        if not output_path:
+            output_path = os.path.join(
+                "outputs",
+                "climatology",
+                f"xclim_reference_{normalized_mode}_{source}_{start}_{end}.{normalized_format}",
+            )
+        saved_path = save_payload(
+            payload=payload,
+            frame=None,
+            output_format=normalized_format,
+            output_path=output_path,
+        )
+        print(f"xclim reference output saved: {saved_path}")
+        return
+
+    if normalized_mode == "precip-indices":
+        result = compute_xclim_precip_indices(
+            frame.rename(columns={"precip": "precipitation"}),
+            value_column="precipitation",
+            freq=freq,
+            min_days_per_year=min_days_per_year,
+        )
+    elif normalized_mode == "core-period":
+        result = compute_xclim_core_period_metrics(
+            frame,
+            precip_column="precip",
+            tmax_column="tmax",
+            tmin_column="tmin",
+            freq=freq,
+        )
+    elif normalized_mode == "hazard-counts":
+        result = compute_xclim_hazard_count_metrics(
+            frame,
+            precip_column="precip",
+            tmax_column="tmax",
+            freq=freq,
+        )
+    elif normalized_mode == "spi-reference":
+        result = compute_xclim_spi_reference(
+            frame,
+            scale_months=scale_months,
+            precip_col="precip",
+            ref_start=ref_start,
+            ref_end=ref_end,
+        )
+    else:
+        result = compute_xclim_spei_reference(
+            frame,
+            scale_months=scale_months,
+            lat=lat,
+            precip_col="precip",
+            tmax_col="tmax",
+            tmin_col="tmin",
+            ref_start=ref_start,
+            ref_end=ref_end,
+        )
+
+    payload = build_frame_payload(
+        tool="xclim-reference",
+        mode=normalized_mode,
+        frame=result,
+        metadata=getattr(result, "attrs", {}).get("xclim_reference_metadata", {}),
+        location=location,
+        source=source,
+        start=start,
+        end=end,
+        extra={"parameters": metadata},
+    )
+    if normalized_format == "text":
+        print(
+            render_frame_text(
+                title=f"xclim reference output: {normalized_mode}",
+                frame=result,
+                metadata=getattr(result, "attrs", {}).get("xclim_reference_metadata", {}),
+            )
+        )
+        return
+
+    if not output_path:
+        output_path = os.path.join(
+            "outputs",
+            "climatology",
+            f"xclim_reference_{normalized_mode}_{source}_{start}_{end}.{normalized_format}",
+        )
+    saved_path = save_payload(
+        payload=payload,
+        frame=result,
+        output_format=normalized_format,
+        output_path=output_path,
+    )
+    print(f"xclim reference output saved: {saved_path}")
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """Command-line entry point for xclim reference helpers."""
+    command = typer.main.get_command(app)
+    args = list(sys.argv[1:] if argv is None else argv)
+    prog_name = os.path.basename(sys.argv[0]) if sys.argv else "climate-toolkit-xclim-reference"
+    try:
+        command.main(args=args, prog_name=prog_name, standalone_mode=False)
+    except Exception as exc:
+        if hasattr(exc, "show") and hasattr(exc, "exit_code"):
+            exc.show()
+            return int(exc.exit_code)
+        raise
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
