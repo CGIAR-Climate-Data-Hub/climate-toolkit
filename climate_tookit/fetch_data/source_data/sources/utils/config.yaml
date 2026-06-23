@@ -142,6 +142,7 @@ nex_gddp:
     precipitation: pr
     max_temperature: tasmax
     min_temperature: tasmin
+    humidity: hurs
     wind_speed: null
     solar_radiation: null
     soil_moisture: null

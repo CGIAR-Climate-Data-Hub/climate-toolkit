@@ -84,6 +84,22 @@ ARID_RAINBOMB_DRY_DAY_FRACTION = 0.8
 ARID_RAINBOMB_WET_DAY_MEDIAN_MAX_MM = 2.0
 ARID_RAINBOMB_SPIKE_MIN_MM_DAY = 50.0
 ARID_RAINBOMB_RATIO_MIN = 40.0
+NEX_GDDP_DOC_KNOWN_BAND_GAPS = {
+    "hurs": {
+        "all_models": {"BCC-CSM2-MR", "NESM3"},
+        "conditional": [
+            {
+                "model": "KIOST-ESM",
+                "scenario": "ssp245",
+                "years": {2058},
+            }
+        ],
+    },
+    "huss": {
+        "all_models": {"IPSL-CM6A-LR", "MIROC6", "NESM3"},
+        "conditional": [],
+    },
+}
 
 SCENARIO_MAPPING = {
     "historical": "historical",
@@ -268,6 +284,96 @@ def _warn_on_suspicious_precipitation(
         )
 
 
+def _period_years(start_date: date, end_date: date) -> set[int]:
+    return set(range(start_date.year, end_date.year + 1))
+
+
+def _known_missing_band_reason(
+    band_name: str,
+    *,
+    model: str,
+    scenario: str,
+    start_date: date,
+    end_date: date,
+) -> str | None:
+    gaps = NEX_GDDP_DOC_KNOWN_BAND_GAPS.get(band_name)
+    if not gaps:
+        return None
+
+    if model in gaps.get("all_models", set()):
+        return (
+            f"Earth Engine NEX-GDDP catalog documents band '{band_name}' as unavailable "
+            f"for model={model}."
+        )
+
+    request_years = _period_years(start_date, end_date)
+    for rule in gaps.get("conditional", []):
+        if model != rule.get("model") or scenario != rule.get("scenario"):
+            continue
+        if request_years & set(rule.get("years", set())):
+            years = ",".join(str(year) for year in sorted(rule["years"]))
+            return (
+                f"Earth Engine NEX-GDDP catalog documents band '{band_name}' as unavailable "
+                f"for model={model}, scenario={scenario}, affected_years={years}."
+            )
+    return None
+
+
+def _validate_requested_band_support(
+    requested_bands: list[str],
+    *,
+    model: str,
+    scenario: str,
+    start_date: date,
+    end_date: date,
+) -> None:
+    reasons = []
+    for band_name in requested_bands:
+        reason = _known_missing_band_reason(
+            band_name,
+            model=model,
+            scenario=scenario,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if reason:
+            reasons.append(reason)
+    if reasons:
+        raise ValueError(" ".join(reasons))
+
+
+def _validate_returned_frame_bands(
+    frame: pd.DataFrame,
+    *,
+    requested_bands: list[str],
+    model: str,
+    scenario: str,
+    start_date: date,
+    end_date: date,
+) -> None:
+    missing = [band for band in requested_bands if band not in frame.columns]
+    if not missing:
+        return
+
+    details = []
+    for band_name in missing:
+        reason = _known_missing_band_reason(
+            band_name,
+            model=model,
+            scenario=scenario,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if reason:
+            details.append(reason)
+        else:
+            details.append(
+                f"Requested NEX-GDDP band '{band_name}' was not returned for "
+                f"model={model}, scenario={scenario}."
+            )
+    raise ValueError(" ".join(details))
+
+
 def _maybe_log_africa_guidance(
     *,
     lat: float,
@@ -404,6 +510,15 @@ class DownloadData(models.DataDownloadBase):
         start = start_date.strftime("%Y-%m-%d")
         end = (end_date + timedelta(days=1)).strftime("%Y-%m-%d")
         point = ee_module.Geometry.Point([lon, lat])
+        requested_bands = self._requested_band_names()
+
+        _validate_requested_band_support(
+            requested_bands,
+            model=self.model,
+            scenario=self.scenario,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         collection = (
             ee_module.ImageCollection(self.settings.nex_gddp.gee_image)
@@ -420,7 +535,7 @@ class DownloadData(models.DataDownloadBase):
                     _coerce_version_filter_value(selected_version),
                 )
             )
-        collection = collection.select(self._requested_band_names())
+        collection = collection.select(requested_bands)
 
         return collection, selected_version
 
@@ -714,6 +829,14 @@ class DownloadData(models.DataDownloadBase):
         collection, selected_version = self._build_collection(ee_module, start_date, end_date)
         dataset = self._open_dataset(xr_module, collection)
         frame = self._dataset_to_frame(dataset, start_date, end_date)
+        _validate_returned_frame_bands(
+            frame,
+            requested_bands=self._requested_band_names(),
+            model=self.model,
+            scenario=self.scenario,
+            start_date=start_date,
+            end_date=end_date,
+        )
         frame = self._normalize_units(frame)
         return frame, selected_version
 

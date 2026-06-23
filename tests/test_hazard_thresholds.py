@@ -105,6 +105,45 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual(int(xclim_counts["NTx35"]), stats["NTx35"])
         self.assertEqual(int(xclim_counts["NTx40"]), stats["NTx40"])
 
+    def test_calculate_season_statistics_adds_thi_metrics_when_humidity_present(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=4, freq="D"),
+                "precip": [1.0, 0.0, 2.0, 0.0],
+                "tmax": [30.0, 32.0, 34.0, 36.0],
+                "tmin": [20.0, 22.0, 23.0, 25.0],
+                "humidity": [50.0, 80.0, 85.0, 90.0],
+            }
+        )
+
+        stats = calculate_season_statistics(frame)
+
+        self.assertIn("mean_thi", stats)
+        self.assertIn("max_thi", stats)
+        self.assertIn("thi_stress_days", stats)
+        self.assertGreater(stats["thi_stress_days"], 0)
+
+    def test_evaluate_hazard_metrics_includes_thi_band(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        hazard_eval = evaluate_hazard_metrics(
+            {"mean_thi": 80.0},
+            {"THI": hazards.ATLAS_HAZARD_INDEX_THRESHOLDS["THI"]},
+        )
+
+        self.assertEqual("moderate", hazard_eval["THI"]["status"])
+        self.assertEqual(80.0, hazard_eval["THI"]["value_thi"])
+
+    def test_resolve_thresholds_uses_livestock_profile_specific_thi_cutoffs(self):
+        thresholds = resolve_thresholds(
+            "Maize",
+            livestock_type="poultry_layers",
+            livestock_climate_profile="temperate",
+        )
+
+        self.assertEqual((None, 71.0), thresholds["THI"]["none"])
+        self.assertEqual((76.0, 82.0), thresholds["THI"]["moderate"])
+
     def test_fetch_soil_grid_snapshot_uses_callable_fetch_data_function(self):
         import climate_tookit.calculate_hazards.hazards as hazards
 

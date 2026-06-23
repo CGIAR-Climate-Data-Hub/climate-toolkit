@@ -34,6 +34,12 @@ from typing import Dict, Any, Tuple, List, Optional
 import pandas as pd
 
 from climate_tookit.climate_statistics.statistics import analyze_climate_statistics
+from climate_tookit.climatology import (
+    DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    DEFAULT_LIVESTOCK_TYPE,
+    list_thi_livestock_profiles,
+    resolve_thi_profile,
+)
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
     POLICY_PROFILE_CHOICES,
@@ -64,6 +70,7 @@ from climate_tookit.compare_periods.periods import (
     _xclim_reference_status,
     _print_xclim_reference_compare,
     _render_compact_table,
+    _resolve_livestock_reporting_metadata,
     XCLIM_FAMILY_LABELS,
     PRECIP_ONLY, SUPPORTED,
 )
@@ -379,6 +386,9 @@ def _build_compare_one_model_task(
     model: str,
     scenario: str,
     crop_name: Optional[str],
+    livestock_type: str,
+    livestock_climate_profile: str,
+    livestock_elevation_override_m: Optional[float],
     calendar_source: Optional[str],
     calendar_system: str,
     diagnostic_verbose: bool,
@@ -402,6 +412,9 @@ def _build_compare_one_model_task(
         "model": model,
         "scenario": scenario,
         "crop_name": crop_name,
+        "livestock_type": livestock_type,
+        "livestock_climate_profile": livestock_climate_profile,
+        "livestock_elevation_override_m": livestock_elevation_override_m,
         "calendar_source": calendar_source,
         "calendar_system": calendar_system,
         "diagnostic_verbose": diagnostic_verbose,
@@ -791,6 +804,9 @@ def _build_focal_summary(location:     Tuple[float, float],
                           precip_source: Optional[str] = None,
                           temp_source: Optional[str] = None,
                           crop_name: Optional[str] = None,
+                          livestock_type: str = DEFAULT_LIVESTOCK_TYPE,
+                          livestock_climate_profile: str = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+                          livestock_elevation_override_m: Optional[float] = None,
                           calendar_source: Optional[str] = None,
                           calendar_system: str = "rf",
                           diagnostic_verbose: bool = False,
@@ -811,6 +827,9 @@ def _build_focal_summary(location:     Tuple[float, float],
         paired_kw["temp_source"] = temp_source
     calendar_kw = {
         "crop_name": crop_name,
+        "livestock_type": livestock_type,
+        "livestock_climate_profile": livestock_climate_profile,
+        "livestock_elevation_override_m": livestock_elevation_override_m,
         "calendar_source": calendar_source,
         "calendar_system": calendar_system,
     }
@@ -844,13 +863,13 @@ def _build_focal_summary(location:     Tuple[float, float],
         windows = []
         for sn in sorted(grp):
             agg = _agg_seasons(grp[sn])
-            block = {c: agg[c] for c in ("precipitation", "temperature", "water_balance")
+            block = {c: agg[c] for c in ("precipitation", "temperature", "water_balance", "livestock_heat_stress")
                      if isinstance(agg.get(c), dict)}
             windows.append({"season_number": sn, "block": block})
         season_summary: Dict[str, Any] = {"windows": windows}
     else:
         agg = _agg_seasons(seasons)
-        block = {c: agg[c] for c in ("precipitation", "temperature", "water_balance")
+        block = {c: agg[c] for c in ("precipitation", "temperature", "water_balance", "livestock_heat_stress")
                  if isinstance(agg.get(c), dict)}
         season_summary = {"block": block}
     season_summary = _merge_seasonal_spei_into_summary(
@@ -885,7 +904,7 @@ def _build_focal_summary(location:     Tuple[float, float],
 def _season_block(seasons: List[Dict]) -> Dict[str, Any]:
     """Reduce a list of season rows to {cat: {metric: number}} for the comparable cats."""
     agg = _agg_seasons(seasons)
-    return {c: agg[c] for c in ("precipitation", "temperature", "water_balance")
+    return {c: agg[c] for c in ("precipitation", "temperature", "water_balance", "livestock_heat_stress")
             if isinstance(agg.get(c), dict)}
 
 def _mean_2level(maps: List[Dict[str, Dict[str, Any]]], round_n: int = 2) -> Dict[str, Any]:
@@ -975,6 +994,9 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
                                  fixed_season: Optional[str],
                                  scenario:     str,
                                  crop_name: Optional[str] = None,
+                                 livestock_type: str = DEFAULT_LIVESTOCK_TYPE,
+                                 livestock_climate_profile: str = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+                                 livestock_elevation_override_m: Optional[float] = None,
                                  calendar_source: Optional[str] = None,
                                  calendar_system: str = "rf",
                                  models:         Optional[List[str]] = None,
@@ -999,6 +1021,9 @@ def _build_focal_summary_nexgddp(location:     Tuple[float, float],
     fs_kw  = {"fixed_season": fixed_season} if fixed_season else {}
     calendar_kw = {
         "crop_name": crop_name,
+        "livestock_type": livestock_type,
+        "livestock_climate_profile": livestock_climate_profile,
+        "livestock_elevation_override_m": livestock_elevation_override_m,
         "calendar_source": calendar_source,
         "calendar_system": calendar_system,
     }
@@ -1362,6 +1387,9 @@ def _compare_one_model(
     crop_name: Optional[str] = None,
     calendar_source: Optional[str] = None,
     calendar_system: str = "rf",
+    livestock_type: str = DEFAULT_LIVESTOCK_TYPE,
+    livestock_climate_profile: str = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    livestock_elevation_override_m: Optional[float] = None,
     diagnostic_verbose: bool = False,
     spei_scale_months: Optional[int] = None,
     spei_fit: str = "ub-pwm",
@@ -1392,6 +1420,9 @@ def _compare_one_model(
         "crop_name": crop_name,
         "calendar_source": calendar_source,
         "calendar_system": calendar_system,
+        "livestock_type": livestock_type,
+        "livestock_climate_profile": livestock_climate_profile,
+        "livestock_elevation_override_m": livestock_elevation_override_m,
     }
     spei_kw = (
         {
@@ -1582,6 +1613,12 @@ def _compare_one_model(
         future.get("spi"),
         base.get("spi"),
     )
+    livestock_meta = _resolve_livestock_reporting_metadata(
+        future,
+        base,
+        requested_type=livestock_type,
+        requested_climate=livestock_climate_profile,
+    )
     compare_elapsed = perf_counter() - compare_started
     return {
         "future_period":         f"{future_start}-{future_end}",
@@ -1595,6 +1632,10 @@ def _compare_one_model(
         "crop_name":            crop_name,
         "calendar_source":      calendar_source,
         "calendar_system":      calendar_system,
+        "livestock_type":       livestock_meta.get("livestock_type") or livestock_type,
+        "livestock_label":      livestock_meta.get("livestock_label"),
+        "livestock_climate_profile": livestock_climate_profile,
+        "livestock_climate_profile_applied": livestock_meta.get("livestock_climate_profile_applied") or livestock_climate_profile,
         "baseline_calendar_preset_used": bool(base.get("calendar_preset_used")),
         "baseline_calendar_preset": base.get("calendar_preset"),
         "future_calendar_preset_used": bool(future.get("calendar_preset_used")),
@@ -1907,6 +1948,9 @@ def ensemble_compare(
     crop_name: Optional[str] = None,
     calendar_source: Optional[str] = None,
     calendar_system: str = "rf",
+    livestock_type: str = DEFAULT_LIVESTOCK_TYPE,
+    livestock_climate_profile: str = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    livestock_elevation_override_m: Optional[float] = None,
     models:         Optional[List[str]] = None,
     exclude_models: Optional[List[str]] = None,
     policy_profile: Optional[str] = None,
@@ -1976,6 +2020,17 @@ def ensemble_compare(
     active, ensemble_policy = _resolve_models_and_policy(location, models, exclude_models, policy_profile=policy_profile)
     if not active:
         return {"error": "No models selected after filtering."}
+    try:
+        reporting_thi_profile = resolve_thi_profile(
+            livestock_type=livestock_type,
+            climate_profile=livestock_climate_profile,
+            lat=location[0],
+            lon=location[1],
+            elevation_m=livestock_elevation_override_m,
+            auto_fetch_elevation=True,
+        )
+    except ValueError as exc:
+        return {"error": str(exc)}
 
     if verbose:
         print(f"\n{'=' * 60}")
@@ -1991,6 +2046,12 @@ def ensemble_compare(
             print(f"  Warning   : {line}")
         if fixed_season:
             print(f"  Seasons   : {fixed_season}")
+        climate_bits = [f"climate={reporting_thi_profile.get('climate_profile_applied') or livestock_climate_profile}"]
+        if livestock_climate_profile != reporting_thi_profile.get("climate_profile_applied"):
+            climate_bits.append(f"requested={livestock_climate_profile}")
+        if livestock_elevation_override_m is not None:
+            climate_bits.append(f"elev_override_m={livestock_elevation_override_m:g}")
+        print(f"  Livestock : {livestock_type} | " + " | ".join(climate_bits))
         print(f"  Models    : {len(active)}")
         print(f"  Workload  : {len(active)} model(s) x 2 period(s)")
         print(f"{'=' * 60}")
@@ -2009,6 +2070,9 @@ def ensemble_compare(
             crop_name=crop_name,
             calendar_source=calendar_source,
             calendar_system=calendar_system,
+            livestock_type=livestock_type,
+            livestock_climate_profile=livestock_climate_profile,
+            livestock_elevation_override_m=livestock_elevation_override_m,
             diagnostic_verbose=diagnostic_verbose,
             spei_scale_months=spei_scale_months,
             spei_fit=spei_fit,
@@ -2033,6 +2097,11 @@ def ensemble_compare(
         return {"error": "All models failed.", "failed_models": failed}
 
     runtime_summary = _build_runtime_summary(per_model, failed, total_elapsed)
+    livestock_meta = _resolve_livestock_reporting_metadata(
+        *per_model,
+        requested_type=livestock_type,
+        requested_climate=reporting_thi_profile.get("climate_profile_applied") or livestock_climate_profile,
+    )
     result = {
         "future_period":    f"{future_start}-{future_end}",
         "future_years":     future_end - future_start + 1,
@@ -2043,6 +2112,11 @@ def ensemble_compare(
         "crop_name":       crop_name,
         "calendar_source": calendar_source,
         "calendar_system": calendar_system,
+        "livestock_type": livestock_meta.get("livestock_type") or livestock_type,
+        "livestock_label": livestock_meta.get("livestock_label"),
+        "livestock_climate_profile": livestock_climate_profile,
+        "livestock_climate_profile_applied": livestock_meta.get("livestock_climate_profile_applied") or reporting_thi_profile.get("climate_profile_applied") or livestock_climate_profile,
+        "livestock_elevation_override_m": livestock_elevation_override_m,
         "models_used":     [r["_model"] for r in per_model],
         "models_failed":   failed,
         "n_models_ok":     len(per_model),
@@ -2316,6 +2390,13 @@ def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
         print(f"  Crop     : {r['crop_name']}")
     if r.get("calendar_source"):
         print(f"  Calendar : {r['calendar_source']} | system={r.get('calendar_system')}")
+    if r.get("livestock_type"):
+        climate_applied = r.get("livestock_climate_profile_applied") or r.get("livestock_climate_profile")
+        climate_requested = r.get("livestock_climate_profile")
+        climate_bits = [f"climate={climate_applied}"]
+        if climate_requested and climate_requested != climate_applied:
+            climate_bits.append(f"requested={climate_requested}")
+        print(f"  Livestock: {r['livestock_type']} | " + " | ".join(climate_bits))
     if r["models_failed"]:
         print(f"  Failed   : {', '.join(f['model'] for f in r['models_failed'])}")
     _print_season_detection_summary(r.get("season_detection"))
@@ -2540,6 +2621,14 @@ def main() -> int:
                    help="Optional crop-calendar preset source to use if auto season detection is not reliable.")
     p.add_argument("--calendar-system", choices=list(CALENDAR_SYSTEM_CHOICES), default="rf",
                    help="Crop-calendar system when --calendar-source is used.")
+    p.add_argument("--livestock-type", choices=list_thi_livestock_profiles(), default=DEFAULT_LIVESTOCK_TYPE,
+                   help="Optional livestock type for THI heat-stress summaries.")
+    p.add_argument("--livestock-climate-profile", choices=["auto", "temperate", "tropical"],
+                   default=DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+                   help="THI climate profile. 'auto' uses latitude and, when available, DEM elevation.")
+    p.add_argument("--livestock-elevation-override-m", "--livestock-elevation-m",
+                   dest="livestock_elevation_override_m", type=float, default=None,
+                   help="Optional site elevation override in metres for THI auto climate-profile selection.")
     p.add_argument("--models",         help="Comma-separated subset of models")
     p.add_argument("--exclude-models", help="Comma-separated models to exclude")
     p.add_argument("--policy-profile", choices=POLICY_PROFILE_CHOICES, default="default",
@@ -2644,6 +2733,9 @@ def main() -> int:
             crop_name=args.crop,
             calendar_source=args.calendar_source,
             calendar_system=args.calendar_system,
+            livestock_type=args.livestock_type,
+            livestock_climate_profile=args.livestock_climate_profile,
+            livestock_elevation_override_m=args.livestock_elevation_override_m,
             spei_scale_months=args.spei_scale_months,
             spei_fit=args.spei_fit,
             spei_ref_start=args.spei_ref_start,
@@ -2689,6 +2781,9 @@ def main() -> int:
                 crop_name=args.crop,
                 calendar_source=args.calendar_source,
                 calendar_system=args.calendar_system,
+                livestock_type=args.livestock_type,
+                livestock_climate_profile=args.livestock_climate_profile,
+                livestock_elevation_override_m=args.livestock_elevation_override_m,
                 models=models,
                 exclude_models=exclude,
                 policy_profile=None if args.policy_profile == "default" else args.policy_profile,
@@ -2714,6 +2809,9 @@ def main() -> int:
             crop_name=args.crop,
             calendar_source=args.calendar_source,
             calendar_system=args.calendar_system,
+            livestock_type=args.livestock_type,
+            livestock_climate_profile=args.livestock_climate_profile,
+            livestock_elevation_override_m=args.livestock_elevation_override_m,
             models=models,
             exclude_models=exclude,
             policy_profile=None if args.policy_profile == "default" else args.policy_profile,

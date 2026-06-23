@@ -27,6 +27,12 @@ from typing import Dict, Any, Tuple, Optional, List
 import pandas as pd
 
 from climate_tookit.climate_statistics.statistics import analyze_climate_statistics
+from climate_tookit.climatology import (
+    DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    DEFAULT_LIVESTOCK_TYPE,
+    list_thi_livestock_profiles,
+    resolve_thi_profile,
+)
 from climate_tookit.crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES
 
 CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance", "spei"]
@@ -743,7 +749,7 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {"_n": 0}
     sums: Dict[str, List[float]] = {}
     for s in seasons:
-        for cat in ("precipitation", "temperature", "water_balance"):
+        for cat in ("precipitation", "temperature", "water_balance", "livestock_heat_stress"):
             for m, v in (s.get(cat) or {}).items():
                 if _is_num(v):
                     sums.setdefault(f"{cat}.{m}", []).append(float(v))
@@ -751,10 +757,54 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
     for k, vs in sums.items():
         cat, m = k.split(".", 1)
         out.setdefault(cat, {})[m] = round(sum(vs) / len(vs), 2)
+    first_heat = next(
+        (
+            s.get("livestock_heat_stress")
+            for s in seasons
+            if isinstance(s.get("livestock_heat_stress"), dict)
+        ),
+        None,
+    )
+    if isinstance(first_heat, dict):
+        for meta_key in ("livestock_type", "livestock_label", "climate_profile"):
+            if first_heat.get(meta_key) is not None:
+                out.setdefault("livestock_heat_stress", {})[meta_key] = first_heat.get(meta_key)
     methodology = _summarize_methodology_rows(seasons)
     if methodology:
         out["water_balance_methodology"] = methodology
     return out
+
+
+def _resolve_livestock_reporting_metadata(
+    *payloads: Dict[str, Any],
+    requested_type: Optional[str] = None,
+    requested_climate: Optional[str] = None,
+) -> Dict[str, Any]:
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            continue
+        heat = ((payload.get("overall_statistics") or {}).get("livestock_heat_stress") or {})
+        if isinstance(heat, dict) and heat:
+            return {
+                "livestock_type": heat.get("livestock_type") or requested_type,
+                "livestock_label": heat.get("livestock_label"),
+                "livestock_climate_profile_applied": heat.get("climate_profile") or requested_climate,
+            }
+        season_stats = payload.get("season_statistics") or []
+        if isinstance(season_stats, list):
+            for season in season_stats:
+                heat = (season.get("livestock_heat_stress") or {})
+                if isinstance(heat, dict) and heat:
+                    return {
+                        "livestock_type": heat.get("livestock_type") or requested_type,
+                        "livestock_label": heat.get("livestock_label"),
+                        "livestock_climate_profile_applied": heat.get("climate_profile") or requested_climate,
+                    }
+    return {
+        "livestock_type": requested_type,
+        "livestock_label": None,
+        "livestock_climate_profile_applied": requested_climate,
+    }
 
 
 def _season_counts_by_year(seasons: List[Dict[str, Any]]) -> Dict[int, int]:
@@ -956,6 +1006,9 @@ def compare(
     precip_source:  Optional[str] = None,
     temp_source:    Optional[str] = None,
     crop_name:      Optional[str] = None,
+    livestock_type: str = DEFAULT_LIVESTOCK_TYPE,
+    livestock_climate_profile: str = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    livestock_elevation_override_m: Optional[float] = None,
     calendar_source: Optional[str] = None,
     calendar_system: str = "rf",
     spei_scale_months: Optional[int] = None,
@@ -979,6 +1032,17 @@ def compare(
                 "Source 'paired' requires both --precip-source and --temp-source."
             )
         }
+    try:
+        reporting_thi_profile = resolve_thi_profile(
+            livestock_type=livestock_type,
+            climate_profile=livestock_climate_profile,
+            lat=location[0],
+            lon=location[1],
+            elevation_m=livestock_elevation_override_m,
+            auto_fetch_elevation=True,
+        )
+    except ValueError as exc:
+        return {"error": str(exc)}
     calendar_system = str(calendar_system).lower()
     if calendar_system not in CALENDAR_SYSTEM_CHOICES:
         return {
@@ -998,6 +1062,9 @@ def compare(
         paired_kw["temp_source"] = temp_source
     calendar_kw = {
         "crop_name": crop_name,
+        "livestock_type": livestock_type,
+        "livestock_climate_profile": livestock_climate_profile,
+        "livestock_elevation_override_m": livestock_elevation_override_m,
         "calendar_source": calendar_source,
         "calendar_system": calendar_system,
     }
@@ -1170,6 +1237,12 @@ def compare(
         focal.get("spi"),
         base.get("spi"),
     )
+    livestock_meta = _resolve_livestock_reporting_metadata(
+        focal,
+        base,
+        requested_type=livestock_type,
+        requested_climate=reporting_thi_profile.get("climate_profile_applied") or livestock_climate_profile,
+    )
     return {
         "focal_year":           focal_year,
         "baseline_period":      f"{baseline_start}-{baseline_end}",
@@ -1179,6 +1252,10 @@ def compare(
         "precip_source":        precip_source,
         "temp_source":          temp_source,
         "crop_name":            crop_name,
+        "livestock_type":       livestock_meta.get("livestock_type") or livestock_type,
+        "livestock_label":      livestock_meta.get("livestock_label"),
+        "livestock_climate_profile": livestock_climate_profile,
+        "livestock_climate_profile_applied": livestock_meta.get("livestock_climate_profile_applied") or reporting_thi_profile.get("climate_profile_applied") or livestock_climate_profile,
         "calendar_source":      calendar_source,
         "calendar_system":      calendar_system,
         "baseline_calendar_preset_used": bool(base.get("calendar_preset_used")),
@@ -1282,6 +1359,16 @@ def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
         print(f"  Fixed seasons : {r['fixed_season']}")
     if r.get("crop_name"):
         print(f"  Crop          : {r['crop_name']}")
+    if r.get("livestock_type"):
+        climate_applied = r.get("livestock_climate_profile_applied") or r.get("livestock_climate_profile")
+        climate_requested = r.get("livestock_climate_profile")
+        climate_bits = [f"climate={climate_applied}"]
+        if climate_requested and climate_requested != climate_applied:
+            climate_bits.append(f"requested={climate_requested}")
+        print(
+            f"  Livestock     : {r['livestock_type']} | "
+            + " | ".join(climate_bits)
+        )
     if r.get("calendar_source"):
         print(f"  Calendar req. : {r['calendar_source']} | system={r.get('calendar_system')}")
     if r.get("baseline_calendar_preset_used") or r.get("focal_calendar_preset_used"):
@@ -1434,6 +1521,14 @@ def main() -> int:
                    help="Required with --source=paired. Example: agera_5, era_5, or nasa_power.")
     p.add_argument("--crop", default=None,
                    help="Optional crop used when requesting external calendar presets such as GGCMI.")
+    p.add_argument("--livestock-type", choices=list_thi_livestock_profiles(), default=DEFAULT_LIVESTOCK_TYPE,
+                   help="Livestock THI profile to pass through to statistics workflow.")
+    p.add_argument("--livestock-climate-profile", choices=["auto", "temperate", "tropical"],
+                   default=DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+                   help="THI climate context. auto uses latitude plus highland elevation when available.")
+    p.add_argument("--livestock-elevation-override-m", "--livestock-elevation-m",
+                   dest="livestock_elevation_override_m", type=float, default=None,
+                   help="Optional site elevation override, meters above sea level, for THI climate-context selection.")
     p.add_argument("--calendar-source", choices=["ggcmi"], default=None,
                    help="Optional crop-calendar preset source to use if auto season detection is not reliable.")
     p.add_argument("--calendar-system", choices=list(CALENDAR_SYSTEM_CHOICES), default="rf",
@@ -1483,6 +1578,9 @@ def main() -> int:
         precip_source=args.precip_source,
         temp_source=args.temp_source,
         crop_name=args.crop,
+        livestock_type=args.livestock_type,
+        livestock_climate_profile=args.livestock_climate_profile,
+        livestock_elevation_override_m=args.livestock_elevation_override_m,
         calendar_source=args.calendar_source,
         calendar_system=args.calendar_system,
         spei_scale_months=args.spei_scale_months,

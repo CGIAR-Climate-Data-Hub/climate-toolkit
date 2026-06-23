@@ -207,6 +207,36 @@ class NexGddpBatchTests(unittest.TestCase):
         self.assertEqual(integrity["missing_site_dates"][0]["site"], "Cusco")
         self.assertEqual(integrity["missing_site_dates"][0]["date"], "2050-01-02")
 
+    def test_fetch_nex_gddp_batch_transformed_stage_maps_hurs_to_humidity(self):
+        raw_df = pd.DataFrame(
+            {
+                "site": ["Nairobi"],
+                "lat": [-1.286],
+                "lon": [36.817],
+                "date": pd.to_datetime(["2050-01-01"]),
+                "pr": [1.2],
+                "tasmax": [25.0],
+                "tasmin": [15.0],
+                "hurs": [74.0],
+                "model": ["MRI-ESM2-0"],
+                "scenario": ["ssp245"],
+            }
+        )
+
+        with mock.patch(
+            "climate_tookit.fetch_data.nex_gddp_batch.run_batch_extraction",
+            return_value=(raw_df, pd.DataFrame(), pd.DataFrame()),
+        ):
+            data_df, _, _ = fetch_nex_gddp_batch_data(
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2050, 1, 1),
+                date_to=date(2050, 1, 1),
+                stage="transformed",
+            )
+
+        self.assertIn("humidity", data_df.columns)
+        self.assertNotIn("hurs", data_df.columns)
+
     def test_transformed_stage_uses_package_variable_mapping(self):
         raw_df = pd.DataFrame(
             {

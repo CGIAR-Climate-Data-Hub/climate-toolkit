@@ -2370,6 +2370,8 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
             "crop_name": kwargs.get("crop_name"),
             "calendar_source": kwargs.get("calendar_source"),
             "calendar_system": kwargs.get("calendar_system"),
+            "livestock_type": kwargs.get("livestock_type"),
+            "livestock_climate_profile": kwargs.get("livestock_climate_profile"),
         }
         try:
             result = ep.ensemble_compare(
@@ -2382,6 +2384,8 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
                 crop_name="maize",
                 calendar_source="ggcmi",
                 calendar_system="rf",
+                livestock_type="cattle_dairy",
+                livestock_climate_profile="temperate",
                 verbose=False,
             )
         finally:
@@ -2391,6 +2395,8 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertEqual("maize", result["crop_name"])
         self.assertEqual("ggcmi", result["calendar_source"])
         self.assertEqual("rf", result["calendar_system"])
+        self.assertEqual("cattle_dairy", result["livestock_type"])
+        self.assertEqual("temperate", result["livestock_climate_profile"])
 
     def test_diff_block_uses_baseline_magnitude_for_negative_values(self):
         result = cp._diff_block(

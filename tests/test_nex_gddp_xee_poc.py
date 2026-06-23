@@ -285,6 +285,79 @@ class NexGddpXeePocTests(unittest.TestCase):
     def test_progress_bar_reaches_full_width(self):
         self.assertEqual(nex_gddp_xee._progress_bar(5, 5, width=5), "[#####]")
 
+    def test_known_missing_band_reason_flags_documented_hurs_gap(self):
+        reason = nex_gddp_xee._known_missing_band_reason(
+            "hurs",
+            model="BCC-CSM2-MR",
+            scenario="ssp245",
+            start_date=date(2050, 1, 1),
+            end_date=date(2050, 1, 31),
+        )
+
+        self.assertIn("band 'hurs'", reason)
+        self.assertIn("BCC-CSM2-MR", reason)
+
+    def test_known_missing_band_reason_flags_conditional_kiost_gap(self):
+        reason = nex_gddp_xee._known_missing_band_reason(
+            "hurs",
+            model="KIOST-ESM",
+            scenario="ssp245",
+            start_date=date(2058, 1, 1),
+            end_date=date(2058, 12, 31),
+        )
+
+        self.assertIn("KIOST-ESM", reason)
+        self.assertIn("2058", reason)
+
+    def test_validate_requested_band_support_allows_supported_hurs_request(self):
+        nex_gddp_xee._validate_requested_band_support(
+            ["pr", "tasmax", "tasmin", "hurs"],
+            model="MRI-ESM2-0",
+            scenario="ssp245",
+            start_date=date(2050, 1, 1),
+            end_date=date(2050, 1, 31),
+        )
+
+    def test_validate_requested_band_support_rejects_documented_hurs_gap(self):
+        with self.assertRaisesRegex(ValueError, "band 'hurs'.*BCC-CSM2-MR"):
+            nex_gddp_xee._validate_requested_band_support(
+                ["pr", "tasmax", "tasmin", "hurs"],
+                model="BCC-CSM2-MR",
+                scenario="ssp245",
+                start_date=date(2050, 1, 1),
+                end_date=date(2050, 1, 31),
+            )
+
+    def test_validate_returned_frame_bands_raises_clear_error_for_missing_hurs(self):
+        frame = pd.DataFrame({"date": pd.to_datetime(["2050-01-01"]), "pr": [1.0]})
+
+        with self.assertRaisesRegex(ValueError, "band 'hurs'"):
+            nex_gddp_xee._validate_returned_frame_bands(
+                frame,
+                requested_bands=["pr", "hurs"],
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+                start_date=date(2050, 1, 1),
+                end_date=date(2050, 1, 1),
+            )
+
+    def test_normalize_units_keeps_hurs_in_percent(self):
+        downloader = nex_gddp_xee.DownloadData(
+            variables=[ClimateVariable.humidity],
+            location_coord=(-1.286, 36.817),
+            date_from_utc=date(2050, 1, 1),
+            date_to_utc=date(2050, 1, 1),
+            settings=Settings.load(),
+            source=ClimateDataset.nex_gddp,
+            model="MRI-ESM2-0",
+            scenario="ssp245",
+            verbose=False,
+        )
+
+        frame = pd.DataFrame({"hurs": [72.5]})
+        normalized = downloader._normalize_units(frame.copy())
+        self.assertEqual([72.5], normalized["hurs"].tolist())
+
     def test_log_progress_prints_cleanly_without_info_logger_prefix(self):
         downloader = nex_gddp_xee.DownloadData(
             variables=[ClimateVariable.precipitation],

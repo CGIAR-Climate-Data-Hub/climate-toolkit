@@ -42,6 +42,8 @@ from .source_data.sources.nex_gddp_xee import (
     _normalize_scenario,
     _progress_bar,
     _resolve_dataset_version,
+    _validate_requested_band_support,
+    _validate_returned_frame_bands,
     _validate_period_against_scenario,
 )
 from .source_data.sources.xee_common import (
@@ -337,6 +339,7 @@ def _full_site_date_frame(
             "pr",
             "tasmax",
             "tasmin",
+            "hurs",
             "model",
             "scenario",
         ]
@@ -365,6 +368,13 @@ def fetch_batch(
     bands: list[str],
 ) -> tuple[pd.DataFrame, str | None]:
     points = build_points(ee_module, site_batch)
+    _validate_requested_band_support(
+        bands,
+        model=model,
+        scenario=scenario,
+        start_date=start,
+        end_date=end,
+    )
     collection = (
         ee_module.ImageCollection(settings.nex_gddp.gee_image)
         .filterDate(start.strftime("%Y-%m-%d"), (end + timedelta(days=1)).strftime("%Y-%m-%d"))
@@ -412,7 +422,15 @@ def fetch_batch(
         ), selected_version
 
     frame["date"] = pd.to_datetime(frame["date"])
-    for column in ("pr", "tasmax", "tasmin"):
+    _validate_returned_frame_bands(
+        frame,
+        requested_bands=bands,
+        model=model,
+        scenario=scenario,
+        start_date=start,
+        end_date=end,
+    )
+    for column in ("pr", "tasmax", "tasmin", "hurs"):
         if column in frame.columns:
             frame[column] = pd.to_numeric(frame[column], errors="coerce")
 

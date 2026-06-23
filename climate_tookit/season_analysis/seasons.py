@@ -60,6 +60,13 @@ from climate_tookit.crop_calendar.ggcmi import (
     CALENDAR_SYSTEM_CHOICES,
     resolve_calendar_preset,
 )
+from climate_tookit.climatology import (
+    DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    DEFAULT_LIVESTOCK_TYPE,
+    compute_daily_thi,
+    list_thi_livestock_profiles,
+    resolve_thi_profile,
+)
 from climate_tookit.weather_station.overrides import apply_custom_station_overrides
 
 HISTORICAL_SOURCES = ['agera_5', 'era_5']
@@ -87,6 +94,12 @@ TEMP_VARIABLES = [
     ClimateVariable.max_temperature,
     ClimateVariable.min_temperature,
 ]
+
+
+def _source_variables_for_request(source: Optional[str]):
+    if source in {DEFAULT_AUTO_TEMP_SOURCE, 'nasa_power'}:
+        return AUTO_COMPANION_VARIABLES
+    return CORE_CLIMATE_VARIABLES
 
 # Internal perhumid guard thresholds (detection)
 PERHUMID_ANNUAL_MM      = 1400
@@ -338,6 +351,9 @@ def get_climate_data(
     result['tmax']   = df.get('max_temperature')
     result['tmin']   = df.get('min_temperature')
     result['precip'] = df.get('precipitation')
+    for column in ('humidity', 'solar_radiation', 'wind_speed', 'soil_moisture'):
+        if column in df.columns:
+            result[column] = df[column]
     result.attrs.update(df.attrs)
     if 'precip' not in result.columns or result['precip'].notna().sum() == 0:
         source_label = normalized_force_source or "auto"
@@ -366,7 +382,7 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
         )
     if force_source:
         return preprocess_data(source=force_source, location_coord=coord,
-                               variables=CORE_CLIMATE_VARIABLES,
+                               variables=_source_variables_for_request(force_source),
                                date_from=date_from, date_to=date_to)
     try:
         return _merge_precip_temp(
@@ -381,7 +397,7 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
     for source in HISTORICAL_SOURCES:
         try:
             df = preprocess_data(source=source, location_coord=coord,
-                                 variables=CORE_CLIMATE_VARIABLES,
+                                 variables=_source_variables_for_request(source),
                                  date_from=date_from, date_to=date_to)
             if not df.empty and 'precipitation' in df.columns:
                 return df
@@ -1267,10 +1283,69 @@ def _derive_year_regime_from_seasons(seasons):
         return "bimodal"
     return "erratic"
 
+
+def _summarize_livestock_thi(
+    df: Optional[pd.DataFrame],
+    *,
+    thi_profile: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    if df is None or df.empty or "date" not in df.columns or "humidity" not in df.columns:
+        return None
+    thi_input = df.copy()
+    for col in ("tmax", "tmin"):
+        if col in thi_input.columns:
+            series = pd.to_numeric(thi_input[col], errors="coerce")
+            if series.dropna().mean() > 100:
+                thi_input[col] = series - 273.15
+            else:
+                thi_input[col] = series
+    try:
+        thi_df = compute_daily_thi(
+            thi_input,
+            date_col="date",
+            humidity_col="humidity",
+            thresholds=(thi_profile or {}).get("thresholds"),
+            livestock_type=(thi_profile or {}).get("livestock_type", DEFAULT_LIVESTOCK_TYPE),
+            climate_profile=(thi_profile or {}).get("climate_profile_applied", DEFAULT_LIVESTOCK_CLIMATE_PROFILE),
+            elevation_m=(thi_profile or {}).get("elevation_m"),
+        )
+    except ValueError:
+        return None
+    if "thi" not in thi_df.columns or thi_df["thi"].notna().sum() == 0:
+        return None
+    counts = thi_df["thi_class"].value_counts(dropna=True)
+    return {
+        "livestock_type": (thi_profile or {}).get("livestock_type", DEFAULT_LIVESTOCK_TYPE),
+        "livestock_label": (thi_profile or {}).get("label", "Cattle (dairy)"),
+        "climate_profile": (thi_profile or {}).get("climate_profile_applied", DEFAULT_LIVESTOCK_CLIMATE_PROFILE),
+        "mean_thi": round(float(thi_df["thi"].mean()), 2),
+        "max_thi": round(float(thi_df["thi"].max()), 2),
+        "days_stress": int(counts.get("mild", 0) + counts.get("moderate", 0) + counts.get("severe", 0)),
+        "days_mild": int(counts.get("mild", 0)),
+        "days_moderate": int(counts.get("moderate", 0)),
+        "days_severe": int(counts.get("severe", 0)),
+    }
+
+
+def _thi_profile_label(profile: Optional[Dict[str, Any]]) -> str:
+    if not profile:
+        return "Livestock THI"
+    label = (
+        profile.get("livestock_label")
+        or profile.get("label")
+        or profile.get("livestock_type")
+        or "Livestock THI"
+    )
+    climate = profile.get("climate_profile") or profile.get("climate_profile_applied")
+    if climate:
+        return f"Livestock THI ({label}; {climate})"
+    return f"Livestock THI ({label})"
+
 def print_summary(
     seasons_dict : Dict[int, List[Dict]],
     annual_dict  : Dict[int, Dict],
     save_path    : Optional[str] = None,
+    thi_profile: Optional[Dict[str, Any]] = None,
 ):
     """
     Print FINAL SEASONS SUMMARY.
@@ -1305,6 +1380,17 @@ def print_summary(
             print(f"    Rainy days     : {_fmt(s.get('rainy_days'), ' days')}  (precip ≥ 1 mm)")
             print(f"    Dry days       : {_fmt(s.get('dry_days'),   ' days')}  (precip < 1 mm)")
             print(f"    Dry spells     : {_fmt(s.get('dry_spells'))}  (runs of ≥ 7 consecutive dry days)")
+            heat = _summarize_livestock_thi(s.get("source_df"), thi_profile=thi_profile)
+            if heat:
+                print(
+                    f"    {_thi_profile_label(heat)} : "
+                    f"mean_thi={heat.get('mean_thi')} | "
+                    f"max_thi={heat.get('max_thi')} | "
+                    f"stress_days={heat.get('days_stress')} | "
+                    f"mild={heat.get('days_mild')} | "
+                    f"moderate={heat.get('days_moderate')} | "
+                    f"severe={heat.get('days_severe')}"
+                )
 
             # ETO sub-season analysis (fixed mode only)
             eto_seasons = s.get('eto_seasons')
@@ -1326,6 +1412,20 @@ def print_summary(
                         print(f"        Rainy days     : {_fmt(es.get('rainy_days'), ' days')}  (precip ≥ 1 mm)")
                         print(f"        Dry days       : {_fmt(es.get('dry_days'),   ' days')}  (precip < 1 mm)")
                         print(f"        Dry spells     : {_fmt(es.get('dry_spells'))}  (runs of ≥ 7 consecutive dry days)")
+                        sub_df = s.get("source_df")
+                        if sub_df is not None and not sub_df.empty:
+                            mask = (
+                                (pd.to_datetime(sub_df["date"]) >= pd.to_datetime(es["onset"]))
+                                & (pd.to_datetime(sub_df["date"]) <= pd.to_datetime(es["cessation"]))
+                            )
+                            sub_heat = _summarize_livestock_thi(sub_df.loc[mask].copy(), thi_profile=thi_profile)
+                            if sub_heat:
+                                print(
+                                    f"        {_thi_profile_label(sub_heat)} : "
+                                    f"mean_thi={sub_heat.get('mean_thi')} | "
+                                    f"max_thi={sub_heat.get('max_thi')} | "
+                                    f"stress_days={sub_heat.get('days_stress')}"
+                                )
             # CSV row
             eto_summary = "; ".join(
                 f"{pd.to_datetime(es['onset']).strftime('%Y-%m-%d')}"
@@ -1347,6 +1447,11 @@ def print_summary(
                 'dry_spells':          s.get('dry_spells'),
                 'annual_rain_mm':      ann_rain,
                 'humid_result':        humid_str,
+                'livestock_type':      (heat or {}).get('livestock_type'),
+                'livestock_climate_profile': (heat or {}).get('climate_profile'),
+                'mean_thi':            (heat or {}).get('mean_thi'),
+                'max_thi':             (heat or {}).get('max_thi'),
+                'thi_stress_days':     (heat or {}).get('days_stress'),
                 'eto_seasons_summary': eto_summary if eto_summary else "",
                 'params_used':         s.get('params_used', ''),
             })
@@ -1402,6 +1507,17 @@ def main() -> int:
     parser.add_argument('--custom-precip-unit', choices=['mm', 'inch', 'tenth_mm'],
                         default='mm',
                         help='Precipitation unit in custom station file (default: mm)')
+    parser.add_argument('--livestock-type',
+                        choices=list_thi_livestock_profiles(),
+                        default=DEFAULT_LIVESTOCK_TYPE,
+                        help='Livestock THI profile for optional humidity-backed heat-stress summaries.')
+    parser.add_argument('--livestock-climate-profile',
+                        choices=['auto', 'temperate', 'tropical'],
+                        default=DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+                        help='THI climate context. auto uses latitude plus highland elevation when available.')
+    parser.add_argument('--livestock-elevation-override-m', '--livestock-elevation-m',
+                        dest='livestock_elevation_override_m', type=float, default=None,
+                        help='Optional site elevation override, meters above sea level, for THI climate-context selection.')
     parser.add_argument('--output-dir',   default='.',
                         help='Directory for CSV output (default: current dir)')
     parser.add_argument('--no-save',      action='store_true',
@@ -1437,6 +1553,18 @@ def main() -> int:
     except ValueError:
         print("Error: --location must be in 'lat,lon' format.")
         sys.exit(1)
+    try:
+        thi_profile = resolve_thi_profile(
+            livestock_type=args.livestock_type,
+            climate_profile=args.livestock_climate_profile,
+            lat=lat,
+            lon=lon,
+            elevation_m=args.livestock_elevation_override_m,
+            auto_fetch_elevation=True,
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        return 1
     requested_calendar_preset = None
     auto_fallback_applied = False
     total_detected = 0
@@ -1558,7 +1686,7 @@ def main() -> int:
         filename = (f"seasons_{lat:.4f}_{lon:.4f}_"
                     f"{args.start_year}_{args.end_year}_{mode}.csv")
         save_path = str(Path(args.output_dir) / filename)
-    print_summary(seasons_dict, annual_dict, save_path=save_path)
+    print_summary(seasons_dict, annual_dict, save_path=save_path, thi_profile=thi_profile)
     print("\nAnalysis complete!")
     return 0
 

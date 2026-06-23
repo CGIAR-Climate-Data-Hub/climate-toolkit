@@ -668,6 +668,49 @@ class FetchPipelineTests(unittest.TestCase):
             ],
         )
 
+    def test_transform_data_maps_nex_gddp_hurs_to_humidity(self):
+        raw_df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2050-01-01"]),
+                "pr": [1.5],
+                "tasmax": [28.0],
+                "tasmin": [18.0],
+                "hurs": [72.0],
+            }
+        )
+
+        class _FakeSourceData:
+            def __init__(self, **kwargs):
+                pass
+
+            def download(self):
+                return raw_df.copy()
+
+        with mock.patch(
+            "climate_tookit.fetch_data.transform_data.transform_data.SourceData",
+            _FakeSourceData,
+        ):
+            result = transform_data(
+                source="nex_gddp",
+                location_coord=(-1.286, 36.817),
+                variables=[
+                    ClimateVariable.precipitation,
+                    ClimateVariable.max_temperature,
+                    ClimateVariable.min_temperature,
+                    ClimateVariable.humidity,
+                ],
+                date_from=date(2050, 1, 1),
+                date_to=date(2050, 1, 1),
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+                verbose=False,
+            )
+
+        self.assertEqual(
+            list(result.columns),
+            ["date", "precipitation", "max_temperature", "min_temperature", "humidity"],
+        )
+
     def test_fetch_data_requires_location_for_single_site_mode(self):
         with self.assertRaises(ValueError):
             fetch_data(

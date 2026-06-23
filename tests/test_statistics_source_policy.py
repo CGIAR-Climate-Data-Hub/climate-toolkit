@@ -121,6 +121,28 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual(2, result["water_balance"]["NDWL0"])
         self.assertEqual(75.0, result["water_balance"]["WRSI"])
 
+    def test_overall_statistics_adds_livestock_thi_when_humidity_present(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01", "2020-01-02", "2020-01-03"]),
+                "precip": [2.0, 0.0, 1.0],
+                "tmax": [30.0, 32.0, 35.0],
+                "tmin": [20.0, 22.0, 24.0],
+                "humidity": [50.0, 80.0, 85.0],
+                "ET0_mm_day": [4.0, 4.0, 4.0],
+                "water_balance": [-2.0, -4.0, -3.0],
+            }
+        )
+
+        result = stats.overall_statistics(df)
+
+        self.assertIn("livestock_heat_stress", result)
+        heat = result["livestock_heat_stress"]
+        self.assertEqual(3, heat["days_total"])
+        self.assertEqual(2, heat["days_stress"])
+        self.assertGreater(heat["max_thi"], heat["mean_thi"])
+        self.assertEqual("cattle_dairy", heat["livestock_type"])
+
     def test_season_statistics_includes_shared_root_zone_metrics(self):
         df = pd.DataFrame(
             {
@@ -195,6 +217,27 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual(5, result["water_balance"]["NDWS"])
         self.assertEqual(1, result["water_balance"]["NDWL0"])
         self.assertEqual(55.0, result["water_balance"]["WRSI"])
+
+    def test_season_statistics_skips_livestock_thi_without_humidity(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-03-01", "2020-03-02"]),
+                "precip": [3.0, 1.0],
+                "tmax": [29.0, 30.0],
+                "tmin": [18.0, 19.0],
+                "ET0_mm_day": [4.0, 4.0],
+                "water_balance": [-1.0, -3.0],
+            }
+        )
+        season = {
+            "onset": pd.Timestamp("2020-03-01"),
+            "cessation": pd.Timestamp("2020-03-02"),
+            "length_days": 2,
+        }
+
+        result = stats.season_statistics(df, season, season_df=df)
+
+        self.assertNotIn("livestock_heat_stress", result)
 
     def test_compile_season_results_reuses_main_window_root_zone_summary(self):
         df = pd.DataFrame(
@@ -1594,6 +1637,99 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertIn("value", rendered)
         self.assertNotIn("Variable", rendered)
         self.assertNotIn("Value", rendered)
+
+    def test_print_seasons_includes_livestock_thi_block(self):
+        seasons = [
+            {
+                "year": 2020,
+                "season_number": 1,
+                "onset": "2020-03-01",
+                "cessation": "2020-05-31",
+                "length_days": 92,
+                "precipitation": {"total_mm": 100.0, "max_daily": 20.0, "rainy_days": 10, "intensity": 10.0},
+                "temperature": {
+                    "mean_tmax": 28.0,
+                    "mean_tmin": 17.0,
+                    "mean_tavg": 22.5,
+                    "max_tmax": 32.0,
+                    "min_tmin": 14.0,
+                },
+                "livestock_heat_stress": {
+                    "mean_thi": 75.2,
+                    "max_thi": 82.1,
+                    "days_stress": 18,
+                    "days_mild": 10,
+                    "days_moderate": 7,
+                    "days_severe": 1,
+                },
+                "water_balance": {"total_balance": -10.0, "deficit_days": 30, "surplus_days": 20, "stress_ratio": 0.33},
+            }
+        ]
+
+        stdout = StringIO()
+        with mock.patch("sys.stdout", stdout):
+            stats.print_seasons(seasons)
+
+        rendered = stdout.getvalue()
+        self.assertIn("Livestock THI", rendered)
+        self.assertIn("mean_thi=75.2", rendered)
+
+    def test_ltm_season_summary_preserves_livestock_profile_metadata(self):
+        season_results = [
+            {
+                "year": 2020,
+                "season_number": 1,
+                "length_days": 92,
+                "livestock_heat_stress": {
+                    "mean_thi": 75.2,
+                    "max_thi": 82.1,
+                    "days_stress": 18,
+                    "days_mild": 10,
+                    "days_moderate": 7,
+                    "days_severe": 1,
+                    "livestock_type": "cattle_dairy",
+                    "livestock_label": "Cattle (dairy)",
+                    "climate_profile": "temperate",
+                },
+            }
+        ]
+
+        ltm = stats.ltm_season_summary(season_results, "03-01:05-31")
+        window = ltm["windows"][0]["livestock_heat_stress"]
+
+        self.assertEqual("cattle_dairy", window["livestock_type"])
+        self.assertEqual("Cattle (dairy)", window["livestock_label"])
+        self.assertEqual("temperate", window["climate_profile"])
+
+    def test_print_ltm_by_season_uses_livestock_profile_label(self):
+        ltm = {
+            "windows": [
+                {
+                    "window": "03-01:05-31",
+                    "season_number": 1,
+                    "n_years": 1,
+                    "years": [2020],
+                    "livestock_heat_stress": {
+                        "mean_thi": 75.2,
+                        "max_thi": 82.1,
+                        "days_stress": 18,
+                        "days_mild": 10,
+                        "days_moderate": 7,
+                        "days_severe": 1,
+                        "livestock_type": "cattle_dairy",
+                        "livestock_label": "Cattle (dairy)",
+                        "climate_profile": "temperate",
+                    },
+                }
+            ]
+        }
+
+        stdout = StringIO()
+        with mock.patch("sys.stdout", stdout):
+            stats.print_ltm_by_season(ltm)
+
+        rendered = stdout.getvalue()
+        self.assertIn("Livestock THI (Cattle (dairy); temperate)", rendered)
 
 
 if __name__ == "__main__":

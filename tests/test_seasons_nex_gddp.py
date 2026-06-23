@@ -218,6 +218,39 @@ class SeasonsNexGddpTests(unittest.TestCase):
             [variable.name for variable in calls[0]["variables"]],
         )
 
+    def test_get_climate_data_requests_companion_variables_for_agera5(self):
+        calls = []
+
+        def fake_preprocess_data(**kwargs):
+            calls.append(kwargs)
+            return pd.DataFrame(
+                {
+                    "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                    "max_temperature": [25.0, 26.0],
+                    "min_temperature": [15.0, 16.0],
+                    "precipitation": [3.0, 1.0],
+                    "humidity": [70.0, 75.0],
+                }
+            )
+
+        orig = seasons.preprocess_data
+        seasons.preprocess_data = fake_preprocess_data
+        try:
+            seasons.get_climate_data(
+                -1.286,
+                36.817,
+                "2020-01-01",
+                "2020-01-02",
+                force_source="agera_5",
+            )
+        finally:
+            seasons.preprocess_data = orig
+
+        self.assertEqual(
+            ["precipitation", "max_temperature", "min_temperature", "humidity", "solar_radiation", "wind_speed"],
+            [variable.name for variable in calls[0]["variables"]],
+        )
+
     def test_get_climate_data_rejects_malformed_empty_source_payload(self):
         def fake_preprocess_data(**kwargs):
             return pd.DataFrame({"precipitation": []})
