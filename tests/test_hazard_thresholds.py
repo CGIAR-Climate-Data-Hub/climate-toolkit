@@ -293,7 +293,18 @@ class HazardThresholdTests(unittest.TestCase):
 
         calls = []
 
-        def fake_get_climate_data(lat, lon, start_date, end_date, force_source=None, precip_source=None, temp_source=None, model=None, scenario=None):
+        def fake_get_climate_data(
+            lat,
+            lon,
+            start_date,
+            end_date,
+            force_source=None,
+            precip_source=None,
+            temp_source=None,
+            model=None,
+            scenario=None,
+            ee_project_id=None,
+        ):
             calls.append(
                 {
                     "lat": lat,
@@ -305,6 +316,7 @@ class HazardThresholdTests(unittest.TestCase):
                     "temp_source": temp_source,
                     "model": model,
                     "scenario": scenario,
+                    "ee_project_id": ee_project_id,
                 }
             )
             return hazards.pd.DataFrame(
@@ -329,6 +341,7 @@ class HazardThresholdTests(unittest.TestCase):
                 source="era_5",
                 model="ACCESS-CM2",
                 scenario="ssp245",
+                ee_project_id="demo-project",
             )
         finally:
             hazards.get_climate_data = orig_get
@@ -337,6 +350,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("era_5", calls[0]["force_source"])
         self.assertEqual("ACCESS-CM2", calls[0]["model"])
         self.assertEqual("ssp245", calls[0]["scenario"])
+        self.assertEqual("demo-project", calls[0]["ee_project_id"])
         self.assertIn("ET0_mm_day", frame.columns)
 
     def test_calculate_hazards_fixed_season_uses_selected_source_for_window_fetch(self):
@@ -367,12 +381,24 @@ class HazardThresholdTests(unittest.TestCase):
 
         hazards.fetch_and_analyze_years_fixed = fake_fixed
 
-        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
+        def fake_window_fetch(
+            lat,
+            lon,
+            start_date,
+            end_date,
+            source="auto",
+            precip_source=None,
+            temp_source=None,
+            model=None,
+            scenario=None,
+            ee_project_id=None,
+        ):
             season_fetch_calls.append(
                 {
                     "source": source,
                     "start_date": start_date,
                     "end_date": end_date,
+                    "ee_project_id": ee_project_id,
                 }
             )
             return hazards.pd.DataFrame(
@@ -402,6 +428,7 @@ class HazardThresholdTests(unittest.TestCase):
                 date_to="2020-12-31",
                 fixed_season="03-01:05-31",
                 source="era_5",
+                ee_project_id="demo-project",
             )
         finally:
             hazards.fetch_and_analyze_years_fixed = orig_fixed
@@ -410,6 +437,8 @@ class HazardThresholdTests(unittest.TestCase):
             hazards.evaluate_hazard_metrics = orig_eval
 
         self.assertEqual("era_5", season_fetch_calls[0]["source"])
+        self.assertEqual("demo-project", fixed_call_kwargs[0]["ee_project_id"])
+        self.assertEqual("demo-project", season_fetch_calls[0]["ee_project_id"])
         self.assertEqual("era_5", result["season_info"]["source"])
         self.assertEqual(60, fixed_call_kwargs[0]["prefetch_pad_days"])
         self.assertEqual("2020-03-01", result["season_info"]["season_identity"]["onset_date"])
@@ -446,12 +475,24 @@ class HazardThresholdTests(unittest.TestCase):
 
         hazards.fetch_and_analyze_years_fixed = fake_fixed
 
-        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
+        def fake_window_fetch(
+            lat,
+            lon,
+            start_date,
+            end_date,
+            source="auto",
+            precip_source=None,
+            temp_source=None,
+            model=None,
+            scenario=None,
+            ee_project_id=None,
+        ):
             season_fetch_calls.append(
                 {
                     "source": source,
                     "precip_source": precip_source,
                     "temp_source": temp_source,
+                    "ee_project_id": ee_project_id,
                 }
             )
             return hazards.pd.DataFrame(
@@ -483,6 +524,7 @@ class HazardThresholdTests(unittest.TestCase):
                 source="paired",
                 precip_source="tamsat",
                 temp_source="agera_5",
+                ee_project_id="demo-project",
             )
         finally:
             hazards.fetch_and_analyze_years_fixed = orig_fixed
@@ -493,9 +535,11 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("paired", fixed_call_kwargs[0]["source"])
         self.assertEqual("tamsat", fixed_call_kwargs[0]["precip_source"])
         self.assertEqual("agera_5", fixed_call_kwargs[0]["temp_source"])
+        self.assertEqual("demo-project", fixed_call_kwargs[0]["ee_project_id"])
         self.assertEqual("paired", season_fetch_calls[0]["source"])
         self.assertEqual("tamsat", season_fetch_calls[0]["precip_source"])
         self.assertEqual("agera_5", season_fetch_calls[0]["temp_source"])
+        self.assertEqual("demo-project", season_fetch_calls[0]["ee_project_id"])
         self.assertEqual("paired", result["season_info"]["source"])
 
     def test_calculate_hazards_fixed_season_uses_carried_fetch_error_without_refetch(self):
@@ -872,12 +916,13 @@ class HazardThresholdTests(unittest.TestCase):
         orig_calc_stats = hazards.calculate_season_statistics
         orig_eval = hazards.evaluate_hazard_metrics
 
-        hazards.fetch_and_analyze_years = lambda lat, lon, start_year, end_year, extra_months=6, source="auto", precip_source=None, temp_source=None, model=None, scenario=None: (
+        hazards.fetch_and_analyze_years = lambda lat, lon, start_year, end_year, extra_months=6, source="auto", precip_source=None, temp_source=None, model=None, scenario=None, ee_project_id=None: (
             detect_calls.append(
                 {
                     "start_year": start_year,
                     "end_year": end_year,
                     "source": source,
+                    "ee_project_id": ee_project_id,
                 }
             ) or {
                 2020: [
@@ -891,12 +936,13 @@ class HazardThresholdTests(unittest.TestCase):
             {},
         )
 
-        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
+        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None, ee_project_id=None):
             season_fetch_calls.append(
                 {
                     "source": source,
                     "start_date": start_date,
                     "end_date": end_date,
+                    "ee_project_id": ee_project_id,
                 }
             )
             return hazards.pd.DataFrame(
@@ -933,7 +979,9 @@ class HazardThresholdTests(unittest.TestCase):
             hazards.evaluate_hazard_metrics = orig_eval
 
         self.assertEqual("agera_5", detect_calls[0]["source"])
+        self.assertIsNone(detect_calls[0]["ee_project_id"])
         self.assertEqual("agera_5", season_fetch_calls[0]["source"])
+        self.assertIsNone(season_fetch_calls[0]["ee_project_id"])
         self.assertEqual("agera_5", result["season_info"]["source"])
 
     def test_calculate_hazards_auto_detect_forwards_paired_sources(self):
@@ -947,12 +995,13 @@ class HazardThresholdTests(unittest.TestCase):
         orig_calc_stats = hazards.calculate_season_statistics
         orig_eval = hazards.evaluate_hazard_metrics
 
-        hazards.fetch_and_analyze_years = lambda lat, lon, start_year, end_year, extra_months=6, source="auto", precip_source=None, temp_source=None, model=None, scenario=None: (
+        hazards.fetch_and_analyze_years = lambda lat, lon, start_year, end_year, extra_months=6, source="auto", precip_source=None, temp_source=None, model=None, scenario=None, ee_project_id=None: (
             detect_calls.append(
                 {
                     "source": source,
                     "precip_source": precip_source,
                     "temp_source": temp_source,
+                    "ee_project_id": ee_project_id,
                 }
             ) or {
                 2020: [
@@ -966,12 +1015,13 @@ class HazardThresholdTests(unittest.TestCase):
             {},
         )
 
-        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
+        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None, ee_project_id=None):
             season_fetch_calls.append(
                 {
                     "source": source,
                     "precip_source": precip_source,
                     "temp_source": temp_source,
+                    "ee_project_id": ee_project_id,
                 }
             )
             return hazards.pd.DataFrame(
@@ -1012,9 +1062,11 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("paired", detect_calls[0]["source"])
         self.assertEqual("tamsat", detect_calls[0]["precip_source"])
         self.assertEqual("agera_5", detect_calls[0]["temp_source"])
+        self.assertIsNone(detect_calls[0]["ee_project_id"])
         self.assertEqual("paired", season_fetch_calls[0]["source"])
         self.assertEqual("tamsat", season_fetch_calls[0]["precip_source"])
         self.assertEqual("agera_5", season_fetch_calls[0]["temp_source"])
+        self.assertIsNone(season_fetch_calls[0]["ee_project_id"])
         self.assertEqual("paired", result["season_info"]["source"])
 
     def test_calculate_hazards_rejects_post_2016_chirps_chirts_window(self):
@@ -1464,7 +1516,7 @@ class HazardThresholdTests(unittest.TestCase):
             {},
         )
 
-        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None):
+        def fake_window_fetch(lat, lon, start_date, end_date, source="auto", precip_source=None, temp_source=None, model=None, scenario=None, ee_project_id=None):
             fetch_calls.append((start_date, end_date, source))
             return hazards.pd.DataFrame(
                 {
