@@ -1,0 +1,5 @@
+backend,period_name,site_count,start,end,expected_days,variables_requested,variables_supported,variables_missing,open_seconds,extract_seconds,total_seconds,seconds_per_site,rows_total
+api_point,one_year,10,2020-01-01,2020-12-31,366,"precipitation,max_temperature,min_temperature,humidity,wind_speed,solar_radiation","precipitation,max_temperature,min_temperature,humidity,wind_speed,solar_radiation",,,,18.237,1.824,
+zarr_temporal,one_year,10,2020-01-01,2020-12-31,366,"precipitation,max_temperature,min_temperature,humidity,wind_speed,solar_radiation","precipitation,max_temperature,min_temperature,humidity,wind_speed",solar_radiation,5.648,21.441,27.089,2.709,18300.0
+api_point,ten_year,10,2011-01-01,2020-12-31,3653,"precipitation,max_temperature,min_temperature,humidity,wind_speed,solar_radiation","precipitation,max_temperature,min_temperature,humidity,wind_speed,solar_radiation",,,,33.742,3.374,
+zarr_temporal,ten_year,10,2011-01-01,2020-12-31,3653,"precipitation,max_temperature,min_temperature,humidity,wind_speed,solar_radiation","precipitation,max_temperature,min_temperature,humidity,wind_speed",solar_radiation,5.03,45.465,50.495,5.05,182650.0
