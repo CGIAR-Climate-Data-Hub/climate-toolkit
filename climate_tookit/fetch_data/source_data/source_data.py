@@ -9,6 +9,7 @@ import argparse
 import sys
 from datetime import datetime, date
 from pathlib import Path
+import pandas as pd
 from .sources.gee_xee import DownloadData as DownloadGEEXee
 from .sources.agera_5 import DownloadData as DownloadAgera5
 from .sources.era_5 import DownloadData as DownloadERA5
@@ -43,6 +44,9 @@ STATIC_GEE_SOURCES = (
     ClimateDataset.soil_grid,
     ClimateDataset.hwsd,
 )
+
+FULL_PRINT_MAX_ROWS = 60
+PREVIEW_ROWS = 5
 
 
 def _download_gee_cls():
@@ -212,6 +216,65 @@ def save_output(data, output_path, fmt):
         raise ValueError(fmt)
 
 
+def _source_label(source) -> str:
+    if hasattr(source, "name"):
+        return source.name
+    return str(source)
+
+
+def _requested_variable_names(variables) -> list[str]:
+    return [getattr(variable, "name", str(variable)) for variable in variables]
+
+
+def _format_date_value(value) -> str:
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d")
+    return str(value)
+
+
+def _date_range_line(data: pd.DataFrame) -> str | None:
+    if data.empty or "date" not in data.columns:
+        return None
+    date_values = pd.to_datetime(data["date"], errors="coerce").dropna()
+    if date_values.empty:
+        return None
+    return (
+        f"Date range: {_format_date_value(date_values.min())} .. "
+        f"{_format_date_value(date_values.max())}"
+    )
+
+
+def render_cli_output(data: pd.DataFrame, variables, source) -> str:
+    lines: list[str] = []
+    requested_variables = _requested_variable_names(variables)
+    available_variables = {str(column) for column in data.columns if str(column) != "date"}
+    missing_variables = [
+        variable for variable in requested_variables if variable not in available_variables
+    ]
+    if missing_variables:
+        lines.append(
+            "Warning: Source "
+            f"'{_source_label(source)}' did not return requested variables: "
+            f"{', '.join(missing_variables)}"
+        )
+
+    if len(data) <= FULL_PRINT_MAX_ROWS:
+        lines.append(data.to_string(index=False))
+        return "\n".join(lines)
+
+    lines.append(f"Retrieved {len(data)} row(s) across {len(data.columns)} column(s).")
+    date_range = _date_range_line(data)
+    if date_range:
+        lines.append(date_range)
+    lines.append(f"Columns: {', '.join(str(column) for column in data.columns)}")
+    lines.append(f"Preview (first {PREVIEW_ROWS} rows):")
+    lines.append(data.head(PREVIEW_ROWS).to_string(index=False))
+    lines.append(f"Preview (last {PREVIEW_ROWS} rows):")
+    lines.append(data.tail(PREVIEW_ROWS).to_string(index=False))
+    lines.append("Use --format csv --output <path> or --format json --output <path> to save the full dataset.")
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description='Download climate data')
     parser.add_argument('--lon', type=float, required=True)
@@ -283,7 +346,7 @@ def main() -> int:
         climate_data = source_data.download()
 
         if args.format == "print" or not args.output:
-            print(climate_data.to_string())
+            print(render_cli_output(climate_data, variables=variables, source=source))
         else:
             save_output(climate_data, args.output, args.format)
             print(f"Saved to {args.output}")

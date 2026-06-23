@@ -60,6 +60,7 @@ from climate_tookit.fetch_data.transform_data.transform_data import validate_inp
 from climate_tookit.fetch_data.preprocess_data.preprocess_data import apply_unit_conversions
 
 fetch_data_module = importlib.import_module("climate_tookit.fetch_data.fetch_data")
+source_data_module = importlib.import_module("climate_tookit.fetch_data.source_data.source_data")
 
 
 class FetchPipelineTests(unittest.TestCase):
@@ -833,7 +834,6 @@ class FetchPipelineTests(unittest.TestCase):
                     "Earth Engine project ID is required. Pass ee_project_id or set one of "
                     "GCP_PROJECT_ID, GOOGLE_CLOUD_PROJECT, or EE_PROJECT_ID."
                 )
-
         with mock.patch.object(
             source_data_module,
             "SourceData",
@@ -881,7 +881,6 @@ class FetchPipelineTests(unittest.TestCase):
                         "pr": [1.0],
                     }
                 )
-
         buf = io.StringIO()
         with mock.patch.object(
             source_data_module,
@@ -892,6 +891,142 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(0, exit_code)
         self.assertEqual("demo-project", seen["ee_project_id"])
+
+    def test_source_data_main_prints_full_table_for_small_extract(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                "precipitation": [1.0, 2.0],
+            }
+        )
+
+        class _FakeSourceData:
+            def __init__(self, **kwargs):
+                pass
+
+            def download(self):
+                return frame.copy()
+
+        argv = [
+            "source_data.py",
+            "--source",
+            "chirps_v2",
+            "--variables",
+            "precipitation",
+            "--from",
+            "2020-01-01",
+            "--to",
+            "2020-01-02",
+            "--lon",
+            "36.817",
+            "--lat",
+            "-1.286",
+        ]
+        buf = io.StringIO()
+        with mock.patch.object(
+            source_data_module,
+            "SourceData",
+            _FakeSourceData,
+        ), mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(buf):
+            exit_code = source_data_module.main()
+
+        output = buf.getvalue()
+        self.assertEqual(0, exit_code)
+        self.assertIn("2020-01-01", output)
+        self.assertIn("precipitation", output)
+        self.assertNotIn("Retrieved 2 row(s)", output)
+
+    def test_source_data_main_prints_compact_summary_for_large_extract(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", "2020-12-31", freq="D"),
+                "precipitation": range(366),
+            }
+        )
+
+        class _FakeSourceData:
+            def __init__(self, **kwargs):
+                pass
+
+            def download(self):
+                return frame.copy()
+
+        argv = [
+            "source_data.py",
+            "--source",
+            "chirps_v2",
+            "--variables",
+            "precipitation",
+            "--from",
+            "2020-01-01",
+            "--to",
+            "2020-12-31",
+            "--lon",
+            "36.817",
+            "--lat",
+            "-1.286",
+        ]
+        buf = io.StringIO()
+        with mock.patch.object(
+            source_data_module,
+            "SourceData",
+            _FakeSourceData,
+        ), mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(buf):
+            exit_code = source_data_module.main()
+
+        output = buf.getvalue()
+        self.assertEqual(0, exit_code)
+        self.assertIn("Retrieved 366 row(s) across 2 column(s).", output)
+        self.assertIn("Date range: 2020-01-01 .. 2020-12-31", output)
+        self.assertIn("Preview (first 5 rows):", output)
+        self.assertIn("Preview (last 5 rows):", output)
+        self.assertIn("Use --format csv --output <path>", output)
+
+    def test_source_data_main_warns_when_source_cannot_supply_requested_variables(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
+                "precipitation": [1.0, 2.0],
+            }
+        )
+
+        class _FakeSourceData:
+            def __init__(self, **kwargs):
+                pass
+
+            def download(self):
+                return frame.copy()
+
+        argv = [
+            "source_data.py",
+            "--source",
+            "chirps_v2",
+            "--variables",
+            "precipitation,max_temperature,humidity",
+            "--from",
+            "2020-01-01",
+            "--to",
+            "2020-01-02",
+            "--lon",
+            "36.817",
+            "--lat",
+            "-1.286",
+        ]
+        buf = io.StringIO()
+        with mock.patch.object(
+            source_data_module,
+            "SourceData",
+            _FakeSourceData,
+        ), mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(buf):
+            exit_code = source_data_module.main()
+
+        output = buf.getvalue()
+        self.assertEqual(0, exit_code)
+        self.assertIn(
+            "Warning: Source 'chirps_v2' did not return requested variables: "
+            "max_temperature, humidity",
+            output,
+        )
 
 
 if __name__ == "__main__":
