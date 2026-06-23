@@ -1,8 +1,8 @@
-# Issue #34 Typer Prototype Note
+# Issue #34 Typer Evaluation Decision Memo
 
 ## Scope
 
-This note records the first Typer migration slice for issue `#34`:
+This memo records evaluation outcome for issue `#34`:
 
 - evaluate Typer on one low-risk public CLI
 - preserve the existing console-script entry point
@@ -39,12 +39,69 @@ new repeated-option contract for list handling.
 - we can keep `main()` as the stable console-script entry point while internally
   delegating parsing to Typer
 
+## New evidence after prototype
+
+Follow-up work in issue `#68` exposed one important risk:
+
+- Typer-backed CLI modules can fail at import time in stale or partial
+  environments if `typer` is missing, even when core analysis code is fine
+
+Mitigation added for `climate-toolkit-climatology`:
+
+- keep `main()` as stable wrapper
+- use Typer when installed
+- fall back to `argparse` in degraded environments
+
+This reduced operational risk for prototype command, but also argues against
+fast wide migration until common fallback pattern is deliberate and shared.
+
 ## Current limits
 
 This prototype does **not** prove that every current CLI should move to Typer
 unchanged. In particular, commands that currently depend on `argparse`
 multi-value patterns such as `nargs="+"` need a deliberate compatibility
 strategy before migration.
+
+Commands with larger migration risk include:
+
+- weather-station CLIs with dense option surface and selection modes
+- `fetch` and batch helpers with repeated-site / repeated-variable patterns
+- ensemble wrappers with list-heavy options and runtime-specific progress output
+
+## Backward compatibility strategy
+
+Current public contract to preserve:
+
+- console-script names in `pyproject.toml` stay unchanged
+- stable module entrypoints stay `...:main`
+- long option spellings should remain unchanged unless migration note says
+  otherwise
+- no forced move to subcommand trees for existing single-command tools
+
+If Typer migration continues, each command should satisfy all of:
+
+1. keep existing console-script name
+2. keep `main()` as stable package/script entrypoint
+3. preserve existing long option names
+4. add tests for `--help`, invalid-argument behavior, and output path behavior
+5. decide whether degraded env needs `argparse` fallback or hard dependency
+6. avoid rewriting compute logic and CLI logic in same PR
+
+## Decision
+
+Current decision:
+
+- do **not** migrate whole CLI family now
+- keep mixed approach
+- allow gradual Typer adoption only for isolated, scalar-option-heavy commands
+- require explicit compatibility tests and migration notes per command
+
+Near-term recommendation:
+
+- keep `climate-toolkit-climatology` as reference prototype
+- defer broader migration until packaging/docs/tooling work is stable
+- revisit next on one low-risk command only if maintenance pain from
+  `argparse` is concrete, not hypothetical
 
 ## Expansion guidance
 
