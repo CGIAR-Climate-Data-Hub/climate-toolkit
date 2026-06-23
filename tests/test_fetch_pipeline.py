@@ -44,6 +44,7 @@ from climate_tookit.fetch_data.gee_xee_batch import (
     _requested_band_names as batch_requested_band_names,
 )
 from climate_tookit.fetch_data.source_data.source_data import SourceData
+source_data_module = importlib.import_module("climate_tookit.fetch_data.source_data.source_data")
 from climate_tookit.fetch_data.transform_data.transform_data import transform_data
 from climate_tookit.fetch_data.source_data.sources.gee import DownloadData as GeeDownloadData
 from climate_tookit.fetch_data.source_data.sources.gee_xee import (
@@ -337,6 +338,60 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(len(calls), 1)
         self.assertIsInstance(src.client, RealNexStub)
+
+    def test_source_data_passes_explicit_project_id_to_nex_downloader(self):
+        calls = []
+
+        class RealNexStub:
+            def __init__(self, **kwargs):
+                calls.append(kwargs)
+
+            def download_variables(self):
+                return pd.DataFrame()
+
+        with mock.patch(
+            "climate_tookit.fetch_data.source_data.source_data.DownloadNEXGDDP",
+            RealNexStub,
+        ):
+            SourceData(
+                location_coord=(-1.286, 36.817),
+                variables=[ClimateVariable.precipitation],
+                source=ClimateDataset.nex_gddp,
+                date_from_utc=date(2050, 1, 1),
+                date_to_utc=date(2050, 1, 2),
+                settings=Settings.load(),
+                model="MRI-ESM2-0",
+                scenario="ssp245",
+                ee_project_id="demo-project",
+            )
+
+        self.assertEqual("demo-project", calls[0]["ee_project_id"])
+
+    def test_source_data_passes_explicit_project_id_to_xee_downloader(self):
+        calls = []
+
+        class GeeXeeStub:
+            def __init__(self, **kwargs):
+                calls.append(kwargs)
+
+            def download_variables(self):
+                return pd.DataFrame()
+
+        with mock.patch(
+            "climate_tookit.fetch_data.source_data.source_data.DownloadGEEXee",
+            GeeXeeStub,
+        ):
+            SourceData(
+                location_coord=(-1.286, 36.817),
+                variables=[ClimateVariable.precipitation],
+                source=ClimateDataset.chirps_v3_daily_rnl,
+                date_from_utc=date(2020, 1, 1),
+                date_to_utc=date(2020, 1, 2),
+                settings=Settings.load(),
+                ee_project_id="demo-project",
+            )
+
+        self.assertEqual("demo-project", calls[0]["ee_project_id"])
 
     def test_era5_dispatches_to_authoritative_era5_adapter(self):
         src = SourceData(
@@ -746,6 +801,97 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertEqual(1, exit_code)
         self.assertIn("Earth Engine project ID missing.", output)
         self.assertIn("GCP_PROJECT_ID", output)
+
+    def test_source_data_main_prints_simple_message_when_ee_project_id_missing(self):
+        argv = [
+            "source_data.py",
+            "--source",
+            "nex_gddp",
+            "--variables",
+            "precipitation,max_temperature,min_temperature",
+            "--from",
+            "2050-01-01",
+            "--to",
+            "2050-01-02",
+            "--lon",
+            "36.817",
+            "--lat",
+            "-1.286",
+            "--model",
+            "MRI-ESM2-0",
+            "--scenario",
+            "ssp245",
+        ]
+        buf = io.StringIO()
+
+        class _FakeSourceData:
+            def __init__(self, **kwargs):
+                pass
+
+            def download(self):
+                raise ValueError(
+                    "Earth Engine project ID is required. Pass ee_project_id or set one of "
+                    "GCP_PROJECT_ID, GOOGLE_CLOUD_PROJECT, or EE_PROJECT_ID."
+                )
+
+        with mock.patch.object(
+            source_data_module,
+            "SourceData",
+            _FakeSourceData,
+        ), mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(buf):
+            exit_code = source_data_module.main()
+
+        output = buf.getvalue()
+        self.assertEqual(1, exit_code)
+        self.assertIn("Earth Engine project ID missing.", output)
+        self.assertIn("GCP_PROJECT_ID", output)
+
+    def test_source_data_main_accepts_project_id_option(self):
+        argv = [
+            "source_data.py",
+            "--source",
+            "nex_gddp",
+            "--variables",
+            "precipitation,max_temperature,min_temperature",
+            "--from",
+            "2050-01-01",
+            "--to",
+            "2050-01-02",
+            "--lon",
+            "36.817",
+            "--lat",
+            "-1.286",
+            "--model",
+            "MRI-ESM2-0",
+            "--scenario",
+            "ssp245",
+            "--project-id",
+            "demo-project",
+        ]
+        seen = {}
+
+        class _FakeSourceData:
+            def __init__(self, **kwargs):
+                seen.update(kwargs)
+
+            def download(self):
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2050-01-01"]),
+                        "pr": [1.0],
+                    }
+                )
+
+        buf = io.StringIO()
+        with mock.patch.object(
+            source_data_module,
+            "SourceData",
+            _FakeSourceData,
+        ), mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(buf):
+            exit_code = source_data_module.main()
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual("demo-project", seen["ee_project_id"])
 
 
 if __name__ == "__main__":
