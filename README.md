@@ -568,6 +568,9 @@ CLI implementation note:
 - `climate-toolkit-climatology` is the current Typer prototype from issue `#34`
 - the remaining public CLI entry points still use their existing `argparse`
   wrappers while compatibility and migration cost are evaluated
+- current decision from issue `#34`: no broad CLI rewrite yet; any future Typer
+  migration should be command-by-command, keep existing console-script names,
+  and preserve `main()` entry points
 
 Preferred stable import paths:
 
