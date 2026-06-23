@@ -8,14 +8,19 @@ development use, but they are not advertised as stable package-root API.
 
 from __future__ import annotations
 
+from importlib import import_module
+
 __all__ = [
     "compare_station_to_grids",
+    "dem",
     "download_station_data",
     "render_compare_report",
 ]
 
 
 def __getattr__(name: str):
+    if name == "dem":
+        return import_module(".dem", __name__)
     if name == "download_station_data":
         from .download import download_station_data as _download_station_data
 
