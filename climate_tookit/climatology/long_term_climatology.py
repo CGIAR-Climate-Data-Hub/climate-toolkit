@@ -31,13 +31,17 @@ import contextlib
 import calendar
 import io
 import json
+import argparse
 from datetime import date
 from time import perf_counter
 from typing import Dict, List, Any, Tuple, Optional
 
 import pandas as pd
 import numpy as np
-import typer
+try:
+    import typer
+except ModuleNotFoundError:
+    typer = None
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import redirect_stdout
 from statistics import mean, stdev, median
@@ -1724,118 +1728,180 @@ def _run_climatology_cli(
     return 0
 
 
-app = typer.Typer(
-    add_completion=False,
-    help="Calculate long-term climate normals (WMO 30-year standards).",
-)
-
-
-@app.command()
-def climatology_cli(
-    location: str = typer.Option(
-        ...,
-        "--location",
-        help='Location as "lat,lon" (e.g., "-1.286,36.817")',
-    ),
-    start_year: int = typer.Option(..., "--start-year", help="Start year of climatology period"),
-    end_year: int = typer.Option(..., "--end-year", help="End year of climatology period (inclusive)"),
-    source: str = typer.Option(
-        ...,
-        "--source",
-        help=(
-            "Data source (e.g., nasa_power, agera_5, era_5, chirps_v2, chirts). "
-            "'nex_gddp' runs CMIP6 ensemble (averaged across models). "
-            "Most non-NASA historical sources are Earth Engine-backed."
-        ),
-    ),
-    scenarios_text: str = typer.Option(
-        "ssp245",
-        "--scenarios",
-        help=(
-            "NEX-GDDP only. Comma-separated SSP scenarios. Canonical: "
-            f"{', '.join(SSP_SCENARIOS)} (default: ssp245). "
-            "Aliases also accepted: SSP1-2.6, SSP2-4.5, SSP5-8.5."
-        ),
-    ),
-    models: Optional[str] = typer.Option(
-        None,
-        "--models",
-        help="NEX-GDDP only. Comma-separated subset of CMIP6 models (default: all 16).",
-    ),
-    exclude_models: Optional[str] = typer.Option(
-        None,
-        "--exclude-models",
-        help="NEX-GDDP only. Comma-separated CMIP6 models to drop.",
-    ),
-    policy_profile: str = typer.Option(
-        "default",
-        "--policy-profile",
-        help=f"NEX-GDDP only. {POLICY_PROFILE_HELP}",
-    ),
-    output_format: str = typer.Option("text", "--format", help="Output format: text or json"),
-    output_path: Optional[str] = typer.Option(None, "--output", help="Output file path (for JSON format)"),
-    output_dir: str = typer.Option(
-        "./outputs",
-        "--output-dir",
-        help=(
-            "Directory for plot PNGs (default: ./outputs). "
-            "Pass empty string to disable plotting. Plot writing requires matplotlib."
-        ),
-    ),
-    model_workers: int = typer.Option(
-        8,
-        "--model-workers",
-        help=(
-            "Parallel NEX-GDDP model workers for ensemble runs. "
-            "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
-            "Use 1 for serial deep debugging."
-        ),
-    ),
-) -> None:
-    output_format = output_format.lower()
-    if output_format not in {"text", "json"}:
-        raise typer.BadParameter(
-            f"Invalid format '{output_format}'. Use 'text' or 'json'.",
-            param_hint="--format",
-        )
-    if policy_profile not in POLICY_PROFILE_CHOICES:
-        raise typer.BadParameter(
-            f"Invalid policy profile '{policy_profile}'. "
-            f"Valid options: {', '.join(POLICY_PROFILE_CHOICES)}",
-            param_hint="--policy-profile",
-        )
-
-    rc = _run_climatology_cli(
-        location=location,
-        start_year=start_year,
-        end_year=end_year,
-        source=source,
-        scenarios_text=scenarios_text,
-        models=models,
-        exclude_models=exclude_models,
-        policy_profile=policy_profile,
-        output_format=output_format,
-        output_path=output_path,
-        output_dir=output_dir,
-        model_workers=model_workers,
+if typer is not None:
+    app = typer.Typer(
+        add_completion=False,
+        help="Calculate long-term climate normals (WMO 30-year standards).",
     )
-    if rc:
-        raise typer.Exit(code=rc)
+
+
+    @app.command()
+    def climatology_cli(
+        location: str = typer.Option(
+            ...,
+            "--location",
+            help='Location as "lat,lon" (e.g., "-1.286,36.817")',
+        ),
+        start_year: int = typer.Option(..., "--start-year", help="Start year of climatology period"),
+        end_year: int = typer.Option(..., "--end-year", help="End year of climatology period (inclusive)"),
+        source: str = typer.Option(
+            ...,
+            "--source",
+            help=(
+                "Data source (e.g., nasa_power, agera_5, era_5, chirps_v2, chirts). "
+                "'nex_gddp' runs CMIP6 ensemble (averaged across models). "
+                "Most non-NASA historical sources are Earth Engine-backed."
+            ),
+        ),
+        scenarios_text: str = typer.Option(
+            "ssp245",
+            "--scenarios",
+            help=(
+                "NEX-GDDP only. Comma-separated SSP scenarios. Canonical: "
+                f"{', '.join(SSP_SCENARIOS)} (default: ssp245). "
+                "Aliases also accepted: SSP1-2.6, SSP2-4.5, SSP5-8.5."
+            ),
+        ),
+        models: Optional[str] = typer.Option(
+            None,
+            "--models",
+            help="NEX-GDDP only. Comma-separated subset of CMIP6 models (default: all 16).",
+        ),
+        exclude_models: Optional[str] = typer.Option(
+            None,
+            "--exclude-models",
+            help="NEX-GDDP only. Comma-separated CMIP6 models to drop.",
+        ),
+        policy_profile: str = typer.Option(
+            "default",
+            "--policy-profile",
+            help=f"NEX-GDDP only. {POLICY_PROFILE_HELP}",
+        ),
+        output_format: str = typer.Option("text", "--format", help="Output format: text or json"),
+        output_path: Optional[str] = typer.Option(None, "--output", help="Output file path (for JSON format)"),
+        output_dir: str = typer.Option(
+            "./outputs",
+            "--output-dir",
+            help=(
+                "Directory for plot PNGs (default: ./outputs). "
+                "Pass empty string to disable plotting. Plot writing requires matplotlib."
+            ),
+        ),
+        model_workers: int = typer.Option(
+            8,
+            "--model-workers",
+            help=(
+                "Parallel NEX-GDDP model workers for ensemble runs. "
+                "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
+                "Use 1 for serial deep debugging."
+            ),
+        ),
+    ) -> None:
+        output_format = output_format.lower()
+        if output_format not in {"text", "json"}:
+            raise typer.BadParameter(
+                f"Invalid format '{output_format}'. Use 'text' or 'json'.",
+                param_hint="--format",
+            )
+        if policy_profile not in POLICY_PROFILE_CHOICES:
+            raise typer.BadParameter(
+                f"Invalid policy profile '{policy_profile}'. "
+                f"Valid options: {', '.join(POLICY_PROFILE_CHOICES)}",
+                param_hint="--policy-profile",
+            )
+
+        rc = _run_climatology_cli(
+            location=location,
+            start_year=start_year,
+            end_year=end_year,
+            source=source,
+            scenarios_text=scenarios_text,
+            models=models,
+            exclude_models=exclude_models,
+            policy_profile=policy_profile,
+            output_format=output_format,
+            output_path=output_path,
+            output_dir=output_dir,
+            model_workers=model_workers,
+        )
+        if rc:
+            raise typer.Exit(code=rc)
+else:
+    app = None
+
+
+def _build_argparse_climatology_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="climate-toolkit-climatology",
+        description="Calculate long-term climate normals (WMO 30-year standards).",
+    )
+    parser.add_argument("--location", required=True, help='Location as "lat,lon"')
+    parser.add_argument("--start-year", required=True, type=int, help="Start year of climatology period")
+    parser.add_argument("--end-year", required=True, type=int, help="End year of climatology period (inclusive)")
+    parser.add_argument("--source", required=True, help="Climate source")
+    parser.add_argument("--scenarios", default="ssp245", help="NEX-GDDP only. Comma-separated SSP scenarios.")
+    parser.add_argument("--models", default=None, help="NEX-GDDP only. Comma-separated model subset.")
+    parser.add_argument("--exclude-models", default=None, help="NEX-GDDP only. Comma-separated model exclusions.")
+    parser.add_argument(
+        "--policy-profile",
+        default="default",
+        help=f"NEX-GDDP only. Valid options: {', '.join(POLICY_PROFILE_CHOICES)}",
+    )
+    parser.add_argument("--format", dest="output_format", default="text", help="Output format: text or json")
+    parser.add_argument("--output", dest="output_path", default=None, help="Output file path")
+    parser.add_argument(
+        "--output-dir",
+        default="./outputs",
+        help="Directory for plot PNGs. Pass empty string to disable plotting.",
+    )
+    parser.add_argument(
+        "--model-workers",
+        type=int,
+        default=8,
+        help="Parallel NEX-GDDP model workers for ensemble runs.",
+    )
+    return parser
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     """Command-line entry point for climatology analysis."""
-    command = typer.main.get_command(app)
     args = list(sys.argv[1:] if argv is None else argv)
-    prog_name = os.path.basename(sys.argv[0]) if sys.argv else "climate-toolkit-climatology"
-    try:
-        command.main(args=args, prog_name=prog_name, standalone_mode=False)
-    except Exception as exc:
-        if hasattr(exc, "show") and hasattr(exc, "exit_code"):
-            exc.show()
-            return int(exc.exit_code)
-        raise
-    return 0
+    if typer is not None:
+        command = typer.main.get_command(app)
+        prog_name = os.path.basename(sys.argv[0]) if sys.argv else "climate-toolkit-climatology"
+        try:
+            command.main(args=args, prog_name=prog_name, standalone_mode=False)
+        except Exception as exc:
+            if hasattr(exc, "show") and hasattr(exc, "exit_code"):
+                exc.show()
+                return int(exc.exit_code)
+            raise
+        return 0
+
+    parser = _build_argparse_climatology_parser()
+    namespace = parser.parse_args(args)
+    output_format = namespace.output_format.lower()
+    if output_format not in {"text", "json"}:
+        parser.error(f"Invalid format '{output_format}'. Use 'text' or 'json'.")
+    if namespace.policy_profile not in POLICY_PROFILE_CHOICES:
+        parser.error(
+            f"Invalid policy profile '{namespace.policy_profile}'. "
+            f"Valid options: {', '.join(POLICY_PROFILE_CHOICES)}"
+        )
+    return _run_climatology_cli(
+        location=namespace.location,
+        start_year=namespace.start_year,
+        end_year=namespace.end_year,
+        source=namespace.source,
+        scenarios_text=namespace.scenarios,
+        models=namespace.models,
+        exclude_models=namespace.exclude_models,
+        policy_profile=namespace.policy_profile,
+        output_format=output_format,
+        output_path=namespace.output_path,
+        output_dir=namespace.output_dir,
+        model_workers=namespace.model_workers,
+    )
 
 
 if __name__ == "__main__":

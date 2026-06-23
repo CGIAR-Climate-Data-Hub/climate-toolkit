@@ -118,6 +118,33 @@ class ClimatologyTyperCliTests(unittest.TestCase):
             self.assertTrue(output_path.exists())
             self.assertIn("Climatology saved", stdout.getvalue())
 
+    def test_main_falls_back_to_argparse_when_typer_missing(self):
+        payload = {
+            "source": "era_5",
+            "period": {"start_year": 1991, "end_year": 2020},
+        }
+
+        with TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "fallback" / "climatology.json"
+            stdout = StringIO()
+            with mock.patch.object(ltc, "typer", None), \
+                 mock.patch.object(ltc, "calculate_climatology", return_value=payload), \
+                 mock.patch("sys.stdout", stdout):
+                rc = ltc.main(
+                    [
+                        "--location=-1.286,36.817",
+                        "--start-year=1991",
+                        "--end-year=2020",
+                        "--source=era_5",
+                        "--format=json",
+                        f"--output={output_path}",
+                    ]
+                )
+
+            self.assertEqual(0, rc)
+            self.assertTrue(output_path.exists())
+            self.assertIn("Climatology saved", stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
