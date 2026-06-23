@@ -151,6 +151,7 @@ def transform_data(
     cache_dir=None,
     refresh_cache=False,
     station_id=None,
+    ee_project_id=None,
 ):
     """Download and transform climate data using SourceData + variable mappings."""
 
@@ -193,6 +194,7 @@ def transform_data(
         cache_dir=cache_dir,
         refresh_cache=refresh_cache,
         station_id=station_id,
+        ee_project_id=ee_project_id,
     )
 
     raw_df = src.download()
