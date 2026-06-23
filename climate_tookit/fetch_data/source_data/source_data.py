@@ -17,6 +17,7 @@ from .sources.nasa_power import DownloadData as DownloadNASA
 from .sources.nex_gddp import DownloadData as DownloadNEXGDDP
 from .sources.ghcn_daily import DownloadData as DownloadGHCNDaily
 from .sources.gsod import DownloadData as DownloadGSOD
+from .sources.xee_common import format_ee_setup_error
 from .sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
@@ -56,7 +57,7 @@ class SourceData:
     def __init__(self, location_coord, variables, source, date_from_utc,
                  date_to_utc, settings, model=None, scenario=None,
                  nex_backend=None, verbose=True, cache_dir=None,
-                 refresh_cache=False, station_id=None):
+                 refresh_cache=False, station_id=None, ee_project_id=None):
         self.location_coord = location_coord
         self.variables = variables
         self.source = source
@@ -70,6 +71,7 @@ class SourceData:
         self.cache_dir = cache_dir
         self.refresh_cache = refresh_cache
         self.station_id = station_id
+        self.ee_project_id = ee_project_id
 
         client = None
 
@@ -86,6 +88,7 @@ class SourceData:
                 verbose=verbose,
                 cache_dir=cache_dir,
                 refresh_cache=refresh_cache,
+                ee_project_id=ee_project_id,
             )
         elif source == ClimateDataset.era_5:
             client = DownloadERA5(
@@ -98,6 +101,7 @@ class SourceData:
                 verbose=verbose,
                 cache_dir=cache_dir,
                 refresh_cache=refresh_cache,
+                ee_project_id=ee_project_id,
             )
         elif source == ClimateDataset.agera_5:
             client = DownloadAgera5(
@@ -110,6 +114,7 @@ class SourceData:
                 verbose=verbose,
                 cache_dir=cache_dir,
                 refresh_cache=refresh_cache,
+                ee_project_id=ee_project_id,
             )
         elif source in XEE_SINGLE_SITE_SOURCES:
             client = DownloadGEEXee(
@@ -122,6 +127,7 @@ class SourceData:
                 verbose=verbose,
                 cache_dir=cache_dir,
                 refresh_cache=refresh_cache,
+                ee_project_id=ee_project_id,
             )
         elif source in STATIC_GEE_SOURCES:
             client = _download_gee_cls()(
@@ -220,6 +226,8 @@ def main() -> int:
     parser.add_argument('--cache-dir', default=None)
     parser.add_argument('--refresh-cache', action='store_true')
     parser.add_argument('--station-id', default=None)
+    parser.add_argument('--project-id', default=None,
+                        help='Optional Earth Engine / GCP project ID for Xee-backed sources')
     parser.add_argument('--output', '-o', default=None)
     parser.add_argument(
         '--format',
@@ -255,28 +263,33 @@ def main() -> int:
 
     settings = Settings.load()
 
-    source_data = SourceData(
-        location_coord=(args.lat, args.lon),
-        variables=variables,
-        source=source,
-        date_from_utc=date_from,
-        date_to_utc=date_to,
-        settings=settings,
-        model=args.model,
-        scenario=args.scenario,
-        verbose=not args.quiet,
-        cache_dir=args.cache_dir,
-        refresh_cache=args.refresh_cache,
-        station_id=args.station_id,
-    )
+    try:
+        source_data = SourceData(
+            location_coord=(args.lat, args.lon),
+            variables=variables,
+            source=source,
+            date_from_utc=date_from,
+            date_to_utc=date_to,
+            settings=settings,
+            model=args.model,
+            scenario=args.scenario,
+            verbose=not args.quiet,
+            cache_dir=args.cache_dir,
+            refresh_cache=args.refresh_cache,
+            station_id=args.station_id,
+            ee_project_id=args.project_id,
+        )
 
-    climate_data = source_data.download()
+        climate_data = source_data.download()
 
-    if args.format == "print" or not args.output:
-        print(climate_data.to_string())
-    else:
-        save_output(climate_data, args.output, args.format)
-        print(f"Saved to {args.output}")
+        if args.format == "print" or not args.output:
+            print(climate_data.to_string())
+        else:
+            save_output(climate_data, args.output, args.format)
+            print(f"Saved to {args.output}")
+    except Exception as exc:
+        print(f"Error: {format_ee_setup_error(exc)}")
+        return 1
 
     return 0
 

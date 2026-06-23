@@ -32,6 +32,7 @@ class DownloadData(models.DataDownloadBase):
         verbose: bool = True,
         cache_dir: str | Path | None = None,
         refresh_cache: bool = False,
+        ee_project_id: str | None = None,
     ):
         super().__init__(
             location_coord=location_coord,
@@ -48,6 +49,7 @@ class DownloadData(models.DataDownloadBase):
         self.verbose = verbose
         self.cache_dir = cache_dir
         self.refresh_cache = refresh_cache
+        self.ee_project_id = ee_project_id
 
     def _site(self) -> Site:
         lat, lon = self.location_coord
@@ -73,6 +75,7 @@ class DownloadData(models.DataDownloadBase):
             cache_dir=self.cache_dir,
             refresh_cache=self.refresh_cache,
             verbose=self.verbose,
+            ee_project_id=self.ee_project_id,
         )
         return self._strip_site_columns(raw_df)
 
