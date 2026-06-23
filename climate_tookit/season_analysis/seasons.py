@@ -273,6 +273,7 @@ def get_climate_data(
     custom_station_name: Optional[str] = None,
     custom_temp_unit: str = "c",
     custom_precip_unit: str = "mm",
+    ee_project_id: Optional[str] = None,
 ) -> pd.DataFrame:
     """
     Fetch standardised daily climate data (date, tmax, tmin, precip).
@@ -297,6 +298,7 @@ def get_climate_data(
             date_to,
             normalized_precip_source,
             normalized_temp_source,
+            ee_project_id=ee_project_id,
         )
     else:
         if normalized_force_source == PAIRED_SOURCE_SENTINEL:
@@ -312,6 +314,7 @@ def get_climate_data(
             normalized_force_source,
             model=model,
             scenario=scenario,
+            ee_project_id=ee_project_id,
         )
     if df is None or df.empty or 'date' not in df.columns:
         if normalized_force_source:
@@ -366,10 +369,19 @@ def get_climate_data(
         )
     return result
 
-def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=None) -> Optional[pd.DataFrame]:
+def _fetch_raw(
+    lat,
+    lon,
+    date_from,
+    date_to,
+    force_source,
+    model=None,
+    scenario=None,
+    ee_project_id=None,
+) -> Optional[pd.DataFrame]:
     coord = (lat, lon)
     if force_source in {'chirps+chirts', 'chirps_v2+chirts'}:
-        return _merge_chirps_chirts(coord, date_from, date_to)
+        return _merge_chirps_chirts(coord, date_from, date_to, ee_project_id=ee_project_id)
     if force_source == 'nex_gddp':
         return preprocess_data(
             source=force_source,
@@ -379,11 +391,13 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
             date_to=date_to,
             model=model,
             scenario=scenario,
+            ee_project_id=ee_project_id,
         )
     if force_source:
         return preprocess_data(source=force_source, location_coord=coord,
                                variables=_source_variables_for_request(force_source),
-                               date_from=date_from, date_to=date_to)
+                               date_from=date_from, date_to=date_to,
+                               ee_project_id=ee_project_id)
     try:
         return _merge_precip_temp(
             coord,
@@ -391,6 +405,7 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
             date_to,
             precip_source=DEFAULT_AUTO_PRECIP_SOURCE,
             temp_source=DEFAULT_AUTO_TEMP_SOURCE,
+            ee_project_id=ee_project_id,
         )
     except Exception:
         pass
@@ -398,17 +413,26 @@ def _fetch_raw(lat, lon, date_from, date_to, force_source, model=None, scenario=
         try:
             df = preprocess_data(source=source, location_coord=coord,
                                  variables=_source_variables_for_request(source),
-                                 date_from=date_from, date_to=date_to)
+                                 date_from=date_from, date_to=date_to,
+                                 ee_project_id=ee_project_id)
             if not df.empty and 'precipitation' in df.columns:
                 return df
         except Exception:
             continue
-    return _merge_chirps_chirts(coord, date_from, date_to)
+    return _merge_chirps_chirts(coord, date_from, date_to, ee_project_id=ee_project_id)
 
-def _merge_precip_temp(coord, date_from, date_to, precip_source, temp_source) -> pd.DataFrame:
+def _merge_precip_temp(
+    coord,
+    date_from,
+    date_to,
+    precip_source,
+    temp_source,
+    ee_project_id=None,
+) -> pd.DataFrame:
     df_p = preprocess_data(source=precip_source, location_coord=coord,
                            variables=PRECIP_VARIABLES,
-                           date_from=date_from, date_to=date_to)
+                           date_from=date_from, date_to=date_to,
+                           ee_project_id=ee_project_id)
     temp_variables = (
         AUTO_COMPANION_VARIABLES
         if temp_source == DEFAULT_AUTO_TEMP_SOURCE
@@ -416,7 +440,8 @@ def _merge_precip_temp(coord, date_from, date_to, precip_source, temp_source) ->
     )
     df_t = preprocess_data(source=temp_source, location_coord=coord,
                            variables=temp_variables,
-                           date_from=date_from, date_to=date_to)
+                           date_from=date_from, date_to=date_to,
+                           ee_project_id=ee_project_id)
     if df_p is None or df_p.empty or 'date' not in df_p.columns:
         raise RuntimeError(f"No {precip_source} precipitation data returned.")
     if df_t is None or df_t.empty or 'date' not in df_t.columns:
@@ -427,13 +452,15 @@ def _merge_precip_temp(coord, date_from, date_to, precip_source, temp_source) ->
     ]
     return pd.merge(df_p[['date', 'precipitation']], df_t[temp_keep_columns], on='date', how='inner')
 
-def _merge_chirps_chirts(coord, date_from, date_to) -> pd.DataFrame:
+def _merge_chirps_chirts(coord, date_from, date_to, ee_project_id=None) -> pd.DataFrame:
     df_p = preprocess_data(source=LEGACY_FALLBACK_COMBO[0], location_coord=coord,
                            variables=PRECIP_VARIABLES,
-                           date_from=date_from, date_to=date_to)
+                           date_from=date_from, date_to=date_to,
+                           ee_project_id=ee_project_id)
     df_t = preprocess_data(source=LEGACY_FALLBACK_COMBO[1], location_coord=coord,
                            variables=TEMP_VARIABLES,
-                           date_from=date_from, date_to=date_to)
+                           date_from=date_from, date_to=date_to,
+                           ee_project_id=ee_project_id)
     if df_p is None or df_p.empty or 'date' not in df_p.columns:
         raise RuntimeError("No CHIRPS precipitation data returned.")
     if df_t is None or df_t.empty or 'date' not in df_t.columns:
@@ -772,6 +799,7 @@ def fetch_full_year_plus_cessation(
     custom_station_name=None,
     custom_temp_unit="c",
     custom_precip_unit="mm",
+    ee_project_id=None,
 ):
     force      = None if source == "auto" else source
     start_date = f"{year}-01-01"
@@ -792,6 +820,7 @@ def fetch_full_year_plus_cessation(
         custom_station_name=custom_station_name,
         custom_temp_unit=custom_temp_unit,
         custom_precip_unit=custom_precip_unit,
+        ee_project_id=ee_project_id,
     )
     df = add_et0(df, lat)
     return df.sort_values('date').reset_index(drop=True)
@@ -813,6 +842,7 @@ def fetch_master_range_with_tail(
     custom_station_name=None,
     custom_temp_unit="c",
     custom_precip_unit="mm",
+    ee_project_id=None,
 ):
     force = None if source == "auto" else source
     start_date = f"{start_year}-01-01"
@@ -834,6 +864,7 @@ def fetch_master_range_with_tail(
         custom_station_name=custom_station_name,
         custom_temp_unit=custom_temp_unit,
         custom_precip_unit=custom_precip_unit,
+        ee_project_id=ee_project_id,
     )
     df = add_et0(df, lat)
     return df.sort_values("date").reset_index(drop=True)
@@ -1001,6 +1032,7 @@ def fetch_and_analyze_years(
     custom_station_name=None,
     custom_temp_unit="c",
     custom_precip_unit="mm",
+    ee_project_id=None,
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
     Returns
@@ -1026,6 +1058,7 @@ def fetch_and_analyze_years(
                 custom_station_name=custom_station_name,
                 custom_temp_unit=custom_temp_unit,
                 custom_precip_unit=custom_precip_unit,
+                ee_project_id=ee_project_id,
             )
             if df_window is None or df_window.empty:
                 print(f"  Retrieved 0 days for {ref_year}")
@@ -1098,6 +1131,7 @@ def fetch_and_analyze_years_fixed(
     custom_station_name: Optional[str] = None,
     custom_temp_unit: str = "c",
     custom_precip_unit: str = "mm",
+    ee_project_id: Optional[str] = None,
     emit_fetch_errors: bool = True,
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
@@ -1161,6 +1195,7 @@ def fetch_and_analyze_years_fixed(
                 custom_station_name=custom_station_name,
                 custom_temp_unit=custom_temp_unit,
                 custom_precip_unit=custom_precip_unit,
+                ee_project_id=ee_project_id,
             )
             df = add_et0(df, lat)
             print(f"  Retrieved {len(df)} days")

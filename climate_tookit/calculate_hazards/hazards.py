@@ -1338,6 +1338,7 @@ def get_climate_data_for_season(
     temp_source: Optional[str] = None,
     model: Optional[str] = None,
     scenario: Optional[str] = None,
+    ee_project_id: Optional[str] = None,
 ) -> pd.DataFrame:
     """Fetch daily climate data for an explicit window and attach ET0."""
     force_source = None if source == 'auto' else source
@@ -1351,6 +1352,7 @@ def get_climate_data_for_season(
         temp_source=temp_source,
         model=model,
         scenario=scenario,
+        ee_project_id=ee_project_id,
     )
     if df.empty:
         raise Exception(f"No climate data returned for {start_date} -> {end_date}")
@@ -1922,6 +1924,7 @@ def calculate_hazards(
     livestock_type:    str            = DEFAULT_LIVESTOCK_TYPE,
     livestock_climate_profile: str    = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
     livestock_elevation_override_m: Optional[float] = None,
+    ee_project_id: Optional[str] = None,
 ) -> Dict[str, Any]:
 
     lat, lon = location_coord
@@ -2016,6 +2019,7 @@ def calculate_hazards(
                 source=source,
                 precip_source=precip_source,
                 temp_source=temp_source,
+                ee_project_id=ee_project_id,
             )
         except Exception as exc:
             return {
@@ -2070,6 +2074,7 @@ def calculate_hazards(
             precip_source=precip_source,
             temp_source=temp_source,
             prefetch_pad_days=spinup_days,
+            ee_project_id=ee_project_id,
             emit_fetch_errors=False,
         )
         num_seasons_per_year = len(fixed_defs) 
@@ -2118,6 +2123,7 @@ def calculate_hazards(
                             source=source,
                             precip_source=precip_source,
                             temp_source=temp_source,
+                            ee_project_id=ee_project_id,
                         )
                     except Exception as exc:
                         return {
@@ -2162,6 +2168,7 @@ def calculate_hazards(
                 source=detection_source,
                 precip_source=precip_source,
                 temp_source=temp_source,
+                ee_project_id=ee_project_id,
             )
             seasons_dict, annual_dict = analyze_years_auto_on_prefetched_df(
                 auto_master_df,
@@ -2173,6 +2180,7 @@ def calculate_hazards(
             seasons_dict, annual_dict = fetch_and_analyze_years(
                 lat, lon, start_year=start_year, end_year=end_year, source=detection_source,
                 precip_source=precip_source, temp_source=temp_source,
+                ee_project_id=ee_project_id,
             )
         if not any(seasons_dict.values()):
             detection_errors = _extract_detection_errors(annual_dict)
@@ -2262,6 +2270,7 @@ def calculate_hazards(
                                 source=detection_source,
                                 precip_source=precip_source,
                                 temp_source=temp_source,
+                                ee_project_id=ee_project_id,
                             )
                         except Exception as exc:
                             return {
@@ -2280,6 +2289,7 @@ def calculate_hazards(
                             source=detection_source,
                             precip_source=precip_source,
                             temp_source=temp_source,
+                            ee_project_id=ee_project_id,
                         )
                     except Exception as exc:
                         return {
@@ -2778,6 +2788,11 @@ def main() -> int:
         help='Required with --source paired. Example: agera_5 or era_5.',
     )
     parser.add_argument(
+        '--project-id',
+        default=None,
+        help='Optional Earth Engine / GCP project ID for GEE-backed climate sources.',
+    )
+    parser.add_argument(
         '--calendar-source',
         choices=['ggcmi'],
         default=None,
@@ -2857,6 +2872,7 @@ def main() -> int:
         'source': args.source,
         'precip_source': args.precip_source,
         'temp_source': args.temp_source,
+        'ee_project_id': args.project_id,
         'custom_thresholds': custom_thresholds,
         'gap_days': args.gap_days,
         'min_season_days': args.min_season_days,
