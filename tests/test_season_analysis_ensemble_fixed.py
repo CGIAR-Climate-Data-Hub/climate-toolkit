@@ -219,6 +219,32 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
         self.assertEqual([9.0, 2.0, 8.0], frame["precip"].tolist())
         self.assertEqual([24.0, 25.0, 26.0], frame["tmax"].tolist())
 
+    def test_seasons_get_climate_data_preserves_companion_humidity_columns(self):
+        base_frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=2, freq="D"),
+                "precipitation": [1.0, 2.0],
+                "max_temperature": [24.0, 25.0],
+                "min_temperature": [14.0, 15.0],
+                "humidity": [70.0, 75.0],
+            }
+        )
+        original = ensemble.seasons._fetch_raw
+        ensemble.seasons._fetch_raw = lambda *args, **kwargs: base_frame.copy()
+        try:
+            frame = ensemble.seasons.get_climate_data(
+                -1.286,
+                36.817,
+                "2020-01-01",
+                "2020-01-02",
+                force_source="agera_5",
+            )
+        finally:
+            ensemble.seasons._fetch_raw = original
+
+        self.assertIn("humidity", frame.columns)
+        self.assertEqual([70.0, 75.0], frame["humidity"].tolist())
+
     def test_seasons_get_climate_data_skips_custom_override_when_no_overlap(self):
         base_frame = pd.DataFrame(
             {

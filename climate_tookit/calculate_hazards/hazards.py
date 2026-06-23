@@ -26,6 +26,14 @@ import pandas as pd
 import json
 import argparse
 from climate_tookit._resources import load_json_resource
+from climate_tookit.climatology import (
+    DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    DEFAULT_LIVESTOCK_TYPE,
+    build_thi_hazard_thresholds,
+    compute_daily_thi,
+    list_thi_livestock_profiles,
+    resolve_thi_profile,
+)
 from climate_tookit.crop_calendar.registry import (
     normalize_crop_name,
     threshold_supported_crop_names,
@@ -112,6 +120,10 @@ CROP_THRESHOLDS = {
 #   line-level FAO/AquaCrop validation in package docs
 # Atlas-inspired starter hazard-index thresholds.
 ATLAS_HAZARD_INDEX_THRESHOLDS = {
+    'THI': build_thi_hazard_thresholds(
+        livestock_type=DEFAULT_LIVESTOCK_TYPE,
+        climate_profile='temperate',
+    ),
     'NDD': {
         'no_stress': (None, 15),
         'moderate_stress': (15, 20),
@@ -159,6 +171,13 @@ HAZARD_EVAL_SPECS = {
         'label': 'Temperature',
         'unit': 'degC',
     },
+    'THI': {
+        'result_key': 'THI',
+        'stat_key': 'mean_thi',
+        'value_key': 'value_thi',
+        'label': 'THI',
+        'unit': 'index',
+    },
     'NDD': {
         'result_key': 'NDD',
         'stat_key': 'NDD',
@@ -196,7 +215,7 @@ HAZARD_EVAL_SPECS = {
     },
 }
 
-HAZARD_PRINT_ORDER = ['precipitation', 'temperature', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0']
+HAZARD_PRINT_ORDER = ['precipitation', 'temperature', 'THI', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0']
 
 FULL_WINDOW_WATER_BALANCE = "full_window"
 CROP_ACTIVE_WATER_BALANCE = "crop_active"
@@ -210,6 +229,9 @@ COMPARISON_METRIC_SPECS = [
     ('mean_temperature_c', 'mean_tavg', 'TAVG', 'deg C'),
     ('min_tmin_c', 'min_tmin', 'Min Tmin', 'deg C'),
     ('max_tmax_c', 'max_tmax', 'Max Tmax', 'deg C'),
+    ('mean_thi', 'mean_thi', 'Mean THI', 'index'),
+    ('max_thi', 'max_thi', 'Max THI', 'index'),
+    ('thi_stress_days', 'thi_stress_days', 'THI Stress Days', 'days'),
     ('crop_water_requirement_mm', 'crop_water_requirement_mm', 'Crop Water Requirement', 'mm'),
     ('actual_crop_et_mm', 'actual_crop_et_mm', 'Actual Crop ET', 'mm'),
     ('WRSI', 'wrsi', 'WRSI', '%'),
@@ -229,8 +251,70 @@ def _merge_threshold_groups(base: Dict[str, Dict[str, Tuple]], override: Dict[st
         merged[metric] = deepcopy(bands)
     return merged
 
-def resolve_thresholds(crop_name: str, custom_thresholds: Optional[Dict[str, Dict[str, Tuple]]] = None) -> Dict[str, Dict[str, Tuple]]:
+def _thi_profile_label(profile: Optional[Dict[str, Any]]) -> str:
+    if not profile:
+        return "THI"
+    label = (
+        profile.get("label")
+        or profile.get("thi_livestock_label")
+        or profile.get("livestock_label")
+        or profile.get("thi_livestock_type")
+        or profile.get("livestock_type")
+        or "THI"
+    )
+    climate = profile.get("climate_profile_applied") or profile.get("thi_climate_profile")
+    if climate:
+        return f"THI ({label}; {climate})"
+    return f"THI ({label})"
+
+
+def _thi_profile_context_line(profile: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not profile:
+        return None
+    livestock_type = (
+        profile.get("livestock_type")
+        or profile.get("thi_livestock_type")
+    )
+    applied = profile.get("climate_profile_applied") or profile.get("thi_climate_profile")
+    requested = profile.get("climate_profile_requested")
+    parts = []
+    if livestock_type:
+        parts.append(f"type={livestock_type}")
+    if applied:
+        parts.append(f"climate={applied}")
+    if requested and requested != applied:
+        parts.append(f"requested={requested}")
+    elevation_m = profile.get("elevation_m")
+    elevation_source = profile.get("elevation_source")
+    if elevation_m is not None:
+        if elevation_source:
+            parts.append(f"elevation={float(elevation_m):.0f} m ({elevation_source})")
+        else:
+            parts.append(f"elevation={float(elevation_m):.0f} m")
+    if not parts:
+        return None
+    return " | ".join(parts)
+
+
+def resolve_thresholds(
+    crop_name: str,
+    custom_thresholds: Optional[Dict[str, Dict[str, Tuple]]] = None,
+    *,
+    livestock_type: str = DEFAULT_LIVESTOCK_TYPE,
+    livestock_climate_profile: str = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    livestock_elevation_override_m: Optional[float] = None,
+) -> Dict[str, Dict[str, Tuple]]:
     thresholds = _merge_threshold_groups(CROP_THRESHOLDS.get(crop_name, {}), ATLAS_HAZARD_INDEX_THRESHOLDS)
+    thresholds["THI"] = build_thi_hazard_thresholds(
+        livestock_type=livestock_type,
+        climate_profile=livestock_climate_profile,
+        lat=lat,
+        lon=lon,
+        elevation_m=livestock_elevation_override_m,
+        auto_fetch_elevation=True,
+    )
     if custom_thresholds:
         thresholds = _merge_threshold_groups(thresholds, custom_thresholds)
     return thresholds
@@ -319,6 +403,7 @@ def _apply_water_balance_window_mode(
     season_info: Dict[str, Any],
     soil_parameters: Dict[str, Any],
     crop_water_balance: Dict[str, Any],
+    thi_profile: Optional[Dict[str, Any]] = None,
     water_balance_window: str = FULL_WINDOW_WATER_BALANCE,
     eto_seasons: Optional[List[Dict[str, Any]]] = None,
     eto_detection_note: Optional[str] = None,
@@ -375,6 +460,7 @@ def _apply_water_balance_window_mode(
             ),
             analysis_start=pd.to_datetime(sub_season["onset"]).strftime("%Y-%m-%d"),
             analysis_end=pd.to_datetime(sub_season["cessation"]).strftime("%Y-%m-%d"),
+            thi_profile=thi_profile,
         )
         ndws_total += int(sub_stats.get("NDWS", 0))
         ndwl0_total += int(sub_stats.get("NDWL0", 0))
@@ -1447,6 +1533,7 @@ def calculate_season_statistics(
     analysis_start: Optional[str] = None,
     analysis_end: Optional[str] = None,
     init_avail: float = 0.0,
+    thi_profile: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     stats: Dict[str, Any] = {}
     working = df.sort_values('date').copy() if 'date' in df.columns else df.copy()
@@ -1508,6 +1595,43 @@ def calculate_season_statistics(
         # Adaptation Atlas counts threshold exceedance inclusively (>= threshold).
         stats['NTx35']              = int((tmax >= 35).sum())
         stats['NTx40']              = int((tmax >= 40).sum())
+        humidity_col = next(
+            (c for c in ['humidity', 'relative_humidity'] if c in analysis_df.columns),
+            None,
+        )
+        if humidity_col:
+            try:
+                thi_frame = pd.DataFrame(
+                    {
+                        'date': analysis_df['date'],
+                        'tmax': tmax,
+                        'tmin': tmin,
+                        'humidity': pd.to_numeric(analysis_df[humidity_col], errors='coerce'),
+                    }
+                )
+                thi_daily = compute_daily_thi(
+                    thi_frame,
+                    thresholds=(thi_profile or {}).get('thresholds'),
+                    livestock_type=(thi_profile or {}).get('livestock_type', DEFAULT_LIVESTOCK_TYPE),
+                    climate_profile=(thi_profile or {}).get('climate_profile_applied', DEFAULT_LIVESTOCK_CLIMATE_PROFILE),
+                    elevation_m=(thi_profile or {}).get('elevation_m'),
+                )
+            except ValueError:
+                thi_daily = None
+            if thi_daily is not None and thi_daily['thi'].notna().any():
+                counts = thi_daily['thi_class'].value_counts(dropna=True)
+                stats['thi_livestock_type'] = (thi_profile or {}).get('livestock_type', DEFAULT_LIVESTOCK_TYPE)
+                stats['thi_livestock_label'] = (thi_profile or {}).get('label', 'Cattle (dairy)')
+                stats['thi_climate_profile'] = (thi_profile or {}).get('climate_profile_applied', DEFAULT_LIVESTOCK_CLIMATE_PROFILE)
+                stats['mean_thi'] = float(thi_daily['thi'].mean())
+                stats['max_thi'] = float(thi_daily['thi'].max())
+                stats['thi_none_days'] = int(counts.get('none', 0))
+                stats['thi_mild_days'] = int(counts.get('mild', 0))
+                stats['thi_moderate_days'] = int(counts.get('moderate', 0))
+                stats['thi_severe_days'] = int(counts.get('severe', 0))
+                stats['thi_stress_days'] = int(
+                    counts.get('mild', 0) + counts.get('moderate', 0) + counts.get('severe', 0)
+                )
 
     # Soil-water diagnostics derived from shared running root-zone water balance.
     #   NDWS  = days the crop cannot meet half its evaporative demand (ERATIO < 0.5)
@@ -1542,6 +1666,15 @@ def evaluate_threshold(value: float, thresholds: Dict[str, Tuple]) -> str:
             return level
     return 'unknown'
 
+
+def _hazard_status_symbol(status: str) -> str:
+    status_lc = str(status or "").lower()
+    if status_lc in {"none", "no_stress"} or "no_stress" in status_lc:
+        return "OK"
+    if "mild" in status_lc or "moderate" in status_lc:
+        return "!!"
+    return "XX"
+
 def evaluate_hazard_metrics(
     stats: Dict[str, Any],
     thresholds: Dict[str, Dict[str, Tuple]],
@@ -1566,6 +1699,7 @@ _LTM_SCALAR_KEYS = (
     'rainy_days', 'dry_days', 'NDD',
     'mean_temperature_c', 'mean_tmax_c', 'mean_tmin_c',
     'max_temperature_c', 'min_temperature_c', 'max_tmax_c', 'min_tmin_c',
+    'mean_thi', 'max_thi', 'thi_none_days', 'thi_mild_days', 'thi_moderate_days', 'thi_severe_days', 'thi_stress_days',
     'crop_water_requirement_mm', 'actual_crop_et_mm', 'ending_soil_water_mm', 'WRSI',
     'NTx35', 'NTx40', 'NDWS', 'NDWL0',
 )
@@ -1640,6 +1774,7 @@ def compute_ltm_baseline(
             'n_seasons_averaged':     len(bucket),
             'years_covered':          years,
             'mean_length_days':       round(sum(lengths) / len(lengths), 1) if lengths else None,
+            'thi_profile':            bucket[0].get('thi_profile'),
             'water_balance_methodology': bucket[0].get('water_balance_methodology'),
             'season_statistics':      agg,
             'hazard_evaluation':      hazard_eval,
@@ -1731,6 +1866,9 @@ def calculate_hazards(
     water_balance_window: str         = FULL_WINDOW_WATER_BALANCE,
     calendar_source:   Optional[str]  = None,
     calendar_system:   str            = "rf",
+    livestock_type:    str            = DEFAULT_LIVESTOCK_TYPE,
+    livestock_climate_profile: str    = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    livestock_elevation_override_m: Optional[float] = None,
 ) -> Dict[str, Any]:
 
     lat, lon = location_coord
@@ -1756,7 +1894,26 @@ def calculate_hazards(
             'error': str(exc),
             'available_crops': threshold_supported_crop_names(),
         }
-    thresholds = resolve_thresholds(crop_normalized, custom_thresholds)
+    try:
+        thi_profile = resolve_thi_profile(
+            livestock_type=livestock_type,
+            climate_profile=livestock_climate_profile,
+            lat=lat,
+            lon=lon,
+            elevation_m=livestock_elevation_override_m,
+            auto_fetch_elevation=True,
+        )
+    except ValueError as exc:
+        return {"error": str(exc)}
+    thresholds = resolve_thresholds(
+        crop_normalized,
+        custom_thresholds,
+        livestock_type=livestock_type,
+        livestock_climate_profile=livestock_climate_profile,
+        lat=lat,
+        lon=lon,
+        livestock_elevation_override_m=livestock_elevation_override_m,
+    )
     crop_water_balance = resolve_crop_water_balance_params(crop_normalized)
     requested_end_year = datetime.fromisoformat(date_to).year
     try:
@@ -2067,6 +2224,7 @@ def calculate_hazards(
             ),
             analysis_start=entry['season_info'].get('onset_date'),
             analysis_end=entry['season_info'].get('cessation_date'),
+            thi_profile=thi_profile,
         )
         stats, count_window = _apply_water_balance_window_mode(
             stats,
@@ -2074,6 +2232,7 @@ def calculate_hazards(
             entry["season_info"],
             soil_parameters,
             crop_water_balance,
+            thi_profile=thi_profile,
             water_balance_window=water_balance_window,
             eto_seasons=entry.get("eto_seasons"),
             eto_detection_note=entry.get("eto_detection_note"),
@@ -2089,6 +2248,7 @@ def calculate_hazards(
             'crop':              crop_name,
             'location':          {'latitude': lat, 'longitude': lon},
             'season_info':       entry['season_info'],
+            'thi_profile':       thi_profile,
             'soil_parameters':   soil_parameters,
             'water_balance_parameters': crop_water_balance,
             'water_balance_methodology': methodology,
@@ -2109,6 +2269,7 @@ def calculate_hazards(
     if auto_ltm_guard:
         return {
             'assessments': assessments,
+            'thi_profile': thi_profile,
             'soil_parameters': soil_parameters,
             'water_balance_parameters': crop_water_balance,
             'water_balance_methodology': assessments[0].get('water_balance_methodology'),
@@ -2128,6 +2289,7 @@ def calculate_hazards(
     baseline_ltm = compute_ltm_baseline(assessments, crop_name, thresholds)
     return {
         'assessments': assessments,
+        'thi_profile': thi_profile,
         'soil_parameters': soil_parameters,
         'water_balance_parameters': crop_water_balance,
         'water_balance_methodology': assessments[0].get('water_balance_methodology'),
@@ -2199,7 +2361,7 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
             print(f"  {'Min Tmin':<32} {s.get('min_tmin_c', s.get('min_temperature_c', 0)):>15.2f}  deg C")
 
         # New hazard counts
-        has_counts = any(k in s for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
+        has_counts = any(k in s for k in ('mean_thi', 'thi_stress_days', 'NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
         if has_counts:
             print(f"\n  Hazard Indices (LTM means)")
             print(f"  {'─'*66}")
@@ -2209,6 +2371,13 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
                 print(f"  {'Crop Water Requirement':<32} {s['crop_water_requirement_mm']:>15.2f}  mm")
             if 'actual_crop_et_mm' in s:
                 print(f"  {'Actual Crop ET':<32} {s['actual_crop_et_mm']:>15.2f}  mm")
+            if 'mean_thi' in s:
+                print(f"  {_thi_profile_label(blk.get('thi_profile') or s):<32} {s['mean_thi']:>15.2f}  index")
+            if 'max_thi' in s:
+                max_label = f"Max {_thi_profile_label(blk.get('thi_profile') or s)}"
+                print(f"  {max_label:<32} {s['max_thi']:>15.2f}  index")
+            if 'thi_stress_days' in s:
+                print(f"  {'THI stress days':<32} {s['thi_stress_days']:>15.2f}  days")
             if 'NTx35' in s:
                 print(f"  {'NTx35 (days Tmax > 35C)':<32} {s['NTx35']:>15.2f}  days")
             if 'NTx40' in s:
@@ -2230,20 +2399,21 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
             print(f"  {'─'*66}")
             if 'precipitation' in h:
                 pp  = h['precipitation']
-                sym = 'OK' if 'no_stress' in pp['status'] else '!!' if 'moderate' in pp['status'] else 'XX'
+                sym = _hazard_status_symbol(pp['status'])
                 print(f"  {'Precipitation':<25} {pp['value_mm']:>16.2f} mm  [{sym}] {pp['status'].replace('_', ' ').upper()}")
             if 'temperature' in h:
                 tt  = h['temperature']
-                sym = 'OK' if 'no_stress' in tt['status'] else '!!' if 'moderate' in tt['status'] else 'XX'
+                sym = _hazard_status_symbol(tt['status'])
                 print(f"  {'Temperature':<25} {tt['value_c']:>16.2f} degC [{sym}] {tt['status'].replace('_', ' ').upper()}")
-            for hazard_key in ('NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
+            for hazard_key in ('THI', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
                 if hazard_key not in h:
                     continue
                 spec = _get_hazard_spec_by_result_key(hazard_key)
                 item = h[hazard_key]
-                sym = 'OK' if 'no_stress' in item['status'] else '!!' if 'moderate' in item['status'] else 'XX'
+                sym = _hazard_status_symbol(item['status'])
+                value_key = spec['value_key']
                 print(
-                    f"  {spec['label']:<25} {item['value_days']:>16.2f} {spec['unit']:<4} "
+                    f"  {spec['label']:<25} {item[value_key]:>16.2f} {spec['unit']:<6} "
                     f"[{sym}] {item['status'].replace('_', ' ').upper()}"
                 )
     print(f"\n{'='*70}\n")
@@ -2326,6 +2496,9 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
     print(f"  CROP HAZARD ASSESSMENT: {result['crop'].upper()}")
     print(f"{'='*70}")
     print(f"  Location: {result['location']['latitude']:.4f}, {result['location']['longitude']:.4f}")
+    thi_context = _thi_profile_context_line(result.get('thi_profile'))
+    if thi_context:
+        print(f"  Livestock THI: {thi_context}")
     _print_hazard_season_detection_summary(result.get('season_detection'))
 
     season = result['season_info']
@@ -2387,7 +2560,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
         print(f"  {'Min Tmin (Minimum Recorded)':<32} {stats['min_temperature_c']:>15.2f}  deg C")
 
     # Hazard index counts (NTx35, NTx40, NDD, NDWS, NDWL0)
-    has_counts = any(k in stats for k in ('NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
+    has_counts = any(k in stats for k in ('mean_thi', 'thi_stress_days', 'NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
     if has_counts:
         print(f"\n  Hazard Index Counts")
         print(f"  {'─'*66}")
@@ -2399,6 +2572,13 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
             print(f"  {'Crop Water Requirement':<32} {stats['crop_water_requirement_mm']:>15.2f}  mm")
         if 'actual_crop_et_mm' in stats:
             print(f"  {'Actual Crop ET':<32} {stats['actual_crop_et_mm']:>15.2f}  mm")
+        if 'mean_thi' in stats:
+            print(f"  {_thi_profile_label(result.get('thi_profile') or stats):<32} {stats['mean_thi']:>15.2f}  index")
+        if 'max_thi' in stats:
+            max_label = f"Max {_thi_profile_label(result.get('thi_profile') or stats)}"
+            print(f"  {max_label:<32} {stats['max_thi']:>15.2f}  index")
+        if 'thi_stress_days' in stats:
+            print(f"  {'THI stress days':<32} {stats['thi_stress_days']:>15}  days")
         if 'NTx35' in stats:
             print(f"  {'NTx35 (days Tmax > 35C)':<32} {stats['NTx35']:>15}  days")
         if 'NTx40' in stats:
@@ -2425,20 +2605,20 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
     print(f"  {'─'*25} {'─'*18}  {'─'*20}")
     if 'precipitation' in hazards:
         p   = hazards['precipitation']
-        sym = 'OK' if 'no_stress' in p['status'] else '!!' if 'moderate' in p['status'] else 'XX'
+        sym = _hazard_status_symbol(p['status'])
         print(f"  {'Precipitation':<25} {p['value_mm']:>16.2f} mm  [{sym}] {p['status'].replace('_', ' ').upper()}")
     if 'temperature' in hazards:
         t   = hazards['temperature']
-        sym = 'OK' if 'no_stress' in t['status'] else '!!' if 'moderate' in t['status'] else 'XX'
+        sym = _hazard_status_symbol(t['status'])
         print(f"  {'Temperature':<25} {t['value_c']:>16.2f} degC [{sym}] {t['status'].replace('_', ' ').upper()}")
-    for hazard_key in ('NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
+    for hazard_key in ('THI', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
         if hazard_key not in hazards:
             continue
         spec = _get_hazard_spec_by_result_key(hazard_key)
         item = hazards[hazard_key]
-        sym = 'OK' if 'no_stress' in item['status'] else '!!' if 'moderate' in item['status'] else 'XX'
+        sym = _hazard_status_symbol(item['status'])
         print(
-            f"  {spec['label']:<25} {item['value_days']:>16.2f} {spec['unit']:<4} "
+            f"  {spec['label']:<25} {item[spec['value_key']]:>16.2f} {spec['unit']:<6} "
             f"[{sym}] {item['status'].replace('_', ' ').upper()}"
         )
 
@@ -2525,6 +2705,26 @@ def main() -> int:
         default='rf',
         help='Crop-calendar system when --calendar-source is used.',
     )
+    parser.add_argument(
+        '--livestock-type',
+        choices=list_thi_livestock_profiles(),
+        default=DEFAULT_LIVESTOCK_TYPE,
+        help='Livestock THI profile (default: cattle_dairy).',
+    )
+    parser.add_argument(
+        '--livestock-climate-profile',
+        choices=['auto', 'temperate', 'tropical'],
+        default=DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+        help='THI climate context. auto uses latitude plus highland elevation when available.',
+    )
+    parser.add_argument(
+        '--livestock-elevation-override-m',
+        '--livestock-elevation-m',
+        dest='livestock_elevation_override_m',
+        type=float,
+        default=None,
+        help='Optional site elevation override, meters above sea level, for THI climate-context selection.',
+    )
     parser.add_argument('--gap-days',        type=int, default=30,
                         help='Dry-day gap used to end auto-detected season (default: 30)')
     parser.add_argument('--min-season-days', type=int, default=30,
@@ -2581,6 +2781,9 @@ def main() -> int:
         'water_balance_window': args.water_balance_window,
         'calendar_source': args.calendar_source,
         'calendar_system': args.calendar_system,
+        'livestock_type': args.livestock_type,
+        'livestock_climate_profile': args.livestock_climate_profile,
+        'livestock_elevation_override_m': args.livestock_elevation_override_m,
     }
     if args.format == 'json':
         with redirect_stdout(sys.stderr):

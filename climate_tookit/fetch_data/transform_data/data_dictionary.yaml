@@ -49,6 +49,7 @@ source_mappings:
     pr: precipitation
     tasmax: max_temperature
     tasmin: min_temperature
+    hurs: humidity
   
   nasa_power:
     precipitation: precipitation

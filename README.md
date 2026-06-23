@@ -267,6 +267,16 @@ NEX-GDDP requires:
 
 Current package runtime uses Earth Engine NEX-GDDP version `1.1`, not `1.2`.
 
+NEX-GDDP humidity note:
+
+- toolkit now supports relative humidity from Earth Engine band `hurs`
+- this enables future-path livestock THI where `hurs` is available
+- `hurs` is not universal across full Earth Engine NEX-GDDP catalog, so some
+  model / scenario / year combinations still fail by design with clear error
+- toolkit default 18-model curated pool avoids several catalog-documented
+  humidity-gap models, so standard toolkit runs are safer than unrestricted
+  full-catalog model selection
+
 Example:
 
 ```bash
@@ -278,7 +288,7 @@ env GCP_PROJECT_ID=YOUR_PROJECT_ID climate-toolkit-fetch \
   --end 2050-01-05 \
   --model MRI-ESM2-0 \
   --scenario ssp245 \
-  --variables precipitation,max_temperature,min_temperature \
+  --variables precipitation,max_temperature,min_temperature,humidity \
   --stage raw
 ```
 
@@ -330,7 +340,9 @@ climate-toolkit-periods-ensemble \
   --baseline-end=2013 \
   --future-start=2041 \
   --future-end=2060 \
-  --scenarios=ssp245
+  --scenarios=ssp245 \
+  --fixed-season="03-01:05-31" \
+  --livestock-type cattle_dairy
 ```
 
 ### Ensemble worker tuning
@@ -651,6 +663,7 @@ climate_tookit/
 - NEX-GDDP real-access R&D note: `analysis/nex_gddp_access_rnd.md`
 - `nex_gddp` now uses real Earth Engine/Xee retrieval. It requires Earth Engine auth plus `GCP_PROJECT_ID`.
 - Current `nex_gddp` Earth Engine backend uses dataset version `1.1`. Future `1.2` sourcing is tracked as follow-up work, not current runtime behavior.
+- `nex_gddp` humidity now uses Earth Engine `hurs` when available; toolkit raises explicit errors for documented missing-band cases instead of opaque fetch failures.
 - Arid-region NEX rainfall-spike warning rationale and literature links are documented in `analysis/nex_gddp_access_rnd.md`.
 - package install shape is tested through `pyproject.toml`, `uv.lock`, and console-script entrypoints
 - preferred development install is `uv sync --locked --group dev`

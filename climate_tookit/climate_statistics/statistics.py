@@ -36,7 +36,15 @@ from climate_tookit.crop_calendar.ggcmi import (
     resolve_calendar_preset,
 )
 from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_period_against_scenario
-from climate_tookit.climatology import compute_monthly_spei, compute_monthly_spi
+from climate_tookit.climatology import (
+    DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    DEFAULT_LIVESTOCK_TYPE,
+    compute_daily_thi,
+    compute_monthly_spei,
+    compute_monthly_spi,
+    list_thi_livestock_profiles,
+    resolve_thi_profile,
+)
 try:
     from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
     PREPROCESS_AVAILABLE = True
@@ -566,6 +574,75 @@ def _slice_date_window(
 ) -> pd.DataFrame:
     return df[(df['date'] >= onset_ts) & (df['date'] <= cess_ts)]
 
+
+def _thi_profile_label(profile: Optional[Dict[str, Any]]) -> str:
+    if not profile:
+        return "Livestock THI"
+    label = (
+        profile.get("label")
+        or profile.get("livestock_label")
+        or profile.get("livestock_type")
+        or "Livestock THI"
+    )
+    climate = profile.get("climate_profile_applied") or profile.get("climate_profile")
+    if climate:
+        return f"Livestock THI ({label}; {climate})"
+    return f"Livestock THI ({label})"
+
+
+def _livestock_heat_stress_summary(
+    df: pd.DataFrame,
+    *,
+    thi_profile: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Summarize livestock THI when humidity-backed inputs are available."""
+    if df is None or df.empty or 'date' not in df.columns or 'humidity' not in df.columns:
+        return None
+
+    thi_input = df.copy()
+    for col in ('tmax', 'tmin'):
+        if col in thi_input.columns:
+            series = pd.to_numeric(thi_input[col], errors='coerce')
+            if series.dropna().mean() > 100:
+                thi_input[col] = series - 273.15
+            else:
+                thi_input[col] = series
+
+    try:
+        thi_df = compute_daily_thi(
+            thi_input,
+            date_col='date',
+            humidity_col='humidity',
+            thresholds=(thi_profile or {}).get('thresholds'),
+            livestock_type=(thi_profile or {}).get('livestock_type', DEFAULT_LIVESTOCK_TYPE),
+            climate_profile=(thi_profile or {}).get('climate_profile_applied', DEFAULT_LIVESTOCK_CLIMATE_PROFILE),
+            elevation_m=(thi_profile or {}).get('elevation_m'),
+        )
+    except ValueError:
+        return None
+
+    if 'thi' not in thi_df.columns or thi_df['thi'].notna().sum() == 0:
+        return None
+
+    counts = thi_df['thi_class'].value_counts(dropna=True)
+    return {
+        'livestock_type': (thi_profile or {}).get('livestock_type', DEFAULT_LIVESTOCK_TYPE),
+        'livestock_label': (thi_profile or {}).get('label', 'Cattle (dairy)'),
+        'climate_profile': (thi_profile or {}).get('climate_profile_applied', DEFAULT_LIVESTOCK_CLIMATE_PROFILE),
+        'mean_thi': _r(thi_df['thi'].mean(), 2),
+        'max_thi': _r(thi_df['thi'].max(), 2),
+        'days_total': int(thi_df['thi'].notna().sum()),
+        'days_none': int(counts.get('none', 0)),
+        'days_mild': int(counts.get('mild', 0)),
+        'days_moderate': int(counts.get('moderate', 0)),
+        'days_severe': int(counts.get('severe', 0)),
+        'days_stress': int(
+            counts.get('mild', 0)
+            + counts.get('moderate', 0)
+            + counts.get('severe', 0)
+        ),
+    }
+
 def raw_climate_summary(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """
     Compact summary table -- mean / min / max / std per core variable.
@@ -598,6 +675,7 @@ def overall_statistics(
     analysis_start: Optional[str] = None,
     analysis_end: Optional[str] = None,
     shared_water_balance_summary: Optional[Dict[str, Any]] = None,
+    thi_profile: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Essential agro metrics for the full period.
@@ -626,8 +704,9 @@ def overall_statistics(
         'max_surplus':   _r(wb.max()),
     }
     water_balance_stats.update(shared_wb)
+    heat_stress = _livestock_heat_stress_summary(df, thi_profile=thi_profile)
 
-    return {
+    result = {
         'total_days': int(len(df)),
         'precipitation': {
             'total_mm':   _r(p.sum(),  1),
@@ -647,6 +726,9 @@ def overall_statistics(
         },
         'water_balance': water_balance_stats,
     }
+    if heat_stress:
+        result['livestock_heat_stress'] = heat_stress
+    return result
 
 def season_statistics(
     df: pd.DataFrame,
@@ -654,6 +736,7 @@ def season_statistics(
     *,
     shared_water_balance_summary: Optional[Dict[str, Any]] = None,
     season_df: Optional[pd.DataFrame] = None,
+    thi_profile: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Essential agro metrics for one season.
@@ -729,7 +812,9 @@ def season_statistics(
             },
         )
 
-    return {
+    heat_stress = _livestock_heat_stress_summary(sdf, thi_profile=thi_profile)
+
+    result = {
         'onset':       onset_ts.strftime('%Y-%m-%d'),
         'cessation':   cess_ts.strftime('%Y-%m-%d'),
         'length_days': length_days,
@@ -749,6 +834,9 @@ def season_statistics(
         'water_balance': water_balance_stats,
         'water_balance_methodology': water_balance_methodology,
     }
+    if heat_stress:
+        result['livestock_heat_stress'] = heat_stress
+    return result
 
 # LTM (Long-Term Mean) aggregation across years per season window
 def _is_num(v: Any) -> bool:
@@ -984,7 +1072,7 @@ def ltm_season_summary(
             'length_days_avg': _avg([s.get('length_days') for s in seasons], 1),
         }
 
-        for cat in ('precipitation', 'temperature', 'water_balance'):
+        for cat in ('precipitation', 'temperature', 'water_balance', 'livestock_heat_stress'):
             pool: Dict[str, List[float]] = {}
             for s in seasons:
                 for k, v in (s.get(cat) or {}).items():
@@ -992,6 +1080,19 @@ def ltm_season_summary(
                         pool.setdefault(k, []).append(float(v))
             if pool:
                 block[cat] = {k: _avg(vs, 2) for k, vs in pool.items()}
+            if cat == "livestock_heat_stress":
+                for meta_key in ("livestock_type", "livestock_label", "climate_profile"):
+                    meta_value = next(
+                        (
+                            (s.get(cat) or {}).get(meta_key)
+                            for s in seasons
+                            if isinstance(s.get(cat), dict)
+                            and (s.get(cat) or {}).get(meta_key) is not None
+                        ),
+                        None,
+                    )
+                    if meta_value is not None:
+                        block.setdefault(cat, {})[meta_key] = meta_value
 
         ov_pool: Dict[str, Dict[str, List[float]]] = {}
         for s in seasons:
@@ -1403,6 +1504,7 @@ def _compile_season_results_with_options(
     *,
     include_season_raw_summary: bool = True,
     include_season_overall_statistics: bool = True,
+    thi_profile: Optional[Dict[str, Any]] = None,
     return_breakdown: bool = False,
 ) -> Any:
     season_results: List[Dict[str, Any]] = []
@@ -1434,6 +1536,7 @@ def _compile_season_results_with_options(
                     season,
                     shared_water_balance_summary=shared_wb,
                     season_df=sdf,
+                    thi_profile=thi_profile,
                 )
             except TypeError as exc:
                 if (
@@ -1470,6 +1573,7 @@ def _compile_season_results_with_options(
                     analysis_start=season['onset'],
                     analysis_end=season['cessation'],
                     shared_water_balance_summary=shared_wb,
+                    thi_profile=thi_profile,
                 )
                 reduction_breakdown["overall_statistics_seconds"] += (
                     perf_counter() - overall_started
@@ -1486,11 +1590,11 @@ def _compile_season_results_with_options(
                 )
                 sub_sdf = _slice_date_window(sdf, sub_onset_ts, sub_cess_ts)
                 try:
-                    ssub = season_statistics(sdf, es, season_df=sub_sdf)
+                    ssub = season_statistics(sdf, es, season_df=sub_sdf, thi_profile=thi_profile)
                 except TypeError as exc:
                     if "season_df" not in str(exc):
                         raise
-                    ssub = season_statistics(sdf, es)
+                    ssub = season_statistics(sdf, es, thi_profile=thi_profile)
                 if ssub:
                     ssub['regime'] = es.get('regime', 'eto')
                     sub_results.append(ssub)
@@ -1549,6 +1653,9 @@ def analyze_climate_statistics(
     custom_station_name: Optional[str] = None,
     custom_temp_unit: str = "c",
     custom_precip_unit: str = "mm",
+    livestock_type: str = DEFAULT_LIVESTOCK_TYPE,
+    livestock_climate_profile: str = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+    livestock_elevation_override_m: Optional[float] = None,
     include_period_raw_summary: bool = True,
     include_season_raw_summary: bool = True,
     include_season_overall_statistics: bool = True,
@@ -1564,6 +1671,17 @@ def analyze_climate_statistics(
     """
     lat, lon = location_coord
     run_started = perf_counter()
+    try:
+        thi_profile = resolve_thi_profile(
+            livestock_type=livestock_type,
+            climate_profile=livestock_climate_profile,
+            lat=lat,
+            lon=lon,
+            elevation_m=livestock_elevation_override_m,
+            auto_fetch_elevation=True,
+        )
+    except ValueError as exc:
+        return {"error": str(exc)}
     calendar_system = str(calendar_system).lower()
     if calendar_system not in CALENDAR_SYSTEM_CHOICES:
         return {
@@ -1684,6 +1802,10 @@ def analyze_climate_statistics(
             f":{requested_calendar_preset['crop_name']}"
             f":{requested_calendar_preset['calendar_system']}"
         )
+    run_label.append(
+        "livestock="
+        f"{thi_profile['livestock_type']}:{thi_profile['climate_profile_applied']}"
+    )
     cache_note = build_historical_cache_note(
         source,
         precip_source=precip_source,
@@ -1768,6 +1890,7 @@ def analyze_climate_statistics(
         seasons_dict,
         include_season_raw_summary=include_season_raw_summary,
         include_season_overall_statistics=include_season_overall_statistics,
+        thi_profile=thi_profile,
         return_breakdown=True,
     )
     reduce_elapsed = perf_counter() - reduce_started
@@ -1777,7 +1900,10 @@ def analyze_climate_statistics(
     period_df = df[(df['date'] >= pd.Timestamp(f"{start_year}-01-01")) &
                    (df['date'] <= pd.Timestamp(f"{end_year}-12-31"))]
     raw_period     = raw_climate_summary(period_df) if include_period_raw_summary else []
-    overall_period = overall_statistics(period_df) if not period_df.empty else {}
+    overall_period = (
+        overall_statistics(period_df, thi_profile=thi_profile)
+        if not period_df.empty else {}
+    )
     xclim_references = _xclim_references_block(period_df)
     spei_result: Optional[Dict[str, Any]] = None
     spi_result: Optional[Dict[str, Any]] = None
@@ -1909,6 +2035,7 @@ def analyze_climate_statistics(
             seasons_dict,
             include_season_raw_summary=include_season_raw_summary,
             include_season_overall_statistics=include_season_overall_statistics,
+            thi_profile=thi_profile,
             return_breakdown=True,
         )
         reduce_elapsed = perf_counter() - reduce_started
@@ -1968,6 +2095,7 @@ def analyze_climate_statistics(
         'precip_source':       normalize_climate_dataset_name(precip_source),
         'temp_source':         normalize_climate_dataset_name(temp_source),
         'crop_name':           crop_name,
+        'thi_profile':         thi_profile,
         'calendar_source':     calendar_source,
         'calendar_system':     calendar_system,
         'calendar_preset_requested': requested_calendar_preset,
@@ -2133,7 +2261,10 @@ def print_overall_by_season(seasons: List[Dict]) -> None:
             ('temperature',   'Temperature'),
             ('et0',           'ET0'),
             ('water_balance', 'Water Balance'),
+            ('livestock_heat_stress', 'Livestock THI'),
         ]:
+            if var_key not in stats:
+                continue
             for metric, value in stats[var_key].items():
                 rows.append({
                     'Variable': var_label,
@@ -2172,6 +2303,15 @@ def print_seasons(seasons: List[Dict]) -> None:
               f"mean_tavg={t['mean_tavg']}°C | "
               f"max_tmax={t['max_tmax']}°C | "
               f"min_tmin={t['min_tmin']}°C")
+        h = s.get('livestock_heat_stress') or {}
+        if h:
+            print(f"    {_thi_profile_label(h)} : "
+                  f"mean_thi={h.get('mean_thi')} | "
+                  f"max_thi={h.get('max_thi')} | "
+                  f"stress_days={h.get('days_stress')} | "
+                  f"mild={h.get('days_mild')} | "
+                  f"moderate={h.get('days_moderate')} | "
+                  f"severe={h.get('days_severe')}")
         print(f"    Water balance : "
               f"total={w['total_balance']} mm | "
               f"deficit_days={w['deficit_days']} | "
@@ -2246,6 +2386,15 @@ def print_ltm_by_season(ltm: Dict[str, Any],
                   f"mean_tavg={t.get('mean_tavg')}°C | "
                   f"max_tmax={t.get('max_tmax')}°C | "
                   f"min_tmin={t.get('min_tmin')}°C")
+        h = w.get('livestock_heat_stress') or {}
+        if h:
+            print(f"    {_thi_profile_label(h)} : "
+                  f"mean_thi={h.get('mean_thi')} | "
+                  f"max_thi={h.get('max_thi')} | "
+                  f"stress_days={h.get('days_stress')} | "
+                  f"mild={h.get('days_mild')} | "
+                  f"moderate={h.get('days_moderate')} | "
+                  f"severe={h.get('days_severe')}")
         if wb:
             print(f"    Water balance : "
                   f"total={wb.get('total_balance')} mm | "
@@ -2481,6 +2630,17 @@ def main() -> int:
     parser.add_argument('--custom-precip-unit', choices=['mm', 'inch', 'tenth_mm'],
                         default='mm',
                         help='Precipitation unit in custom station file (default: mm)')
+    parser.add_argument('--livestock-type',
+                        choices=list_thi_livestock_profiles(),
+                        default=DEFAULT_LIVESTOCK_TYPE,
+                        help='Livestock THI profile (default: cattle_dairy)')
+    parser.add_argument('--livestock-climate-profile',
+                        choices=['auto', 'temperate', 'tropical'],
+                        default=DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
+                        help='THI climate context. auto uses latitude plus highland elevation when available.')
+    parser.add_argument('--livestock-elevation-override-m', '--livestock-elevation-m',
+                        dest='livestock_elevation_override_m', type=float, default=None,
+                        help='Optional site elevation override, meters above sea level, for THI climate-context selection.')
     parser.add_argument('--crop', default=None,
                         help='Optional crop name for crop-calendar preset fallback, e.g. maize or rice')
     parser.add_argument('--calendar-source', choices=['ggcmi'], default=None,
@@ -2573,6 +2733,9 @@ def main() -> int:
         custom_station_name=args.custom_station_name,
         custom_temp_unit=args.custom_temp_unit,
         custom_precip_unit=args.custom_precip_unit,
+        livestock_type=args.livestock_type,
+        livestock_climate_profile=args.livestock_climate_profile,
+        livestock_elevation_override_m=args.livestock_elevation_override_m,
         crop_name=args.crop,
         calendar_source=args.calendar_source,
         calendar_system=args.calendar_system,
