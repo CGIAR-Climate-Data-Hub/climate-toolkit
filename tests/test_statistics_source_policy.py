@@ -496,7 +496,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
     def test_get_climate_data_paired_mode_merges_precip_and_temperature_sources(self):
         calls = []
 
-        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
+        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario, ee_project_id=None):
             calls.append(source)
             if source == "chirps_v2":
                 return pd.DataFrame(
@@ -537,8 +537,8 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
     def test_get_climate_data_paired_mode_accepts_tamsat_as_precip_partner(self):
         calls = []
 
-        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
-            calls.append(source)
+        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario, ee_project_id=None):
+            calls.append((source, ee_project_id))
             if source == "tamsat":
                 return pd.DataFrame(
                     {
@@ -572,9 +572,42 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         finally:
             stats._call_preprocess = orig_call
 
-        self.assertEqual(["tamsat", "agera_5"], calls)
+        self.assertEqual([("tamsat", None), ("agera_5", None)], calls)
         self.assertEqual([3.0, 1.0], frame["precip"].tolist())
         self.assertEqual([25.0, 26.0], frame["tmax"].tolist())
+
+    def test_get_climate_data_forwards_explicit_project_id(self):
+        calls = []
+
+        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario, ee_project_id=None):
+            calls.append((source, ee_project_id))
+            if source == "agera_5":
+                return pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
+                        "max_temperature": [25.0, 26.0],
+                        "min_temperature": [15.0, 16.0],
+                        "precipitation": [1.0, 0.0],
+                    }
+                )
+            raise AssertionError(f"unexpected source {source}")
+
+        orig_call = stats._call_preprocess
+        stats._call_preprocess = fake_call_preprocess
+        try:
+            frame = stats.get_climate_data(
+                -1.286,
+                36.817,
+                "2018-01-01",
+                "2018-01-02",
+                "agera_5",
+                ee_project_id="demo-project",
+            )
+        finally:
+            stats._call_preprocess = orig_call
+
+        self.assertEqual([("agera_5", "demo-project")], calls)
+        self.assertEqual(["date", "tmax", "tmin", "precip"], list(frame.columns))
 
     def test_analyze_climate_statistics_rejects_tamsat_single_source(self):
         result = stats.analyze_climate_statistics(
@@ -589,7 +622,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertIn("paired with a temperature source", result["error"])
 
     def test_get_climate_data_rejects_all_missing_precipitation(self):
-        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
+        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario, ee_project_id=None):
             if source == "tamsat":
                 return pd.DataFrame(
                     {
@@ -640,7 +673,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
     def test_get_climate_data_auto_prefers_chirps_v3_plus_agera5(self):
         calls = []
 
-        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario):
+        def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario, ee_project_id=None):
             calls.append(source)
             if source == "chirps_v3_daily_rnl":
                 return pd.DataFrame(

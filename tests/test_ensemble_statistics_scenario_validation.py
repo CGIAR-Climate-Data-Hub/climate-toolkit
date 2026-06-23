@@ -153,6 +153,40 @@ class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):
             self.assertTrue(output_path.exists())
             self.assertIn("Saved to", stdout.getvalue())
 
+    def test_cli_passes_project_id_to_ensemble_analysis(self):
+        argv = [
+            "ensemble_statistics.py",
+            "--location=-1.286,36.817",
+            "--start-year=2040",
+            "--end-year=2060",
+            "--scenarios=ssp245",
+            "--project-id=demo-project",
+            "--no-save",
+        ]
+
+        seen = {}
+
+        def _fake_analyze(**kwargs):
+            seen.update(kwargs)
+            return {
+                "period": {"start_year": 2040, "end_year": 2060},
+                "scenario": "ssp245",
+                "location": {"lat": -1.286, "lon": 36.817},
+                "source": "nex_gddp",
+                "mode": "auto",
+                "ensemble": True,
+                "n_models_ok": 1,
+                "models_failed": [],
+                "ltm_season_summary": {"mode": "auto", "windows": []},
+                "annual_summary": {},
+            }
+
+        with mock.patch("sys.argv", argv), \
+             mock.patch.object(es, "analyze_ensemble_nex_gddp", side_effect=_fake_analyze):
+            es.main()
+
+        self.assertEqual("demo-project", seen["ee_project_id"])
+
     def test_propagates_per_model_season_slot_warning(self):
         fake_result = {
             "season_statistics": [
@@ -329,7 +363,8 @@ class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):
                 model_workers=1,
             )
 
-        self.assertEqual("All models failed.", result["error"])
+        self.assertIn("All models failed.", result["error"])
+        self.assertIn("Common cause:", result["error"])
         self.assertEqual(
             "Climate data fetch failed: oauth2.googleapis.com DNS failure",
             result["failed_models"][0]["error"],

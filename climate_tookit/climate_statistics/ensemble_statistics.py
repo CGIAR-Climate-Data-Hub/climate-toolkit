@@ -87,6 +87,7 @@ def _build_ensemble_model_task(
     model: str,
     extra_months: int,
     suppress_child_stdout: bool,
+    ee_project_id: Optional[str],
 ) -> Dict[str, Any]:
     return {
         "location_coord": location_coord,
@@ -97,6 +98,7 @@ def _build_ensemble_model_task(
         "model": model,
         "extra_months": extra_months,
         "suppress_child_stdout": suppress_child_stdout,
+        "ee_project_id": ee_project_id,
     }
 
 
@@ -132,6 +134,21 @@ def _run_ensemble_model_task(task: Dict[str, Any]) -> Dict[str, Any]:
             "error": str(exc),
             "elapsed_seconds": round(elapsed, 3),
         }
+
+
+def _summarize_all_model_failures(failed: List[Dict[str, str]]) -> str:
+    errors = [str(item.get("error", "")).strip() for item in failed if item.get("error")]
+    if not errors:
+        return "All models failed."
+    unique_errors = sorted(set(errors))
+    if len(unique_errors) == 1:
+        return f"All models failed. Common cause: {unique_errors[0]}"
+    if len(unique_errors) <= 3:
+        return "All models failed. Causes: " + " | ".join(unique_errors)
+    return (
+        "All models failed. "
+        f"Observed {len(unique_errors)} distinct failure causes; inspect failed_models for details."
+    )
 
 
 def _print_worker_progress(
@@ -433,6 +450,7 @@ def analyze_ensemble_nex_gddp(
     extra_months:   int = 6,
     verbose:        bool = True,
     model_workers:  int = 1,
+    ee_project_id:  Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Future LTM via NEX-GDDP CMIP6 ensemble.
@@ -515,6 +533,7 @@ def analyze_ensemble_nex_gddp(
             model=model,
             extra_months=extra_months,
             suppress_child_stdout=effective_model_workers > 1,
+            ee_project_id=ee_project_id,
         )
         for model in active
     ]
@@ -619,7 +638,7 @@ def analyze_ensemble_nex_gddp(
 
     if not models_ok:
         return {
-            'error': 'All models failed.',
+            'error': _summarize_all_model_failures(failed),
             'failed_models': failed,
             'season_detection': season_detection,
         }
@@ -919,6 +938,8 @@ def main() -> int:
                    help=("Parallel NEX-GDDP model workers for ensemble runs. "
                          "8=safe default, 12=heavier jobs, 16=aggressive upper practical setting. "
                          "Use 1 for serial deep debugging."))
+    p.add_argument("--project-id", default=None,
+                   help="Optional Earth Engine / GCP project ID for NEX-GDDP access.")
     p.add_argument("--quiet",      action='store_true',
                    help='Suppress per-model progress prints')
     args = p.parse_args()
@@ -968,6 +989,7 @@ def main() -> int:
             extra_months=args.extra_months,
             verbose=not args.quiet,
             model_workers=args.model_workers,
+            ee_project_id=args.project_id,
         )
         all_results[scenario] = result
 
