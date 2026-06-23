@@ -1,0 +1,1605 @@
+{
+  "site_counts": [
+    10
+  ],
+  "periods": {
+    "one_year": {
+      "start": "2020-01-01",
+      "end": "2020-12-31"
+    },
+    "ten_year": {
+      "start": "2011-01-01",
+      "end": "2020-12-31"
+    }
+  },
+  "variables": [
+    "precipitation",
+    "max_temperature",
+    "min_temperature",
+    "humidity",
+    "wind_speed",
+    "solar_radiation"
+  ],
+  "backends": [
+    "api_point",
+    "zarr_temporal"
+  ],
+  "results": [
+    {
+      "backend": "api_point",
+      "sites": 10,
+      "start": "2020-01-01",
+      "end": "2020-12-31",
+      "expected_days": 366,
+      "variables_requested": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed",
+        "solar_radiation"
+      ],
+      "total_seconds": 18.237,
+      "seconds_per_site": 1.824,
+      "site_results": [
+        {
+          "site": "Nairobi",
+          "lat": -1.286,
+          "lon": 36.817,
+          "elapsed_seconds": 2.542,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Lodwar",
+          "lat": 3.119,
+          "lon": 35.5973,
+          "elapsed_seconds": 2.021,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Addis_Ababa",
+          "lat": 8.9806,
+          "lon": 38.7578,
+          "elapsed_seconds": 2.017,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Niamey",
+          "lat": 13.5116,
+          "lon": 2.1254,
+          "elapsed_seconds": 1.009,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Bamako",
+          "lat": 12.6392,
+          "lon": -8.0029,
+          "elapsed_seconds": 1.464,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Kampala",
+          "lat": 0.3476,
+          "lon": 32.5825,
+          "elapsed_seconds": 1.574,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Cusco",
+          "lat": -13.5319,
+          "lon": -71.9675,
+          "elapsed_seconds": 2.096,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Quito",
+          "lat": -0.1807,
+          "lon": -78.4678,
+          "elapsed_seconds": 1.2,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "La_Paz",
+          "lat": -16.4897,
+          "lon": -68.1193,
+          "elapsed_seconds": 2.261,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Cajamarca",
+          "lat": -7.1617,
+          "lon": -78.5128,
+          "elapsed_seconds": 2.055,
+          "rows": 366,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        }
+      ],
+      "site_count": 10,
+      "period_name": "one_year"
+    },
+    {
+      "backend": "zarr_temporal",
+      "sites": 10,
+      "start": "2020-01-01",
+      "end": "2020-12-31",
+      "expected_days": 366,
+      "variables_requested": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed",
+        "solar_radiation"
+      ],
+      "variables_supported": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed"
+      ],
+      "variables_missing": [
+        "solar_radiation"
+      ],
+      "open_seconds": 5.648,
+      "extract_seconds": 21.441,
+      "total_seconds": 27.089,
+      "seconds_per_site": 2.709,
+      "rows_total": 18300,
+      "variable_results": [
+        {
+          "toolkit_variable": "precipitation",
+          "zarr_variable": "PRECTOTCORR",
+          "supported": true,
+          "rows": 3660,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "max_temperature",
+          "zarr_variable": "T2M_MAX",
+          "supported": true,
+          "rows": 3660,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "min_temperature",
+          "zarr_variable": "T2M_MIN",
+          "supported": true,
+          "rows": 3660,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "humidity",
+          "zarr_variable": "RH2M",
+          "supported": true,
+          "rows": 3660,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "wind_speed",
+          "zarr_variable": "WS2M",
+          "supported": true,
+          "rows": 3660,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "solar_radiation",
+          "zarr_variable": "ALLSKY_SFC_SW_DWN",
+          "supported": false,
+          "rows": 0,
+          "resolved_sites": []
+        }
+      ],
+      "chunk_signature": {
+        "PRECTOTCORR": [
+          5844,
+          15,
+          15
+        ],
+        "RH2M": [
+          5844,
+          15,
+          15
+        ],
+        "T2M": [
+          5844,
+          15,
+          15
+        ],
+        "T2M_MAX": [
+          5844,
+          15,
+          15
+        ],
+        "T2M_MIN": [
+          5844,
+          15,
+          15
+        ],
+        "WS2M": [
+          5844,
+          15,
+          15
+        ]
+      },
+      "site_count": 10,
+      "period_name": "one_year"
+    },
+    {
+      "backend": "api_point",
+      "sites": 10,
+      "start": "2011-01-01",
+      "end": "2020-12-31",
+      "expected_days": 3653,
+      "variables_requested": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed",
+        "solar_radiation"
+      ],
+      "total_seconds": 33.742,
+      "seconds_per_site": 3.374,
+      "site_results": [
+        {
+          "site": "Nairobi",
+          "lat": -1.286,
+          "lon": 36.817,
+          "elapsed_seconds": 3.576,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Lodwar",
+          "lat": 3.119,
+          "lon": 35.5973,
+          "elapsed_seconds": 3.57,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Addis_Ababa",
+          "lat": 8.9806,
+          "lon": 38.7578,
+          "elapsed_seconds": 2.797,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Niamey",
+          "lat": 13.5116,
+          "lon": 2.1254,
+          "elapsed_seconds": 3.568,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Bamako",
+          "lat": 12.6392,
+          "lon": -8.0029,
+          "elapsed_seconds": 3.591,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Kampala",
+          "lat": 0.3476,
+          "lon": 32.5825,
+          "elapsed_seconds": 2.212,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Cusco",
+          "lat": -13.5319,
+          "lon": -71.9675,
+          "elapsed_seconds": 3.108,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Quito",
+          "lat": -0.1807,
+          "lon": -78.4678,
+          "elapsed_seconds": 3.717,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "La_Paz",
+          "lat": -16.4897,
+          "lon": -68.1193,
+          "elapsed_seconds": 3.928,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        },
+        {
+          "site": "Cajamarca",
+          "lat": -7.1617,
+          "lon": -78.5128,
+          "elapsed_seconds": 3.674,
+          "rows": 3653,
+          "columns": [
+            "date",
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "available_variables": [
+            "precipitation",
+            "max_temperature",
+            "min_temperature",
+            "humidity",
+            "wind_speed",
+            "solar_radiation"
+          ],
+          "missing_variables": []
+        }
+      ],
+      "site_count": 10,
+      "period_name": "ten_year"
+    },
+    {
+      "backend": "zarr_temporal",
+      "sites": 10,
+      "start": "2011-01-01",
+      "end": "2020-12-31",
+      "expected_days": 3653,
+      "variables_requested": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed",
+        "solar_radiation"
+      ],
+      "variables_supported": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed"
+      ],
+      "variables_missing": [
+        "solar_radiation"
+      ],
+      "open_seconds": 5.03,
+      "extract_seconds": 45.465,
+      "total_seconds": 50.495,
+      "seconds_per_site": 5.05,
+      "rows_total": 182650,
+      "variable_results": [
+        {
+          "toolkit_variable": "precipitation",
+          "zarr_variable": "PRECTOTCORR",
+          "supported": true,
+          "rows": 36530,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "max_temperature",
+          "zarr_variable": "T2M_MAX",
+          "supported": true,
+          "rows": 36530,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "min_temperature",
+          "zarr_variable": "T2M_MIN",
+          "supported": true,
+          "rows": 36530,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "humidity",
+          "zarr_variable": "RH2M",
+          "supported": true,
+          "rows": 36530,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "wind_speed",
+          "zarr_variable": "WS2M",
+          "supported": true,
+          "rows": 36530,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            },
+            {
+              "site": "Kampala",
+              "requested_lat": 0.3476,
+              "requested_lon": 32.5825,
+              "resolved_lat": 0.5,
+              "resolved_lon": 32.5
+            },
+            {
+              "site": "Cusco",
+              "requested_lat": -13.5319,
+              "requested_lon": -71.9675,
+              "resolved_lat": -13.5,
+              "resolved_lon": -71.875
+            },
+            {
+              "site": "Quito",
+              "requested_lat": -0.1807,
+              "requested_lon": -78.4678,
+              "resolved_lat": -1.7975103014118005e-13,
+              "resolved_lon": -78.75
+            },
+            {
+              "site": "La_Paz",
+              "requested_lat": -16.4897,
+              "requested_lon": -68.1193,
+              "resolved_lat": -16.5,
+              "resolved_lon": -68.125
+            },
+            {
+              "site": "Cajamarca",
+              "requested_lat": -7.1617,
+              "requested_lon": -78.5128,
+              "resolved_lat": -7.0,
+              "resolved_lon": -78.75
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "solar_radiation",
+          "zarr_variable": "ALLSKY_SFC_SW_DWN",
+          "supported": false,
+          "rows": 0,
+          "resolved_sites": []
+        }
+      ],
+      "chunk_signature": {
+        "PRECTOTCORR": [
+          5844,
+          15,
+          15
+        ],
+        "RH2M": [
+          5844,
+          15,
+          15
+        ],
+        "T2M": [
+          5844,
+          15,
+          15
+        ],
+        "T2M_MAX": [
+          5844,
+          15,
+          15
+        ],
+        "T2M_MIN": [
+          5844,
+          15,
+          15
+        ],
+        "WS2M": [
+          5844,
+          15,
+          15
+        ]
+      },
+      "site_count": 10,
+      "period_name": "ten_year"
+    }
+  ],
+  "sample_compare": {
+    "site": "Nairobi",
+    "start": "2020-01-01",
+    "end": "2020-01-10",
+    "api_baseline_total_seconds": 1.618,
+    "comparisons": [
+      {
+        "backend": "zarr_temporal",
+        "variable": "precipitation",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.685546875014211e-05,
+        "mean_abs_diff": 1.2939453125001416e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_temporal",
+        "variable": "max_temperature",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.929687499886313e-05,
+        "mean_abs_diff": 1.7578125000738964e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_temporal",
+        "variable": "min_temperature",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.197265624914735e-05,
+        "mean_abs_diff": 1.3183593749666045e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_temporal",
+        "variable": "humidity",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.929687499886313e-05,
+        "mean_abs_diff": 1.7089843753126387e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_temporal",
+        "variable": "wind_speed",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.92968750001954e-05,
+        "mean_abs_diff": 1.5136718749975131e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "precipitation",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.685546875014211e-05,
+        "mean_abs_diff": 1.2939453125001416e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "max_temperature",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.929687499886313e-05,
+        "mean_abs_diff": 1.7578125000738964e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "min_temperature",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.197265624914735e-05,
+        "mean_abs_diff": 1.3183593749666045e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "humidity",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.929687499886313e-05,
+        "mean_abs_diff": 1.7089843753126387e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "wind_speed",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.92968750001954e-05,
+        "mean_abs_diff": 1.5136718749975131e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      }
+    ]
+  }
+}

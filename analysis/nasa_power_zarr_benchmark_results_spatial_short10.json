@@ -1,0 +1,569 @@
+{
+  "site_counts": [
+    1,
+    5
+  ],
+  "periods": {
+    "short10": {
+      "start": "2020-01-01",
+      "end": "2020-01-10"
+    }
+  },
+  "variables": [
+    "precipitation",
+    "max_temperature",
+    "min_temperature",
+    "humidity",
+    "wind_speed",
+    "solar_radiation"
+  ],
+  "backends": [
+    "zarr_spatial"
+  ],
+  "results": [
+    {
+      "backend": "zarr_spatial",
+      "sites": 1,
+      "start": "2020-01-01",
+      "end": "2020-01-10",
+      "expected_days": 10,
+      "variables_requested": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed",
+        "solar_radiation"
+      ],
+      "variables_supported": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed"
+      ],
+      "variables_missing": [
+        "solar_radiation"
+      ],
+      "open_seconds": 6.2,
+      "extract_seconds": 12.481,
+      "total_seconds": 18.682,
+      "seconds_per_site": 18.682,
+      "rows_total": 50,
+      "variable_results": [
+        {
+          "toolkit_variable": "precipitation",
+          "zarr_variable": "PRECTOTCORR",
+          "supported": true,
+          "rows": 10,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "max_temperature",
+          "zarr_variable": "T2M_MAX",
+          "supported": true,
+          "rows": 10,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "min_temperature",
+          "zarr_variable": "T2M_MIN",
+          "supported": true,
+          "rows": 10,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "humidity",
+          "zarr_variable": "RH2M",
+          "supported": true,
+          "rows": 10,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "wind_speed",
+          "zarr_variable": "WS2M",
+          "supported": true,
+          "rows": 10,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "solar_radiation",
+          "zarr_variable": "ALLSKY_SFC_SW_DWN",
+          "supported": false,
+          "rows": 0,
+          "resolved_sites": []
+        }
+      ],
+      "chunk_signature": {
+        "PRECTOTCORR": [
+          1,
+          361,
+          576
+        ],
+        "RH2M": [
+          1,
+          361,
+          576
+        ],
+        "T2M": [
+          1,
+          361,
+          576
+        ],
+        "T2M_MAX": [
+          1,
+          361,
+          576
+        ],
+        "T2M_MIN": [
+          1,
+          361,
+          576
+        ],
+        "WS2M": [
+          1,
+          361,
+          576
+        ]
+      },
+      "site_count": 1,
+      "period_name": "short10"
+    },
+    {
+      "backend": "zarr_spatial",
+      "sites": 5,
+      "start": "2020-01-01",
+      "end": "2020-01-10",
+      "expected_days": 10,
+      "variables_requested": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed",
+        "solar_radiation"
+      ],
+      "variables_supported": [
+        "precipitation",
+        "max_temperature",
+        "min_temperature",
+        "humidity",
+        "wind_speed"
+      ],
+      "variables_missing": [
+        "solar_radiation"
+      ],
+      "open_seconds": 4.546,
+      "extract_seconds": 12.241,
+      "total_seconds": 16.788,
+      "seconds_per_site": 3.358,
+      "rows_total": 250,
+      "variable_results": [
+        {
+          "toolkit_variable": "precipitation",
+          "zarr_variable": "PRECTOTCORR",
+          "supported": true,
+          "rows": 50,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "max_temperature",
+          "zarr_variable": "T2M_MAX",
+          "supported": true,
+          "rows": 50,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "min_temperature",
+          "zarr_variable": "T2M_MIN",
+          "supported": true,
+          "rows": 50,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "humidity",
+          "zarr_variable": "RH2M",
+          "supported": true,
+          "rows": 50,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "wind_speed",
+          "zarr_variable": "WS2M",
+          "supported": true,
+          "rows": 50,
+          "resolved_sites": [
+            {
+              "site": "Nairobi",
+              "requested_lat": -1.286,
+              "requested_lon": 36.817,
+              "resolved_lat": -1.5,
+              "resolved_lon": 36.875
+            },
+            {
+              "site": "Lodwar",
+              "requested_lat": 3.119,
+              "requested_lon": 35.5973,
+              "resolved_lat": 3.0,
+              "resolved_lon": 35.625
+            },
+            {
+              "site": "Addis_Ababa",
+              "requested_lat": 8.9806,
+              "requested_lon": 38.7578,
+              "resolved_lat": 9.0,
+              "resolved_lon": 38.75
+            },
+            {
+              "site": "Niamey",
+              "requested_lat": 13.5116,
+              "requested_lon": 2.1254,
+              "resolved_lat": 13.5,
+              "resolved_lon": 1.875
+            },
+            {
+              "site": "Bamako",
+              "requested_lat": 12.6392,
+              "requested_lon": -8.0029,
+              "resolved_lat": 12.5,
+              "resolved_lon": -8.125
+            }
+          ]
+        },
+        {
+          "toolkit_variable": "solar_radiation",
+          "zarr_variable": "ALLSKY_SFC_SW_DWN",
+          "supported": false,
+          "rows": 0,
+          "resolved_sites": []
+        }
+      ],
+      "chunk_signature": {
+        "PRECTOTCORR": [
+          1,
+          361,
+          576
+        ],
+        "RH2M": [
+          1,
+          361,
+          576
+        ],
+        "T2M": [
+          1,
+          361,
+          576
+        ],
+        "T2M_MAX": [
+          1,
+          361,
+          576
+        ],
+        "T2M_MIN": [
+          1,
+          361,
+          576
+        ],
+        "WS2M": [
+          1,
+          361,
+          576
+        ]
+      },
+      "site_count": 5,
+      "period_name": "short10"
+    }
+  ],
+  "sample_compare": {
+    "site": "Nairobi",
+    "start": "2020-01-01",
+    "end": "2020-01-10",
+    "api_baseline_total_seconds": 1.739,
+    "comparisons": [
+      {
+        "backend": "zarr_temporal",
+        "variable": "precipitation",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.685546875014211e-05,
+        "mean_abs_diff": 1.2939453125001416e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_temporal",
+        "variable": "max_temperature",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.929687499886313e-05,
+        "mean_abs_diff": 1.7578125000738964e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_temporal",
+        "variable": "min_temperature",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.197265624914735e-05,
+        "mean_abs_diff": 1.3183593749666045e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_temporal",
+        "variable": "humidity",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.929687499886313e-05,
+        "mean_abs_diff": 1.7089843753126387e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_temporal",
+        "variable": "wind_speed",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.92968750001954e-05,
+        "mean_abs_diff": 1.5136718749975131e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "precipitation",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.685546875014211e-05,
+        "mean_abs_diff": 1.2939453125001416e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "max_temperature",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.929687499886313e-05,
+        "mean_abs_diff": 1.7578125000738964e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "min_temperature",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.197265624914735e-05,
+        "mean_abs_diff": 1.3183593749666045e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "humidity",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.929687499886313e-05,
+        "mean_abs_diff": 1.7089843753126387e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      },
+      {
+        "backend": "zarr_spatial",
+        "variable": "wind_speed",
+        "comparable": true,
+        "rows": 10,
+        "max_abs_diff": 2.92968750001954e-05,
+        "mean_abs_diff": 1.5136718749975131e-05,
+        "resolved_lat": -1.5,
+        "resolved_lon": 36.875
+      }
+    ]
+  }
+}
