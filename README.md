@@ -277,6 +277,31 @@ NEX-GDDP humidity note:
   humidity-gap models, so standard toolkit runs are safer than unrestricted
   full-catalog model selection
 
+Livestock THI source support:
+
+| Source | Status | Notes |
+| --- | --- | --- |
+| `agera_5` | supported | humidity derived from dewpoint + air temperature in current fetch pipeline |
+| `nasa_power` | supported | humidity available from current NASA POWER fetch path |
+| `ghcn_daily` | supported when available | uses station humidity when `RHAV` exists for chosen station and window |
+| `gsod` | supported when available | uses station humidity when humidity field exists for chosen station and window |
+| `custom_station` | supported when available | uploaded file must include humidity / RH column |
+| `nex_gddp` | conditionally supported | uses Earth Engine `hurs`; some model / scenario / year combinations lack that band |
+| `era_5` | uncertain | humidity path not yet treated as fully documented default THI workflow |
+| `chirps_v2` | not supported | precipitation-only source |
+| `chirps_v3_daily_rnl` | not supported | precipitation-only source |
+| `imerg` | not supported | precipitation-only source |
+| `tamsat` | not supported | no humidity data |
+| `chirts` | not supported | temperature-only source |
+
+Python users can inspect same support map directly:
+
+```python
+from climate_tookit.climatology import describe_thi_source_support
+
+print(describe_thi_source_support())
+```
+
 Example:
 
 ```bash
