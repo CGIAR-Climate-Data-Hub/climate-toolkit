@@ -11,10 +11,13 @@ from importlib import import_module
 __all__ = [
     "build_thi_hazard_thresholds",
     "classify_thi_values",
+    "compute_daily_humidex",
     "compute_monthly_spei",
     "compute_monthly_spi",
     "compute_daily_thi",
     "compute_daily_vpd",
+    "describe_human_heat_method",
+    "describe_human_heat_source_support",
     "describe_thi_method",
     "DEFAULT_LIVESTOCK_CLIMATE_PROFILE",
     "DEFAULT_LIVESTOCK_TYPE",
@@ -24,6 +27,7 @@ __all__ = [
     "prepare_monthly_climatic_water_balance",
     "prepare_monthly_precipitation_totals",
     "resolve_thi_profile",
+    "summarize_humidex_period",
     "summarize_vpd_period",
     "summarize_thi_periods",
     "assess_xclim_precip_annual_readiness",
@@ -38,6 +42,14 @@ __all__ = [
 
 
 def __getattr__(name: str):
+    if name in {
+        "compute_daily_humidex",
+        "describe_human_heat_method",
+        "describe_human_heat_source_support",
+        "summarize_humidex_period",
+    }:
+        module = import_module(".human_heat_stress", __name__)
+        return getattr(module, name)
     if name in {
         "build_thi_hazard_thresholds",
         "classify_thi_values",
