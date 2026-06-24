@@ -45,6 +45,44 @@ normal user workflows.
 
 ## Quick Start
 
+### Earth Engine setup
+
+Most historical gridded defaults and all current NEX-GDDP real-access paths use
+Earth Engine-backed retrieval. Do this first.
+
+Important:
+
+- `YOUR_PROJECT_ID` below is placeholder text
+- replace it with your real Google Cloud **Project ID**
+- do not paste literal string `YOUR_PROJECT_ID`
+
+```bash
+python -c "import ee; ee.Authenticate()"
+export GCP_PROJECT_ID=YOUR_PROJECT_ID
+python -c "import ee; ee.Initialize(project='$GCP_PROJECT_ID'); print('EE init OK')"
+```
+
+Windows PowerShell:
+
+```powershell
+python -c "import ee; ee.Authenticate()"
+$env:GCP_PROJECT_ID="YOUR_PROJECT_ID"
+python -c "import ee; ee.Initialize(project='$env:GCP_PROJECT_ID'); print('EE init OK')"
+```
+
+Required in `.env.example`:
+
+- `GCP_PROJECT_ID`
+- optional `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD` for sources that still
+  use Earthdata-backed access
+
+If you see:
+
+- `Earth Engine project ID missing` -> set `GCP_PROJECT_ID`
+- `Project 'projects/YOUR_PROJECT_ID' not found or deleted` -> placeholder was
+  not replaced with real project ID
+- auth refresh / DNS errors -> refresh Earth Engine auth and check internet/DNS
+
 ### Installation
 
 1. Clone repository
@@ -164,39 +202,6 @@ Current decision:
 Reference note:
 
 - `docs/distribution_workflow.md`
-
-### Earth Engine setup
-
-Most historical gridded defaults and all current NEX-GDDP real-access paths use
-Earth Engine-backed retrieval. Before running those sources, authenticate Earth
-Engine and set project ID.
-
-```bash
-python -c "import ee; ee.Authenticate()"
-python -c "import ee; ee.Initialize(project='YOUR_PROJECT_ID')"
-export GCP_PROJECT_ID=YOUR_PROJECT_ID
-```
-
-Windows PowerShell:
-
-```powershell
-python -c "import ee; ee.Authenticate()"
-python -c "import ee; ee.Initialize(project='YOUR_PROJECT_ID')"
-$env:GCP_PROJECT_ID="YOUR_PROJECT_ID"
-```
-
-Required in `.env.example`:
-
-- `GCP_PROJECT_ID`
-- optional `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD` for sources that still
-  use Earthdata-backed access
-
-If you see:
-
-- `Earth Engine project ID missing` -> set `GCP_PROJECT_ID`
-- `Project 'projects/your-ee-project-id' not found or deleted` -> you left
-  placeholder value in environment or auth init command
-- auth refresh / DNS errors -> refresh Earth Engine auth and check internet/DNS
 
 ### Recommended starting point
 

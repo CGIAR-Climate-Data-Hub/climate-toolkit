@@ -70,6 +70,19 @@ class XeeCommonTests(unittest.TestCase):
 
         self.assertIn("Earth Engine auth refresh failed.", message)
         self.assertIn("ee.Authenticate()", message)
+        self.assertIn(xee_common.EARTH_ENGINE_SETUP_URL, message)
+
+    def test_format_ee_setup_error_adds_setup_guide_for_missing_project_id(self):
+        message = xee_common.format_ee_setup_error(
+            ValueError(
+                "Earth Engine project ID is required. Pass ee_project_id or set one of "
+                "GCP_PROJECT_ID, GOOGLE_CLOUD_PROJECT, or EE_PROJECT_ID."
+            )
+        )
+
+        self.assertIn("Earth Engine project ID missing.", message)
+        self.assertIn("GCP_PROJECT_ID", message)
+        self.assertIn(xee_common.EARTH_ENGINE_SETUP_URL, message)
 
 
 if __name__ == "__main__":

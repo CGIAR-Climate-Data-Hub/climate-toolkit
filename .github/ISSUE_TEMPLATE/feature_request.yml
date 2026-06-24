@@ -1,0 +1,62 @@
+name: Feature or enhancement
+description: Propose new capability, UX improvement, research task, or refactor slice.
+title: "[enhancement] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before submitting:
+        - add labels for `type`, `area`, `priority`, and `provenance`
+        - use `research` / `methodology` when issue depends on external evidence
+        - use `needs-docs` when user-facing behavior or CLI changes are expected
+
+        Recommended labels:
+        - type: `enhancement`, `research`, `methodology`, `performance`, `refactor`, `documentation`
+        - area: e.g. `gee`, `fetch-data`, `historical-cli`, `nex-gddp`, `weather-station`, `hazards`, `packaging`, `readme`
+        - priority: `priority:high|medium|low`
+        - provenance: `sammy`, `michel`, `codex`, or `user-feedback`
+  - type: textarea
+    id: summary
+    attributes:
+      label: Proposal summary
+      description: What should be added or changed?
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: Why does this matter?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Suggested scope
+      description: What should be in scope? What can wait?
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance ideas
+      description: How should we know this is done?
+    validations:
+      required: false
+  - type: textarea
+    id: references
+    attributes:
+      label: References or related issues
+      description: Literature, docs, issue links, screenshots, prior discussion.
+    validations:
+      required: false
+  - type: textarea
+    id: labels
+    attributes:
+      label: Labels to apply
+      description: List labels you think fit if you cannot apply them yourself.
+      placeholder: enhancement, ux, historical-cli, priority:medium, codex
+    validations:
+      required: false

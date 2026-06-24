@@ -54,6 +54,7 @@ from climate_tookit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
     SoilVariable,
+    clip_source_date_range,
 )
 from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
 from climate_tookit.fetch_data.transform_data.transform_data import validate_inputs
@@ -303,7 +304,7 @@ class FetchPipelineTests(unittest.TestCase):
         )
 
     def test_fetch_data_rejects_many_site_era5_window_after_current_coverage(self):
-        with self.assertRaisesRegex(ValueError, "outside current coverage"):
+        with self.assertRaisesRegex(ValueError, "No overlapping dates remain after clipping"):
             fetch_data(
                 source="era_5",
                 sites=[{"site": "Nairobi", "lat": -1.286, "lon": 36.817}],
@@ -311,6 +312,108 @@ class FetchPipelineTests(unittest.TestCase):
                 date_to=date(2020, 12, 31),
                 stage="preprocessed",
             )
+
+    def test_validate_inputs_allows_partial_era5_overlap_when_clip_mode_enabled(self):
+        errors = validate_inputs(
+            source="era_5",
+            lat=-1.286,
+            lon=36.817,
+            date_from=date(2020, 1, 1),
+            date_to=date(2020, 12, 31),
+            model=None,
+            scenario=None,
+            allow_coverage_clip=True,
+        )
+
+        self.assertEqual(errors, [])
+
+    def test_fetch_data_clips_single_site_era5_window_and_warns(self):
+        calls = []
+
+        class _FakeSourceData:
+            def __init__(self, **kwargs):
+                calls.append(kwargs)
+
+            def download(self):
+                return pd.DataFrame({"date": pd.to_datetime(["2020-07-09"])})
+
+        buf = io.StringIO()
+        with (
+            contextlib.redirect_stdout(buf),
+            mock.patch(
+                "climate_tookit.fetch_data.fetch_data.SourceData",
+                _FakeSourceData,
+            ),
+        ):
+            fetch_data(
+                source="era_5",
+                location_coord=(-1.286, 36.817),
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 12, 31),
+                stage="raw",
+            )
+
+        self.assertEqual(calls[0]["date_from_utc"], date(2020, 1, 1))
+        self.assertEqual(calls[0]["date_to_utc"], date(2020, 7, 9))
+        self.assertIn("Warning: Requested range for source 'era_5' is outside current coverage", buf.getvalue())
+        self.assertIn("Adjusted: 2020-01-01..2020-07-09", buf.getvalue())
+
+    def test_fetch_data_clips_many_site_era5_window_before_batch_fetch(self):
+        batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-07-09"])})
+
+        with mock.patch(
+            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
+        ) as batch_mock:
+            result = fetch_data(
+                source="era_5",
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 12, 31),
+                stage="raw",
+            )
+
+        self.assertIs(result, batch_df)
+        self.assertEqual(batch_mock.call_args.kwargs["date_from"], date(2020, 1, 1))
+        self.assertEqual(batch_mock.call_args.kwargs["date_to"], date(2020, 7, 9))
+
+    def test_clip_source_date_range_prefers_live_gee_coverage_when_available(self):
+        with mock.patch(
+            "climate_tookit.fetch_data.source_data.sources.utils.models._fetch_live_source_date_limits",
+            return_value={
+                "start": date(1979, 1, 2),
+                "end": date(2020, 12, 31),
+                "label": "ECMWF/ERA5/DAILY",
+                "fallback_hint": "Use 'agera_5' or 'auto' for later periods.",
+                "coverage_source": "gee_live",
+            },
+        ):
+            clipped_start, clipped_end, warning = clip_source_date_range(
+                "era_5",
+                date(2020, 11, 1),
+                date(2020, 12, 1),
+                settings=Settings.load(),
+            )
+
+        self.assertEqual(clipped_start, date(2020, 11, 1))
+        self.assertEqual(clipped_end, date(2020, 12, 1))
+        self.assertIsNone(warning)
+
+    def test_clip_source_date_range_falls_back_to_static_coverage_when_live_lookup_fails(self):
+        with mock.patch(
+            "climate_tookit.fetch_data.source_data.sources.utils.models._fetch_live_source_date_limits",
+            return_value=None,
+        ):
+            clipped_start, clipped_end, warning = clip_source_date_range(
+                "era_5",
+                date(2020, 1, 1),
+                date(2020, 12, 31),
+                settings=Settings.load(),
+            )
+
+        self.assertEqual(clipped_start, date(2020, 1, 1))
+        self.assertEqual(clipped_end, date(2020, 7, 9))
+        self.assertIn("Adjusted: 2020-01-01..2020-07-09", warning)
 
     def test_source_data_uses_real_nex_downloader(self):
         calls = []
@@ -822,6 +925,7 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertEqual(1, exit_code)
         self.assertIn("Earth Engine project ID missing.", output)
         self.assertIn("GCP_PROJECT_ID", output)
+        self.assertIn("earth-engine-setup", output)
 
     def test_main_passes_workers_argument_to_fetch_data(self):
         argv = [
@@ -890,6 +994,7 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertEqual(1, exit_code)
         self.assertIn("Earth Engine project ID missing.", output)
         self.assertIn("GCP_PROJECT_ID", output)
+        self.assertIn("earth-engine-setup", output)
 
     def test_source_data_main_accepts_project_id_option(self):
         argv = [

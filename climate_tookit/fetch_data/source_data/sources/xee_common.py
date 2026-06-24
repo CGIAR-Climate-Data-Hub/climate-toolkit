@@ -17,6 +17,9 @@ import pandas as pd
 DEFAULT_EE_OPT_URL = "https://earthengine-highvolume.googleapis.com"
 METERS_PER_DEGREE = 111_320.0
 MISSING_EE_PROJECT_ID_PREFIX = "Earth Engine project ID is required."
+EARTH_ENGINE_SETUP_URL = (
+    "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit#earth-engine-setup"
+)
 
 
 def import_xee_stack(required_for: str = "xee_common"):
@@ -59,7 +62,8 @@ def format_ee_setup_error(exc: Exception) -> str:
         return (
             "Earth Engine project ID missing. Set GCP_PROJECT_ID "
             "(or GOOGLE_CLOUD_PROJECT / EE_PROJECT_ID) and retry. "
-            "Example: export GCP_PROJECT_ID=your-ee-project-id"
+            "Example: export GCP_PROJECT_ID=your-ee-project-id. "
+            f"Setup guide: {EARTH_ENGINE_SETUP_URL}"
         )
     lowered = message.lower()
     if (
@@ -71,7 +75,8 @@ def format_ee_setup_error(exc: Exception) -> str:
         return (
             "Earth Engine auth refresh failed. Check internet/DNS access, then "
             "refresh auth if needed with: "
-            ".venv/bin/python -c \"import ee; ee.Authenticate(); ee.Initialize(project='YOUR_PROJECT_ID')\""
+            ".venv/bin/python -c \"import ee; ee.Authenticate(); ee.Initialize(project='YOUR_PROJECT_ID')\". "
+            f"Setup guide: {EARTH_ENGINE_SETUP_URL}"
         )
     return message
 
