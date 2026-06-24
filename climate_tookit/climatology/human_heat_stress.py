@@ -17,7 +17,7 @@ Why not WBGT / UTCI first:
 from __future__ import annotations
 
 from importlib.util import find_spec
-from typing import Any, Optional, Sequence
+from typing import Any, Iterable, Optional, Sequence
 
 import pandas as pd
 
@@ -35,7 +35,23 @@ _DEWPOINT_COLS = (
     "tdps",
 )
 
+HUMIDEX_SCREENING_BANDS: dict[str, tuple[float | None, float | None]] = {
+    "none": (None, 30.0),
+    "watch": (30.0, 40.0),
+    "moderate": (40.0, 46.0),
+    "high": (46.0, 55.0),
+    "extreme": (55.0, None),
+}
+
 _HUMAN_HEAT_SOURCE_SUPPORT = {
+    "paired": (
+        "supported when temperature-side partner carries humidity or dewpoint; "
+        "human-heat inputs come from temp-side companion variables, not precip-side source"
+    ),
+    "auto": (
+        "supported in default historical composite when chosen companion-temperature "
+        "path exposes humidity or dewpoint"
+    ),
     "agera_5": (
         "supported: humidity available via current dewpoint + air-temperature derivation; "
         "best first-pass historical source"
@@ -185,7 +201,7 @@ def compute_daily_humidex(
         "backend": "xclim",
         "metric": "humidex",
         "temperature_source": temperature_source,
-        "phase1_scope": "continuous_metric_only",
+        "phase1_scope": "continuous_metric_plus_generic_screening",
     }
 
     if resolved_method == "dewpoint":
@@ -231,9 +247,81 @@ def summarize_humidex_period(frame: pd.DataFrame, **kwargs) -> Optional[dict[str
     return {
         "mean_humidex": round(float(humidex_df["humidex"].mean()), 3),
         "max_humidex": round(float(humidex_df["humidex"].max()), 3),
+        "days_with_humidex": int(humidex_df["humidex"].notna().sum()),
         "method": humidex_df.attrs.get("human_heat_metadata", {}).get("path"),
-        "phase1_scope": "continuous_metric_only",
+        "phase1_scope": "continuous_metric_plus_generic_screening",
     }
+
+
+def build_humidex_screening_thresholds() -> dict[str, tuple[float | None, float | None]]:
+    return dict(HUMIDEX_SCREENING_BANDS)
+
+
+def classify_humidex_value(value: float | int | None) -> Optional[str]:
+    if value is None or pd.isna(value):
+        return None
+    humidex = float(value)
+    if humidex < 30.0:
+        return "none"
+    if humidex < 40.0:
+        return "watch"
+    if humidex < 46.0:
+        return "moderate"
+    if humidex < 55.0:
+        return "high"
+    return "extreme"
+
+
+def classify_humidex_series(values: Iterable[float | int | None]) -> pd.Series:
+    return pd.Series([classify_humidex_value(value) for value in values], dtype="object")
+
+
+def build_human_heat_source_bundle(
+    *,
+    source: str | None,
+    precip_source: str | None = None,
+    temp_source: str | None = None,
+    custom_station_file: str | None = None,
+) -> dict[str, Any]:
+    normalized_source = str(source or "").strip().lower() or None
+    normalized_precip = str(precip_source or "").strip().lower() or None
+    normalized_temp = str(temp_source or "").strip().lower() or None
+    station_override = bool(custom_station_file)
+
+    if normalized_source == "paired":
+        bundle = {
+            "workflow": "paired_composite",
+            "temperature_source": normalized_temp,
+            "humidity_source": normalized_temp,
+            "dewpoint_source": normalized_temp,
+            "wind_source": normalized_temp,
+            "solar_source": normalized_temp,
+            "precip_context_source": normalized_precip,
+            "station_override": station_override,
+        }
+        if station_override:
+            bundle["note"] = (
+                "Custom station override may replace some historical variables by date; "
+                "check runtime output for final variable provenance."
+            )
+        return bundle
+
+    bundle = {
+        "workflow": "single_source",
+        "temperature_source": normalized_source,
+        "humidity_source": normalized_source,
+        "dewpoint_source": normalized_source,
+        "wind_source": normalized_source,
+        "solar_source": normalized_source,
+        "precip_context_source": normalized_source,
+        "station_override": station_override,
+    }
+    if station_override:
+        bundle["note"] = (
+            "Custom station override may replace some historical variables by date; "
+            "check runtime output for final variable provenance."
+        )
+    return bundle
 
 
 def describe_human_heat_source_support() -> dict[str, str]:
@@ -247,8 +335,9 @@ def describe_human_heat_method() -> dict[str, Any]:
         "metric": "humidex",
         "backend": "xclim",
         "phase1_status": "selected_for_initial_support",
-        "phase1_scope": "continuous_metric_only",
+        "phase1_scope": "continuous_metric_plus_generic_screening",
         "default_daily_workflow": "daily mean temperature plus humidity or dewpoint",
+        "screening_thresholds": build_humidex_screening_thresholds(),
         "source_support": describe_human_heat_source_support(),
         "candidate_review": {
             "humidex": (
@@ -273,19 +362,25 @@ def describe_human_heat_method() -> dict[str, Any]:
             "moisture": "relative humidity in percent or dewpoint temperature",
         },
         "interpretation_caveats": [
-            "Phase 1 provides continuous human heat metric support, not hazard-band semantics.",
+            "Phase 1 provides continuous humidex support plus generic screening classes, not full occupational heat-risk standard.",
+            "Current package surface propagates humidex screening only; WBGT/UTCI remain deferred.",
             "Humidex is more feasible than UTCI/WBGT for current package source coverage, not necessarily universally superior physiologically.",
             "Future-path support depends on humidity availability; current NEX-GDDP path remains conditional on hurs presence.",
         ],
         "next_steps": [
-            "review whether phase 2 should add generic humidex screening classes or skip directly to UTCI/WBGT where inputs allow",
-            "add package-surface integration into climate_statistics, compare_periods, and hazards after method choice is accepted",
+            "decide whether phase 2 should stay with humidex screening plus WBGT/UTCI follow-up or move directly to richer occupational metrics where inputs allow",
+            "add stronger source guardrails and explicit method notes across package surfaces",
             "revisit UTCI / WBGT when coherent wind and radiation support exists across intended workflows",
         ],
     }
 
 
 __all__ = [
+    "build_human_heat_source_bundle",
+    "build_humidex_screening_thresholds",
+    "classify_humidex_series",
+    "classify_humidex_value",
+    "HUMIDEX_SCREENING_BANDS",
     "XCLIM_AVAILABLE",
     "compute_daily_humidex",
     "describe_human_heat_method",

@@ -1058,7 +1058,7 @@ def _print_block(a: Dict, crop: str, lat: float, lon: float,
         print(f"  {'Min Tmin':<32} {s.get('min_tmin_c', s.get('min_temperature_c', 0)):>15.2f}  deg C")
 
     # Hazard index counts (NTx35, NTx40, NDD, NDWS, NDWL0) -- ensemble means
-    has_counts = any(k in s for k in ('NTx35', 'NTx40', 'NDD', 'NDWS', 'NDWL0', 'WRSI'))
+    has_counts = any(k in s for k in ('mean_humidex', 'humidex_high_days', 'humidex_extreme_days', 'NTx35', 'NTx40', 'NDD', 'NDWS', 'NDWL0', 'WRSI'))
     if has_counts:
         print(f"\n  Hazard Index Counts  (ensemble means)")
         print(f"  {'─'*66}")
@@ -1066,6 +1066,14 @@ def _print_block(a: Dict, crop: str, lat: float, lon: float,
         print(f"  {'─'*32} {'─'*15}  {'─'*10}")
         if 'WRSI' in s:
             print(f"  {'WRSI (seasonal satisfaction)':<32} {s['WRSI']:>15.2f}  %")
+        if 'mean_humidex' in s:
+            print(f"  {'Mean Humidex':<32} {s['mean_humidex']:>15.2f}  index")
+        if 'max_humidex' in s:
+            print(f"  {'Max Humidex':<32} {s['max_humidex']:>15.2f}  index")
+        if 'humidex_high_days' in s:
+            print(f"  {'Humidex high days':<32} {s['humidex_high_days']:>15.2f}  days")
+        if 'humidex_extreme_days' in s:
+            print(f"  {'Humidex extreme days':<32} {s['humidex_extreme_days']:>15.2f}  days")
         if 'crop_water_requirement_mm' in s:
             print(f"  {'Crop Water Requirement':<32} {s['crop_water_requirement_mm']:>15.2f}  mm")
         if 'actual_crop_et_mm' in s:
@@ -1126,9 +1134,12 @@ def _print_overall_summary(summary: Dict, multi_scenario: bool) -> None:
     if 'max_tmax_c' in s or 'min_tmin_c' in s:
         print(f"  Max Tmax / Min Tmin : {s.get('max_tmax_c', 0):.2f} / "
               f"{s.get('min_tmin_c', 0):.2f} deg C")
-    if any(k in s for k in ('NTx35', 'NTx40', 'NDD', 'NDWS', 'NDWL0', 'WRSI')):
+    if any(k in s for k in ('mean_humidex', 'humidex_high_days', 'humidex_extreme_days', 'NTx35', 'NTx40', 'NDD', 'NDWS', 'NDWL0', 'WRSI')):
         parts = []
         if 'WRSI' in s: parts.append(f"WRSI={s['WRSI']:.2f}%")
+        if 'mean_humidex' in s: parts.append(f"Humidex={s['mean_humidex']:.2f}")
+        if 'humidex_high_days' in s: parts.append(f"HumidexHigh={s['humidex_high_days']:.2f}")
+        if 'humidex_extreme_days' in s: parts.append(f"HumidexExtreme={s['humidex_extreme_days']:.2f}")
         if 'NTx35' in s: parts.append(f"NTx35={s['NTx35']:.2f}")
         if 'NTx40' in s: parts.append(f"NTx40={s['NTx40']:.2f}")
         if 'NDD'   in s: parts.append(f"NDD={s['NDD']:.2f}")

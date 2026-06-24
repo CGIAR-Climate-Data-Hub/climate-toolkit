@@ -29,8 +29,13 @@ from climate_tookit._resources import load_json_resource
 from climate_tookit.climatology import (
     DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
     DEFAULT_LIVESTOCK_TYPE,
+    build_humidex_screening_thresholds,
     build_thi_hazard_thresholds,
+    classify_humidex_series,
+    classify_humidex_value,
+    compute_daily_humidex,
     compute_daily_thi,
+    describe_human_heat_method,
     describe_thi_method,
     list_thi_livestock_profiles,
     resolve_thi_profile,
@@ -122,6 +127,7 @@ CROP_THRESHOLDS = {
 #   line-level FAO/AquaCrop validation in package docs
 # Atlas-inspired starter hazard-index thresholds.
 ATLAS_HAZARD_INDEX_THRESHOLDS = {
+    'HUMIDEX': build_humidex_screening_thresholds(),
     'THI': build_thi_hazard_thresholds(
         livestock_type=DEFAULT_LIVESTOCK_TYPE,
         climate_profile='temperate',
@@ -180,6 +186,13 @@ HAZARD_EVAL_SPECS = {
         'label': 'THI',
         'unit': 'index',
     },
+    'HUMIDEX': {
+        'result_key': 'HUMIDEX',
+        'stat_key': 'mean_humidex',
+        'value_key': 'value_humidex',
+        'label': 'Humidex',
+        'unit': 'index',
+    },
     'NDD': {
         'result_key': 'NDD',
         'stat_key': 'NDD',
@@ -217,7 +230,7 @@ HAZARD_EVAL_SPECS = {
     },
 }
 
-HAZARD_PRINT_ORDER = ['precipitation', 'temperature', 'THI', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0']
+HAZARD_PRINT_ORDER = ['precipitation', 'temperature', 'HUMIDEX', 'THI', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0']
 
 FULL_WINDOW_WATER_BALANCE = "full_window"
 CROP_ACTIVE_WATER_BALANCE = "crop_active"
@@ -231,6 +244,10 @@ COMPARISON_METRIC_SPECS = [
     ('mean_temperature_c', 'mean_tavg', 'TAVG', 'deg C'),
     ('min_tmin_c', 'min_tmin', 'Min Tmin', 'deg C'),
     ('max_tmax_c', 'max_tmax', 'Max Tmax', 'deg C'),
+    ('mean_humidex', 'mean_humidex', 'Mean Humidex', 'index'),
+    ('max_humidex', 'max_humidex', 'Max Humidex', 'index'),
+    ('humidex_high_days', 'humidex_high_days', 'Humidex High Days', 'days'),
+    ('humidex_extreme_days', 'humidex_extreme_days', 'Humidex Extreme Days', 'days'),
     ('mean_thi', 'mean_thi', 'Mean THI', 'index'),
     ('max_thi', 'max_thi', 'Max THI', 'index'),
     ('thi_stress_days', 'thi_stress_days', 'THI Stress Days', 'days'),
@@ -303,6 +320,15 @@ def _thi_method_line(profile: Optional[Dict[str, Any]] = None) -> str:
     note = "operational defaults | mean-temp+RH THI"
     if threshold_source:
         return f"{note} | thresholds={threshold_source}"
+    return note
+
+
+def _human_heat_method_line() -> str:
+    method = describe_human_heat_method()
+    note = "generic humidex screening"
+    scope = method.get("phase1_scope")
+    if scope:
+        return f"{note} | scope={scope}"
     return note
 
 
@@ -1671,6 +1697,35 @@ def calculate_season_statistics(
         )
         if humidity_col:
             try:
+                humidex_frame = pd.DataFrame(
+                    {
+                        'date': analysis_df['date'],
+                        'tmax': tmax,
+                        'tmin': tmin,
+                        'humidity': pd.to_numeric(analysis_df[humidity_col], errors='coerce'),
+                    }
+                )
+                humidex_daily = compute_daily_humidex(humidex_frame)
+            except ValueError:
+                humidex_daily = None
+            if humidex_daily is not None and humidex_daily['humidex'].notna().any():
+                humidex_classes = classify_humidex_series(humidex_daily['humidex'])
+                counts = humidex_classes.value_counts(dropna=True)
+                stats['human_heat_metric'] = 'humidex'
+                stats['human_heat_method_note'] = _human_heat_method_line()
+                stats['mean_humidex'] = float(humidex_daily['humidex'].mean())
+                stats['max_humidex'] = float(humidex_daily['humidex'].max())
+                stats['humidex_none_days'] = int(counts.get('none', 0))
+                stats['humidex_watch_days'] = int(counts.get('watch', 0))
+                stats['humidex_moderate_days'] = int(counts.get('moderate', 0))
+                stats['humidex_high_days'] = int(counts.get('high', 0))
+                stats['humidex_extreme_days'] = int(counts.get('extreme', 0))
+                stats['humidex_stress_days'] = int(
+                    counts.get('moderate', 0)
+                    + counts.get('high', 0)
+                    + counts.get('extreme', 0)
+                )
+            try:
                 thi_frame = pd.DataFrame(
                     {
                         'date': analysis_df['date'],
@@ -1759,6 +1814,13 @@ def evaluate_hazard_metrics(
         if stat_key not in stats:
             continue
         value = stats[stat_key]
+        if metric_key == 'HUMIDEX':
+            hazard_eval[spec['result_key']] = {
+                spec['value_key']: round(value, 2) if isinstance(value, (int, float)) else value,
+                'status': classify_humidex_value(value),
+                'method_note': _human_heat_method_line(),
+            }
+            continue
         hazard_eval[spec['result_key']] = {
             spec['value_key']: round(value, 2) if isinstance(value, (int, float)) else value,
             'status': evaluate_threshold(value, thresholds[metric_key]),
@@ -2534,12 +2596,20 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
             print(f"  {'Min Tmin':<32} {s.get('min_tmin_c', s.get('min_temperature_c', 0)):>15.2f}  deg C")
 
         # New hazard counts
-        has_counts = any(k in s for k in ('mean_thi', 'thi_stress_days', 'NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
+        has_counts = any(k in s for k in ('mean_humidex', 'humidex_high_days', 'humidex_extreme_days', 'mean_thi', 'thi_stress_days', 'NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
         if has_counts:
             print(f"\n  Hazard Indices (LTM means)")
             print(f"  {'─'*66}")
             if 'WRSI' in s:
                 print(f"  {'WRSI (seasonal satisfaction)':<32} {s['WRSI']:>15.2f}  %")
+            if 'mean_humidex' in s:
+                print(f"  {'Mean Humidex':<32} {s['mean_humidex']:>15.2f}  index")
+            if 'max_humidex' in s:
+                print(f"  {'Max Humidex':<32} {s['max_humidex']:>15.2f}  index")
+            if 'humidex_high_days' in s:
+                print(f"  {'Humidex high days':<32} {s['humidex_high_days']:>15.2f}  days")
+            if 'humidex_extreme_days' in s:
+                print(f"  {'Humidex extreme days':<32} {s['humidex_extreme_days']:>15.2f}  days")
             if 'crop_water_requirement_mm' in s:
                 print(f"  {'Crop Water Requirement':<32} {s['crop_water_requirement_mm']:>15.2f}  mm")
             if 'actual_crop_et_mm' in s:
@@ -2578,7 +2648,7 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
                 tt  = h['temperature']
                 sym = _hazard_status_symbol(tt['status'])
                 print(f"  {'Temperature':<25} {tt['value_c']:>16.2f} degC [{sym}] {tt['status'].replace('_', ' ').upper()}")
-            for hazard_key in ('THI', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
+            for hazard_key in ('HUMIDEX', 'THI', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
                 if hazard_key not in h:
                     continue
                 spec = _get_hazard_spec_by_result_key(hazard_key)
@@ -2734,7 +2804,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
         print(f"  {'Min Tmin (Minimum Recorded)':<32} {stats['min_temperature_c']:>15.2f}  deg C")
 
     # Hazard index counts (NTx35, NTx40, NDD, NDWS, NDWL0)
-    has_counts = any(k in stats for k in ('mean_thi', 'thi_stress_days', 'NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
+    has_counts = any(k in stats for k in ('mean_humidex', 'humidex_high_days', 'humidex_extreme_days', 'mean_thi', 'thi_stress_days', 'NTx35', 'NTx40', 'NDWS', 'NDWL0', 'WRSI'))
     if has_counts:
         print(f"\n  Hazard Index Counts")
         print(f"  {'─'*66}")
@@ -2742,6 +2812,14 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
         print(f"  {'─'*32} {'─'*15}  {'─'*10}")
         if 'WRSI' in stats:
             print(f"  {'WRSI (seasonal satisfaction)':<32} {stats['WRSI']:>15}  %")
+        if 'mean_humidex' in stats:
+            print(f"  {'Mean Humidex':<32} {stats['mean_humidex']:>15.2f}  index")
+        if 'max_humidex' in stats:
+            print(f"  {'Max Humidex':<32} {stats['max_humidex']:>15.2f}  index")
+        if 'humidex_high_days' in stats:
+            print(f"  {'Humidex high days':<32} {stats['humidex_high_days']:>15}  days")
+        if 'humidex_extreme_days' in stats:
+            print(f"  {'Humidex extreme days':<32} {stats['humidex_extreme_days']:>15}  days")
         if 'crop_water_requirement_mm' in stats:
             print(f"  {'Crop Water Requirement':<32} {stats['crop_water_requirement_mm']:>15.2f}  mm")
         if 'actual_crop_et_mm' in stats:
@@ -2785,7 +2863,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
         t   = hazards['temperature']
         sym = _hazard_status_symbol(t['status'])
         print(f"  {'Temperature':<25} {t['value_c']:>16.2f} degC [{sym}] {t['status'].replace('_', ' ').upper()}")
-    for hazard_key in ('THI', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
+    for hazard_key in ('HUMIDEX', 'THI', 'NDD', 'NTx35', 'NTx40', 'NDWS', 'NDWL0'):
         if hazard_key not in hazards:
             continue
         spec = _get_hazard_spec_by_result_key(hazard_key)

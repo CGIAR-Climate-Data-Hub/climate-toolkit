@@ -39,12 +39,15 @@ from climate_tookit.fetch_data.source_data.sources.nex_gddp import _validate_per
 from climate_tookit.climatology import (
     DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
     DEFAULT_LIVESTOCK_TYPE,
+    build_human_heat_source_bundle,
     compute_daily_thi,
     compute_monthly_spei,
     compute_monthly_spi,
+    describe_human_heat_method,
     describe_thi_method,
     list_thi_livestock_profiles,
     resolve_thi_profile,
+    summarize_humidex_period,
     summarize_vpd_period,
 )
 try:
@@ -676,6 +679,32 @@ def _thi_method_line(profile: Optional[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
+def _human_heat_method_line(summary: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not summary:
+        return None
+    parts: List[str] = []
+    metric = summary.get("metric")
+    method = summary.get("method")
+    scope = summary.get("phase1_scope")
+    source_bundle = summary.get("source_bundle") or {}
+    workflow = source_bundle.get("workflow")
+    temp_source = source_bundle.get("temperature_source")
+    humidity_source = source_bundle.get("humidity_source")
+    if metric:
+        parts.append(str(metric))
+    if method:
+        parts.append(f"method={method}")
+    if scope:
+        parts.append(str(scope))
+    if workflow:
+        parts.append(f"workflow={workflow}")
+    if temp_source:
+        parts.append(f"temp={temp_source}")
+    if humidity_source and humidity_source != temp_source:
+        parts.append(f"humidity={humidity_source}")
+    return " | ".join(parts) if parts else None
+
+
 def _livestock_heat_stress_summary(
     df: pd.DataFrame,
     *,
@@ -742,6 +771,27 @@ def _vpd_summary(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
         return None
     return summary
 
+
+def _human_heat_summary(
+    df: pd.DataFrame,
+    *,
+    source_bundle: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Summarize phase-1 human heat support when humidity or dewpoint-backed inputs exist."""
+    if df is None or df.empty or 'date' not in df.columns:
+        return None
+    summary = summarize_humidex_period(df)
+    if not summary:
+        return None
+    method = describe_human_heat_method()
+    out = dict(summary)
+    out["metric"] = method.get("metric", "humidex")
+    out["backend"] = method.get("backend", "xclim")
+    out["method_note"] = "phase-1 humidex metric with generic screening support"
+    if source_bundle:
+        out["source_bundle"] = dict(source_bundle)
+    return out
+
 def raw_climate_summary(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """
     Compact summary table -- mean / min / max / std per core variable.
@@ -775,6 +825,7 @@ def overall_statistics(
     analysis_end: Optional[str] = None,
     shared_water_balance_summary: Optional[Dict[str, Any]] = None,
     thi_profile: Optional[Dict[str, Any]] = None,
+    human_heat_bundle: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Essential agro metrics for the full period.
@@ -804,6 +855,7 @@ def overall_statistics(
     }
     water_balance_stats.update(shared_wb)
     heat_stress = _livestock_heat_stress_summary(df, thi_profile=thi_profile)
+    human_heat = _human_heat_summary(df, source_bundle=human_heat_bundle)
     vpd = _vpd_summary(df)
 
     result = {
@@ -828,6 +880,8 @@ def overall_statistics(
     }
     if vpd:
         result['vpd'] = vpd
+    if human_heat:
+        result['human_heat_stress'] = human_heat
     if heat_stress:
         result['livestock_heat_stress'] = heat_stress
     return result
@@ -839,6 +893,7 @@ def season_statistics(
     shared_water_balance_summary: Optional[Dict[str, Any]] = None,
     season_df: Optional[pd.DataFrame] = None,
     thi_profile: Optional[Dict[str, Any]] = None,
+    human_heat_bundle: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Essential agro metrics for one season.
@@ -915,6 +970,7 @@ def season_statistics(
         )
 
     heat_stress = _livestock_heat_stress_summary(sdf, thi_profile=thi_profile)
+    human_heat = _human_heat_summary(sdf, source_bundle=human_heat_bundle)
     vpd = _vpd_summary(sdf)
 
     result = {
@@ -939,6 +995,8 @@ def season_statistics(
     }
     if vpd:
         result['vpd'] = vpd
+    if human_heat:
+        result['human_heat_stress'] = human_heat
     if heat_stress:
         result['livestock_heat_stress'] = heat_stress
     return result
@@ -1177,7 +1235,7 @@ def ltm_season_summary(
             'length_days_avg': _avg([s.get('length_days') for s in seasons], 1),
         }
 
-        for cat in ('precipitation', 'temperature', 'water_balance', 'vpd', 'livestock_heat_stress'):
+        for cat in ('precipitation', 'temperature', 'water_balance', 'vpd', 'human_heat_stress', 'livestock_heat_stress'):
             pool: Dict[str, List[float]] = {}
             for s in seasons:
                 for k, v in (s.get(cat) or {}).items():
@@ -1216,6 +1274,26 @@ def ltm_season_summary(
                 )
                 if method_value is not None:
                     block.setdefault(cat, {})["method"] = method_value
+            if cat == "human_heat_stress":
+                first_human_heat = next(
+                    (
+                        s.get(cat)
+                        for s in seasons
+                        if isinstance(s.get(cat), dict)
+                    ),
+                    None,
+                )
+                if isinstance(first_human_heat, dict):
+                    for meta_key in (
+                        "metric",
+                        "backend",
+                        "method",
+                        "method_note",
+                        "phase1_scope",
+                        "source_bundle",
+                    ):
+                        if first_human_heat.get(meta_key) is not None:
+                            block.setdefault(cat, {})[meta_key] = first_human_heat.get(meta_key)
 
         ov_pool: Dict[str, Dict[str, List[float]]] = {}
         for s in seasons:
@@ -1628,6 +1706,7 @@ def _compile_season_results_with_options(
     include_season_raw_summary: bool = True,
     include_season_overall_statistics: bool = True,
     thi_profile: Optional[Dict[str, Any]] = None,
+    human_heat_bundle: Optional[Dict[str, Any]] = None,
     return_breakdown: bool = False,
 ) -> Any:
     season_results: List[Dict[str, Any]] = []
@@ -1660,6 +1739,7 @@ def _compile_season_results_with_options(
                     shared_water_balance_summary=shared_wb,
                     season_df=sdf,
                     thi_profile=thi_profile,
+                    human_heat_bundle=human_heat_bundle,
                 )
             except TypeError as exc:
                 if (
@@ -1697,6 +1777,7 @@ def _compile_season_results_with_options(
                     analysis_end=season['cessation'],
                     shared_water_balance_summary=shared_wb,
                     thi_profile=thi_profile,
+                    human_heat_bundle=human_heat_bundle,
                 )
                 reduction_breakdown["overall_statistics_seconds"] += (
                     perf_counter() - overall_started
@@ -1713,11 +1794,22 @@ def _compile_season_results_with_options(
                 )
                 sub_sdf = _slice_date_window(sdf, sub_onset_ts, sub_cess_ts)
                 try:
-                    ssub = season_statistics(sdf, es, season_df=sub_sdf, thi_profile=thi_profile)
+                    ssub = season_statistics(
+                        sdf,
+                        es,
+                        season_df=sub_sdf,
+                        thi_profile=thi_profile,
+                        human_heat_bundle=human_heat_bundle,
+                    )
                 except TypeError as exc:
                     if "season_df" not in str(exc):
                         raise
-                    ssub = season_statistics(sdf, es, thi_profile=thi_profile)
+                    ssub = season_statistics(
+                        sdf,
+                        es,
+                        thi_profile=thi_profile,
+                        human_heat_bundle=human_heat_bundle,
+                    )
                 if ssub:
                     ssub['regime'] = es.get('regime', 'eto')
                     sub_results.append(ssub)
@@ -1807,6 +1899,12 @@ def analyze_climate_statistics(
         )
     except ValueError as exc:
         return {"error": str(exc)}
+    human_heat_bundle = build_human_heat_source_bundle(
+        source=source,
+        precip_source=precip_source,
+        temp_source=temp_source,
+        custom_station_file=custom_station_file,
+    )
     calendar_system = str(calendar_system).lower()
     if calendar_system not in CALENDAR_SYSTEM_CHOICES:
         return {
@@ -2018,6 +2116,7 @@ def analyze_climate_statistics(
         include_season_raw_summary=include_season_raw_summary,
         include_season_overall_statistics=include_season_overall_statistics,
         thi_profile=thi_profile,
+        human_heat_bundle=human_heat_bundle,
         return_breakdown=True,
     )
     reduce_elapsed = perf_counter() - reduce_started
@@ -2028,7 +2127,11 @@ def analyze_climate_statistics(
                    (df['date'] <= pd.Timestamp(f"{end_year}-12-31"))]
     raw_period     = raw_climate_summary(period_df) if include_period_raw_summary else []
     overall_period = (
-        overall_statistics(period_df, thi_profile=thi_profile)
+        overall_statistics(
+            period_df,
+            thi_profile=thi_profile,
+            human_heat_bundle=human_heat_bundle,
+        )
         if not period_df.empty else {}
     )
     xclim_references = _xclim_references_block(period_df)
@@ -2221,6 +2324,7 @@ def analyze_climate_statistics(
         'scenario':            scenario,
         'precip_source':       normalize_climate_dataset_name(precip_source),
         'temp_source':         normalize_climate_dataset_name(temp_source),
+        'human_heat_bundle':   human_heat_bundle,
         'crop_name':           crop_name,
         'thi_profile':         thi_profile,
         'calendar_source':     calendar_source,
@@ -2389,11 +2493,14 @@ def print_overall_by_season(seasons: List[Dict]) -> None:
             ('et0',           'ET0'),
             ('water_balance', 'Water Balance'),
             ('vpd', 'VPD'),
+            ('human_heat_stress', 'Human heat'),
             ('livestock_heat_stress', 'Livestock THI'),
         ]:
             if var_key not in stats:
                 continue
             for metric, value in stats[var_key].items():
+                if isinstance(value, (dict, list, tuple, set)):
+                    continue
                 rows.append({
                     'Variable': var_label,
                     'Metric':   metric,
@@ -2462,6 +2569,16 @@ def print_seasons(seasons: List[Dict]) -> None:
                   f"mean_vpd={v.get('mean_vpd_kpa')} kPa | "
                   f"max_vpd={v.get('max_vpd_kpa')} kPa | "
                   f"method={v.get('method')}")
+        hh = s.get('human_heat_stress') or {}
+        if hh:
+            print(f"    Human heat    : "
+                  f"metric={hh.get('metric')} | "
+                  f"mean={hh.get('mean_humidex')} | "
+                  f"max={hh.get('max_humidex')} | "
+                  f"days={hh.get('days_with_humidex')}")
+            note = _human_heat_method_line(hh)
+            if note:
+                print(f"                    note: {note}")
         h = s.get('livestock_heat_stress') or {}
         if h:
             print(f"    {_thi_profile_label(h)} : "
@@ -2563,6 +2680,16 @@ def print_ltm_by_season(ltm: Dict[str, Any],
                   f"mean_vpd={v.get('mean_vpd_kpa')} kPa | "
                   f"max_vpd={v.get('max_vpd_kpa')} kPa | "
                   f"method={v.get('method')}")
+        hh = w.get('human_heat_stress') or {}
+        if hh:
+            print(f"    Human heat    : "
+                  f"metric={hh.get('metric')} | "
+                  f"mean={hh.get('mean_humidex')} | "
+                  f"max={hh.get('max_humidex')} | "
+                  f"days={hh.get('days_with_humidex')}")
+            note = _human_heat_method_line(hh)
+            if note:
+                print(f"                    note: {note}")
         h = w.get('livestock_heat_stress') or {}
         if h:
             print(f"    {_thi_profile_label(h)} : "

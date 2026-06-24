@@ -13,7 +13,7 @@ Selected metric:
 Deferred:
 - `WBGT`
 - `UTCI`
-- package-level hazard classes for people
+- higher-fidelity occupational heat workflows
 
 ## Why `humidex` first
 
@@ -48,6 +48,10 @@ Strong first-pass support:
 - `ghcn_daily` when humidity exists
 - `gsod` when humidity exists
 - `custom_station` when humidity or dewpoint exists
+- `paired`
+  - when temperature-side partner carries humidity or dewpoint
+- `auto`
+  - when chosen companion-temperature path carries humidity or dewpoint
 
 Conditional support:
 - `nex_gddp`
@@ -65,24 +69,34 @@ Not currently suitable:
 ## Current helper surface
 
 Python helpers:
+- `climate_tookit.climatology.build_human_heat_source_bundle`
 - `climate_tookit.climatology.compute_daily_humidex`
 - `climate_tookit.climatology.summarize_humidex_period`
 - `climate_tookit.climatology.describe_human_heat_method`
 - `climate_tookit.climatology.describe_human_heat_source_support`
 
+Package propagation:
+- `climate_statistics`
+  - adds optional `human_heat_stress` block when humidity or dewpoint-backed
+    inputs exist
+- `compare_periods`
+  - diffs `human_heat_stress` metrics when both baseline and focal windows
+    support humidex
+- `calculate_hazards`
+  - adds generic humidex screening output and day-count summaries when
+    humidity-backed inputs exist
+
 ## Current limits
 
-- no hazard-band semantics yet
-- no `climate_statistics` / `compare_periods` propagation yet
-- no `calculate_hazards` integration yet
+- hazard classes are generic humidex screening classes, not full occupational
+  or medical heat guidance
 - no claim that `humidex` is globally best human heat metric
 
 ## Likely next steps
 
-1. propagate continuous `humidex` summaries into `climate_statistics`
-2. propagate into `compare_periods`
-3. decide whether phase 2 uses:
-   - generic `humidex` screening classes
+1. decide whether phase 2 uses:
    - `WBGT`
    - `UTCI`
    - some combination by source capability
+2. add explicit method notes and source guardrails so users do not confuse
+   generic humidex screening with full WBGT-style exposure assessment

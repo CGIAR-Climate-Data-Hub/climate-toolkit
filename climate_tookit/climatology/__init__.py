@@ -9,7 +9,11 @@ from __future__ import annotations
 from importlib import import_module
 
 __all__ = [
+    "build_human_heat_source_bundle",
+    "build_humidex_screening_thresholds",
     "build_thi_hazard_thresholds",
+    "classify_humidex_series",
+    "classify_humidex_value",
     "classify_thi_values",
     "compute_daily_humidex",
     "compute_monthly_spei",
@@ -22,6 +26,7 @@ __all__ = [
     "DEFAULT_LIVESTOCK_CLIMATE_PROFILE",
     "DEFAULT_LIVESTOCK_TYPE",
     "describe_thi_source_support",
+    "HUMIDEX_SCREENING_BANDS",
     "infer_livestock_climate_profile",
     "list_thi_livestock_profiles",
     "prepare_monthly_climatic_water_balance",
@@ -43,9 +48,14 @@ __all__ = [
 
 def __getattr__(name: str):
     if name in {
+        "build_human_heat_source_bundle",
+        "build_humidex_screening_thresholds",
+        "classify_humidex_series",
+        "classify_humidex_value",
         "compute_daily_humidex",
         "describe_human_heat_method",
         "describe_human_heat_source_support",
+        "HUMIDEX_SCREENING_BANDS",
         "summarize_humidex_period",
     }:
         module = import_module(".human_heat_stress", __name__)

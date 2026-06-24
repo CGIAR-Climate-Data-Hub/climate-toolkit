@@ -162,6 +162,36 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual("relative_humidity", result["vpd"]["method"])
         self.assertGreater(result["vpd"]["max_vpd_kpa"], result["vpd"]["mean_vpd_kpa"])
 
+    def test_overall_statistics_adds_human_heat_when_humidity_present(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01", "2020-01-02", "2020-01-03"]),
+                "precip": [2.0, 0.0, 1.0],
+                "tmax": [30.0, 32.0, 35.0],
+                "tmin": [20.0, 22.0, 24.0],
+                "humidity": [50.0, 80.0, 85.0],
+                "ET0_mm_day": [4.0, 4.0, 4.0],
+                "water_balance": [-2.0, -4.0, -3.0],
+            }
+        )
+
+        result = stats.overall_statistics(
+            df,
+            human_heat_bundle={
+                "workflow": "paired_composite",
+                "temperature_source": "agera_5",
+                "humidity_source": "agera_5",
+            },
+        )
+
+        self.assertIn("human_heat_stress", result)
+        heat = result["human_heat_stress"]
+        self.assertEqual("humidex", heat["metric"])
+        self.assertEqual("xclim", heat["backend"])
+        self.assertEqual("relative_humidity", heat["method"])
+        self.assertEqual("paired_composite", heat["source_bundle"]["workflow"])
+        self.assertGreater(heat["max_humidex"], heat["mean_humidex"])
+
     def test_season_statistics_includes_shared_root_zone_metrics(self):
         df = pd.DataFrame(
             {
@@ -280,6 +310,35 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
 
         self.assertIn("vpd", result)
         self.assertEqual("relative_humidity", result["vpd"]["method"])
+
+    def test_season_statistics_adds_human_heat_when_humidity_present(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-03-01", "2020-03-02"]),
+                "precip": [3.0, 1.0],
+                "tmax": [29.0, 30.0],
+                "tmin": [18.0, 19.0],
+                "humidity": [60.0, 55.0],
+                "ET0_mm_day": [4.0, 4.0],
+                "water_balance": [-1.0, -3.0],
+            }
+        )
+        season = {
+            "onset": pd.Timestamp("2020-03-01"),
+            "cessation": pd.Timestamp("2020-03-02"),
+            "length_days": 2,
+        }
+
+        result = stats.season_statistics(
+            df,
+            season,
+            season_df=df,
+            human_heat_bundle={"workflow": "single_source", "temperature_source": "agera_5"},
+        )
+
+        self.assertIn("human_heat_stress", result)
+        self.assertEqual("humidex", result["human_heat_stress"]["metric"])
+        self.assertEqual("relative_humidity", result["human_heat_stress"]["method"])
 
     def test_compile_season_results_reuses_main_window_root_zone_summary(self):
         df = pd.DataFrame(
@@ -1752,6 +1811,47 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertIn("mean_thi=75.2", rendered)
         self.assertIn("operational defaults | mean-temp+RH THI", rendered)
 
+    def test_print_seasons_includes_human_heat_block(self):
+        seasons = [
+            {
+                "year": 2020,
+                "season_number": 1,
+                "onset": "2020-03-01",
+                "cessation": "2020-05-31",
+                "length_days": 92,
+                "precipitation": {"total_mm": 100.0, "max_daily": 20.0, "rainy_days": 10, "intensity": 10.0},
+                "temperature": {
+                    "mean_tmax": 28.0,
+                    "mean_tmin": 17.0,
+                    "mean_tavg": 22.5,
+                    "max_tmax": 32.0,
+                    "min_tmin": 14.0,
+                },
+                "human_heat_stress": {
+                    "metric": "humidex",
+                    "mean_humidex": 35.2,
+                    "max_humidex": 41.7,
+                    "days_with_humidex": 90,
+                    "method": "relative_humidity",
+                    "phase1_scope": "continuous_metric_plus_generic_screening",
+                    "source_bundle": {
+                        "workflow": "paired_composite",
+                        "temperature_source": "agera_5",
+                    },
+                },
+                "water_balance": {"total_balance": -10.0, "deficit_days": 30, "surplus_days": 20, "stress_ratio": 0.33},
+            }
+        ]
+
+        stdout = StringIO()
+        with mock.patch("sys.stdout", stdout):
+            stats.print_seasons(seasons)
+
+        rendered = stdout.getvalue()
+        self.assertIn("Human heat", rendered)
+        self.assertIn("metric=humidex", rendered)
+        self.assertIn("workflow=paired_composite", rendered)
+
     def test_print_seasons_includes_water_balance_methodology_note(self):
         seasons = [
             {
@@ -1826,6 +1926,37 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual("Cattle (dairy)", window["livestock_label"])
         self.assertEqual("temperate", window["climate_profile"])
         self.assertEqual("operational defaults | mean-temp+RH THI", window["method_note"])
+
+    def test_ltm_season_summary_preserves_human_heat_metadata(self):
+        season_results = [
+            {
+                "year": 2020,
+                "season_number": 1,
+                "length_days": 92,
+                "human_heat_stress": {
+                    "mean_humidex": 35.2,
+                    "max_humidex": 41.7,
+                    "days_with_humidex": 90,
+                    "metric": "humidex",
+                    "backend": "xclim",
+                    "method": "relative_humidity",
+                    "method_note": "phase-1 humidex metric with generic screening support",
+                    "phase1_scope": "continuous_metric_plus_generic_screening",
+                    "source_bundle": {
+                        "workflow": "paired_composite",
+                        "temperature_source": "agera_5",
+                    },
+                },
+            }
+        ]
+
+        ltm = stats.ltm_season_summary(season_results, "03-01:05-31")
+        window = ltm["windows"][0]["human_heat_stress"]
+
+        self.assertEqual("humidex", window["metric"])
+        self.assertEqual("relative_humidity", window["method"])
+        self.assertEqual("paired_composite", window["source_bundle"]["workflow"])
+        self.assertEqual("agera_5", window["source_bundle"]["temperature_source"])
 
     def test_print_ltm_by_season_uses_livestock_profile_label(self):
         ltm = {
