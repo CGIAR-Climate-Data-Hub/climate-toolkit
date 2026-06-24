@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: README setup and usage guide
+    url: https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit#readme
+    about: Check installation, Earth Engine setup, and CLI usage before opening a new issue.
