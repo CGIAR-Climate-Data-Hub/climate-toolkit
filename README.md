@@ -315,8 +315,13 @@ Dedicated method guide:
 Human heat first-pass note:
 
 - toolkit now also exposes xclim-backed `humidex` helper functions for people
-- this is phase-1 continuous metric support, not full human hazard
-  classification
+- this is still phase-1 support, but `calculate_hazards` now includes generic
+  humidex screening classes and humidex day-count summaries when humidity-backed
+  inputs exist
+- `climate_statistics` and `compare_periods` now surface `humidex` when
+  humidity or dewpoint-backed inputs exist
+- in `paired` / composite historical workflows, human-heat provenance comes
+  from temperature-side companion variables, not precipitation-side source
 - `WBGT` and `UTCI` are intentionally deferred until wind/radiation support is
   more coherent across intended workflows
 
@@ -324,6 +329,7 @@ Python users can inspect current human-heat choice directly:
 
 ```python
 from climate_tookit.climatology import (
+    build_human_heat_source_bundle,
     compute_daily_humidex,
     describe_human_heat_method,
     describe_human_heat_source_support,
@@ -331,6 +337,7 @@ from climate_tookit.climatology import (
 
 print(describe_human_heat_method()["metric"])
 print(describe_human_heat_source_support())
+print(build_human_heat_source_bundle(source="paired", precip_source="chirps_v3_daily_rnl", temp_source="agera_5"))
 ```
 
 Dedicated method guide:

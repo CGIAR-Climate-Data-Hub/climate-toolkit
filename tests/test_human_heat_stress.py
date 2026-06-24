@@ -3,6 +3,9 @@ import unittest
 import pandas as pd
 
 from climate_tookit.climatology import (
+    build_human_heat_source_bundle,
+    build_humidex_screening_thresholds,
+    classify_humidex_value,
     compute_daily_humidex,
     describe_human_heat_method,
     describe_human_heat_source_support,
@@ -69,12 +72,16 @@ class HumanHeatStressTests(unittest.TestCase):
         self.assertIn("mean_humidex", result)
         self.assertIn("max_humidex", result)
         self.assertEqual("relative_humidity", result["method"])
-        self.assertEqual("continuous_metric_only", result["phase1_scope"])
+        self.assertEqual(
+            "continuous_metric_plus_generic_screening",
+            result["phase1_scope"],
+        )
 
     def test_describe_human_heat_source_support_tracks_future_gap(self):
         support = describe_human_heat_source_support()
 
         self.assertIn("agera_5", support)
+        self.assertIn("paired", support)
         self.assertIn("nex_gddp", support)
         self.assertIn("conditionally supported", support["nex_gddp"])
         self.assertIn("not supported", support["chirps_v3_daily_rnl"])
@@ -84,11 +91,37 @@ class HumanHeatStressTests(unittest.TestCase):
 
         self.assertEqual("humidex", method["metric"])
         self.assertEqual("xclim", method["backend"])
-        self.assertEqual("continuous_metric_only", method["phase1_scope"])
+        self.assertEqual(
+            "continuous_metric_plus_generic_screening",
+            method["phase1_scope"],
+        )
         self.assertIn("heat_index", method["candidate_review"])
         self.assertIn("utci", method["candidate_review"])
         self.assertIn("wbgt", method["candidate_review"])
         self.assertIn("nasa_power", method["source_support"])
+
+    def test_build_human_heat_source_bundle_for_paired_workflow(self):
+        bundle = build_human_heat_source_bundle(
+            source="paired",
+            precip_source="chirps_v3_daily_rnl",
+            temp_source="agera_5",
+        )
+
+        self.assertEqual("paired_composite", bundle["workflow"])
+        self.assertEqual("agera_5", bundle["temperature_source"])
+        self.assertEqual("agera_5", bundle["humidity_source"])
+        self.assertEqual("chirps_v3_daily_rnl", bundle["precip_context_source"])
+
+    def test_humidex_screening_thresholds_and_boundaries(self):
+        thresholds = build_humidex_screening_thresholds()
+
+        self.assertEqual((None, 30.0), thresholds["none"])
+        self.assertEqual((30.0, 40.0), thresholds["watch"])
+        self.assertEqual("none", classify_humidex_value(29.9))
+        self.assertEqual("watch", classify_humidex_value(30.0))
+        self.assertEqual("moderate", classify_humidex_value(40.0))
+        self.assertEqual("high", classify_humidex_value(46.0))
+        self.assertEqual("extreme", classify_humidex_value(55.0))
 
 
 if __name__ == "__main__":

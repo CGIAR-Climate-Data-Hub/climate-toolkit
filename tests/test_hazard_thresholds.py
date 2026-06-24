@@ -123,6 +123,25 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertIn("thi_stress_days", stats)
         self.assertGreater(stats["thi_stress_days"], 0)
 
+    def test_calculate_season_statistics_adds_humidex_metrics_when_humidity_present(self):
+        frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2020-01-01", periods=4, freq="D"),
+                "precip": [1.0, 0.0, 2.0, 0.0],
+                "tmax": [30.0, 32.0, 34.0, 36.0],
+                "tmin": [20.0, 22.0, 23.0, 25.0],
+                "humidity": [50.0, 80.0, 85.0, 90.0],
+            }
+        )
+
+        stats = calculate_season_statistics(frame)
+
+        self.assertIn("mean_humidex", stats)
+        self.assertIn("max_humidex", stats)
+        self.assertIn("humidex_high_days", stats)
+        self.assertEqual("humidex", stats["human_heat_metric"])
+        self.assertGreater(stats["max_humidex"], stats["mean_humidex"])
+
     def test_evaluate_hazard_metrics_includes_thi_band(self):
         import climate_tookit.calculate_hazards.hazards as hazards
 
@@ -133,6 +152,17 @@ class HazardThresholdTests(unittest.TestCase):
 
         self.assertEqual("moderate", hazard_eval["THI"]["status"])
         self.assertEqual(80.0, hazard_eval["THI"]["value_thi"])
+
+    def test_evaluate_hazard_metrics_includes_humidex_band(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        hazard_eval = evaluate_hazard_metrics(
+            {"mean_humidex": 47.0},
+            {"HUMIDEX": hazards.ATLAS_HAZARD_INDEX_THRESHOLDS["HUMIDEX"]},
+        )
+
+        self.assertEqual("high", hazard_eval["HUMIDEX"]["status"])
+        self.assertEqual(47.0, hazard_eval["HUMIDEX"]["value_humidex"])
 
     def test_resolve_thresholds_uses_livestock_profile_specific_thi_cutoffs(self):
         thresholds = resolve_thresholds(

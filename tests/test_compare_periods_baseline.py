@@ -110,6 +110,17 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertIn("vpd", diff)
         self.assertAlmostEqual(0.6, diff["vpd"]["mean_vpd_kpa"]["diff"], places=6)
 
+    def test_diff_block_includes_human_heat_family(self):
+        diff = cp._diff_block(
+            {"human_heat_stress": {"mean_humidex": 36.2, "max_humidex": 42.0}},
+            {"human_heat_stress": {"mean_humidex": 33.0, "max_humidex": 38.5}},
+            "focal",
+            "baseline_avg",
+        )
+
+        self.assertIn("human_heat_stress", diff)
+        self.assertAlmostEqual(3.2, diff["human_heat_stress"]["mean_humidex"]["diff"], places=6)
+
     def test_print_report_renders_spei_block(self):
         payload = {
             "focal_year": 2019,
@@ -2713,6 +2724,44 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertIn("Calendar req. : ggcmi | system=rf", rendered)
         self.assertIn("Baseline cal. : ggcmi_phase3 | crop=Maize | system=rf | fixed=03-11:06-13", rendered)
         self.assertIn("Focal cal.    : ggcmi_phase3 | crop=Maize | system=rf | fixed=03-11:06-13", rendered)
+
+    def test_print_report_renders_human_heat_metadata(self):
+        payload = {
+            "focal_year": 2020,
+            "baseline_period": "2018-2019",
+            "source": "paired",
+            "precip_source": "chirps_v3_daily_rnl",
+            "temp_source": "agera_5",
+            "fixed_season": None,
+            "temperature_excluded": False,
+            "raw_climate_summary": {},
+            "overall_statistics": {
+                "human_heat_stress": {
+                    "metric": "humidex",
+                    "method": "relative_humidity",
+                    "phase1_scope": "continuous_metric_plus_generic_screening",
+                    "source_bundle": {
+                        "workflow": "paired_composite",
+                        "temperature_source": "agera_5",
+                    },
+                }
+            },
+            "season_statistics": None,
+            "annual_summary": {},
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("Human heat", rendered)
+        self.assertIn("humidex", rendered)
+        self.assertIn("workflow=paired_composite", rendered)
 
     def test_ensemble_aggregate_seasons_carries_methodology_summary(self):
         aggregated = ep._aggregate_seasons([

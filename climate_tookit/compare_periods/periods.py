@@ -35,7 +35,7 @@ from climate_tookit.climatology import (
 )
 from climate_tookit.crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES
 
-CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance", "vpd", "spei"]
+CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance", "vpd", "human_heat_stress", "spei"]
 ANNUALIZABLE = {
     "precipitation": ["total_mm", "rainy_days", "dry_days"],
     "et0":           ["total_mm"],
@@ -763,7 +763,7 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {"_n": 0}
     sums: Dict[str, List[float]] = {}
     for s in seasons:
-        for cat in ("precipitation", "temperature", "water_balance", "vpd", "livestock_heat_stress"):
+        for cat in ("precipitation", "temperature", "water_balance", "vpd", "human_heat_stress", "livestock_heat_stress"):
             for m, v in (s.get(cat) or {}).items():
                 if _is_num(v):
                     sums.setdefault(f"{cat}.{m}", []).append(float(v))
@@ -799,6 +799,25 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
     )
     if isinstance(first_vpd, dict) and first_vpd.get("method") is not None:
         out.setdefault("vpd", {})["method"] = first_vpd.get("method")
+    first_human_heat = next(
+        (
+            s.get("human_heat_stress")
+            for s in seasons
+            if isinstance(s.get("human_heat_stress"), dict)
+        ),
+        None,
+    )
+    if isinstance(first_human_heat, dict):
+        for meta_key in (
+            "metric",
+            "backend",
+            "method",
+            "method_note",
+            "phase1_scope",
+            "source_bundle",
+        ):
+            if first_human_heat.get(meta_key) is not None:
+                out.setdefault("human_heat_stress", {})[meta_key] = first_human_heat.get(meta_key)
     methodology = _summarize_methodology_rows(seasons)
     if methodology:
         out["water_balance_methodology"] = methodology
@@ -1316,11 +1335,14 @@ def _print_block(diff: Dict[str, Any]) -> None:
     rows = []
     for cat, metrics in diff.items():
         for metric, vals in metrics.items():
+            if not isinstance(vals, dict):
+                continue
             row = {"Category": cat, "Metric": metric}
             for k, v in vals.items():
                 if k == "diff":  row["Δ"]  = f"{v:+.2f}"
                 elif k == "pct": row["Δ%"] = _fmt_pct(v)
-                else:            row[k]    = f"{v:.2f}"
+                elif _is_num(v): row[k]    = f"{v:.2f}"
+                else:            row[k]    = str(v)
             rows.append(row)
     print(
         _render_compact_table(
@@ -1410,6 +1432,22 @@ def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
             if thi_thresholds:
                 parts.append(f"thresholds={thi_thresholds}")
             print(f"  THI note      : {' | '.join(parts)}")
+    human_heat_meta = (r.get("overall_statistics") or {}).get("human_heat_stress") or {}
+    if human_heat_meta:
+        hh_parts = []
+        if human_heat_meta.get("metric"):
+            hh_parts.append(str(human_heat_meta.get("metric")))
+        if human_heat_meta.get("method"):
+            hh_parts.append(f"method={human_heat_meta.get('method')}")
+        if human_heat_meta.get("phase1_scope"):
+            hh_parts.append(str(human_heat_meta.get("phase1_scope")))
+        bundle = human_heat_meta.get("source_bundle") or {}
+        if bundle.get("workflow"):
+            hh_parts.append(f"workflow={bundle.get('workflow')}")
+        if bundle.get("temperature_source"):
+            hh_parts.append(f"temp={bundle.get('temperature_source')}")
+        if hh_parts:
+            print(f"  Human heat    : {' | '.join(hh_parts)}")
     if r.get("calendar_source"):
         print(f"  Calendar req. : {r['calendar_source']} | system={r.get('calendar_system')}")
     if r.get("baseline_calendar_preset_used") or r.get("focal_calendar_preset_used"):
