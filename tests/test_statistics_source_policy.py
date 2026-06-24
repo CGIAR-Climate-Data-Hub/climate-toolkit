@@ -1752,6 +1752,51 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertIn("mean_thi=75.2", rendered)
         self.assertIn("operational defaults | mean-temp+RH THI", rendered)
 
+    def test_print_seasons_includes_water_balance_methodology_note(self):
+        seasons = [
+            {
+                "year": 2020,
+                "season_number": 1,
+                "onset": "2020-03-01",
+                "cessation": "2020-05-31",
+                "length_days": 92,
+                "precipitation": {"total_mm": 100.0, "max_daily": 20.0, "rainy_days": 10, "intensity": 10.0},
+                "temperature": {
+                    "mean_tmax": 28.0,
+                    "mean_tmin": 17.0,
+                    "mean_tavg": 22.5,
+                    "max_tmax": 32.0,
+                    "min_tmin": 14.0,
+                },
+                "water_balance": {
+                    "total_balance": -10.0,
+                    "deficit_days": 30,
+                    "surplus_days": 20,
+                    "stress_ratio": 0.33,
+                    "WRSI": 61.0,
+                    "NDWS": 24,
+                },
+                "water_balance_methodology": {
+                    "count_window": {
+                        "applied_mode": "full_window",
+                        "counted_days": 92,
+                        "counted_subseasons": 0,
+                    },
+                    "warnings": [
+                        "Requested crop-active NDWS window, but perhumid location. Falling back to full fixed window."
+                    ],
+                },
+            }
+        ]
+
+        stdout = StringIO()
+        with mock.patch("sys.stdout", stdout):
+            stats.print_seasons(seasons)
+
+        rendered = stdout.getvalue()
+        self.assertIn("method: mode=full_window | days=92 | eto_subseasons=0", rendered)
+        self.assertIn("note: Requested crop-active NDWS window, but perhumid location.", rendered)
+
     def test_ltm_season_summary_preserves_livestock_profile_metadata(self):
         season_results = [
             {
