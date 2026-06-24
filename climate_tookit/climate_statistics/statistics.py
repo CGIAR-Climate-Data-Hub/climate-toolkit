@@ -44,6 +44,7 @@ from climate_tookit.climatology import (
     compute_monthly_spi,
     list_thi_livestock_profiles,
     resolve_thi_profile,
+    summarize_vpd_period,
 )
 try:
     from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
@@ -681,6 +682,16 @@ def _livestock_heat_stress_summary(
         ),
     }
 
+
+def _vpd_summary(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
+    """Summarize VPD when humidity or dewpoint-backed inputs are available."""
+    if df is None or df.empty or 'date' not in df.columns:
+        return None
+    summary = summarize_vpd_period(df)
+    if not summary:
+        return None
+    return summary
+
 def raw_climate_summary(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """
     Compact summary table -- mean / min / max / std per core variable.
@@ -743,6 +754,7 @@ def overall_statistics(
     }
     water_balance_stats.update(shared_wb)
     heat_stress = _livestock_heat_stress_summary(df, thi_profile=thi_profile)
+    vpd = _vpd_summary(df)
 
     result = {
         'total_days': int(len(df)),
@@ -764,6 +776,8 @@ def overall_statistics(
         },
         'water_balance': water_balance_stats,
     }
+    if vpd:
+        result['vpd'] = vpd
     if heat_stress:
         result['livestock_heat_stress'] = heat_stress
     return result
@@ -851,6 +865,7 @@ def season_statistics(
         )
 
     heat_stress = _livestock_heat_stress_summary(sdf, thi_profile=thi_profile)
+    vpd = _vpd_summary(sdf)
 
     result = {
         'onset':       onset_ts.strftime('%Y-%m-%d'),
@@ -872,6 +887,8 @@ def season_statistics(
         'water_balance': water_balance_stats,
         'water_balance_methodology': water_balance_methodology,
     }
+    if vpd:
+        result['vpd'] = vpd
     if heat_stress:
         result['livestock_heat_stress'] = heat_stress
     return result
@@ -1110,7 +1127,7 @@ def ltm_season_summary(
             'length_days_avg': _avg([s.get('length_days') for s in seasons], 1),
         }
 
-        for cat in ('precipitation', 'temperature', 'water_balance', 'livestock_heat_stress'):
+        for cat in ('precipitation', 'temperature', 'water_balance', 'vpd', 'livestock_heat_stress'):
             pool: Dict[str, List[float]] = {}
             for s in seasons:
                 for k, v in (s.get(cat) or {}).items():
@@ -1128,9 +1145,21 @@ def ltm_season_summary(
                             and (s.get(cat) or {}).get(meta_key) is not None
                         ),
                         None,
-                    )
+                        )
                     if meta_value is not None:
                         block.setdefault(cat, {})[meta_key] = meta_value
+            if cat == "vpd":
+                method_value = next(
+                    (
+                        (s.get(cat) or {}).get("method")
+                        for s in seasons
+                        if isinstance(s.get(cat), dict)
+                        and (s.get(cat) or {}).get("method") is not None
+                    ),
+                    None,
+                )
+                if method_value is not None:
+                    block.setdefault(cat, {})["method"] = method_value
 
         ov_pool: Dict[str, Dict[str, List[float]]] = {}
         for s in seasons:
@@ -2301,6 +2330,7 @@ def print_overall_by_season(seasons: List[Dict]) -> None:
             ('temperature',   'Temperature'),
             ('et0',           'ET0'),
             ('water_balance', 'Water Balance'),
+            ('vpd', 'VPD'),
             ('livestock_heat_stress', 'Livestock THI'),
         ]:
             if var_key not in stats:
@@ -2343,6 +2373,12 @@ def print_seasons(seasons: List[Dict]) -> None:
               f"mean_tavg={t['mean_tavg']}°C | "
               f"max_tmax={t['max_tmax']}°C | "
               f"min_tmin={t['min_tmin']}°C")
+        v = s.get('vpd') or {}
+        if v:
+            print(f"    VPD           : "
+                  f"mean_vpd={v.get('mean_vpd_kpa')} kPa | "
+                  f"max_vpd={v.get('max_vpd_kpa')} kPa | "
+                  f"method={v.get('method')}")
         h = s.get('livestock_heat_stress') or {}
         if h:
             print(f"    {_thi_profile_label(h)} : "
@@ -2426,6 +2462,12 @@ def print_ltm_by_season(ltm: Dict[str, Any],
                   f"mean_tavg={t.get('mean_tavg')}°C | "
                   f"max_tmax={t.get('max_tmax')}°C | "
                   f"min_tmin={t.get('min_tmin')}°C")
+        v = w.get('vpd') or {}
+        if v:
+            print(f"    VPD           : "
+                  f"mean_vpd={v.get('mean_vpd_kpa')} kPa | "
+                  f"max_vpd={v.get('max_vpd_kpa')} kPa | "
+                  f"method={v.get('method')}")
         h = w.get('livestock_heat_stress') or {}
         if h:
             print(f"    {_thi_profile_label(h)} : "

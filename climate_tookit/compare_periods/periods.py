@@ -35,7 +35,7 @@ from climate_tookit.climatology import (
 )
 from climate_tookit.crop_calendar.ggcmi import CALENDAR_SYSTEM_CHOICES
 
-CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance", "spei"]
+CATEGORIES   = ["precipitation", "temperature", "et0", "water_balance", "vpd", "spei"]
 ANNUALIZABLE = {
     "precipitation": ["total_mm", "rainy_days", "dry_days"],
     "et0":           ["total_mm"],
@@ -749,7 +749,7 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {"_n": 0}
     sums: Dict[str, List[float]] = {}
     for s in seasons:
-        for cat in ("precipitation", "temperature", "water_balance", "livestock_heat_stress"):
+        for cat in ("precipitation", "temperature", "water_balance", "vpd", "livestock_heat_stress"):
             for m, v in (s.get(cat) or {}).items():
                 if _is_num(v):
                     sums.setdefault(f"{cat}.{m}", []).append(float(v))
@@ -769,6 +769,16 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
         for meta_key in ("livestock_type", "livestock_label", "climate_profile"):
             if first_heat.get(meta_key) is not None:
                 out.setdefault("livestock_heat_stress", {})[meta_key] = first_heat.get(meta_key)
+    first_vpd = next(
+        (
+            s.get("vpd")
+            for s in seasons
+            if isinstance(s.get("vpd"), dict)
+        ),
+        None,
+    )
+    if isinstance(first_vpd, dict) and first_vpd.get("method") is not None:
+        out.setdefault("vpd", {})["method"] = first_vpd.get("method")
     methodology = _summarize_methodology_rows(seasons)
     if methodology:
         out["water_balance_methodology"] = methodology
