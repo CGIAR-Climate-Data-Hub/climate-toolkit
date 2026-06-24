@@ -802,6 +802,7 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertEqual(1, exit_code)
         self.assertIn("Earth Engine project ID missing.", output)
         self.assertIn("GCP_PROJECT_ID", output)
+        self.assertIn("earth-engine-setup", output)
 
     def test_source_data_main_prints_simple_message_when_ee_project_id_missing(self):
         argv = [
@@ -845,6 +846,7 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertEqual(1, exit_code)
         self.assertIn("Earth Engine project ID missing.", output)
         self.assertIn("GCP_PROJECT_ID", output)
+        self.assertIn("earth-engine-setup", output)
 
     def test_source_data_main_accepts_project_id_option(self):
         argv = [
