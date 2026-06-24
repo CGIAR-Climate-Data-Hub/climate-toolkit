@@ -127,8 +127,6 @@ def compute_daily_vpd(
     Canonical paths use xclim:
     - relative humidity path via xclim.indices.vapor_pressure_deficit
     - dewpoint path via xclim.indices.saturation_vapor_pressure
-
-    Atlas proxy is optional and explicitly labeled.
     """
     if date_col not in frame.columns:
         raise ValueError(f"Missing required date column: {date_col}")
@@ -146,8 +144,7 @@ def compute_daily_vpd(
             resolved_method = "dewpoint"
         else:
             raise ValueError(
-                "VPD auto mode needs humidity or dewpoint inputs. "
-                "Atlas proxy must be requested explicitly."
+                "VPD auto mode needs humidity or dewpoint inputs."
             )
 
     temperature_c, temperature_source = _resolve_temperature(
@@ -197,30 +194,9 @@ def compute_daily_vpd(
                 "saturation_vapor_pressure_method": xclim_method,
             }
         )
-    elif resolved_method == "atlas_proxy":
-        max_column = tmax_col or _detect_column(out, _TMAX_COLS)
-        min_column = tmin_col or _detect_column(out, _TMIN_COLS)
-        if not (max_column and min_column):
-            raise ValueError("Atlas VPD proxy needs both tmax and tmin.")
-        tmax_c = _to_numeric_celsius(out[max_column])
-        tmin_c = _to_numeric_celsius(out[min_column])
-        tmax_da = _build_data_array(out[date_col], tmax_c, units="degC")
-        tmin_da = _build_data_array(out[date_col], tmin_c, units="degC")
-        es_tmax = xci.saturation_vapor_pressure(tmax_da, method=xclim_method)
-        es_tmin = xci.saturation_vapor_pressure(tmin_da, method=xclim_method)
-        vpd_pa = 0.7 * (es_tmax - es_tmin)
-        metadata.update(
-            {
-                "path": "atlas_proxy",
-                "proxy_formula": "0.7 * (es(tmax) - es(tmin))",
-                "tmax_source_column": max_column,
-                "tmin_source_column": min_column,
-                "saturation_vapor_pressure_method": xclim_method,
-            }
-        )
     else:
         raise ValueError(
-            "Unsupported VPD method. Use auto, relative_humidity, dewpoint, or atlas_proxy."
+            "Unsupported VPD method. Use auto, relative_humidity, or dewpoint."
         )
 
     vpd_series = pd.Series(vpd_pa.values, index=out.index, dtype=float).clip(lower=0.0) / 1000.0

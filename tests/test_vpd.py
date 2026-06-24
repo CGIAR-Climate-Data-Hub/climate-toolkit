@@ -39,7 +39,7 @@ class VpdTests(unittest.TestCase):
         self.assertGreater(result.loc[1, "vpd_kpa"], 0.0)
         self.assertEqual("dewpoint", result.attrs["vpd_metadata"]["path"])
 
-    def test_compute_daily_vpd_atlas_proxy_is_explicitly_labeled(self):
+    def test_compute_daily_vpd_auto_requires_moisture_input(self):
         frame = pd.DataFrame(
             {
                 "date": pd.to_datetime(["2020-01-01"]),
@@ -48,11 +48,8 @@ class VpdTests(unittest.TestCase):
             }
         )
 
-        result = compute_daily_vpd(frame, method="atlas_proxy")
-
-        self.assertGreater(result.loc[0, "vpd_kpa"], 0.0)
-        self.assertEqual("atlas_proxy", result.attrs["vpd_metadata"]["path"])
-        self.assertIn("proxy_formula", result.attrs["vpd_metadata"])
+        with self.assertRaisesRegex(ValueError, "humidity or dewpoint inputs"):
+            compute_daily_vpd(frame)
 
     def test_summarize_vpd_period_counts_thresholds(self):
         frame = pd.DataFrame(
