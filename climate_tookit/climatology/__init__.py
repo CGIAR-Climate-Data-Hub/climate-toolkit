@@ -14,6 +14,7 @@ __all__ = [
     "compute_monthly_spei",
     "compute_monthly_spi",
     "compute_daily_thi",
+    "compute_daily_vpd",
     "describe_thi_method",
     "DEFAULT_LIVESTOCK_CLIMATE_PROFILE",
     "DEFAULT_LIVESTOCK_TYPE",
@@ -23,6 +24,7 @@ __all__ = [
     "prepare_monthly_climatic_water_balance",
     "prepare_monthly_precipitation_totals",
     "resolve_thi_profile",
+    "summarize_vpd_period",
     "summarize_thi_periods",
     "assess_xclim_precip_annual_readiness",
     "compare_xclim_precip_indices",
@@ -50,6 +52,12 @@ def __getattr__(name: str):
         "summarize_thi_periods",
     }:
         module = import_module(".heat_stress", __name__)
+        return getattr(module, name)
+    if name in {
+        "compute_daily_vpd",
+        "summarize_vpd_period",
+    }:
+        module = import_module(".vpd", __name__)
         return getattr(module, name)
     if name in {
         "compute_monthly_spei",

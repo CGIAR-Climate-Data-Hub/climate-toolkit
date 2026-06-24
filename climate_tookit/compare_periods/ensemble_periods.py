@@ -863,13 +863,13 @@ def _build_focal_summary(location:     Tuple[float, float],
         windows = []
         for sn in sorted(grp):
             agg = _agg_seasons(grp[sn])
-            block = {c: agg[c] for c in ("precipitation", "temperature", "water_balance", "livestock_heat_stress")
+            block = {c: agg[c] for c in ("precipitation", "temperature", "water_balance", "vpd", "livestock_heat_stress")
                      if isinstance(agg.get(c), dict)}
             windows.append({"season_number": sn, "block": block})
         season_summary: Dict[str, Any] = {"windows": windows}
     else:
         agg = _agg_seasons(seasons)
-        block = {c: agg[c] for c in ("precipitation", "temperature", "water_balance", "livestock_heat_stress")
+        block = {c: agg[c] for c in ("precipitation", "temperature", "water_balance", "vpd", "livestock_heat_stress")
                  if isinstance(agg.get(c), dict)}
         season_summary = {"block": block}
     season_summary = _merge_seasonal_spei_into_summary(
@@ -904,7 +904,7 @@ def _build_focal_summary(location:     Tuple[float, float],
 def _season_block(seasons: List[Dict]) -> Dict[str, Any]:
     """Reduce a list of season rows to {cat: {metric: number}} for the comparable cats."""
     agg = _agg_seasons(seasons)
-    return {c: agg[c] for c in ("precipitation", "temperature", "water_balance", "livestock_heat_stress")
+    return {c: agg[c] for c in ("precipitation", "temperature", "water_balance", "vpd", "livestock_heat_stress")
             if isinstance(agg.get(c), dict)}
 
 def _mean_2level(maps: List[Dict[str, Dict[str, Any]]], round_n: int = 2) -> Dict[str, Any]:

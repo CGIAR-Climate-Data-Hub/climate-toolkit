@@ -99,6 +99,17 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertNotIn("Category", stdout.getvalue())
         self.assertIn("metric", stdout.getvalue())
 
+    def test_diff_block_includes_vpd_family(self):
+        diff = cp._diff_block(
+            {"vpd": {"mean_vpd_kpa": 1.8, "max_vpd_kpa": 3.2}},
+            {"vpd": {"mean_vpd_kpa": 1.2, "max_vpd_kpa": 2.5}},
+            "focal",
+            "baseline_avg",
+        )
+
+        self.assertIn("vpd", diff)
+        self.assertAlmostEqual(0.6, diff["vpd"]["mean_vpd_kpa"]["diff"], places=6)
+
     def test_print_report_renders_spei_block(self):
         payload = {
             "focal_year": 2019,

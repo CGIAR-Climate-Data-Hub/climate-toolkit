@@ -143,6 +143,25 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertGreater(heat["max_thi"], heat["mean_thi"])
         self.assertEqual("cattle_dairy", heat["livestock_type"])
 
+    def test_overall_statistics_adds_vpd_when_humidity_present(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-01-01", "2020-01-02", "2020-01-03"]),
+                "precip": [2.0, 0.0, 1.0],
+                "tmax": [30.0, 32.0, 35.0],
+                "tmin": [20.0, 22.0, 24.0],
+                "humidity": [50.0, 80.0, 85.0],
+                "ET0_mm_day": [4.0, 4.0, 4.0],
+                "water_balance": [-2.0, -4.0, -3.0],
+            }
+        )
+
+        result = stats.overall_statistics(df)
+
+        self.assertIn("vpd", result)
+        self.assertEqual("relative_humidity", result["vpd"]["method"])
+        self.assertGreater(result["vpd"]["max_vpd_kpa"], result["vpd"]["mean_vpd_kpa"])
+
     def test_season_statistics_includes_shared_root_zone_metrics(self):
         df = pd.DataFrame(
             {
@@ -238,6 +257,29 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         result = stats.season_statistics(df, season, season_df=df)
 
         self.assertNotIn("livestock_heat_stress", result)
+
+    def test_season_statistics_adds_vpd_when_humidity_present(self):
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2020-03-01", "2020-03-02"]),
+                "precip": [3.0, 1.0],
+                "tmax": [29.0, 30.0],
+                "tmin": [18.0, 19.0],
+                "humidity": [60.0, 55.0],
+                "ET0_mm_day": [4.0, 4.0],
+                "water_balance": [-1.0, -3.0],
+            }
+        )
+        season = {
+            "onset": pd.Timestamp("2020-03-01"),
+            "cessation": pd.Timestamp("2020-03-02"),
+            "length_days": 2,
+        }
+
+        result = stats.season_statistics(df, season, season_df=df)
+
+        self.assertIn("vpd", result)
+        self.assertEqual("relative_humidity", result["vpd"]["method"])
 
     def test_compile_season_results_reuses_main_window_root_zone_summary(self):
         df = pd.DataFrame(
