@@ -18,8 +18,10 @@ from ..source_data.sources.utils.models import (
     ClimateDataset,
     SoilVariable,
     accepted_climate_dataset_names,
+    clip_source_date_range,
     normalize_climate_dataset_name,
     source_date_coverage_error,
+    source_date_no_overlap_error,
 )
 from ..source_data.sources.utils.settings import Settings
 
@@ -35,7 +37,18 @@ def validate_coordinates(lat, lon):
         errors.append(f"Latitude must be between -90 and 90, got {lat}")
     return errors
 
-def validate_inputs(source, lat, lon, date_from, date_to, model, scenario):
+def validate_inputs(
+    source,
+    lat,
+    lon,
+    date_from,
+    date_to,
+    model,
+    scenario,
+    allow_coverage_clip=False,
+    settings=None,
+    ee_project_id=None,
+):
     """Validate all user inputs and return a list of errors."""
     errors = []
     source_name = normalize_climate_dataset_name(source)
@@ -47,9 +60,26 @@ def validate_inputs(source, lat, lon, date_from, date_to, model, scenario):
         )
     if date_from and date_to and date_from > date_to:
         errors.append("Start date must be before end date")
-    coverage_error = source_date_coverage_error(source_name, date_from, date_to)
+    coverage_error = source_date_coverage_error(
+        source_name,
+        date_from,
+        date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
+    )
     if coverage_error:
-        errors.append(coverage_error)
+        if allow_coverage_clip:
+            no_overlap_error = source_date_no_overlap_error(
+                source_name,
+                date_from,
+                date_to,
+                settings=settings,
+                ee_project_id=ee_project_id,
+            )
+            if no_overlap_error:
+                errors.append(no_overlap_error)
+        else:
+            errors.append(coverage_error)
     if source_name == "nex_gddp":
         valid_scenarios = sorted(SCENARIO_MAPPING.keys())
         if model and model not in AVAILABLE_MODELS:
@@ -168,6 +198,9 @@ def transform_data(
         date_to=date_to,
         model=model,
         scenario=scenario,
+        allow_coverage_clip=True,
+        settings=settings,
+        ee_project_id=ee_project_id,
     )
     if input_errors:
         raise ValueError(" | ".join(input_errors))
@@ -175,6 +208,15 @@ def transform_data(
     variables = variables or default_variables_for_source(source_name)
     date_from = date_from or date.today()
     date_to = date_to or date.today()
+    date_from, date_to, coverage_warning = clip_source_date_range(
+        source_name,
+        date_from,
+        date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
+    )
+    if coverage_warning and verbose:
+        print(f"Warning: {coverage_warning}", flush=True)
 
     try:
         dataset = ClimateDataset[source_name]
@@ -240,6 +282,7 @@ if __name__ == "__main__":
 
     date_from = date.fromisoformat(args.start) if args.start else None
     date_to = date.fromisoformat(args.end) if args.end else None
+    settings = Settings.load()
 
     errors = validate_inputs(
         args.source,
@@ -249,6 +292,8 @@ if __name__ == "__main__":
         date_to,
         args.model,
         args.scenario,
+        allow_coverage_clip=True,
+        settings=settings,
     )
 
     if errors:
@@ -268,6 +313,7 @@ if __name__ == "__main__":
         date_to=date_to,
         model=args.model,
         scenario=args.scenario,
+        settings=settings,
     )
 
     if args.format == "print" or not args.output:

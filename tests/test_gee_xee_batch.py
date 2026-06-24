@@ -115,6 +115,67 @@ class GeeXeeBatchTests(unittest.TestCase):
         self.assertIs(returned_summary, summary_df)
         self.assertIs(returned_manifest, manifest_df)
 
+    def test_fetch_gee_xee_batch_data_clips_bounded_era5_window_before_extraction(self):
+        raw_df = pd.DataFrame(
+            {
+                "site": ["Nairobi"],
+                "lat": [-1.286],
+                "lon": [36.817],
+                "date": pd.to_datetime(["2020-07-09"]),
+                "precipitation": [1.2],
+            }
+        )
+        summary_df = pd.DataFrame({"site": ["Nairobi"]})
+        manifest_df = pd.DataFrame({"cache_hit": [False]})
+
+        with mock.patch(
+            "climate_tookit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
+            return_value=(raw_df, summary_df, manifest_df),
+        ) as extraction_mock:
+            data_df, returned_summary, returned_manifest = fetch_gee_xee_batch_data(
+                source="era_5",
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 12, 31),
+                stage="raw",
+                verbose=False,
+            )
+
+        self.assertIs(data_df, raw_df)
+        self.assertIs(returned_summary, summary_df)
+        self.assertIs(returned_manifest, manifest_df)
+        self.assertEqual(
+            extraction_mock.call_args.kwargs["date_from"],
+            date(2020, 1, 1),
+        )
+        self.assertEqual(
+            extraction_mock.call_args.kwargs["date_to"],
+            date(2020, 7, 9),
+        )
+        self.assertEqual(
+            extraction_mock.call_args.kwargs["requested_date_from"],
+            date(2020, 1, 1),
+        )
+        self.assertEqual(
+            extraction_mock.call_args.kwargs["requested_date_to"],
+            date(2020, 12, 31),
+        )
+        self.assertIn(
+            "Adjusted: 2020-01-01..2020-07-09",
+            extraction_mock.call_args.kwargs["coverage_warning"],
+        )
+
+    def test_fetch_gee_xee_batch_data_rejects_zero_overlap_window(self):
+        with self.assertRaisesRegex(ValueError, "No overlapping dates remain after clipping"):
+            fetch_gee_xee_batch_data(
+                source="era_5",
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2020, 12, 1),
+                date_to=date(2020, 12, 31),
+                stage="raw",
+                verbose=False,
+            )
+
     def test_preprocessed_stage_does_not_fill_across_sites(self):
         raw_df = pd.DataFrame(
             {

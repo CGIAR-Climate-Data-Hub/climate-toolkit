@@ -24,6 +24,7 @@ from .sources.utils.models import (
     ClimateVariable,
     SoilVariable,
     Location,
+    clip_source_date_range,
     normalize_climate_dataset_name,
     parse_variable_token,
 )
@@ -323,8 +324,20 @@ def main() -> int:
 
     date_from = datetime.strptime(args.date_from, "%Y-%m-%d").date()
     date_to = datetime.strptime(args.date_to, "%Y-%m-%d").date()
-
     settings = Settings.load()
+    try:
+        date_from, date_to, coverage_warning = clip_source_date_range(
+            source,
+            date_from,
+            date_to,
+            settings=settings,
+            ee_project_id=args.project_id,
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        return 1
+    if coverage_warning:
+        print(f"Warning: {coverage_warning}", flush=True)
 
     try:
         source_data = SourceData(

@@ -29,7 +29,7 @@ from .multi_site import (
 )
 from .preprocess_data.preprocess_data import preprocess_transformed_data
 from .runtime_notes import build_historical_cache_note
-from .source_data.sources.utils.models import ClimateDataset
+from .source_data.sources.utils.models import ClimateDataset, clip_source_date_range
 from .source_data.sources.utils.settings import Settings
 from .source_data.sources.xee_common import (
     DEFAULT_EE_OPT_URL,
@@ -461,13 +461,24 @@ def _build_manifest(
     start: date,
     end: date,
     expected_dates: pd.DatetimeIndex,
+    requested_start: date | None = None,
+    requested_end: date | None = None,
+    coverage_warning: str | None = None,
 ) -> dict[str, object]:
     return {
         "cache_schema_version": CACHE_SCHEMA_VERSION,
         "dataset": "gee_xee_batch",
         "source": source.name,
+        "requested_start_date": (requested_start or start).isoformat(),
+        "requested_end_date": (requested_end or end).isoformat(),
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
+        "coverage_adjusted": (
+            requested_start is not None
+            and requested_end is not None
+            and (requested_start != start or requested_end != end)
+        ),
+        "coverage_warning": coverage_warning,
         "site_count": 1,
         "sites": [site.__dict__],
         "bands": bands,
@@ -664,6 +675,9 @@ def run_gee_xee_batch_extraction(
     ee_opt_url: str = DEFAULT_EE_OPT_URL,
     chunk_days: int = DEFAULT_CHUNK_DAYS,
     retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
+    requested_date_from: date | None = None,
+    requested_date_to: date | None = None,
+    coverage_warning: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     dataset = _coerce_source(source)
     settings = settings or Settings.load()
@@ -748,8 +762,16 @@ def run_gee_xee_batch_extraction(
                     {
                         "source": dataset.name,
                         "site": site.name,
+                        "requested_start_date": (
+                            (requested_date_from or normalized_start).isoformat()
+                        ),
+                        "requested_end_date": (
+                            (requested_date_to or normalized_end).isoformat()
+                        ),
                         "start_date": normalized_start.isoformat(),
                         "end_date": normalized_end.isoformat(),
+                        "coverage_adjusted": bool(coverage_warning),
+                        "coverage_warning": coverage_warning,
                         "cache_hit": True,
                         "elapsed_seconds": round(elapsed, 4),
                         "data_path": str(data_path),
@@ -784,6 +806,9 @@ def run_gee_xee_batch_extraction(
                 start=normalized_start,
                 end=normalized_end,
                 expected_dates=expected_dates,
+                requested_start=requested_date_from,
+                requested_end=requested_date_to,
+                coverage_warning=coverage_warning,
             )
             _write_cached_frame(data_path, manifest_path, frame, manifest)
             frames.append(frame)
@@ -805,8 +830,16 @@ def run_gee_xee_batch_extraction(
                 {
                     "source": dataset.name,
                     "site": site.name,
+                    "requested_start_date": (
+                        (requested_date_from or normalized_start).isoformat()
+                    ),
+                    "requested_end_date": (
+                        (requested_date_to or normalized_end).isoformat()
+                    ),
                     "start_date": normalized_start.isoformat(),
                     "end_date": normalized_end.isoformat(),
+                    "coverage_adjusted": bool(coverage_warning),
+                    "coverage_warning": coverage_warning,
                     "cache_hit": False,
                     "elapsed_seconds": round(elapsed, 4),
                     "data_path": str(data_path),
@@ -856,6 +889,19 @@ def fetch_gee_xee_batch_data(
         )
 
     dataset = _coerce_source(source)
+    resolved_settings = settings or Settings.load()
+    requested_date_from = date_from
+    requested_date_to = date_to
+    date_from, date_to, coverage_warning = clip_source_date_range(
+        dataset,
+        date_from,
+        date_to,
+        settings=resolved_settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+    )
+    if coverage_warning:
+        _log_progress(f"Warning: {coverage_warning}", True)
     resolved_sites = load_sites(sites=sites, sites_csv=sites_csv)
     raw_df, summary_df, manifest_df = run_gee_xee_batch_extraction(
         source=dataset,
@@ -863,7 +909,7 @@ def fetch_gee_xee_batch_data(
         variables=variables,
         date_from=date_from,
         date_to=date_to,
-        settings=settings,
+        settings=resolved_settings,
         cache_dir=cache_dir,
         refresh_cache=refresh_cache,
         verbose=verbose,
@@ -871,6 +917,9 @@ def fetch_gee_xee_batch_data(
         ee_opt_url=ee_opt_url,
         chunk_days=chunk_days,
         retry_attempts=retry_attempts,
+        requested_date_from=requested_date_from,
+        requested_date_to=requested_date_to,
+        coverage_warning=coverage_warning,
     )
 
     if stage == "raw":
