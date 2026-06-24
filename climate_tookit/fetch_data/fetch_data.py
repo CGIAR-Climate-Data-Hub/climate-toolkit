@@ -75,6 +75,7 @@ def fetch_data(
     sites=None,
     sites_csv=None,
     station_id=None,
+    workers=1,
 ):
     """Fetch climate data through the pipeline.
     Parameters
@@ -159,6 +160,7 @@ def fetch_data(
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
             verbose=verbose,
+            workers=workers,
         )
         return data_df
 
@@ -184,6 +186,7 @@ def fetch_data(
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
             station_id=station_id,
+            workers=workers,
         )
         return client.download()
 
@@ -201,6 +204,7 @@ def fetch_data(
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
             station_id=station_id,
+            workers=workers,
         )
     # preprocessed (default)
     return preprocess_data(
@@ -216,6 +220,7 @@ def fetch_data(
         cache_dir=cache_dir,
         refresh_cache=refresh_cache,
         station_id=station_id,
+        workers=workers,
     )
 def save_output(data, output_path, fmt):
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -308,6 +313,15 @@ def main() -> int:
             "precipitation,max_temperature,min_temperature."
         ),
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help=(
+            "Bounded worker count for historical GEE/Xee fetch tasks. "
+            "Useful mainly for multi-site or long period historical runs."
+        ),
+    )
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument(
         "--format",
@@ -382,6 +396,7 @@ def main() -> int:
             sites=parsed_sites,
             sites_csv=args.sites_csv,
             station_id=args.station_id,
+            workers=args.workers,
             settings=settings,
         )
     except Exception as exc:

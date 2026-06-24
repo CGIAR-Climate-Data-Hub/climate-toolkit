@@ -724,6 +724,26 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertIs(result, batch_df)
         batch_mock.assert_called_once()
+        self.assertEqual(1, batch_mock.call_args.kwargs["workers"])
+
+    def test_fetch_data_passes_workers_to_historical_batch_path(self):
+        batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
+
+        with mock.patch(
+            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
+        ) as batch_mock:
+            result = fetch_data(
+                source="chirps",
+                sites=[("Nairobi", -1.286, 36.817)],
+                date_from=date(2020, 1, 1),
+                date_to=date(2020, 1, 1),
+                stage="raw",
+                workers=3,
+            )
+
+        self.assertIs(result, batch_df)
+        self.assertEqual(3, batch_mock.call_args.kwargs["workers"])
 
     def test_fetch_data_routes_many_site_chirps_v3_daily_rnl_to_xee_batch_api(self):
         batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
@@ -906,6 +926,31 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertIn("Earth Engine project ID missing.", output)
         self.assertIn("GCP_PROJECT_ID", output)
         self.assertIn("earth-engine-setup", output)
+
+    def test_main_passes_workers_argument_to_fetch_data(self):
+        argv = [
+            "fetch_data.py",
+            "--source",
+            "chirps",
+            "--site",
+            "Nairobi,-1.286,36.817",
+            "--start",
+            "2020-01-01",
+            "--end",
+            "2020-01-02",
+            "--workers",
+            "3",
+        ]
+        buf = io.StringIO()
+        with mock.patch.object(
+            fetch_data_module,
+            "fetch_data",
+            return_value=pd.DataFrame({"site": ["Nairobi"]}),
+        ) as fetch_mock, mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(buf):
+            exit_code = fetch_data_module.main()
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual(3, fetch_mock.call_args.kwargs["workers"])
 
     def test_source_data_main_prints_simple_message_when_ee_project_id_missing(self):
         argv = [

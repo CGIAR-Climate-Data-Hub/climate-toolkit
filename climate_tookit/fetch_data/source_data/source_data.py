@@ -62,7 +62,8 @@ class SourceData:
     def __init__(self, location_coord, variables, source, date_from_utc,
                  date_to_utc, settings, model=None, scenario=None,
                  nex_backend=None, verbose=True, cache_dir=None,
-                 refresh_cache=False, station_id=None, ee_project_id=None):
+                 refresh_cache=False, station_id=None, ee_project_id=None,
+                 workers: int = 1):
         self.location_coord = location_coord
         self.variables = variables
         self.source = source
@@ -77,6 +78,7 @@ class SourceData:
         self.refresh_cache = refresh_cache
         self.station_id = station_id
         self.ee_project_id = ee_project_id
+        self.workers = workers
 
         client = None
 
@@ -133,6 +135,7 @@ class SourceData:
                 cache_dir=cache_dir,
                 refresh_cache=refresh_cache,
                 ee_project_id=ee_project_id,
+                workers=workers,
             )
         elif source in STATIC_GEE_SOURCES:
             client = _download_gee_cls()(
@@ -292,6 +295,12 @@ def main() -> int:
     parser.add_argument('--station-id', default=None)
     parser.add_argument('--project-id', default=None,
                         help='Optional Earth Engine / GCP project ID for Xee-backed sources')
+    parser.add_argument(
+        '--workers',
+        type=int,
+        default=1,
+        help='Bounded historical GEE/Xee worker count for chunked fetches.',
+    )
     parser.add_argument('--output', '-o', default=None)
     parser.add_argument(
         '--format',
@@ -354,6 +363,7 @@ def main() -> int:
             refresh_cache=args.refresh_cache,
             station_id=args.station_id,
             ee_project_id=args.project_id,
+            workers=args.workers,
         )
 
         climate_data = source_data.download()

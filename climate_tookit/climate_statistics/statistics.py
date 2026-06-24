@@ -231,9 +231,10 @@ def _call_preprocess(
     model,
     scenario,
     ee_project_id=None,
+    workers: int = 1,
 ):
     """Single preprocess_data call -- isolates the kwargs handling."""
-    return preprocess_data(
+    kwargs = dict(
         source=source,
         location_coord=(lat, lon),
         variables=CLIMATE_VARS,
@@ -243,14 +244,24 @@ def _call_preprocess(
         scenario=scenario,
         ee_project_id=ee_project_id,
     )
+    if workers != 1:
+        kwargs["workers"] = workers
+    return preprocess_data(**kwargs)
 
-def _fetch_chirps_chirts(lat, lon, date_from, date_to, ee_project_id=None):
+def _fetch_chirps_chirts(
+    lat,
+    lon,
+    date_from,
+    date_to,
+    ee_project_id=None,
+    workers: int = 1,
+):
     """Merge CHIRPS (precip) + CHIRTS (temp). Other vars unavailable."""
     df_p = _call_preprocess(
-        'chirps_v2', lat, lon, date_from, date_to, None, None, ee_project_id
+        'chirps_v2', lat, lon, date_from, date_to, None, None, ee_project_id, workers
     )
     df_t = _call_preprocess(
-        'chirts', lat, lon, date_from, date_to, None, None, ee_project_id
+        'chirts', lat, lon, date_from, date_to, None, None, ee_project_id, workers
     )
     if df_p is None or df_p.empty:
         raise RuntimeError("CHIRPS returned no data")
@@ -270,9 +281,11 @@ def _fetch_paired_sources(
     model=None,
     scenario=None,
     ee_project_id=None,
+    workers: int = 1,
 ):
     precip_lc = normalize_climate_dataset_name(precip_source)
     temp_lc = normalize_climate_dataset_name(temp_source)
+    preprocess_kwargs = {"workers": workers} if workers != 1 else {}
     precip_df = _call_preprocess(
         precip_lc,
         lat,
@@ -282,6 +295,7 @@ def _fetch_paired_sources(
         model if precip_lc == 'nex_gddp' else None,
         scenario if precip_lc == 'nex_gddp' else None,
         ee_project_id,
+        **preprocess_kwargs,
     )
     temp_df = _call_preprocess(
         temp_lc,
@@ -292,6 +306,7 @@ def _fetch_paired_sources(
         model if temp_lc == 'nex_gddp' else None,
         scenario if temp_lc == 'nex_gddp' else None,
         ee_project_id,
+        **preprocess_kwargs,
     )
     if precip_df is None or precip_df.empty or 'date' not in precip_df.columns:
         raise RuntimeError(f"No precipitation data returned from source '{precip_source}'")
@@ -316,13 +331,14 @@ def _fetch_paired_sources(
     return merged
 
 
-def _fetch_auto(lat, lon, date_from, date_to, ee_project_id=None):
+def _fetch_auto(lat, lon, date_from, date_to, ee_project_id=None, workers: int = 1):
     """
     Default historical path:
     try CHIRPS v3 Daily RNL precipitation + AgERA5 companion variables first,
     then AgERA5 alone, then ERA5, then legacy CHIRPS v2 + CHIRTS fallback.
     """
     try:
+        pair_kwargs = {"workers": workers} if workers != 1 else {}
         return _fetch_paired_sources(
             lat,
             lon,
@@ -331,22 +347,25 @@ def _fetch_auto(lat, lon, date_from, date_to, ee_project_id=None):
             DEFAULT_AUTO_PRECIP_SOURCE,
             DEFAULT_AUTO_TEMP_SOURCE,
             ee_project_id=ee_project_id,
+            **pair_kwargs,
         )
     except Exception:
         pass
 
     for candidate in (DEFAULT_AUTO_TEMP_SOURCE, 'era_5'):
         try:
-            return _call_preprocess(
-                candidate,
-                lat,
-                lon,
-                date_from,
-                date_to,
-                None,
-                None,
-                ee_project_id,
-            )
+                preprocess_kwargs = {"workers": workers} if workers != 1 else {}
+                return _call_preprocess(
+                    candidate,
+                    lat,
+                    lon,
+                    date_from,
+                    date_to,
+                    None,
+                    None,
+                    ee_project_id,
+                    **preprocess_kwargs,
+                )
         except Exception:
             continue
 
@@ -356,7 +375,14 @@ def _fetch_auto(lat, lon, date_from, date_to, ee_project_id=None):
             "AgERA5, and ERA5, and legacy chirps_v2+chirts is unavailable after "
             f"{CHIRTS_LAST_YEAR} because CHIRTS daily coverage ends there."
         )
-    return _fetch_chirps_chirts(lat, lon, date_from, date_to, ee_project_id)
+    return _fetch_chirps_chirts(
+        lat,
+        lon,
+        date_from,
+        date_to,
+        ee_project_id,
+        workers,
+    )
 
 
 def _apply_custom_station_overrides(
@@ -404,6 +430,7 @@ def get_climate_data(
     custom_temp_unit: str = "c",
     custom_precip_unit: str = "mm",
     ee_project_id: Optional[str] = None,
+    workers: int = 1,
 ) -> pd.DataFrame:
     """
     Fetch all variables for [start_date, end_date] from the given source.
@@ -439,16 +466,20 @@ def get_climate_data(
             model=model,
             scenario=scenario,
             ee_project_id=ee_project_id,
+            workers=workers,
         )
     elif source_lc == 'auto':
         if verbose:
             print("  [source] auto -> chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts")
-        df = _fetch_auto(lat, lon, date_from, date_to, ee_project_id)
+        auto_kwargs = {"workers": workers} if workers != 1 else {}
+        df = _fetch_auto(lat, lon, date_from, date_to, ee_project_id, **auto_kwargs)
     elif source_lc in {'chirps+chirts', 'chirps_v2+chirts'}:
         if verbose:
             print("  [source] CHIRPS v2 + CHIRTS")
-        df = _fetch_chirps_chirts(lat, lon, date_from, date_to, ee_project_id)
+        merge_kwargs = {"workers": workers} if workers != 1 else {}
+        df = _fetch_chirps_chirts(lat, lon, date_from, date_to, ee_project_id, **merge_kwargs)
     else:
+        preprocess_kwargs = {"workers": workers} if workers != 1 else {}
         df = _call_preprocess(
             source_lc,
             lat,
@@ -458,6 +489,7 @@ def get_climate_data(
             model,
             scenario,
             ee_project_id,
+            **preprocess_kwargs,
         )
 
     if df is None or df.empty:
@@ -1752,6 +1784,7 @@ def analyze_climate_statistics(
     include_season_overall_statistics: bool = True,
     include_ltm_season_summary: bool = True,
     ee_project_id: Optional[str] = None,
+    workers: int = 1,
     verbose: bool = False,
 ) -> Dict[str, Any]:
     """
@@ -1939,7 +1972,8 @@ def analyze_climate_statistics(
                               custom_temp_unit=custom_temp_unit,
                               custom_precip_unit=custom_precip_unit,
                               verbose=verbose,
-                              ee_project_id=ee_project_id)
+                              ee_project_id=ee_project_id,
+                              workers=workers)
     except Exception as exc:
         return {
             'error': (
@@ -2783,6 +2817,10 @@ def main() -> int:
                         help='NEX-GDDP scenario (e.g. ssp245)')
     parser.add_argument('--project-id', default=None,
                         help='Optional Earth Engine / GCP project ID for GEE-backed sources.')
+    parser.add_argument(
+        '--workers', type=int, default=1,
+        help='Bounded historical GEE/Xee worker count for chunked fetches.',
+    )
     parser.add_argument('--spei-scale-months', type=int, default=None,
                         help='Optional SPEI scale in months, e.g. 3, 6, or 12')
     parser.add_argument('--spei-fit', choices=['ub-pwm', 'empirical'],
@@ -2862,6 +2900,7 @@ def main() -> int:
         spi_ref_start=args.spi_ref_start,
         spi_ref_end=args.spi_ref_end,
         ee_project_id=args.project_id,
+        workers=args.workers,
         verbose=args.verbose,
     )
 

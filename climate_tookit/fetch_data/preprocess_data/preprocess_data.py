@@ -233,6 +233,7 @@ def preprocess_data(
     refresh_cache=False,
     station_id=None,
     ee_project_id=None,
+    workers: int = 1,
 ) -> pd.DataFrame:
     """Preprocess climate data into analysis-ready format."""
     if transformed_data is not None:
@@ -252,6 +253,7 @@ def preprocess_data(
             refresh_cache=refresh_cache,
             station_id=station_id,
             ee_project_id=ee_project_id,
+            workers=workers,
         )
 
     return preprocess_transformed_data(
@@ -282,6 +284,12 @@ if __name__ == "__main__":
     parser.add_argument("--end", type=str)
     parser.add_argument("--model", type=str)
     parser.add_argument("--scenario", type=str)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Bounded historical GEE/Xee worker count for chunked fetches.",
+    )
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument(
         "--format",
@@ -302,6 +310,7 @@ if __name__ == "__main__":
         date_to=date_to,
         model=args.model,
         scenario=args.scenario,
+        workers=args.workers,
     )
 
     if args.format == "print" or not args.output:

@@ -8,6 +8,7 @@ same Python stack and common multi-site contract.
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import logging
 import os
@@ -50,6 +51,8 @@ DEFAULT_BATCH_CACHE_DIR = "outputs/cache/gee_xee_batch"
 DEFAULT_CHUNK_DAYS = 365
 DEFAULT_RETRY_ATTEMPTS = 4
 DEFAULT_RETRY_BACKOFF_SECONDS = 2.0
+DEFAULT_BATCH_WORKERS = 1
+MAX_BATCH_WORKERS = 4
 CACHE_SCHEMA_VERSION = "v1"
 ERA5_U_WIND_BAND = "u_component_of_wind_10m"
 ERA5_V_WIND_BAND = "v_component_of_wind_10m"
@@ -103,6 +106,12 @@ def _eta_seconds(*, completed: int, total: int, elapsed_total: float) -> float:
         return 0.0
     avg = elapsed_total / float(completed)
     return avg * float(total - completed)
+
+
+def _resolve_batch_workers(workers: int | None, total_batches: int) -> tuple[int, int]:
+    requested = max(1, int(workers or DEFAULT_BATCH_WORKERS))
+    effective = max(1, min(requested, MAX_BATCH_WORKERS, max(1, total_batches)))
+    return requested, effective
 
 
 def _coerce_source(source: str | ClimateDataset) -> ClimateDataset:
@@ -539,6 +548,108 @@ def _load_valid_cached_chunk(
     return frame, manifest
 
 
+def _run_batch_task(
+    *,
+    dataset: ClimateDataset,
+    data_settings,
+    active_variables,
+    bands: list[str],
+    site: Site,
+    chunk_start: date,
+    chunk_end: date,
+    cache_dir: str | Path | None,
+    refresh_cache: bool,
+    verbose: bool,
+    ee_project_id: str | None,
+    ee_opt_url: str,
+    retry_attempts: int,
+) -> dict[str, object]:
+    normalized_start = (
+        date(chunk_start.year, chunk_start.month, 1)
+        if data_settings.cadence == "monthly"
+        else chunk_start
+    )
+    normalized_end = (
+        date(chunk_end.year, chunk_end.month, 1)
+        if data_settings.cadence == "monthly"
+        else chunk_end
+    )
+    expected_dates = (
+        pd.date_range(normalized_start, normalized_end, freq="MS")
+        if data_settings.cadence == "monthly"
+        else pd.date_range(normalized_start, normalized_end, freq="D")
+    )
+
+    data_path, manifest_path = _cache_paths(
+        cache_dir=cache_dir,
+        source=dataset,
+        site=site,
+        start=normalized_start,
+        end=normalized_end,
+        bands=bands,
+    )
+    batch_started = time.perf_counter()
+    cached_frame, cached_manifest = _load_valid_cached_chunk(
+        data_path,
+        manifest_path,
+        start=normalized_start,
+        end=normalized_end,
+        site=site,
+        expected_dates=expected_dates,
+        refresh_cache=refresh_cache,
+        verbose=verbose,
+    )
+    if cached_frame is not None and cached_manifest is not None:
+        return {
+            "site": site,
+            "status": "cache hit",
+            "frame": cached_frame,
+            "normalized_start": normalized_start,
+            "normalized_end": normalized_end,
+            "elapsed_seconds": time.perf_counter() - batch_started,
+            "data_path": str(data_path),
+            "cache_hit": True,
+        }
+
+    ee_module, xr_module = import_xee_stack(required_for="gee_xee_batch")
+    initialize_earth_engine(
+        ee_module,
+        project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+    )
+    frame, expected_dates = _fetch_with_retries(
+        ee_module=ee_module,
+        xr_module=xr_module,
+        source=dataset,
+        data_settings=data_settings,
+        site=site,
+        variables=active_variables,
+        start_date=chunk_start,
+        end_date=chunk_end,
+        retry_attempts=max(1, retry_attempts),
+    )
+    manifest = _build_manifest(
+        frame=frame,
+        source=dataset,
+        site=site,
+        bands=bands,
+        start=normalized_start,
+        end=normalized_end,
+        expected_dates=expected_dates,
+    )
+    _write_cached_frame(data_path, manifest_path, frame, manifest)
+    return {
+        "site": site,
+        "status": "fetched",
+        "frame": frame,
+        "normalized_start": normalized_start,
+        "normalized_end": normalized_end,
+        "elapsed_seconds": time.perf_counter() - batch_started,
+        "data_path": str(data_path),
+        "cache_hit": False,
+    }
+
+
 def _fetch_site_chunk(
     *,
     ee_module,
@@ -675,6 +786,7 @@ def run_gee_xee_batch_extraction(
     ee_opt_url: str = DEFAULT_EE_OPT_URL,
     chunk_days: int = DEFAULT_CHUNK_DAYS,
     retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
+    batch_workers: int = DEFAULT_BATCH_WORKERS,
     requested_date_from: date | None = None,
     requested_date_to: date | None = None,
     coverage_warning: str | None = None,
@@ -693,158 +805,141 @@ def run_gee_xee_batch_extraction(
     frames: list[pd.DataFrame] = []
     manifest_rows: list[dict[str, object]] = []
     total_started = time.perf_counter()
+    requested_workers, effective_workers = _resolve_batch_workers(batch_workers, total)
 
     _log_progress(
         f"Fetching {dataset.name} via GEE/Xee | period={date_from}..{date_to} | "
-        f"sites={len(sites)} | chunks_per_site={len(chunks)} | total_batches={total}",
+        f"sites={len(sites)} | chunks_per_site={len(chunks)} | total_batches={total} | "
+        f"workers={effective_workers}",
         verbose,
     )
+    if requested_workers != effective_workers:
+        _log_progress(
+            f"Worker clamp | requested={requested_workers} | effective={effective_workers} | "
+            f"max_supported={MAX_BATCH_WORKERS}",
+            verbose,
+        )
+    if effective_workers > 1:
+        _log_progress(
+            "Warning: bounded parallel historical fetch may hit GEE quota/retry overhead sooner; "
+            "prefer small worker counts for tuning.",
+            verbose,
+        )
 
-    ee_module = None
-    xr_module = None
-    for site in sites:
-        for chunk_start, chunk_end in chunks:
-            completed += 1
-            site_label = _site_label(site)
+    tasks = [
+        (site, chunk_start, chunk_end)
+        for site in sites
+        for chunk_start, chunk_end in chunks
+    ]
 
-            normalized_start = (
-                date(chunk_start.year, chunk_start.month, 1)
-                if data_settings.cadence == "monthly"
-                else chunk_start
-            )
-            normalized_end = (
-                date(chunk_end.year, chunk_end.month, 1)
-                if data_settings.cadence == "monthly"
-                else chunk_end
-            )
-            expected_dates = (
-                pd.date_range(normalized_start, normalized_end, freq="MS")
-                if data_settings.cadence == "monthly"
-                else pd.date_range(normalized_start, normalized_end, freq="D")
-            )
+    def _consume_result(result: dict[str, object]) -> None:
+        nonlocal completed
+        completed += 1
+        site = result["site"]
+        site_label = _site_label(site)
+        frames.append(result["frame"])
+        elapsed = float(result["elapsed_seconds"])
+        elapsed_total = time.perf_counter() - total_started
+        eta = _eta_seconds(
+            completed=completed,
+            total=total,
+            elapsed_total=elapsed_total,
+        )
+        _log_progress(
+            f"[{completed}/{total}] {dataset.name} | {site_label} | "
+            f"{result['normalized_start']}..{result['normalized_end']} | {result['status']} | "
+            f"chunk={_format_seconds(elapsed)} | elapsed={_format_seconds(elapsed_total)} | "
+            f"eta={_format_seconds(eta)}",
+            verbose,
+        )
+        manifest_rows.append(
+            {
+                "source": dataset.name,
+                "site": site.name,
+                "requested_start_date": (
+                    (requested_date_from or result["normalized_start"]).isoformat()
+                ),
+                "requested_end_date": (
+                    (requested_date_to or result["normalized_end"]).isoformat()
+                ),
+                "start_date": result["normalized_start"].isoformat(),
+                "end_date": result["normalized_end"].isoformat(),
+                "coverage_adjusted": bool(coverage_warning),
+                "coverage_warning": coverage_warning,
+                "cache_hit": result["cache_hit"],
+                "elapsed_seconds": round(elapsed, 4),
+                "data_path": result["data_path"],
+            }
+        )
 
-            data_path, manifest_path = _cache_paths(
-                cache_dir=cache_dir,
-                source=dataset,
-                site=site,
-                start=normalized_start,
-                end=normalized_end,
+    if effective_workers == 1:
+        for site, chunk_start, chunk_end in tasks:
+            result = _run_batch_task(
+                dataset=dataset,
+                data_settings=data_settings,
+                active_variables=active_variables,
                 bands=bands,
-            )
-            batch_start = time.perf_counter()
-            cached_frame, cached_manifest = _load_valid_cached_chunk(
-                data_path,
-                manifest_path,
-                start=normalized_start,
-                end=normalized_end,
                 site=site,
-                expected_dates=expected_dates,
+                chunk_start=chunk_start,
+                chunk_end=chunk_end,
+                cache_dir=cache_dir,
                 refresh_cache=refresh_cache,
                 verbose=verbose,
+                ee_project_id=ee_project_id,
+                ee_opt_url=ee_opt_url,
+                retry_attempts=retry_attempts,
             )
-            if cached_frame is not None and cached_manifest is not None:
-                frames.append(cached_frame)
-                elapsed = time.perf_counter() - batch_start
-                elapsed_total = time.perf_counter() - total_started
-                eta = _eta_seconds(
-                    completed=completed,
-                    total=total,
-                    elapsed_total=elapsed_total,
-                )
-                _log_progress(
-                    f"[{completed}/{total}] {dataset.name} | {site_label} | "
-                    f"{normalized_start}..{normalized_end} | cache hit | "
-                    f"chunk={_format_seconds(elapsed)} | elapsed={_format_seconds(elapsed_total)} | "
-                    f"eta={_format_seconds(eta)}",
-                    verbose,
-                )
-                manifest_rows.append(
-                    {
-                        "source": dataset.name,
-                        "site": site.name,
-                        "requested_start_date": (
-                            (requested_date_from or normalized_start).isoformat()
-                        ),
-                        "requested_end_date": (
-                            (requested_date_to or normalized_end).isoformat()
-                        ),
-                        "start_date": normalized_start.isoformat(),
-                        "end_date": normalized_end.isoformat(),
-                        "coverage_adjusted": bool(coverage_warning),
-                        "coverage_warning": coverage_warning,
-                        "cache_hit": True,
-                        "elapsed_seconds": round(elapsed, 4),
-                        "data_path": str(data_path),
-                    }
-                )
-                continue
-
-            if ee_module is None or xr_module is None:
-                ee_module, xr_module = import_xee_stack(required_for="gee_xee_batch")
-                initialize_earth_engine(
-                    ee_module,
-                    project_id=ee_project_id,
-                    ee_opt_url=ee_opt_url,
-                )
-
-            frame, expected_dates = _fetch_with_retries(
-                ee_module=ee_module,
-                xr_module=xr_module,
-                source=dataset,
-                data_settings=data_settings,
-                site=site,
-                variables=active_variables,
-                start_date=chunk_start,
-                end_date=chunk_end,
-                retry_attempts=max(1, retry_attempts),
-            )
-            manifest = _build_manifest(
-                frame=frame,
-                source=dataset,
-                site=site,
-                bands=bands,
-                start=normalized_start,
-                end=normalized_end,
-                expected_dates=expected_dates,
-                requested_start=requested_date_from,
-                requested_end=requested_date_to,
-                coverage_warning=coverage_warning,
-            )
-            _write_cached_frame(data_path, manifest_path, frame, manifest)
-            frames.append(frame)
-            elapsed = time.perf_counter() - batch_start
-            elapsed_total = time.perf_counter() - total_started
-            eta = _eta_seconds(
-                completed=completed,
-                total=total,
-                elapsed_total=elapsed_total,
-            )
+            _consume_result(result)
+    else:
+        try:
+            with ThreadPoolExecutor(max_workers=effective_workers) as executor:
+                future_to_task = {
+                    executor.submit(
+                        _run_batch_task,
+                        dataset=dataset,
+                        data_settings=data_settings,
+                        active_variables=active_variables,
+                        bands=bands,
+                        site=site,
+                        chunk_start=chunk_start,
+                        chunk_end=chunk_end,
+                        cache_dir=cache_dir,
+                        refresh_cache=refresh_cache,
+                        verbose=verbose,
+                        ee_project_id=ee_project_id,
+                        ee_opt_url=ee_opt_url,
+                        retry_attempts=retry_attempts,
+                    ): (site, chunk_start, chunk_end)
+                    for site, chunk_start, chunk_end in tasks
+                }
+                for future in as_completed(future_to_task):
+                    _consume_result(future.result())
+        except Exception as exc:
             _log_progress(
-                f"[{completed}/{total}] {dataset.name} | {site_label} | "
-                f"{normalized_start}..{normalized_end} | fetched | "
-                f"chunk={_format_seconds(elapsed)} | elapsed={_format_seconds(elapsed_total)} | "
-                f"eta={_format_seconds(eta)}",
+                f"Warning: parallel historical workers unavailable; falling back to serial. Reason: {exc}",
                 verbose,
             )
-            manifest_rows.append(
-                {
-                    "source": dataset.name,
-                    "site": site.name,
-                    "requested_start_date": (
-                        (requested_date_from or normalized_start).isoformat()
-                    ),
-                    "requested_end_date": (
-                        (requested_date_to or normalized_end).isoformat()
-                    ),
-                    "start_date": normalized_start.isoformat(),
-                    "end_date": normalized_end.isoformat(),
-                    "coverage_adjusted": bool(coverage_warning),
-                    "coverage_warning": coverage_warning,
-                    "cache_hit": False,
-                    "elapsed_seconds": round(elapsed, 4),
-                    "data_path": str(data_path),
-                }
-            )
+            frames = []
+            manifest_rows = []
+            completed = 0
+            total_started = time.perf_counter()
+            for site, chunk_start, chunk_end in tasks:
+                result = _run_batch_task(
+                    dataset=dataset,
+                    data_settings=data_settings,
+                    active_variables=active_variables,
+                    bands=bands,
+                    site=site,
+                    chunk_start=chunk_start,
+                    chunk_end=chunk_end,
+                    cache_dir=cache_dir,
+                    refresh_cache=refresh_cache,
+                    verbose=verbose,
+                    ee_project_id=ee_project_id,
+                    ee_opt_url=ee_opt_url,
+                    retry_attempts=retry_attempts,
+                )
+                _consume_result(result)
 
     result = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     if not result.empty:
@@ -882,6 +977,7 @@ def fetch_gee_xee_batch_data(
     ee_opt_url: str = DEFAULT_EE_OPT_URL,
     chunk_days: int = DEFAULT_CHUNK_DAYS,
     retry_attempts: int = DEFAULT_RETRY_ATTEMPTS,
+    workers: int = DEFAULT_BATCH_WORKERS,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     if stage not in VALID_STAGES:
         raise ValueError(
@@ -917,6 +1013,7 @@ def fetch_gee_xee_batch_data(
         ee_opt_url=ee_opt_url,
         chunk_days=chunk_days,
         retry_attempts=retry_attempts,
+        batch_workers=workers,
         requested_date_from=requested_date_from,
         requested_date_to=requested_date_to,
         coverage_warning=coverage_warning,
@@ -974,6 +1071,15 @@ def main() -> int:
         choices=VALID_STAGES,
         default="preprocessed",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=DEFAULT_BATCH_WORKERS,
+        help=(
+            "Bounded historical GEE/Xee batch workers across site x chunk tasks. "
+            f"Default {DEFAULT_BATCH_WORKERS}; clamped to {MAX_BATCH_WORKERS}."
+        ),
+    )
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument(
         "--format",
@@ -1001,6 +1107,7 @@ def main() -> int:
             cache_dir=args.cache_dir,
             refresh_cache=args.refresh_cache,
             verbose=not args.quiet,
+            workers=args.workers,
         )
     except Exception as exc:
         print(f"Error: {format_ee_setup_error(exc)}")

@@ -1348,20 +1348,26 @@ def get_climate_data_for_season(
     model: Optional[str] = None,
     scenario: Optional[str] = None,
     ee_project_id: Optional[str] = None,
+    workers: int = 1,
 ) -> pd.DataFrame:
     """Fetch daily climate data for an explicit window and attach ET0."""
     force_source = None if source == 'auto' else source
+    fetch_kwargs = {
+        "force_source": force_source,
+        "precip_source": precip_source,
+        "temp_source": temp_source,
+        "model": model,
+        "scenario": scenario,
+        "ee_project_id": ee_project_id,
+    }
+    if workers != 1:
+        fetch_kwargs["workers"] = workers
     df = get_climate_data(
         lat,
         lon,
         start_date,
         end_date,
-        force_source=force_source,
-        precip_source=precip_source,
-        temp_source=temp_source,
-        model=model,
-        scenario=scenario,
-        ee_project_id=ee_project_id,
+        **fetch_kwargs,
     )
     if df.empty:
         raise Exception(f"No climate data returned for {start_date} -> {end_date}")
@@ -1936,6 +1942,7 @@ def calculate_hazards(
     livestock_climate_profile: str    = DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
     livestock_elevation_override_m: Optional[float] = None,
     ee_project_id: Optional[str] = None,
+    workers: int = 1,
 ) -> Dict[str, Any]:
 
     lat, lon = location_coord
@@ -2031,6 +2038,7 @@ def calculate_hazards(
                 precip_source=precip_source,
                 temp_source=temp_source,
                 ee_project_id=ee_project_id,
+                workers=workers,
             )
         except Exception as exc:
             return {
@@ -2076,6 +2084,7 @@ def calculate_hazards(
         except ValueError as exc:
             return {'error': str(exc)}
 
+        fixed_kwargs = {"workers": workers} if workers != 1 else {}
         seasons_dict, annual_dict = fetch_and_analyze_years_fixed(
             lat, lon,
             fixed_seasons=fixed_defs,
@@ -2087,6 +2096,7 @@ def calculate_hazards(
             prefetch_pad_days=spinup_days,
             ee_project_id=ee_project_id,
             emit_fetch_errors=False,
+            **fixed_kwargs,
         )
         num_seasons_per_year = len(fixed_defs) 
         all_results = []
@@ -2126,6 +2136,7 @@ def calculate_hazards(
                     }
                 if df is None:
                     try:
+                        season_fetch_kwargs = {"workers": workers} if workers != 1 else {}
                         df = get_climate_data_for_season(
                             lat,
                             lon,
@@ -2135,6 +2146,7 @@ def calculate_hazards(
                             precip_source=precip_source,
                             temp_source=temp_source,
                             ee_project_id=ee_project_id,
+                            **season_fetch_kwargs,
                         )
                     except Exception as exc:
                         return {
@@ -2171,6 +2183,7 @@ def calculate_hazards(
             return {'error': str(exc)}
         auto_master_df = None
         if requested_calendar_preset:
+            master_kwargs = {"workers": workers} if workers != 1 else {}
             auto_master_df = fetch_master_range_with_tail(
                 lat,
                 lon,
@@ -2180,6 +2193,7 @@ def calculate_hazards(
                 precip_source=precip_source,
                 temp_source=temp_source,
                 ee_project_id=ee_project_id,
+                **master_kwargs,
             )
             seasons_dict, annual_dict = analyze_years_auto_on_prefetched_df(
                 auto_master_df,
@@ -2188,10 +2202,12 @@ def calculate_hazards(
                 end_year,
             )
         else:
+            auto_kwargs = {"workers": workers} if workers != 1 else {}
             seasons_dict, annual_dict = fetch_and_analyze_years(
                 lat, lon, start_year=start_year, end_year=end_year, source=detection_source,
                 precip_source=precip_source, temp_source=temp_source,
                 ee_project_id=ee_project_id,
+                **auto_kwargs,
             )
         if not any(seasons_dict.values()):
             detection_errors = _extract_detection_errors(annual_dict)
@@ -2273,6 +2289,7 @@ def calculate_hazards(
                         df = _slice_prefetched_window(s.get('window_df'), fetch_start, s_end)
                     if df is None:
                         try:
+                            season_fetch_kwargs = {"workers": workers} if workers != 1 else {}
                             df = get_climate_data_for_season(
                                 lat,
                                 lon,
@@ -2282,6 +2299,7 @@ def calculate_hazards(
                                 precip_source=precip_source,
                                 temp_source=temp_source,
                                 ee_project_id=ee_project_id,
+                                **season_fetch_kwargs,
                             )
                         except Exception as exc:
                             return {
@@ -2292,6 +2310,7 @@ def calculate_hazards(
                             }
                 else:
                     try:
+                        season_fetch_kwargs = {"workers": workers} if workers != 1 else {}
                         df = get_climate_data_for_season(
                             lat,
                             lon,
@@ -2301,6 +2320,7 @@ def calculate_hazards(
                             precip_source=precip_source,
                             temp_source=temp_source,
                             ee_project_id=ee_project_id,
+                            **season_fetch_kwargs,
                         )
                     except Exception as exc:
                         return {
@@ -2856,6 +2876,10 @@ def main() -> int:
             "  crop_active  -- use detected ETO sub-season(s) inside fixed window when available\n"
         ),
     )
+    parser.add_argument(
+        '--workers', type=int, default=1,
+        help='Bounded historical GEE/Xee worker count for chunked fetches.',
+    )
     parser.add_argument('--format',          choices=['json', 'text'], default='text',
                         help='Output format (default: text)')
     parser.add_argument('--thresholds-file', type=str, default=None,
@@ -2891,6 +2915,7 @@ def main() -> int:
         'soilcp': args.soilcp,
         'soilsat': args.soilsat,
         'water_balance_window': args.water_balance_window,
+        'workers': args.workers,
         'calendar_source': args.calendar_source,
         'calendar_system': args.calendar_system,
         'livestock_type': args.livestock_type,
