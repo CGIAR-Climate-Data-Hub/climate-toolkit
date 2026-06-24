@@ -28,6 +28,7 @@ from climate_tookit.fetch_data.gee_xee_batch import (
     _chunk_dates,
     _coerce_source,
     _maybe_unbounded_collection,
+    _resolve_batch_workers,
 )
 from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateDataset
 from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
@@ -60,6 +61,40 @@ class GeeXeeBatchTests(unittest.TestCase):
 
             self.assertEqual(0, rc)
             self.assertTrue(output_path.exists())
+
+    def test_main_passes_workers_argument(self):
+        raw_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"]), "precipitation": [1.2]})
+        summary_df = pd.DataFrame({"site": ["Nairobi"]})
+        manifest_df = pd.DataFrame({"cache_hit": [False]})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "gee_batch.json"
+            argv = [
+                "gee_xee_batch.py",
+                "--source=chirps",
+                "--site=Nairobi,-1.286,36.817",
+                "--start=2020-01-01",
+                "--end=2020-01-01",
+                "--workers=3",
+                f"--output={output_path}",
+                "--format=json",
+            ]
+
+            with mock.patch("sys.argv", argv), mock.patch.object(
+                gee_batch,
+                "fetch_gee_xee_batch_data",
+                return_value=(raw_df, summary_df, manifest_df),
+            ) as fetch_mock:
+                rc = gee_batch.main()
+
+            self.assertEqual(0, rc)
+            self.assertEqual(3, fetch_mock.call_args.kwargs["workers"])
+
+    def test_resolve_batch_workers_clamps_to_safe_max(self):
+        requested, effective = _resolve_batch_workers(8, total_batches=10)
+
+        self.assertEqual(8, requested)
+        self.assertEqual(4, effective)
 
     def test_unsupported_source_raises(self):
         with self.assertRaises(ValueError):
