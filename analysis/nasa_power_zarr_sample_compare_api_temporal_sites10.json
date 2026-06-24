@@ -1,0 +1,108 @@
+{
+  "site": "Nairobi",
+  "start": "2020-01-01",
+  "end": "2020-01-10",
+  "api_baseline_total_seconds": 1.618,
+  "comparisons": [
+    {
+      "backend": "zarr_temporal",
+      "variable": "precipitation",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.685546875014211e-05,
+      "mean_abs_diff": 1.2939453125001416e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    },
+    {
+      "backend": "zarr_temporal",
+      "variable": "max_temperature",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.929687499886313e-05,
+      "mean_abs_diff": 1.7578125000738964e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    },
+    {
+      "backend": "zarr_temporal",
+      "variable": "min_temperature",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.197265624914735e-05,
+      "mean_abs_diff": 1.3183593749666045e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    },
+    {
+      "backend": "zarr_temporal",
+      "variable": "humidity",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.929687499886313e-05,
+      "mean_abs_diff": 1.7089843753126387e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    },
+    {
+      "backend": "zarr_temporal",
+      "variable": "wind_speed",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.92968750001954e-05,
+      "mean_abs_diff": 1.5136718749975131e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    },
+    {
+      "backend": "zarr_spatial",
+      "variable": "precipitation",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.685546875014211e-05,
+      "mean_abs_diff": 1.2939453125001416e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    },
+    {
+      "backend": "zarr_spatial",
+      "variable": "max_temperature",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.929687499886313e-05,
+      "mean_abs_diff": 1.7578125000738964e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    },
+    {
+      "backend": "zarr_spatial",
+      "variable": "min_temperature",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.197265624914735e-05,
+      "mean_abs_diff": 1.3183593749666045e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    },
+    {
+      "backend": "zarr_spatial",
+      "variable": "humidity",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.929687499886313e-05,
+      "mean_abs_diff": 1.7089843753126387e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    },
+    {
+      "backend": "zarr_spatial",
+      "variable": "wind_speed",
+      "comparable": true,
+      "rows": 10,
+      "max_abs_diff": 2.92968750001954e-05,
+      "mean_abs_diff": 1.5136718749975131e-05,
+      "resolved_lat": -1.5,
+      "resolved_lon": 36.875
+    }
+  ]
+}

@@ -31,6 +31,7 @@ from climate_tookit.climatology import (
     DEFAULT_LIVESTOCK_TYPE,
     build_thi_hazard_thresholds,
     compute_daily_thi,
+    describe_thi_method,
     list_thi_livestock_profiles,
     resolve_thi_profile,
 )
@@ -295,6 +296,14 @@ def _thi_profile_context_line(profile: Optional[Dict[str, Any]]) -> Optional[str
     if not parts:
         return None
     return " | ".join(parts)
+
+
+def _thi_method_line(profile: Optional[Dict[str, Any]] = None) -> str:
+    threshold_source = describe_thi_method().get("threshold_reference")
+    note = "operational defaults | mean-temp+RH THI"
+    if threshold_source:
+        return f"{note} | thresholds={threshold_source}"
+    return note
 
 
 def resolve_thresholds(
@@ -1678,6 +1687,8 @@ def calculate_season_statistics(
                 stats['thi_livestock_type'] = (thi_profile or {}).get('livestock_type', DEFAULT_LIVESTOCK_TYPE)
                 stats['thi_livestock_label'] = (thi_profile or {}).get('label', 'Cattle (dairy)')
                 stats['thi_climate_profile'] = (thi_profile or {}).get('climate_profile_applied', DEFAULT_LIVESTOCK_CLIMATE_PROFILE)
+                stats['thi_threshold_source'] = describe_thi_method().get('threshold_reference')
+                stats['thi_method_note'] = 'operational defaults | mean-temp+RH THI'
                 stats['mean_thi'] = float(thi_daily['thi'].mean())
                 stats['max_thi'] = float(thi_daily['thi'].max())
                 stats['thi_none_days'] = int(counts.get('none', 0))
@@ -2593,6 +2604,7 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
     thi_context = _thi_profile_context_line(result.get('thi_profile'))
     if thi_context:
         print(f"  Livestock THI: {thi_context}")
+        print(f"  THI note     : {_thi_method_line(result.get('thi_profile'))}")
     _print_hazard_season_detection_summary(result.get('season_detection'))
 
     season = result['season_info']

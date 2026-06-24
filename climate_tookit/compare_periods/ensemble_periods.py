@@ -2397,6 +2397,16 @@ def print_report(r: Dict[str, Any], detailed: bool = True) -> None:
         if climate_requested and climate_requested != climate_applied:
             climate_bits.append(f"requested={climate_requested}")
         print(f"  Livestock: {r['livestock_type']} | " + " | ".join(climate_bits))
+        heat_meta = (r.get("overall_statistics") or {}).get("livestock_heat_stress") or {}
+        thi_note = heat_meta.get("method_note")
+        thi_thresholds = heat_meta.get("threshold_source")
+        if thi_note or thi_thresholds:
+            parts = []
+            if thi_note:
+                parts.append(str(thi_note))
+            if thi_thresholds:
+                parts.append(f"thresholds={thi_thresholds}")
+            print(f"  THI note : {' | '.join(parts)}")
     if r["models_failed"]:
         print(f"  Failed   : {', '.join(f['model'] for f in r['models_failed'])}")
     _print_season_detection_summary(r.get("season_detection"))

@@ -766,7 +766,13 @@ def _agg_seasons(seasons: List[Dict[str, Any]]) -> Dict[str, Any]:
         None,
     )
     if isinstance(first_heat, dict):
-        for meta_key in ("livestock_type", "livestock_label", "climate_profile"):
+        for meta_key in (
+            "livestock_type",
+            "livestock_label",
+            "climate_profile",
+            "threshold_source",
+            "method_note",
+        ):
             if first_heat.get(meta_key) is not None:
                 out.setdefault("livestock_heat_stress", {})[meta_key] = first_heat.get(meta_key)
     first_vpd = next(
@@ -1379,6 +1385,16 @@ def print_report(r: Dict[str, Any], *, detailed: bool = True) -> None:
             f"  Livestock     : {r['livestock_type']} | "
             + " | ".join(climate_bits)
         )
+        heat_meta = (r.get("overall_statistics") or {}).get("livestock_heat_stress") or {}
+        thi_note = heat_meta.get("method_note")
+        thi_thresholds = heat_meta.get("threshold_source")
+        if thi_note or thi_thresholds:
+            parts = []
+            if thi_note:
+                parts.append(str(thi_note))
+            if thi_thresholds:
+                parts.append(f"thresholds={thi_thresholds}")
+            print(f"  THI note      : {' | '.join(parts)}")
     if r.get("calendar_source"):
         print(f"  Calendar req. : {r['calendar_source']} | system={r.get('calendar_system')}")
     if r.get("baseline_calendar_preset_used") or r.get("focal_calendar_preset_used"):

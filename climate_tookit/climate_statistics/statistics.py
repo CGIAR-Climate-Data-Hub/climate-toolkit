@@ -42,6 +42,7 @@ from climate_tookit.climatology import (
     compute_daily_thi,
     compute_monthly_spei,
     compute_monthly_spi,
+    describe_thi_method,
     list_thi_livestock_profiles,
     resolve_thi_profile,
     summarize_vpd_period,
@@ -629,6 +630,20 @@ def _thi_profile_label(profile: Optional[Dict[str, Any]]) -> str:
     return f"Livestock THI ({label})"
 
 
+def _thi_method_line(profile: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not profile:
+        return None
+    note = profile.get("method_note")
+    threshold_source = profile.get("threshold_source")
+    if note and threshold_source:
+        return f"{note} | thresholds={threshold_source}"
+    if note:
+        return str(note)
+    if threshold_source:
+        return f"thresholds={threshold_source}"
+    return None
+
+
 def _livestock_heat_stress_summary(
     df: pd.DataFrame,
     *,
@@ -664,10 +679,13 @@ def _livestock_heat_stress_summary(
         return None
 
     counts = thi_df['thi_class'].value_counts(dropna=True)
+    method = describe_thi_method()
     return {
         'livestock_type': (thi_profile or {}).get('livestock_type', DEFAULT_LIVESTOCK_TYPE),
         'livestock_label': (thi_profile or {}).get('label', 'Cattle (dairy)'),
         'climate_profile': (thi_profile or {}).get('climate_profile_applied', DEFAULT_LIVESTOCK_CLIMATE_PROFILE),
+        'threshold_source': method.get('threshold_reference'),
+        'method_note': 'operational defaults | mean-temp+RH THI',
         'mean_thi': _r(thi_df['thi'].mean(), 2),
         'max_thi': _r(thi_df['thi'].max(), 2),
         'days_total': int(thi_df['thi'].notna().sum()),
@@ -1136,7 +1154,13 @@ def ltm_season_summary(
             if pool:
                 block[cat] = {k: _avg(vs, 2) for k, vs in pool.items()}
             if cat == "livestock_heat_stress":
-                for meta_key in ("livestock_type", "livestock_label", "climate_profile"):
+                for meta_key in (
+                    "livestock_type",
+                    "livestock_label",
+                    "climate_profile",
+                    "threshold_source",
+                    "method_note",
+                ):
                     meta_value = next(
                         (
                             (s.get(cat) or {}).get(meta_key)
@@ -2388,6 +2412,9 @@ def print_seasons(seasons: List[Dict]) -> None:
                   f"mild={h.get('days_mild')} | "
                   f"moderate={h.get('days_moderate')} | "
                   f"severe={h.get('days_severe')}")
+            note = _thi_method_line(h)
+            if note:
+                print(f"                    note: {note}")
         print(f"    Water balance : "
               f"total={w['total_balance']} mm | "
               f"deficit_days={w['deficit_days']} | "
@@ -2477,6 +2504,9 @@ def print_ltm_by_season(ltm: Dict[str, Any],
                   f"mild={h.get('days_mild')} | "
                   f"moderate={h.get('days_moderate')} | "
                   f"severe={h.get('days_severe')}")
+            note = _thi_method_line(h)
+            if note:
+                print(f"                    note: {note}")
         if wb:
             print(f"    Water balance : "
                   f"total={wb.get('total_balance')} mm | "

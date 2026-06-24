@@ -1736,6 +1736,8 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                     "days_mild": 10,
                     "days_moderate": 7,
                     "days_severe": 1,
+                    "method_note": "operational defaults | mean-temp+RH THI",
+                    "threshold_source": "Thornton et al. (2021) Table 1/2",
                 },
                 "water_balance": {"total_balance": -10.0, "deficit_days": 30, "surplus_days": 20, "stress_ratio": 0.33},
             }
@@ -1748,6 +1750,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         rendered = stdout.getvalue()
         self.assertIn("Livestock THI", rendered)
         self.assertIn("mean_thi=75.2", rendered)
+        self.assertIn("operational defaults | mean-temp+RH THI", rendered)
 
     def test_ltm_season_summary_preserves_livestock_profile_metadata(self):
         season_results = [
@@ -1765,6 +1768,8 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                     "livestock_type": "cattle_dairy",
                     "livestock_label": "Cattle (dairy)",
                     "climate_profile": "temperate",
+                    "method_note": "operational defaults | mean-temp+RH THI",
+                    "threshold_source": "Thornton et al. (2021) Table 1/2",
                 },
             }
         ]
@@ -1775,6 +1780,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual("cattle_dairy", window["livestock_type"])
         self.assertEqual("Cattle (dairy)", window["livestock_label"])
         self.assertEqual("temperate", window["climate_profile"])
+        self.assertEqual("operational defaults | mean-temp+RH THI", window["method_note"])
 
     def test_print_ltm_by_season_uses_livestock_profile_label(self):
         ltm = {
@@ -1794,6 +1800,8 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                         "livestock_type": "cattle_dairy",
                         "livestock_label": "Cattle (dairy)",
                         "climate_profile": "temperate",
+                        "method_note": "operational defaults | mean-temp+RH THI",
+                        "threshold_source": "Thornton et al. (2021) Table 1/2",
                     },
                 }
             ]
@@ -1805,6 +1813,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
 
         rendered = stdout.getvalue()
         self.assertIn("Livestock THI (Cattle (dairy); temperate)", rendered)
+        self.assertIn("operational defaults | mean-temp+RH THI", rendered)
 
 
 if __name__ == "__main__":
