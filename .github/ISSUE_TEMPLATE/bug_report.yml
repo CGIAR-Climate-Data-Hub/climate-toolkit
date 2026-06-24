@@ -1,0 +1,72 @@
+name: Bug report
+description: Report broken behavior, runtime errors, or incorrect outputs.
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before submitting:
+        - add labels for `type`, `area`, `priority`, and `provenance`
+        - if this is GEE-related, note whether Earth Engine auth and `GCP_PROJECT_ID` were set
+        - include exact CLI command or minimal repro
+
+        Recommended labels:
+        - type: `bug`
+        - area: e.g. `gee`, `fetch-data`, `historical-cli`, `nex-gddp`, `weather-station`, `hazards`
+        - priority: `priority:high|medium|low`
+        - provenance: `sammy`, `michel`, `codex`, or `user-feedback`
+  - type: textarea
+    id: summary
+    attributes:
+      label: Problem summary
+      description: What broke?
+      placeholder: Clear one-paragraph description of problem.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Exact command or minimal repro
+      description: Paste exact CLI command, Python snippet, or steps.
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Include exact error text, traceback, or wrong output.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Environment and context
+      description: OS, Python version, auth state, source, date range, cache status, etc.
+      placeholder: |
+        OS:
+        Python:
+        Source:
+        Date range:
+        Earth Engine auth:
+        GCP_PROJECT_ID set:
+        Cold-cache or warm-cache:
+    validations:
+      required: false
+  - type: textarea
+    id: labels
+    attributes:
+      label: Labels to apply
+      description: List labels you think fit if you cannot apply them yourself.
+      placeholder: bug, gee, fetch-data, priority:high, michel
+    validations:
+      required: false
