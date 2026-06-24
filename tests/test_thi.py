@@ -7,6 +7,7 @@ from climate_tookit.climatology import (
     build_thi_hazard_thresholds,
     classify_thi_values,
     compute_daily_thi,
+    describe_thi_method,
     describe_thi_source_support,
     infer_livestock_climate_profile,
     list_thi_livestock_profiles,
@@ -146,6 +147,28 @@ class LivestockThiTests(unittest.TestCase):
         self.assertIn("agera_5", support)
         self.assertIn("nex_gddp", support)
         self.assertIn("conditionally supported", support["nex_gddp"])
+        self.assertIn("does not define a humidity band", support["era_5"])
+
+    def test_describe_thi_method_exposes_formula_profiles_and_support(self):
+        method = describe_thi_method()
+        self.assertEqual("livestock_thi", method["metric"])
+        self.assertIn("0.0055*RH", method["formula"])
+        self.assertEqual(
+            "daily mean temperature plus daily relative humidity",
+            method["default_daily_workflow"],
+        )
+        self.assertEqual(23.5, method["climate_profile_logic"]["tropics_latitude_deg"])
+        self.assertIn("cattle_dairy", method["profiles"])
+        self.assertEqual(
+            92.0,
+            method["profiles"]["pigs"]["thresholds_tropical"]["moderate_max"],
+        )
+        self.assertIn("nasa_power", method["source_support"])
+        self.assertIn("Not default", method["method_rationale"]["max_temperature_screening_status"])
+        self.assertIn(
+            "Species-group operational defaults, not breed-resolved physiology.",
+            method["interpretation_caveats"],
+        )
 
 
 if __name__ == "__main__":
