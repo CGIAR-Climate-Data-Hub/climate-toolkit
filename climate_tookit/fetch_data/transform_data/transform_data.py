@@ -46,6 +46,8 @@ def validate_inputs(
     model,
     scenario,
     allow_coverage_clip=False,
+    settings=None,
+    ee_project_id=None,
 ):
     """Validate all user inputs and return a list of errors."""
     errors = []
@@ -58,13 +60,21 @@ def validate_inputs(
         )
     if date_from and date_to and date_from > date_to:
         errors.append("Start date must be before end date")
-    coverage_error = source_date_coverage_error(source_name, date_from, date_to)
+    coverage_error = source_date_coverage_error(
+        source_name,
+        date_from,
+        date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
+    )
     if coverage_error:
         if allow_coverage_clip:
             no_overlap_error = source_date_no_overlap_error(
                 source_name,
                 date_from,
                 date_to,
+                settings=settings,
+                ee_project_id=ee_project_id,
             )
             if no_overlap_error:
                 errors.append(no_overlap_error)
@@ -189,6 +199,8 @@ def transform_data(
         model=model,
         scenario=scenario,
         allow_coverage_clip=True,
+        settings=settings,
+        ee_project_id=ee_project_id,
     )
     if input_errors:
         raise ValueError(" | ".join(input_errors))
@@ -200,6 +212,8 @@ def transform_data(
         source_name,
         date_from,
         date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
     )
     if coverage_warning and verbose:
         print(f"Warning: {coverage_warning}", flush=True)
@@ -268,6 +282,7 @@ if __name__ == "__main__":
 
     date_from = date.fromisoformat(args.start) if args.start else None
     date_to = date.fromisoformat(args.end) if args.end else None
+    settings = Settings.load()
 
     errors = validate_inputs(
         args.source,
@@ -278,6 +293,7 @@ if __name__ == "__main__":
         args.model,
         args.scenario,
         allow_coverage_clip=True,
+        settings=settings,
     )
 
     if errors:
@@ -297,6 +313,7 @@ if __name__ == "__main__":
         date_to=date_to,
         model=args.model,
         scenario=args.scenario,
+        settings=settings,
     )
 
     if args.format == "print" or not args.output:

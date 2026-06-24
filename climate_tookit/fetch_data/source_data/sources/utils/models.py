@@ -156,6 +156,7 @@ SOURCE_DATE_LIMITS = {
         "fallback_hint": "Use 'agera_5' or 'auto' for later periods.",
     },
 }
+LIVE_SOURCE_DATE_LIMITS_CACHE: dict[tuple[str, str, str | None, str], dict[str, object]] = {}
 
 
 def normalize_climate_dataset_name(source: str | ClimateDataset | None) -> str | None:
@@ -229,15 +230,100 @@ def _format_date_range(start: date | None, end: date | None) -> str:
     return f"{start.isoformat()}..{end.isoformat()}"
 
 
+def _resolve_source_limits(
+    source_name: str | None,
+    *,
+    settings=None,
+    ee_project_id: str | None = None,
+    ee_opt_url: str | None = None,
+    prefer_live_gee: bool = True,
+) -> dict[str, object] | None:
+    static_limits = SOURCE_DATE_LIMITS.get(source_name)
+    if static_limits is None or not prefer_live_gee:
+        return static_limits
+
+    live_limits = _fetch_live_source_date_limits(
+        source_name,
+        settings=settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+    )
+    return live_limits or static_limits
+
+
+def _fetch_live_source_date_limits(
+    source_name: str,
+    *,
+    settings=None,
+    ee_project_id: str | None = None,
+    ee_opt_url: str | None = None,
+) -> dict[str, object] | None:
+    static_limits = SOURCE_DATE_LIMITS.get(source_name)
+    if static_limits is None:
+        return None
+
+    from .settings import Settings
+    from ..xee_common import DEFAULT_EE_OPT_URL, initialize_earth_engine
+    import importlib
+
+    resolved_settings = settings or Settings.load()
+    data_settings = getattr(resolved_settings, source_name, None)
+    gee_image = getattr(data_settings, "gee_image", None)
+    if not gee_image:
+        return None
+
+    resolved_opt_url = ee_opt_url or DEFAULT_EE_OPT_URL
+    cache_key = (source_name, gee_image, ee_project_id, resolved_opt_url)
+    cached = LIVE_SOURCE_DATE_LIMITS_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        ee_module = importlib.import_module("ee")
+        initialize_earth_engine(
+            ee_module,
+            project_id=ee_project_id,
+            ee_opt_url=resolved_opt_url,
+        )
+        collection = ee_module.ImageCollection(gee_image)
+        min_millis = collection.aggregate_min("system:time_start").getInfo()
+        max_millis = collection.aggregate_max("system:time_start").getInfo()
+        if min_millis is None or max_millis is None:
+            return None
+        live_limits = {
+            "start": datetime.utcfromtimestamp(min_millis / 1000.0).date(),
+            "end": datetime.utcfromtimestamp(max_millis / 1000.0).date(),
+            "label": static_limits["label"],
+            "fallback_hint": static_limits.get("fallback_hint"),
+            "coverage_source": "gee_live",
+            "gee_image": gee_image,
+        }
+        LIVE_SOURCE_DATE_LIMITS_CACHE[cache_key] = live_limits
+        return live_limits
+    except Exception:
+        return None
+
+
 def resolve_source_date_coverage(
     source: str | ClimateDataset | None,
     date_from: date | datetime | None,
     date_to: date | datetime | None,
+    *,
+    settings=None,
+    ee_project_id: str | None = None,
+    ee_opt_url: str | None = None,
+    prefer_live_gee: bool = True,
 ) -> dict[str, object]:
     source_name = normalize_climate_dataset_name(source)
     requested_start = _coerce_date(date_from)
     requested_end = _coerce_date(date_to)
-    limits = SOURCE_DATE_LIMITS.get(source_name)
+    limits = _resolve_source_limits(
+        source_name,
+        settings=settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+        prefer_live_gee=prefer_live_gee,
+    )
 
     if source_name is None or limits is None:
         return {
@@ -252,6 +338,7 @@ def resolve_source_date_coverage(
             "fallback_hint": None,
             "clipped": False,
             "has_overlap": True,
+            "coverage_source": None,
         }
 
     coverage_start = limits["start"]
@@ -282,6 +369,7 @@ def resolve_source_date_coverage(
         "fallback_hint": limits.get("fallback_hint"),
         "clipped": clipped,
         "has_overlap": has_overlap,
+        "coverage_source": limits.get("coverage_source", "static"),
     }
 
 
@@ -289,8 +377,21 @@ def source_date_coverage_warning(
     source: str | ClimateDataset | None,
     date_from: date | datetime | None,
     date_to: date | datetime | None,
+    *,
+    settings=None,
+    ee_project_id: str | None = None,
+    ee_opt_url: str | None = None,
+    prefer_live_gee: bool = True,
 ) -> str | None:
-    coverage = resolve_source_date_coverage(source, date_from, date_to)
+    coverage = resolve_source_date_coverage(
+        source,
+        date_from,
+        date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+        prefer_live_gee=prefer_live_gee,
+    )
     if not coverage["dataset_label"] or not coverage["clipped"]:
         return None
 
@@ -312,8 +413,21 @@ def source_date_no_overlap_error(
     source: str | ClimateDataset | None,
     date_from: date | datetime | None,
     date_to: date | datetime | None,
+    *,
+    settings=None,
+    ee_project_id: str | None = None,
+    ee_opt_url: str | None = None,
+    prefer_live_gee: bool = True,
 ) -> str | None:
-    coverage = resolve_source_date_coverage(source, date_from, date_to)
+    coverage = resolve_source_date_coverage(
+        source,
+        date_from,
+        date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+        prefer_live_gee=prefer_live_gee,
+    )
     if not coverage["dataset_label"] or coverage["has_overlap"]:
         return None
 
@@ -334,15 +448,44 @@ def clip_source_date_range(
     source: str | ClimateDataset | None,
     date_from: date | datetime | None,
     date_to: date | datetime | None,
+    *,
+    settings=None,
+    ee_project_id: str | None = None,
+    ee_opt_url: str | None = None,
+    prefer_live_gee: bool = True,
 ) -> tuple[date | None, date | None, str | None]:
-    coverage = resolve_source_date_coverage(source, date_from, date_to)
-    no_overlap_error = source_date_no_overlap_error(source, date_from, date_to)
+    coverage = resolve_source_date_coverage(
+        source,
+        date_from,
+        date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+        prefer_live_gee=prefer_live_gee,
+    )
+    no_overlap_error = source_date_no_overlap_error(
+        source,
+        date_from,
+        date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+        prefer_live_gee=prefer_live_gee,
+    )
     if no_overlap_error:
         raise ValueError(no_overlap_error)
     return (
         coverage["adjusted_start"],
         coverage["adjusted_end"],
-        source_date_coverage_warning(source, date_from, date_to),
+        source_date_coverage_warning(
+            source,
+            date_from,
+            date_to,
+            settings=settings,
+            ee_project_id=ee_project_id,
+            ee_opt_url=ee_opt_url,
+            prefer_live_gee=prefer_live_gee,
+        ),
     )
 
 
@@ -350,12 +493,33 @@ def source_date_coverage_error(
     source: str | ClimateDataset | None,
     date_from: date | datetime | None,
     date_to: date | datetime | None,
+    *,
+    settings=None,
+    ee_project_id: str | None = None,
+    ee_opt_url: str | None = None,
+    prefer_live_gee: bool = True,
 ) -> str | None:
-    coverage = resolve_source_date_coverage(source, date_from, date_to)
+    coverage = resolve_source_date_coverage(
+        source,
+        date_from,
+        date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+        prefer_live_gee=prefer_live_gee,
+    )
     if not coverage["dataset_label"]:
         return None
 
-    no_overlap_error = source_date_no_overlap_error(source, date_from, date_to)
+    no_overlap_error = source_date_no_overlap_error(
+        source,
+        date_from,
+        date_to,
+        settings=settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
+        prefer_live_gee=prefer_live_gee,
+    )
     if no_overlap_error:
         return no_overlap_error
 

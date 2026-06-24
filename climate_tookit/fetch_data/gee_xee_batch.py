@@ -889,12 +889,16 @@ def fetch_gee_xee_batch_data(
         )
 
     dataset = _coerce_source(source)
+    resolved_settings = settings or Settings.load()
     requested_date_from = date_from
     requested_date_to = date_to
     date_from, date_to, coverage_warning = clip_source_date_range(
         dataset,
         date_from,
         date_to,
+        settings=resolved_settings,
+        ee_project_id=ee_project_id,
+        ee_opt_url=ee_opt_url,
     )
     if coverage_warning:
         _log_progress(f"Warning: {coverage_warning}", True)
@@ -905,7 +909,7 @@ def fetch_gee_xee_batch_data(
         variables=variables,
         date_from=date_from,
         date_to=date_to,
-        settings=settings,
+        settings=resolved_settings,
         cache_dir=cache_dir,
         refresh_cache=refresh_cache,
         verbose=verbose,

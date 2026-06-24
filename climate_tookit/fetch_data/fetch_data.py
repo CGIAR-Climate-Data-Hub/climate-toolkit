@@ -112,6 +112,7 @@ def fetch_data(
         source_name,
         date_from,
         date_to,
+        settings=settings,
     )
     _emit_coverage_warning(coverage_warning)
 
@@ -318,6 +319,7 @@ def main() -> int:
 
     date_from = date.fromisoformat(args.start)
     date_to = date.fromisoformat(args.end)
+    settings = Settings.load()
 
     batch_requested = bool(args.site or args.sites_csv)
 
@@ -332,7 +334,9 @@ def main() -> int:
 
         errors = validate_inputs(
             args.source, args.lat, args.lon, date_from, date_to,
-            args.model, args.scenario, allow_coverage_clip=True,
+            args.model, args.scenario,
+            allow_coverage_clip=True,
+            settings=settings,
         )
         if errors:
             print("\nInput validation failed:\n")
@@ -378,6 +382,7 @@ def main() -> int:
             sites=parsed_sites,
             sites_csv=args.sites_csv,
             station_id=args.station_id,
+            settings=settings,
         )
     except Exception as exc:
         print(f"Error: {format_ee_setup_error(exc)}")
