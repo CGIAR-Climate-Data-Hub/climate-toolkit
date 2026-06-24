@@ -527,13 +527,16 @@ Important source notes:
 - `chirts` is temperature-only, so climatology will omit precipitation outputs.
 
 SPEI and xclim helpers are library functions, not standalone console scripts.
-Use them from Python after fetching/preprocessing climate data:
+Use them from Python after fetching/preprocessing climate data. VPD helpers use
+`xclim` for thermodynamic calculation and prefer CHC-consistent
+moisture-informed inputs (`relative_humidity` or `dewpoint`) when available:
 
 ```python
 from climate_tookit.climatology.spei import (
     compute_monthly_spei,
     prepare_monthly_climatic_water_balance,
 )
+from climate_tookit.climatology import summarize_vpd_period
 from climate_tookit.climatology.xclim_reference import (
     compute_xclim_precip_indices,
 )
@@ -541,6 +544,7 @@ from climate_tookit.climatology.xclim_reference import (
 monthly_balance = prepare_monthly_climatic_water_balance(df, lat=-1.286)
 spei_12 = compute_monthly_spei(monthly_balance, scale=12)
 xclim_precip = compute_xclim_precip_indices(df)
+vpd = summarize_vpd_period(df)
 ```
 
 ---
@@ -761,7 +765,7 @@ Core current-state modules:
 | `compare_datasets` | source-vs-source comparison workflow | shared fetch pipeline |
 | `weather_station` | station discovery, ingestion, selection, station-vs-grid validation | NOAA/custom station inputs, gridded fetch layer |
 | `crop_calendar` | GGCMI crop calendar lookups and presets | `season_analysis`, `climate_statistics`, `compare_periods` |
-| `climatology` | SPEI and xclim-backed climatology helpers | `climate_statistics`, `compare_periods`, `weather_station` |
+| `climatology` | SPEI and xclim-backed climatology helpers, including CHC-aligned moisture-informed VPD support | `climate_statistics`, `compare_periods`, `weather_station` |
 
 Notes:
 

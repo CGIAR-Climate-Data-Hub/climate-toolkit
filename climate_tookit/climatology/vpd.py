@@ -1,4 +1,9 @@
-"""Vapour pressure deficit helpers built on xclim where possible."""
+"""Vapour pressure deficit helpers built on xclim.
+
+Toolkit uses xclim for VPD thermodynamics while preferring moisture-informed
+inputs consistent with CHC workflows where available: relative humidity or
+dewpoint, not temperature-only proxies.
+"""
 
 from __future__ import annotations
 
@@ -127,6 +132,10 @@ def compute_daily_vpd(
     Canonical paths use xclim:
     - relative humidity path via xclim.indices.vapor_pressure_deficit
     - dewpoint path via xclim.indices.saturation_vapor_pressure
+
+    This matches CHC method family direction: moisture-informed derivation from
+    relative humidity or dewpoint-backed actual vapour pressure, not
+    temperature-only proxy estimates.
     """
     if date_col not in frame.columns:
         raise ValueError(f"Missing required date column: {date_col}")
