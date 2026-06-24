@@ -2401,6 +2401,31 @@ def print_overall_by_season(seasons: List[Dict]) -> None:
                 })
         _print_indented_table(pd.DataFrame(rows))
 
+
+def _format_water_balance_methodology_summary(methodology: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not methodology:
+        return None
+    count_window = methodology.get("count_window") or {}
+    mode = count_window.get("applied_mode") or count_window.get("requested_mode") or "n/a"
+    days = count_window.get("counted_days")
+    subseasons = count_window.get("counted_subseasons")
+    parts = [f"mode={mode}"]
+    if _is_num(days):
+        parts.append(f"days={int(days)}")
+    if _is_num(subseasons):
+        parts.append(f"eto_subseasons={int(subseasons)}")
+    return " | ".join(parts)
+
+
+def _water_balance_methodology_warnings(methodology: Optional[Dict[str, Any]]) -> List[str]:
+    if not methodology:
+        return []
+    warnings: List[str] = []
+    for warning in methodology.get("warnings") or []:
+        if warning and warning not in warnings:
+            warnings.append(str(warning))
+    return warnings
+
 def print_seasons(seasons: List[Dict]) -> None:
     print("\n" + "=" * 70)
     print("SEASON STATISTICS")
@@ -2467,6 +2492,15 @@ def print_seasons(seasons: List[Dict]) -> None:
             if 'actual_crop_et_mm' in w:
                 extras.append(f"AET={w['actual_crop_et_mm']} mm")
             print(f"                    crop_model: {' | '.join(extras)}")
+            methodology_line = _format_water_balance_methodology_summary(
+                s.get('water_balance_methodology')
+            )
+            if methodology_line:
+                print(f"                    method: {methodology_line}")
+            for warning in _water_balance_methodology_warnings(
+                s.get('water_balance_methodology')
+            ):
+                print(f"                    note: {warning}")
 
         subs = s.get('eto_sub_seasons')
         if subs is not None:
@@ -2560,6 +2594,15 @@ def print_ltm_by_season(ltm: Dict[str, Any],
                 if wb.get('actual_crop_et_mm') is not None:
                     extras.append(f"AET={wb.get('actual_crop_et_mm')} mm")
                 print(f"                    crop_model: {' | '.join(extras)}")
+                methodology_line = _format_water_balance_methodology_summary(
+                    w.get('water_balance_methodology')
+                )
+                if methodology_line:
+                    print(f"                    method: {methodology_line}")
+                for warning in _water_balance_methodology_warnings(
+                    w.get('water_balance_methodology')
+                ):
+                    print(f"                    note: {warning}")
 
 def print_annual(annual: Dict[str, Dict]) -> None:
     print("\n" + "=" * 70)

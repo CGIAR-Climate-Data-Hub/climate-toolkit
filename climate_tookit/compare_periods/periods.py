@@ -284,6 +284,18 @@ def _format_methodology_side(label: str, summary: Optional[Dict[str, Any]]) -> O
     return f"{label}: mode={mode}" + (f" | {' | '.join(day_bits)}" if day_bits else "")
 
 
+def _methodology_warning_lines(methodology: Optional[Dict[str, Any]]) -> List[str]:
+    if not methodology:
+        return []
+    warnings: List[str] = []
+    for label in ("focal", "baseline_avg", "future_avg", "baseline_ltm", "future_ltm"):
+        summary = methodology.get(label) or {}
+        for warning in summary.get("warnings") or []:
+            if warning and warning not in warnings:
+                warnings.append(str(warning))
+    return warnings
+
+
 def _print_methodology_summary(methodology: Optional[Dict[str, Any]]) -> None:
     if not methodology:
         return
@@ -294,6 +306,8 @@ def _print_methodology_summary(methodology: Optional[Dict[str, Any]]) -> None:
             parts.append(formatted)
     if parts:
         print(f"    NDWS/WRSI method: {' ; '.join(parts)}")
+    for warning in _methodology_warning_lines(methodology):
+        _print_wrapped("NDWS/WRSI note: ", warning, indent="    ")
 
 
 def _has_custom_water_balance_metrics(payload: Dict[str, Any]) -> bool:

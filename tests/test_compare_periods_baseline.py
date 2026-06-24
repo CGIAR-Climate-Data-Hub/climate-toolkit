@@ -2602,6 +2602,67 @@ class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
         self.assertIn("NDWS/WRSI method:", rendered)
         self.assertIn("mode=full_window", rendered)
 
+    def test_print_report_renders_water_balance_methodology_warning(self):
+        payload = {
+            "focal_year": 2019,
+            "baseline_period": "2018-2018",
+            "source": "auto",
+            "fixed_season": "03-01:05-31",
+            "temperature_excluded": False,
+            "raw_climate_summary": {},
+            "overall_statistics": {},
+            "season_statistics": {
+                "windows": [
+                    {
+                        "window": "03-01:05-31",
+                        "season_number": 1,
+                        "n_baseline": 1,
+                        "n_focal": 1,
+                        "water_balance_methodology": {
+                            "focal": {
+                                "applied_modes": ["full_window"],
+                                "counted_days": {"mean": 92.0, "min": 92, "max": 92},
+                                "warnings": [
+                                    "Requested crop-active NDWS window, but perhumid location. Falling back to full fixed window."
+                                ],
+                            },
+                            "baseline_avg": {
+                                "applied_modes": ["full_window"],
+                                "counted_days": {"mean": 92.0, "min": 92, "max": 92},
+                                "warnings": [
+                                    "Requested crop-active NDWS window, but perhumid location. Falling back to full fixed window."
+                                ],
+                            },
+                        },
+                        "diff": {
+                            "water_balance": {
+                                "NDWS": {
+                                    "focal": 8.0,
+                                    "baseline_avg": 10.0,
+                                    "diff": -2.0,
+                                    "pct": -20.0,
+                                }
+                            }
+                        },
+                    }
+                ]
+            },
+            "annual_summary": {},
+        }
+
+        stdout = StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = stdout
+            cp.print_report(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = stdout.getvalue()
+        self.assertIn("NDWS/WRSI note:", rendered)
+        self.assertIn("Requested crop-active NDWS window, but perhumid location.", rendered)
+        self.assertIn("fixed window.", rendered)
+
     def test_print_report_renders_calendar_fallback_summary(self):
         payload = {
             "focal_year": 2020,
