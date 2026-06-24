@@ -904,6 +904,65 @@ class HazardThresholdTests(unittest.TestCase):
             "Perhumid location",
             " ".join(methodology["warnings"]),
         )
+        ndws_hazard = result["hazard_evaluation"]["NDWS"]
+        self.assertEqual("caution", ndws_hazard["interpretation_confidence"])
+        self.assertIn("Perhumid location", ndws_hazard["interpretation_note"])
+        self.assertEqual("full_window", ndws_hazard["count_window_mode"])
+
+    def test_print_result_renders_ndws_interpretation_note(self):
+        import climate_tookit.calculate_hazards.hazards as hazards
+
+        payload = {
+            "crop": "maize",
+            "location": {"latitude": -1.286, "longitude": 36.817},
+            "season_info": {
+                "year": 2020,
+                "onset_date": "2020-03-01",
+                "cessation_date": "2020-05-31",
+                "length_days": 92,
+                "method": "fixed_season",
+            },
+            "season_statistics": {
+                "total_precipitation_mm": 400.0,
+                "mean_daily_precipitation_mm": 4.35,
+                "max_daily_precipitation_mm": 22.0,
+                "rainy_days": 30,
+                "dry_days": 62,
+                "mean_temperature_c": 24.0,
+                "mean_tmax_c": 29.0,
+                "mean_tmin_c": 19.0,
+                "max_temperature_c": 33.0,
+                "min_temperature_c": 16.0,
+                "NDWS": 22,
+                "NDWL0": 0,
+            },
+            "water_balance_methodology": {
+                "count_window": {
+                    "applied_mode": "full_window",
+                },
+            },
+            "hazard_evaluation": {
+                "NDWS": {
+                    "status": "severe_stress",
+                    "value_days": 22,
+                    "interpretation_note": (
+                        "Fixed-season NDWS/NDWL0 thresholds are being interpreted on full-window counts; "
+                        "shoulder months can inflate stress days."
+                    ),
+                }
+            },
+        }
+
+        buf = io.StringIO()
+        orig_stdout = sys.stdout
+        try:
+            sys.stdout = buf
+            hazards.print_hazard_results(payload)
+        finally:
+            sys.stdout = orig_stdout
+
+        rendered = buf.getvalue()
+        self.assertIn("note: Fixed-season NDWS/NDWL0 thresholds are being interpreted", rendered)
 
     def test_calculate_hazards_auto_detect_honors_requested_source(self):
         import climate_tookit.calculate_hazards.hazards as hazards

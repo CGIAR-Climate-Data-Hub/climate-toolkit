@@ -1765,6 +1765,46 @@ def evaluate_hazard_metrics(
         }
     return hazard_eval
 
+
+def _annotate_water_balance_hazard_evaluation(
+    hazard_eval: Dict[str, Any],
+    methodology: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    if not hazard_eval or not methodology:
+        return hazard_eval
+
+    count_window = methodology.get("count_window") or {}
+    analysis_method = methodology.get("analysis_method")
+    applied_mode = count_window.get("applied_mode")
+    warnings = [str(w) for w in (methodology.get("warnings") or []) if w]
+
+    note_parts: List[str] = []
+    confidence = "standard"
+    if analysis_method == "fixed_season" and applied_mode == FULL_WINDOW_WATER_BALANCE:
+        confidence = "caution"
+        note_parts.append(
+            "Fixed-season NDWS/NDWL0 thresholds are being interpreted on full-window counts; shoulder months can inflate stress days."
+        )
+    if warnings:
+        confidence = "caution"
+        note_parts.extend(warnings)
+
+    if not note_parts:
+        return hazard_eval
+
+    note = " ".join(dict.fromkeys(note_parts))
+    annotated = dict(hazard_eval)
+    for hazard_key in ("NDWS", "NDWL0"):
+        item = annotated.get(hazard_key)
+        if not isinstance(item, dict):
+            continue
+        updated = dict(item)
+        updated["interpretation_confidence"] = confidence
+        updated["interpretation_note"] = note
+        updated["count_window_mode"] = applied_mode
+        annotated[hazard_key] = updated
+    return annotated
+
 # Long-Term Mean (Baseline) aggregation
 _LTM_SCALAR_KEYS = (
     'total_precipitation_mm', 'mean_daily_precipitation_mm', 'max_daily_precipitation_mm',
@@ -1839,6 +1879,10 @@ def compute_ltm_baseline(
         total   = max((a['season_info'].get('total_seasons_per_year', 1) for a in bucket), default=1)
 
         hazard_eval = evaluate_hazard_metrics(agg, thresholds)
+        hazard_eval = _annotate_water_balance_hazard_evaluation(
+            hazard_eval,
+            bucket[0].get('water_balance_methodology'),
+        )
 
         ltm_blocks.append({
             'season_number':          sn,
@@ -2362,12 +2406,16 @@ def calculate_hazards(
             eto_seasons=entry.get("eto_seasons"),
             eto_detection_note=entry.get("eto_detection_note"),
         )
-        hazard_eval = evaluate_hazard_metrics(stats, thresholds)
         methodology = build_water_balance_methodology(
             entry['season_info'],
             soil_parameters,
             crop_water_balance,
             count_window=count_window,
+        )
+        hazard_eval = evaluate_hazard_metrics(stats, thresholds)
+        hazard_eval = _annotate_water_balance_hazard_evaluation(
+            hazard_eval,
+            methodology,
         )
         assessments.append({
             'crop':              crop_name,
@@ -2747,6 +2795,8 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
             f"  {spec['label']:<25} {item[spec['value_key']]:>16.2f} {spec['unit']:<6} "
             f"[{sym}] {item['status'].replace('_', ' ').upper()}"
         )
+        if hazard_key in ('NDWS', 'NDWL0') and item.get("interpretation_note"):
+            print(f"  {'':<25} {'':>16}        note: {item['interpretation_note']}")
 
     print(f"\n{'='*70}\n")
 
