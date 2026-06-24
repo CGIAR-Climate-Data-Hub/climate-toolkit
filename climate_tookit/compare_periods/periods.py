@@ -1035,6 +1035,7 @@ def compare(
     spi_fit: str = "ub-pwm",
     spi_ref_start: Optional[str] = None,
     spi_ref_end: Optional[str] = None,
+    workers: int = 1,
 ) -> Dict[str, Any]:
     """Run statistics.py for baseline + focal, diff the four sections."""
     if source.lower() not in SUPPORTED:
@@ -1108,7 +1109,7 @@ def compare(
         base = analyze_climate_statistics(
             location_coord=location,
             start_year=baseline_start, end_year=baseline_end,
-            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw)
+            source=source, workers=workers, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw)
     except Exception as exc:
         return {
             "error": (
@@ -1129,7 +1130,7 @@ def compare(
         focal = analyze_climate_statistics(
             location_coord=location,
             start_year=focal_year, end_year=focal_year,
-            source=source, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw)
+            source=source, workers=workers, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw)
     except Exception as exc:
         return {
             "error": (
@@ -1575,6 +1576,10 @@ def main() -> int:
                    help="Optional SPI reference-period start date, e.g. 1991-01-01.")
     p.add_argument("--spi-ref-end", default=None,
                    help="Optional SPI reference-period end date, e.g. 2020-12-31.")
+    p.add_argument(
+        "--workers", type=int, default=1,
+        help="Bounded historical GEE/Xee worker count for chunked fetches.",
+    )
     p.add_argument("--format", choices=["pandas", "json"], default="pandas",
                    help="Output format: human-readable table view or raw JSON.")
     p.add_argument("--verbose", action="store_true",
@@ -1617,6 +1622,7 @@ def main() -> int:
         spi_fit=args.spi_fit,
         spi_ref_start=args.spi_ref_start,
         spi_ref_end=args.spi_ref_end,
+        workers=args.workers,
     )
     rendered = json.dumps(result, indent=2, default=str)
     if args.format == "json":

@@ -105,7 +105,8 @@ def _fetch_source(source: str, lat: float, lon: float,
                   model: str | None = None,
                   scenario: str | None = None,
                   precip_source: str | None = None,
-                  temp_source: str | None = None) -> pd.DataFrame:
+                  temp_source: str | None = None,
+                  workers: int = 1) -> pd.DataFrame:
     """
     Dispatch a single source to the preprocessed-data pipeline.
     Returns the analysis-ready DataFrame (with a `date` column) that `preprocess_data` produces. Raises if the source key is unknown.
@@ -122,7 +123,7 @@ def _fetch_source(source: str, lat: float, lon: float,
     date_from = date.fromisoformat(str(start)) if start else None
     date_to   = date.fromisoformat(str(end))   if end   else None
     if source == "auto":
-        return _fetch_auto_dataset(lat, lon, date_from, date_to)
+        return _fetch_auto_dataset(lat, lon, date_from, date_to, workers=workers)
     if source == PAIRED_SOURCE_SENTINEL:
         return _fetch_paired_dataset_sources(
             lat,
@@ -133,6 +134,7 @@ def _fetch_source(source: str, lat: float, lon: float,
             temp_source,
             model=model,
             scenario=scenario,
+            workers=workers,
         )
     variables = SOURCE_VARIABLES.get(source, DEFAULT_CLIMATE_VARIABLES)
     kwargs = dict(
@@ -145,6 +147,8 @@ def _fetch_source(source: str, lat: float, lon: float,
     if source == "nex_gddp":
         kwargs["model"]    = model
         kwargs["scenario"] = scenario
+    elif workers != 1:
+        kwargs["workers"] = workers
     df = preprocess_data(**kwargs)
 
     if (df is not None
@@ -533,7 +537,8 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     nex_scenario: str = "ssp245",
                     nex_models: list[str] | None = None,
                     precip_source: str | None = None,
-                    temp_source: str | None = None):
+                    temp_source: str | None = None,
+                    workers: int = 1):
     os.makedirs(output_dir, exist_ok=True)
     results = {}
 
@@ -615,6 +620,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     lon,
                     start,
                     end,
+                    workers=workers,
                 )
                 result_key = "auto"
             elif source == PAIRED_SOURCE_SENTINEL:
@@ -633,6 +639,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     scenario=nex_scenario,
                     precip_source=precip_source,
                     temp_source=temp_source,
+                    workers=workers,
                 )
                 result_key = (
                     f"paired_{precip_source}_plus_{temp_source}"
@@ -646,6 +653,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     end,
                     precip_source=precip_source,
                     temp_source=temp_source,
+                    workers=workers,
                 )
                 result_key = source
 
@@ -854,6 +862,10 @@ def main() -> int:
             f"Available: {', '.join(SCENARIO_MAPPING.keys())}"
         ),
     )
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="Bounded historical GEE/Xee worker count for chunked fetches.",
+    )
     args = parser.parse_args()
 
     if args.sources and (args.lat is None or args.lon is None):
@@ -907,6 +919,7 @@ def main() -> int:
             nex_models=args.models,
             precip_source=args.precip_source,
             temp_source=args.temp_source,
+            workers=args.workers,
         )
     except ValueError as exc:
         parser.error(str(exc))

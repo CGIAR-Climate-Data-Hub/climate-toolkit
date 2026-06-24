@@ -294,6 +294,12 @@ def main() -> int:
     parser.add_argument('--station-id', default=None)
     parser.add_argument('--project-id', default=None,
                         help='Optional Earth Engine / GCP project ID for Xee-backed sources')
+    parser.add_argument(
+        '--workers',
+        type=int,
+        default=1,
+        help='Bounded historical GEE/Xee worker count for chunked fetches.',
+    )
     parser.add_argument('--output', '-o', default=None)
     parser.add_argument(
         '--format',
@@ -344,6 +350,7 @@ def main() -> int:
             refresh_cache=args.refresh_cache,
             station_id=args.station_id,
             ee_project_id=args.project_id,
+            workers=args.workers,
         )
 
         climate_data = source_data.download()

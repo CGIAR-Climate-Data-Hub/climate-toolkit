@@ -908,10 +908,11 @@ def _fetch_grid_source(
     temp_source: str | None = None,
     cache_dir: str | None = None,
     refresh_cache: bool = False,
+    workers: int = 1,
 ) -> pd.DataFrame:
     source_name = normalize_climate_dataset_name(source)
     if source_name == "auto":
-        frame = _fetch_auto(lat, lon, date_from, date_to)
+        frame = _fetch_auto(lat, lon, date_from, date_to, workers=workers)
     elif source_name == PAIRED_SOURCE_SENTINEL:
         pair_error = _validate_paired_sources(
             precip_source,
@@ -928,11 +929,12 @@ def _fetch_grid_source(
             date_to,
             normalize_climate_dataset_name(precip_source),
             normalize_climate_dataset_name(temp_source),
+            workers=workers,
         )
     elif source_name in {"chirps+chirts", "chirps_v2+chirts"}:
-        frame = _fetch_chirps_chirts(lat, lon, date_from, date_to)
+        frame = _fetch_chirps_chirts(lat, lon, date_from, date_to, workers=workers)
     else:
-        frame = preprocess_data(
+        fetch_kwargs = dict(
             source=source_name,
             location_coord=(lat, lon),
             variables=variables,
@@ -942,6 +944,9 @@ def _fetch_grid_source(
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
         )
+        if workers != 1:
+            fetch_kwargs["workers"] = workers
+        frame = preprocess_data(**fetch_kwargs)
     if frame is None or frame.empty:
         raise RuntimeError(f"No data returned from grid source '{source_name}'")
     result = frame.copy()
@@ -2239,6 +2244,7 @@ def compare_station_to_grids(
     custom_temp_unit: str = "c",
     custom_precip_unit: str = "mm",
     candidate_report_prefix: str | None = None,
+    workers: int = 1,
 ) -> dict[str, Any]:
     normalized_grid_sources = _normalize_grid_sources(grid_sources)
     requested_variables = variables or DEFAULT_COMPARE_VARIABLES
@@ -2530,6 +2536,7 @@ def compare_station_to_grids(
                         temp_source=temp_source,
                         cache_dir=cache_dir,
                         refresh_cache=refresh_cache,
+                        workers=workers,
                     )
                 grid_frame = fetch_cache[cache_key].copy()
             except Exception as exc:
@@ -2943,6 +2950,10 @@ def main() -> int:
     parser.add_argument("--max-auto-stations", type=int, default=10)
     parser.add_argument("--candidate-limit", type=int, default=10)
     parser.add_argument("--score-limit", type=int, default=25)
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="Bounded historical GEE/Xee worker count for gridded comparison fetches.",
+    )
     parser.add_argument("--report-prefix", default=None)
     parser.add_argument("--candidate-report-prefix", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--open-report", action="store_true")
@@ -2999,6 +3010,7 @@ def main() -> int:
             custom_temp_unit=args.custom_temp_unit,
             custom_precip_unit=args.custom_precip_unit,
             candidate_report_prefix=report_prefix,
+            workers=args.workers,
         )
     except Exception as exc:
         print(f"Error: {exc}")

@@ -391,6 +391,7 @@ def calculate_annual_statistics(
     variables: Optional[List] = None,
     model: Optional[str] = None,
     scenario: Optional[str] = None,
+    workers: int = 1,
     verbose: bool = True,
     return_error: bool = False,
 ) -> Optional[Dict[str, Any]]:
@@ -418,6 +419,9 @@ def calculate_annual_statistics(
             variables=variables,
             date_from=date_from,
             date_to=date_to,
+            **(
+                {"workers": workers} if workers != 1 else {}
+            ),
             **fetch_kwargs
         )
         
@@ -692,6 +696,7 @@ def calculate_climatology(
     output_dir: Optional[str] = None,
     model: Optional[str] = None,
     scenario: Optional[str] = None,
+    workers: int = 1,
     verbose: bool = True
 ) -> Dict[str, Any]:
     """
@@ -727,6 +732,7 @@ def calculate_climatology(
             variables,
             model=model,
             scenario=scenario,
+            workers=workers,
             verbose=verbose,
             return_error=True,
         )
@@ -1558,6 +1564,7 @@ def _run_climatology_cli(
     output_format: str,
     output_path: Optional[str],
     output_dir: str,
+    workers: int,
     model_workers: int,
 ) -> int:
     try:
@@ -1708,6 +1715,7 @@ def _run_climatology_cli(
         end_year=end_year,
         source=source,
         output_dir=plot_dir,
+        workers=workers,
     )
     if output_format == "json":
         rendered = json.dumps(_json_sanitize(result), indent=2, default=str)
@@ -1787,6 +1795,11 @@ if typer is not None:
                 "Pass empty string to disable plotting. Plot writing requires matplotlib."
             ),
         ),
+        workers: int = typer.Option(
+            1,
+            "--workers",
+            help="Bounded historical GEE/Xee worker count for chunked fetches.",
+        ),
         model_workers: int = typer.Option(
             8,
             "--model-workers",
@@ -1822,6 +1835,7 @@ if typer is not None:
             output_format=output_format,
             output_path=output_path,
             output_dir=output_dir,
+            workers=workers,
             model_workers=model_workers,
         )
         if rc:
@@ -1853,6 +1867,12 @@ def _build_argparse_climatology_parser() -> argparse.ArgumentParser:
         "--output-dir",
         default="./outputs",
         help="Directory for plot PNGs. Pass empty string to disable plotting.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Bounded historical GEE/Xee worker count for chunked fetches.",
     )
     parser.add_argument(
         "--model-workers",
@@ -1900,6 +1920,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         output_format=output_format,
         output_path=namespace.output_path,
         output_dir=namespace.output_dir,
+        workers=namespace.workers,
         model_workers=namespace.model_workers,
     )
 

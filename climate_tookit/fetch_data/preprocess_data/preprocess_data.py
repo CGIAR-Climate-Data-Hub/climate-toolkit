@@ -284,6 +284,12 @@ if __name__ == "__main__":
     parser.add_argument("--end", type=str)
     parser.add_argument("--model", type=str)
     parser.add_argument("--scenario", type=str)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Bounded historical GEE/Xee worker count for chunked fetches.",
+    )
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument(
         "--format",
@@ -304,6 +310,7 @@ if __name__ == "__main__":
         date_to=date_to,
         model=args.model,
         scenario=args.scenario,
+        workers=args.workers,
     )
 
     if args.format == "print" or not args.output:
