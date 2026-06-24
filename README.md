@@ -312,6 +312,31 @@ Dedicated method guide:
 
 - [docs/thi_workflow.md](docs/thi_workflow.md)
 
+Human heat first-pass note:
+
+- toolkit now also exposes xclim-backed `humidex` helper functions for people
+- this is phase-1 continuous metric support, not full human hazard
+  classification
+- `WBGT` and `UTCI` are intentionally deferred until wind/radiation support is
+  more coherent across intended workflows
+
+Python users can inspect current human-heat choice directly:
+
+```python
+from climate_tookit.climatology import (
+    compute_daily_humidex,
+    describe_human_heat_method,
+    describe_human_heat_source_support,
+)
+
+print(describe_human_heat_method()["metric"])
+print(describe_human_heat_source_support())
+```
+
+Dedicated method guide:
+
+- [docs/human_heat_workflow.md](docs/human_heat_workflow.md)
+
 Example:
 
 ```bash
