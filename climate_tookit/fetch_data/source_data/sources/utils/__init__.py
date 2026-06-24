@@ -36,9 +36,13 @@ __all__ = [
     "VariableType",
     "accepted_climate_dataset_names",
     "canonical_climate_variable_name",
+    "clip_source_date_range",
     "normalize_climate_dataset_name",
     "parse_variable_token",
+    "resolve_source_date_coverage",
     "source_date_coverage_error",
+    "source_date_coverage_warning",
+    "source_date_no_overlap_error",
 ]
 
 
@@ -56,9 +60,13 @@ def __getattr__(name: str):
         "VariableType",
         "accepted_climate_dataset_names",
         "canonical_climate_variable_name",
+        "clip_source_date_range",
         "normalize_climate_dataset_name",
         "parse_variable_token",
+        "resolve_source_date_coverage",
         "source_date_coverage_error",
+        "source_date_coverage_warning",
+        "source_date_no_overlap_error",
     }:
         from .models import (
             CLIMATE_VARIABLE_ALIASES as _CLIMATE_VARIABLE_ALIASES,
@@ -73,9 +81,13 @@ def __getattr__(name: str):
             VariableType as _VariableType,
             accepted_climate_dataset_names as _accepted_climate_dataset_names,
             canonical_climate_variable_name as _canonical_climate_variable_name,
+            clip_source_date_range as _clip_source_date_range,
             normalize_climate_dataset_name as _normalize_climate_dataset_name,
             parse_variable_token as _parse_variable_token,
+            resolve_source_date_coverage as _resolve_source_date_coverage,
             source_date_coverage_error as _source_date_coverage_error,
+            source_date_coverage_warning as _source_date_coverage_warning,
+            source_date_no_overlap_error as _source_date_no_overlap_error,
         )
 
         exports = {
@@ -91,9 +103,13 @@ def __getattr__(name: str):
             "VariableType": _VariableType,
             "accepted_climate_dataset_names": _accepted_climate_dataset_names,
             "canonical_climate_variable_name": _canonical_climate_variable_name,
+            "clip_source_date_range": _clip_source_date_range,
             "normalize_climate_dataset_name": _normalize_climate_dataset_name,
             "parse_variable_token": _parse_variable_token,
+            "resolve_source_date_coverage": _resolve_source_date_coverage,
             "source_date_coverage_error": _source_date_coverage_error,
+            "source_date_coverage_warning": _source_date_coverage_warning,
+            "source_date_no_overlap_error": _source_date_no_overlap_error,
         }
         return exports[name]
     if name in {

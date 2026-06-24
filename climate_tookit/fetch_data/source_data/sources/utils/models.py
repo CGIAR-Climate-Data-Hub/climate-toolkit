@@ -153,6 +153,7 @@ SOURCE_DATE_LIMITS = {
         "start": date(1979, 1, 2),
         "end": date(2020, 7, 9),
         "label": "ECMWF/ERA5/DAILY",
+        "fallback_hint": "Use 'agera_5' or 'auto' for later periods.",
     },
 }
 
@@ -218,40 +219,157 @@ def _coerce_date(value: date | datetime | None) -> date | None:
     return value
 
 
+def _format_date_range(start: date | None, end: date | None) -> str:
+    if start is None and end is None:
+        return "open-ended"
+    if start is None:
+        return f"..{end.isoformat()}"
+    if end is None:
+        return f"{start.isoformat()}.."
+    return f"{start.isoformat()}..{end.isoformat()}"
+
+
+def resolve_source_date_coverage(
+    source: str | ClimateDataset | None,
+    date_from: date | datetime | None,
+    date_to: date | datetime | None,
+) -> dict[str, object]:
+    source_name = normalize_climate_dataset_name(source)
+    requested_start = _coerce_date(date_from)
+    requested_end = _coerce_date(date_to)
+    limits = SOURCE_DATE_LIMITS.get(source_name)
+
+    if source_name is None or limits is None:
+        return {
+            "source_name": source_name,
+            "dataset_label": None,
+            "requested_start": requested_start,
+            "requested_end": requested_end,
+            "adjusted_start": requested_start,
+            "adjusted_end": requested_end,
+            "coverage_start": None,
+            "coverage_end": None,
+            "fallback_hint": None,
+            "clipped": False,
+            "has_overlap": True,
+        }
+
+    coverage_start = limits["start"]
+    coverage_end = limits["end"]
+    adjusted_start = (
+        max(requested_start, coverage_start)
+        if requested_start is not None
+        else coverage_start
+    )
+    adjusted_end = (
+        min(requested_end, coverage_end)
+        if requested_end is not None
+        else coverage_end
+    )
+    has_overlap = adjusted_start <= adjusted_end
+    clipped = has_overlap and (
+        requested_start != adjusted_start or requested_end != adjusted_end
+    )
+    return {
+        "source_name": source_name,
+        "dataset_label": limits["label"],
+        "requested_start": requested_start,
+        "requested_end": requested_end,
+        "adjusted_start": adjusted_start,
+        "adjusted_end": adjusted_end,
+        "coverage_start": coverage_start,
+        "coverage_end": coverage_end,
+        "fallback_hint": limits.get("fallback_hint"),
+        "clipped": clipped,
+        "has_overlap": has_overlap,
+    }
+
+
+def source_date_coverage_warning(
+    source: str | ClimateDataset | None,
+    date_from: date | datetime | None,
+    date_to: date | datetime | None,
+) -> str | None:
+    coverage = resolve_source_date_coverage(source, date_from, date_to)
+    if not coverage["dataset_label"] or not coverage["clipped"]:
+        return None
+
+    message = (
+        f"Requested range for source '{coverage['source_name']}' is outside current coverage "
+        f"for {coverage['dataset_label']} ({coverage['coverage_start'].isoformat()}.."
+        f"{coverage['coverage_end'].isoformat()}). Requested: "
+        f"{_format_date_range(coverage['requested_start'], coverage['requested_end'])}. "
+        f"Adjusted: {_format_date_range(coverage['adjusted_start'], coverage['adjusted_end'])}. "
+        "Proceeding with the overlapping window."
+    )
+    fallback_hint = coverage["fallback_hint"]
+    if fallback_hint:
+        message = f"{message} {fallback_hint}"
+    return message
+
+
+def source_date_no_overlap_error(
+    source: str | ClimateDataset | None,
+    date_from: date | datetime | None,
+    date_to: date | datetime | None,
+) -> str | None:
+    coverage = resolve_source_date_coverage(source, date_from, date_to)
+    if not coverage["dataset_label"] or coverage["has_overlap"]:
+        return None
+
+    message = (
+        f"Requested range for source '{coverage['source_name']}' is outside current coverage "
+        f"for {coverage['dataset_label']} ({coverage['coverage_start'].isoformat()}.."
+        f"{coverage['coverage_end'].isoformat()}). Requested: "
+        f"{_format_date_range(coverage['requested_start'], coverage['requested_end'])}. "
+        "No overlapping dates remain after clipping."
+    )
+    fallback_hint = coverage["fallback_hint"]
+    if fallback_hint:
+        message = f"{message} {fallback_hint}"
+    return message
+
+
+def clip_source_date_range(
+    source: str | ClimateDataset | None,
+    date_from: date | datetime | None,
+    date_to: date | datetime | None,
+) -> tuple[date | None, date | None, str | None]:
+    coverage = resolve_source_date_coverage(source, date_from, date_to)
+    no_overlap_error = source_date_no_overlap_error(source, date_from, date_to)
+    if no_overlap_error:
+        raise ValueError(no_overlap_error)
+    return (
+        coverage["adjusted_start"],
+        coverage["adjusted_end"],
+        source_date_coverage_warning(source, date_from, date_to),
+    )
+
+
 def source_date_coverage_error(
     source: str | ClimateDataset | None,
     date_from: date | datetime | None,
     date_to: date | datetime | None,
 ) -> str | None:
-    source_name = normalize_climate_dataset_name(source)
-    if source_name is None:
+    coverage = resolve_source_date_coverage(source, date_from, date_to)
+    if not coverage["dataset_label"]:
         return None
 
-    limits = SOURCE_DATE_LIMITS.get(source_name)
-    if limits is None:
+    no_overlap_error = source_date_no_overlap_error(source, date_from, date_to)
+    if no_overlap_error:
+        return no_overlap_error
+
+    if not coverage["clipped"]:
         return None
 
-    start = _coerce_date(date_from)
-    end = _coerce_date(date_to)
-    coverage_start = limits["start"]
-    coverage_end = limits["end"]
-    dataset_label = limits["label"]
-
-    violations = []
-    if start is not None and start < coverage_start:
-        violations.append(
-            f"start={start.isoformat()} is before {coverage_start.isoformat()}"
-        )
-    if end is not None and end > coverage_end:
-        violations.append(
-            f"end={end.isoformat()} is after {coverage_end.isoformat()}"
-        )
-
-    if not violations:
-        return None
-
-    return (
-        f"Requested range for source '{source_name}' is outside current coverage "
-        f"for {dataset_label} ({coverage_start.isoformat()}..{coverage_end.isoformat()}): "
-        f"{'; '.join(violations)}. Use 'agera_5' or 'auto' for later periods."
+    message = (
+        f"Requested range for source '{coverage['source_name']}' is outside current coverage "
+        f"for {coverage['dataset_label']} ({coverage['coverage_start'].isoformat()}.."
+        f"{coverage['coverage_end'].isoformat()}). Requested: "
+        f"{_format_date_range(coverage['requested_start'], coverage['requested_end'])}. "
+        f"Overlapping window: {_format_date_range(coverage['adjusted_start'], coverage['adjusted_end'])}."
     )
+    fallback_hint = coverage["fallback_hint"]
+    if fallback_hint:
+        message = f"{message} {fallback_hint}"
+    return message

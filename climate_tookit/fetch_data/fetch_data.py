@@ -36,13 +36,18 @@ from .source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
     SoilVariable,
+    clip_source_date_range,
     normalize_climate_dataset_name,
     parse_variable_token,
-    source_date_coverage_error,
 )
 from .source_data.sources.utils.settings import Settings
 
 VALID_STAGES = ("raw", "transformed", "preprocessed")
+
+
+def _emit_coverage_warning(message: str | None) -> None:
+    if message:
+        print(f"Warning: {message}", flush=True)
 
 
 def _default_variables_for_source(source_name: str):
@@ -103,9 +108,12 @@ def fetch_data(
     variables = variables or _default_variables_for_source(source_name)
     date_from = date_from or date.today()
     date_to = date_to or date.today()
-    coverage_error = source_date_coverage_error(source_name, date_from, date_to)
-    if coverage_error:
-        raise ValueError(coverage_error)
+    date_from, date_to, coverage_warning = clip_source_date_range(
+        source_name,
+        date_from,
+        date_to,
+    )
+    _emit_coverage_warning(coverage_warning)
 
     batch_requested = bool(sites or sites_csv)
     if batch_requested:
@@ -324,7 +332,7 @@ def main() -> int:
 
         errors = validate_inputs(
             args.source, args.lat, args.lon, date_from, date_to,
-            args.model, args.scenario,
+            args.model, args.scenario, allow_coverage_clip=True,
         )
         if errors:
             print("\nInput validation failed:\n")
