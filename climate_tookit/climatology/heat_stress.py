@@ -109,7 +109,10 @@ _THI_SOURCE_SUPPORT = {
     "ghcn_daily": "supported when RHAV humidity field exists for chosen station and window",
     "gsod": "supported when humidity field exists for chosen station and window",
     "custom_station": "supported when uploaded file includes humidity/rh column",
-    "era_5": "uncertain: humidity path not yet documented as operational default for THI workflow",
+    "era_5": (
+        "uncertain: current ERA5 fetch configuration does not define a humidity band for the "
+        "operational THI workflow, even though downstream canonical humidity naming exists elsewhere"
+    ),
     "nex_gddp": "conditionally supported: relative humidity uses NEX-GDDP hurs when present, but some GEE model/scenario combinations lack that band",
     "chirps_v2": "not supported: precipitation-only source",
     "chirps_v3_daily_rnl": "not supported: precipitation-only source",
@@ -568,6 +571,92 @@ def describe_thi_source_support() -> dict[str, str]:
     return dict(_THI_SOURCE_SUPPORT)
 
 
+def describe_thi_method() -> dict[str, Any]:
+    """Return current operational THI method, thresholds, and source-support notes."""
+    profiles: dict[str, dict[str, Any]] = {}
+    for livestock_type in list_thi_livestock_profiles():
+        temperate = resolve_thi_profile(
+            livestock_type=livestock_type,
+            climate_profile="temperate",
+        )
+        tropical = resolve_thi_profile(
+            livestock_type=livestock_type,
+            climate_profile="tropical",
+        )
+        profiles[livestock_type] = {
+            "label": temperate["label"],
+            "species_group": temperate["species_group"],
+            "thresholds_temperate": dict(temperate["thresholds"]),
+            "thresholds_tropical": dict(tropical["thresholds"]),
+        }
+
+    return {
+        "metric": "livestock_thi",
+        "formula": THI_FORMULA,
+        "default_daily_workflow": "daily mean temperature plus daily relative humidity",
+        "temperature_input": {
+            "preferred_mean_columns": list(_MEAN_TEMP_CANDIDATES),
+            "fallback_rule": "derive mean daily temperature from (tmax + tmin) / 2",
+        },
+        "humidity_input": {
+            "required": True,
+            "type": "daily relative humidity in percent",
+            "valid_range_percent": [0.0, 100.0],
+        },
+        "climate_profile_logic": {
+            "options": ["auto", "temperate", "tropical"],
+            "auto_rule": (
+                "auto uses latitude first; tropical sites at or above highland elevation use "
+                "temperate thresholds as highland proxy"
+            ),
+            "tropics_latitude_deg": TROPICS_LATITUDE_DEG,
+            "highland_elevation_m": HIGHLAND_ELEVATION_M,
+        },
+        "threshold_reference": (
+            "Thornton et al. (2021) Table 1 operational thresholds; "
+            "tropical extreme-threshold adjustments from Table 2 when applicable."
+        ),
+        "method_rationale": {
+            "default_choice": (
+                "Keep daily mean-temperature THI as toolkit default because current projection-facing "
+                "literature and gridded-source support are strongest for daily average temperature plus "
+                "relative humidity, while consistent paired peak-heat humidity pathways are not yet "
+                "stable across toolkit sources."
+            ),
+            "max_temperature_screening_status": (
+                "Not default. Potential future screening companion, but not yet promoted because "
+                "daily Tmax combined with non-coincident RH can overstate or distort heat-stress signal."
+            ),
+        },
+        "interpretation_caveats": [
+            "Species-group operational defaults, not breed-resolved physiology.",
+            "Toolkit does not currently distinguish Bos indicus, Bos taurus, Sanga, or crossbred cattle within a livestock type.",
+            "Climate-profile auto logic is coarse location proxy, not direct animal adaptation measurement.",
+            "For locally adapted breeds or project-specific veterinary guidance, treat package THI bands as screening defaults and consider custom threshold override.",
+        ],
+        "references": [
+            {
+                "short": "Thornton et al. 2021",
+                "doi": "10.1111/gcb.15825",
+                "notes": (
+                    "Uses THI from daily temperature and relative humidity for global livestock heat-stress "
+                    "projection work; supports current default workflow and species-specific threshold table."
+                ),
+            },
+            {
+                "short": "Thom 1959 / NRC 1971 equivalence",
+                "doi": None,
+                "notes": (
+                    "Thornton et al. summarize Thom (1959) and algebraically equivalent NRC (1971) THI forms; "
+                    "toolkit formula follows this widely used family."
+                ),
+            },
+        ],
+        "profiles": profiles,
+        "source_support": describe_thi_source_support(),
+    }
+
+
 __all__ = [
     "DEFAULT_LIVESTOCK_CLIMATE_PROFILE",
     "DEFAULT_LIVESTOCK_TYPE",
@@ -577,6 +666,7 @@ __all__ = [
     "build_thi_hazard_thresholds",
     "classify_thi_values",
     "compute_daily_thi",
+    "describe_thi_method",
     "describe_thi_source_support",
     "infer_livestock_climate_profile",
     "list_thi_livestock_profiles",

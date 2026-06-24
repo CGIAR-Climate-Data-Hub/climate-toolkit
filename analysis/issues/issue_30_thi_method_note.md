@@ -53,3 +53,8 @@ Still open after this first cut:
 3. user-facing CLI / report surface
 4. fuller catalog-aware handling for projected-climate humidity edge cases beyond current documented `hurs` gaps
 5. literature sweep to decide whether default should stay on mean-temperature THI or also expose max-temperature screening variant
+
+Additional repo follow-up now completed:
+
+- public metadata helper: `climate_tookit.climatology.describe_thi_method()`
+- user-facing method guide: `docs/thi_workflow.md`

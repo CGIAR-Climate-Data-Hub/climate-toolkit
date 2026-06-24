@@ -64,6 +64,7 @@ from climate_tookit.climatology import (
     DEFAULT_LIVESTOCK_CLIMATE_PROFILE,
     DEFAULT_LIVESTOCK_TYPE,
     compute_daily_thi,
+    describe_thi_method,
     list_thi_livestock_profiles,
     resolve_thi_profile,
 )
@@ -1349,10 +1350,13 @@ def _summarize_livestock_thi(
     if "thi" not in thi_df.columns or thi_df["thi"].notna().sum() == 0:
         return None
     counts = thi_df["thi_class"].value_counts(dropna=True)
+    method = describe_thi_method()
     return {
         "livestock_type": (thi_profile or {}).get("livestock_type", DEFAULT_LIVESTOCK_TYPE),
         "livestock_label": (thi_profile or {}).get("label", "Cattle (dairy)"),
         "climate_profile": (thi_profile or {}).get("climate_profile_applied", DEFAULT_LIVESTOCK_CLIMATE_PROFILE),
+        "threshold_source": method.get("threshold_reference"),
+        "method_note": "operational defaults | mean-temp+RH THI",
         "mean_thi": round(float(thi_df["thi"].mean()), 2),
         "max_thi": round(float(thi_df["thi"].max()), 2),
         "days_stress": int(counts.get("mild", 0) + counts.get("moderate", 0) + counts.get("severe", 0)),
@@ -1375,6 +1379,20 @@ def _thi_profile_label(profile: Optional[Dict[str, Any]]) -> str:
     if climate:
         return f"Livestock THI ({label}; {climate})"
     return f"Livestock THI ({label})"
+
+
+def _thi_method_line(profile: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not profile:
+        return None
+    note = profile.get("method_note")
+    threshold_source = profile.get("threshold_source")
+    if note and threshold_source:
+        return f"{note} | thresholds={threshold_source}"
+    if note:
+        return str(note)
+    if threshold_source:
+        return f"thresholds={threshold_source}"
+    return None
 
 def print_summary(
     seasons_dict : Dict[int, List[Dict]],
@@ -1426,6 +1444,9 @@ def print_summary(
                     f"moderate={heat.get('days_moderate')} | "
                     f"severe={heat.get('days_severe')}"
                 )
+                note = _thi_method_line(heat)
+                if note:
+                    print(f"                    note: {note}")
 
             # ETO sub-season analysis (fixed mode only)
             eto_seasons = s.get('eto_seasons')
@@ -1461,6 +1482,9 @@ def print_summary(
                                     f"max_thi={sub_heat.get('max_thi')} | "
                                     f"stress_days={sub_heat.get('days_stress')}"
                                 )
+                                note = _thi_method_line(sub_heat)
+                                if note:
+                                    print(f"                            note: {note}")
             # CSV row
             eto_summary = "; ".join(
                 f"{pd.to_datetime(es['onset']).strftime('%Y-%m-%d')}"

@@ -287,7 +287,7 @@ Livestock THI source support:
 | `gsod` | supported when available | uses station humidity when humidity field exists for chosen station and window |
 | `custom_station` | supported when available | uploaded file must include humidity / RH column |
 | `nex_gddp` | conditionally supported | uses Earth Engine `hurs`; some model / scenario / year combinations lack that band |
-| `era_5` | uncertain | humidity path not yet treated as fully documented default THI workflow |
+| `era_5` | uncertain | current toolkit ERA5 fetch configuration does not define a humidity band for operational THI use |
 | `chirps_v2` | not supported | precipitation-only source |
 | `chirps_v3_daily_rnl` | not supported | precipitation-only source |
 | `imerg` | not supported | precipitation-only source |
@@ -297,10 +297,15 @@ Livestock THI source support:
 Python users can inspect same support map directly:
 
 ```python
-from climate_tookit.climatology import describe_thi_source_support
+from climate_tookit.climatology import describe_thi_method, describe_thi_source_support
 
 print(describe_thi_source_support())
+print(describe_thi_method()["profiles"]["cattle_dairy"])
 ```
+
+Dedicated method guide:
+
+- [docs/thi_workflow.md](docs/thi_workflow.md)
 
 Example:
 
