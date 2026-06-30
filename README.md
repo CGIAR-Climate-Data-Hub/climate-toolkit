@@ -261,6 +261,10 @@ python -m climate_tookit.fetch_data.fetch_data \
 
 ## Common Workflows
 
+> New here? See [docs/example_workflow.md](docs/example_workflow.md) for a full
+> end-to-end story (fetch → validate → climatology → seasons → stats →
+> periods → hazards → projections) with runnable commands.
+
 ### Fetch climate data
 
 Main entry point:
