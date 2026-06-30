@@ -84,7 +84,15 @@ def use_nex_gddp(model_name: str, scenario_name: str):
         force_source=None,
         model=None,
         scenario=None,
+        **kwargs,
     ):
+        # **kwargs tolerates the newer get_climate_data parameters
+        # (precip_source, temp_source, custom_station_*, ee_project_id) that
+        # seasons.py now passes. They do not apply to the NEX-GDDP path — this
+        # patch always fetches NEX-GDDP for the bound (model, scenario) — so
+        # they are accepted and ignored. Without this, fixed-season ensemble
+        # fetches raised TypeError, were swallowed as fetch_error, and the
+        # summary showed misleading n/a stats (issue #99).
         try:
             df = preprocess_data(
                 source         = NEX_GDDP_SOURCE,
