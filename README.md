@@ -170,6 +170,21 @@ If you see:
    python -m pip install -r requirements.txt
    ```
 
+   > **Note — `climate-toolkit-*` console scripts require the package to be
+   > installed.** They are created only by `uv sync` or `pip install -e .`
+   > (or `pip install .`). A raw `requirements.txt`-only install, or running
+   > from a fresh source checkout without installing, will **not** expose
+   > them, and `climate-toolkit-seasons` (etc.) will report
+   > "command not recognized". In that case, run the equivalent module form
+   > instead, e.g.:
+   >
+   > ```bash
+   > python -m climate_tookit.season_analysis.seasons --help
+   > ```
+   >
+   > Every `climate-toolkit-<name>` script maps to a
+   > `python -m climate_tookit.<module>` entry point.
+
 5. Copy environment template
 
    ```bash
@@ -245,6 +260,10 @@ python -m climate_tookit.fetch_data.fetch_data \
 ---
 
 ## Common Workflows
+
+> New here? See [docs/example_workflow.md](docs/example_workflow.md) for a full
+> end-to-end story (fetch → validate → climatology → seasons → stats →
+> periods → hazards → projections) with runnable commands.
 
 ### Fetch climate data
 
@@ -1011,10 +1030,13 @@ Useful variants:
 
 ### Custom Station File
 
+Replace `<REPLACE_WITH_YOUR_STATION.csv>` below with a real CSV path (the
+required columns are documented under "Expected custom file shape" just below):
+
 ```bash
 climate-toolkit-weather-station-download \
   --station-source custom_csv \
-  --custom-station-file path/to/station.csv \
+  --custom-station-file <REPLACE_WITH_YOUR_STATION.csv> \
   --custom-station-name "My station" \
   --station-lat -1.286 \
   --station-lon 36.817 \
@@ -1099,6 +1121,23 @@ Interpretation caution:
 
 ### Historical Analysis With Custom Overrides
 
+The `--custom-station-*` flags are **optional** — use them only if you have a
+real station CSV. Run the base command without them first:
+
+```bash
+climate-toolkit-stats \
+  --location="-1.286,36.817" \
+  --start-year=2020 \
+  --end-year=2020 \
+  --source=paired \
+  --precip-source=chirps_v3_daily_rnl \
+  --temp-source=agera_5
+```
+
+To overlay your own station observations, add the override flags and replace
+`<REPLACE_WITH_YOUR_STATION.csv>` with the path to an actual CSV (see
+[Custom Station File](#custom-station-file) for the required columns):
+
 ```bash
 climate-toolkit-stats \
   --location="-1.286,36.817" \
@@ -1107,10 +1146,14 @@ climate-toolkit-stats \
   --source=paired \
   --precip-source=chirps_v3_daily_rnl \
   --temp-source=agera_5 \
-  --custom-station-file path/to/station.csv \
+  --custom-station-file <REPLACE_WITH_YOUR_STATION.csv> \
   --custom-station-vars precipitation,max_temperature,min_temperature \
   --custom-station-name "My station"
 ```
+
+> Copying the second command unchanged will fail with
+> `FileNotFoundError: Custom station file not found: ...\<REPLACE_WITH_YOUR_STATION.csv>`
+> — that means the placeholder still needs to be replaced with a real path.
 
 Override workflow purpose:
 
