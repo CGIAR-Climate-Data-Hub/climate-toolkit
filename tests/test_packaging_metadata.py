@@ -137,6 +137,7 @@ class PackagingMetadataTests(unittest.TestCase):
 
         scripts = pyproject["project"]["scripts"]
         expected = {
+            "climate-toolkit": "climate_tookit.cli:main",
             "climate-toolkit-fetch": "climate_tookit.fetch_data.fetch_data:main",
             "climate-toolkit-seasons": "climate_tookit.season_analysis.seasons:main",
             "climate-toolkit-seasons-ensemble": "climate_tookit.season_analysis.ensemble:main",

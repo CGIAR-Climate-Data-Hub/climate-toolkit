@@ -184,6 +184,12 @@ If you see:
    >
    > Every `climate-toolkit-<name>` script maps to a
    > `python -m climate_tookit.<module>` entry point.
+   >
+   > Once installed, the tools are also available as subcommands of a single
+   > `climate-toolkit` command, e.g. `climate-toolkit fetch ...` instead of
+   > `climate-toolkit-fetch ...`. Run `climate-toolkit --help` to list all
+   > available commands. The standalone `climate-toolkit-*` scripts remain
+   > available as aliases.
 
 5. Copy environment template
 
@@ -269,7 +275,7 @@ python -m climate_tookit.fetch_data.fetch_data \
 
 Main entry point:
 
-- `climate-toolkit-fetch`
+- `climate-toolkit fetch` (or the alias `climate-toolkit-fetch`)
 
 Key options:
 
