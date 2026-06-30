@@ -3,14 +3,18 @@
 A simple "story" a new user can follow to understand the toolkit's
 capabilities, from fetching raw climate data to projecting crop hazards.
 
-All commands below are written for the **installed console scripts**
-(`climate-toolkit-*`), which exist only after `uv sync` or `pip install -e .`.
-From a bare source checkout, use the equivalent module form instead, e.g.
-`python -m climate_tookit.season_analysis.seasons ...` (every
-`climate-toolkit-<name>` maps to a `python -m climate_tookit.<module>` entry
-point). With `uv`, prefix any command with `uv run`.
-
-> Replace coordinates, dates, and any `<PLACEHOLDER>` with your own values.
+> [!IMPORTANT]
+> **The example commands below are prefixed with `uv run` so they work
+> copy-paste.** Run them from the repo root after `uv sync`.
+>
+> - The `climate-toolkit-*` console scripts only exist once the package is
+>   installed (`uv sync` or `pip install -e .`). Running the bare
+>   `climate-toolkit-fetch ...` (without `uv run`, or from a non-installed
+>   checkout) will fail with "command not recognized".
+> - From a bare source checkout you can instead use the module form: every
+>   `climate-toolkit-<name>` maps to `python -m climate_tookit.<module>`
+>   (e.g. `python -m climate_tookit.season_analysis.seasons ...`).
+> - Replace coordinates, dates, and any `<PLACEHOLDER>` with your own values.
 
 ## Prerequisites
 
@@ -38,7 +42,7 @@ point). With `uv`, prefix any command with `uv run`.
 `climate-toolkit-fetch` uses `--lat`/`--lon` (single site) and `--start`/`--end`.
 
 ```bash
-climate-toolkit-fetch \
+uv run climate-toolkit-fetch \
   --source agera_5 \
   --lat -1.286 --lon 36.817 \
   --start 2020-01-01 --end 2020-12-31 \
@@ -54,7 +58,7 @@ climate-toolkit-fetch \
 - **Multiple NEX-GDDP models in one run** — use `--models` (comma list or
   `all`); one file is written per model:
   ```bash
-  climate-toolkit-fetch --source nex_gddp --lat -1.286 --lon 36.817 \
+  uv run climate-toolkit-fetch --source nex_gddp --lat -1.286 --lon 36.817 \
     --start 2050-01-01 --end 2050-12-31 \
     --variables precipitation,max_temperature,min_temperature \
     --models ACCESS-CM2,EC-Earth3,MRI-ESM2-0 --scenario ssp245 \
@@ -68,7 +72,7 @@ climate-toolkit-fetch \
 Discover nearby stations:
 
 ```bash
-climate-toolkit-weather-station-download \
+uv run climate-toolkit-weather-station-download \
   --station-source auto \
   --station-lat -1.286 --station-lon 36.817 \
   --start 2020-01-01 --end 2020-12-31 \
@@ -81,7 +85,7 @@ climate-toolkit-weather-station-download \
 Compare gridded vs. station data:
 
 ```bash
-climate-toolkit-weather-station-compare \
+uv run climate-toolkit-weather-station-compare \
   --grid-source agera_5 \
   --station-source gsod \
   --station-id <STATION_ID> \
@@ -95,7 +99,7 @@ climate-toolkit-weather-station-compare \
 ## Step 3 — Climatology (the local "normal")
 
 ```bash
-climate-toolkit-climatology \
+uv run climate-toolkit-climatology \
   --location "-1.286,36.817" \
   --source agera_5 \
   --start-year 1991 --end-year 2020
@@ -109,7 +113,7 @@ models); add `--model-workers` to parallelise.
 ## Step 4 — Detect rainy seasons
 
 ```bash
-climate-toolkit-seasons \
+uv run climate-toolkit-seasons \
   --location "-1.286,36.817" \
   --source agera_5 \
   --start-year 2015 --end-year 2020
@@ -127,7 +131,7 @@ climate-toolkit-seasons \
 Auto-detected seasons:
 
 ```bash
-climate-toolkit-stats \
+uv run climate-toolkit-stats \
   --location "-1.286,36.817" \
   --start-year 2015 --end-year 2020 \
   --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
@@ -137,7 +141,7 @@ climate-toolkit-stats \
 Fixed seasons (e.g. MAM and OND):
 
 ```bash
-climate-toolkit-stats \
+uv run climate-toolkit-stats \
   --location "-1.286,36.817" \
   --start-year 2015 --end-year 2020 \
   --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
@@ -156,7 +160,7 @@ indicators (NDWS, NDWL0), heat-stress indices, and SPEI when requested.
 `--focal-year` (note: not `*-year` suffixes).
 
 ```bash
-climate-toolkit-periods \
+uv run climate-toolkit-periods \
   --location "-1.286,36.817" \
   --baseline-start 2001 --baseline-end 2015 --focal-year 2020 \
   --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
@@ -171,7 +175,7 @@ climate-toolkit-periods \
 `--date-from` / `--date-to` (not `--start-date`/`--end-date`).
 
 ```bash
-climate-toolkit-hazards Maize \
+uv run climate-toolkit-hazards Maize \
   --location "-1.286,36.817" \
   --date-from 2020-01-01 --date-to 2020-12-31 \
   --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
@@ -191,7 +195,7 @@ precipitation/temperature thresholds.
 (comma list), and `--model-workers` for parallelism.
 
 ```bash
-climate-toolkit-hazards-ensemble Maize \
+uv run climate-toolkit-hazards-ensemble Maize \
   --location "-1.286,36.817" \
   --start-year 2050 --end-year 2060 \
   --fixed-season "03-01:05-31" \
@@ -206,46 +210,46 @@ climate-toolkit-hazards-ensemble Maize \
 
 ```bash
 # 1. Fetch climate data
-climate-toolkit-fetch --source agera_5 --lat -1.286 --lon 36.817 \
+uv run climate-toolkit-fetch --source agera_5 --lat -1.286 --lon 36.817 \
   --start 2015-01-01 --end 2020-12-31 \
   --variables precipitation,max_temperature,min_temperature \
   --format csv -o outputs/nairobi_climate.csv
 
 # 2. (optional) discover nearby stations
-climate-toolkit-weather-station-download --station-source auto \
+uv run climate-toolkit-weather-station-download --station-source auto \
   --station-lat -1.286 --station-lon 36.817 \
   --start 2015-01-01 --end 2020-12-31 \
   --variables precipitation,max_temperature,min_temperature \
   --report-prefix outputs/nairobi_stations --open-report
 
 # 3. Climatology baseline
-climate-toolkit-climatology --location "-1.286,36.817" --source agera_5 \
+uv run climate-toolkit-climatology --location "-1.286,36.817" --source agera_5 \
   --start-year 1991 --end-year 2020
 
 # 4. Detect rainy seasons
-climate-toolkit-seasons --location "-1.286,36.817" --source agera_5 \
+uv run climate-toolkit-seasons --location "-1.286,36.817" --source agera_5 \
   --start-year 2015 --end-year 2020
 
 # 5. Climate statistics
-climate-toolkit-stats --location "-1.286,36.817" \
+uv run climate-toolkit-stats --location "-1.286,36.817" \
   --start-year 2015 --end-year 2020 \
   --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
   --output outputs/nairobi_stats.json
 
 # 6. Compare 2020 to a baseline
-climate-toolkit-periods --location "-1.286,36.817" \
+uv run climate-toolkit-periods --location "-1.286,36.817" \
   --baseline-start 2001 --baseline-end 2015 --focal-year 2020 \
   --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
   --output outputs/nairobi_2020_vs_baseline.json
 
 # 7. Maize hazards in 2020
-climate-toolkit-hazards Maize --location "-1.286,36.817" \
+uv run climate-toolkit-hazards Maize --location "-1.286,36.817" \
   --date-from 2020-01-01 --date-to 2020-12-31 \
   --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
   --output outputs/nairobi_maize_2020.json
 
 # 8. Project maize hazards to 2050-2060
-climate-toolkit-hazards-ensemble Maize --location "-1.286,36.817" \
+uv run climate-toolkit-hazards-ensemble Maize --location "-1.286,36.817" \
   --start-year 2050 --end-year 2060 --fixed-season "03-01:05-31" \
   --models MPI-ESM1-2-LR,GFDL-ESM4 --scenarios ssp245 --model-workers 8 \
   --output outputs/nairobi_maize_2050_2060.json
