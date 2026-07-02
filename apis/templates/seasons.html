@@ -29,10 +29,9 @@
             <h2 class="text-lg font-semibold mb-4">Data Source</h2>
             <select name="source" required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                <option value="auto">Auto (ERA5 → AgERA5 → CHIRPS+CHIRTS)</option>
-                <option value="era_5">ERA5</option>
-                <option value="agera_5">AgERA5</option>
-                <option value="chirps+chirts">CHIRPS + CHIRTS</option>
+                {% for s in SOURCES['seasons'] %}
+                <option value="{{ s.value }}">{{ s.label }}</option>
+                {% endfor %}
             </select>
         </div>
 

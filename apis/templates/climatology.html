@@ -27,13 +27,34 @@
         <!-- Data Source -->
         <div class="bg-white p-6 rounded-lg shadow">
             <h2 class="text-lg font-semibold mb-4">Data Source</h2>
-            <select name="source" required
+            <select name="source" id="source-select" required
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                <option value="chirps">CHIRPS</option>
-                <option value="agera_5">AgERA5</option>
-                <option value="era_5">ERA5</option>
-                <option value="terraclimate">TerraClimate</option>
+                {% for s in SOURCES['climatology'] %}
+                <option value="{{ s.value }}">{{ s.label }}</option>
+                {% endfor %}
             </select>
+        </div>
+
+        <!-- NEX-GDDP ensemble options (used only when source = NEX-GDDP) -->
+        <div id="ensemble-options" class="bg-white p-6 rounded-lg shadow" style="display:none">
+            <h2 class="text-lg font-semibold mb-1">NEX-GDDP Ensemble Options</h2>
+            <p class="text-xs text-gray-500 mb-4">Applied only when the data source is NEX-GDDP. The climatology is averaged across the selected CMIP6 models for the chosen scenario.</p>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Scenario</label>
+            <select name="scenario"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                {% for sc in SCENARIOS %}
+                <option value="{{ sc }}">{{ sc }}</option>
+                {% endfor %}
+            </select>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Models <span class="text-gray-400">(none selected = all)</span></label>
+            <div class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+                {% for mdl in MODELS %}
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" name="models" value="{{ mdl }}" class="rounded text-primary focus:ring-primary">
+                    <span class="text-xs">{{ mdl }}</span>
+                </label>
+                {% endfor %}
+            </div>
         </div>
 
         <!-- Year Range -->
@@ -67,6 +88,10 @@
     <div class="mt-8 bg-white p-6 rounded-lg shadow">
         <h2 class="text-lg font-semibold mb-4">Results</h2>
 
+        {% if result.ensemble %}
+        <p class="text-sm text-gray-600 mb-3">NEX-GDDP CMIP6 ensemble climatology (mean across the selected models for the chosen scenario).</p>
+        <pre class="bg-gray-900 text-green-200 text-xs p-4 rounded-lg overflow-auto" style="max-height:32rem">{{ result.data | tojson(indent=2) }}</pre>
+        {% else %}
         {% set clim = result.data %}
 
         <!-- Summary -->
@@ -166,6 +191,8 @@
             </div>
         </div>
         {% endif %}
+        {% endif %}
+    </div>
 
     {% elif result and result.status_code != 200 %}
     <div class="mt-8 bg-red-50 border border-red-200 rounded-md p-4">
@@ -177,6 +204,14 @@
 
 {% block scripts %}
 <script>
+// Show NEX-GDDP ensemble options only when the NEX-GDDP source is selected.
+(function () {
+    const src = document.getElementById('source-select');
+    const opts = document.getElementById('ensemble-options');
+    function sync() { opts.style.display = (src.value === 'nex_gddp') ? 'block' : 'none'; }
+    if (src && opts) { src.addEventListener('change', sync); sync(); }
+})();
+
 function handleFormSubmit(event, title, initialMessage) {
     event.preventDefault();
     showLoading(title, initialMessage);

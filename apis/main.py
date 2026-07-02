@@ -51,6 +51,14 @@ class NoCache:
         self._cache.clear()
 
 jinja_env.cache = NoCache()
+
+# Expose the shared option catalog to every template so source dropdowns and
+# ensemble controls stay consistent and valid across pages.
+import apis.catalog as catalog
+jinja_env.globals["SOURCES"] = catalog.SOURCES
+jinja_env.globals["MODELS"] = catalog.MODELS
+jinja_env.globals["SCENARIOS"] = catalog.SCENARIOS
+
 templates = Jinja2Templates(env=jinja_env)
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -288,25 +296,42 @@ async def climatology_page_post(request: Request):
         "source": form_data.get("source"),
         "start_year": int(form_data.get("start_year")),
         "end_year": int(form_data.get("end_year")),
+        "scenario": form_data.get("scenario") or "ssp245",
+        "models": form_data.getlist("models"),
     }
-    
+
+    ensemble = payload["source"] == "nex_gddp"
     try:
-        from climate_tookit.climatology.long_term_climatology import calculate_climatology
-        
-        result = calculate_climatology(
-            location_coord=(payload["lat"], payload["lon"]),
-            start_year=payload["start_year"],
-            end_year=payload["end_year"],
-            source=payload["source"],
-        )
-        
+        if ensemble:
+            # NEX-GDDP CMIP6 ensemble climatology (mean across models, per scenario).
+            from climate_tookit.climatology.long_term_climatology import (
+                calculate_climatology_ensemble,
+            )
+            result = calculate_climatology_ensemble(
+                location_coord=(payload["lat"], payload["lon"]),
+                start_year=payload["start_year"],
+                end_year=payload["end_year"],
+                scenario=payload["scenario"],
+                models=payload["models"] or None,
+                verbose=False,
+            )
+        else:
+            from climate_tookit.climatology.long_term_climatology import calculate_climatology
+            result = calculate_climatology(
+                location_coord=(payload["lat"], payload["lon"]),
+                start_year=payload["start_year"],
+                end_year=payload["end_year"],
+                source=payload["source"],
+            )
+
         if "error" in result:
             result = {"status_code": 400, "status": "REQUEST_UNSUCCESSFUL", "message": result.get("error", "Error"), "data": result}
         else:
-            result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": "Climatology analysis complete", "data": result}
+            msg = "Ensemble climatology complete" if ensemble else "Climatology analysis complete"
+            result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": msg, "data": result, "ensemble": ensemble}
     except Exception as e:
         result = {"status_code": 500, "status": "SERVICE_UNREACHABLE", "message": str(e), "data": None}
-    
+
     return templates.TemplateResponse(request, "climatology.html", {"request": request, "result": result})
 
 

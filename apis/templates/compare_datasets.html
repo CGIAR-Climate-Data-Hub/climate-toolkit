@@ -29,30 +29,12 @@
             <h2 class="text-lg font-semibold mb-4">Data Sources (select 2 or more)</h2>
             <p class="text-xs text-gray-500 mb-3">Compare inter-annual statistics and monthly climatology across multiple datasets</p>
             <div class="grid grid-cols-3 gap-3">
+                {% for s in SOURCES['compare_datasets'] %}
                 <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="sources" value="era_5" class="rounded text-primary focus:ring-primary">
-                    <span class="text-sm">ERA5</span>
+                    <input type="checkbox" name="sources" value="{{ s.value }}" class="rounded text-primary focus:ring-primary">
+                    <span class="text-sm">{{ s.label }}</span>
                 </label>
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="sources" value="agera_5" class="rounded text-primary focus:ring-primary">
-                    <span class="text-sm">AgERA5</span>
-                </label>
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="sources" value="chirps" class="rounded text-primary focus:ring-primary">
-                    <span class="text-sm">CHIRPS</span>
-                </label>
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="sources" value="terraclimate" class="rounded text-primary focus:ring-primary">
-                    <span class="text-sm">TerraClimate</span>
-                </label>
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="sources" value="nasa_power" class="rounded text-primary focus:ring-primary">
-                    <span class="text-sm">NASA POWER</span>
-                </label>
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="sources" value="nex_gddp" class="rounded text-primary focus:ring-primary">
-                    <span class="text-sm">NEX-GDDP</span>
-                </label>
+                {% endfor %}
             </div>
         </div>
 
