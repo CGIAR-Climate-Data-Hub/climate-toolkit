@@ -76,6 +76,17 @@ Required in `.env.example`:
 - optional `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD` for sources that still
   use Earthdata-backed access
 
+Verify your setup in one step (recommended before running any workflow):
+
+```bash
+climate-toolkit-gee-check        # or: climate-toolkit gee-check
+```
+
+It checks the project ID (flagging unedited placeholders), authentication, and
+a live `ee.Number(1).getInfo()` round-trip, and prints a specific, copy-paste
+fix — with both bash and PowerShell commands — for whichever step fails. Pass
+`--project <id>` to test a specific project. Returns exit code `0` on success.
+
 If you see:
 
 - `Earth Engine project ID missing` -> set `GCP_PROJECT_ID`
