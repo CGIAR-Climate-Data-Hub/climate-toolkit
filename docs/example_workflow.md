@@ -55,8 +55,8 @@ uv run climate-toolkit-fetch \
   (1979–present), CHIRPS v3 `chirps_v3_daily_rnl` (1981–present, precip),
   NASA POWER (1984–present), NEX-GDDP (projections; needs `--scenario` and
   `--model`/`--models`).
-- **Multiple NEX-GDDP models in one run** — use `--models` (comma list or
-  `all`); one file is written per model:
+- **Multiple NEX-GDDP models in one run** — pass a comma-separated list or
+  `all` to either `--models` or `--model`; one file is written per model:
   ```bash
   uv run climate-toolkit-fetch --source nex_gddp --lat -1.286 --lon 36.817 \
     --start 2050-01-01 --end 2050-12-31 \
