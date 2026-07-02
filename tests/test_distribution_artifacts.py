@@ -57,7 +57,10 @@ class DistributionArtifactSmokeTests(unittest.TestCase):
         return wheels[0], sdists[0]
 
     def _create_temp_venv(self, target_dir: Path) -> Path:
-        venv.EnvBuilder(with_pip=True, system_site_packages=False).create(target_dir)
+        # symlinks: copied uv/python-build-standalone binaries can't find libpython ($ORIGIN rpath)
+        venv.EnvBuilder(
+            with_pip=True, system_site_packages=False, symlinks=os.name != "nt"
+        ).create(target_dir)
         return _venv_python(target_dir)
 
     def _install_artifact(self, python_path: Path, artifact_path: Path) -> None:

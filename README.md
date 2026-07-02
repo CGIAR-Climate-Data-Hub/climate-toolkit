@@ -208,6 +208,48 @@ If you see:
    cp .env.example .env
    ```
 
+### Environment variables
+
+The toolkit reads configuration from the environment. It does **not** load
+`.env` automatically — either export the variables in your shell, or run
+commands through `uv run --env-file .env ...`.
+
+| Variable | Required for | Notes |
+|----------|--------------|-------|
+| `GCP_PROJECT_ID` | All Earth Engine-backed sources (AgERA5, ERA5, NEX-GDDP, GEE historical) | Your real Google Cloud **Project ID** — see [Earth Engine setup](#earth-engine-setup). `GOOGLE_CLOUD_PROJECT` / `EE_PROJECT_ID` are accepted as fallbacks. |
+| `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD` | Sources still using Earthdata-backed access | Optional; only needed by those sources. |
+
+Earth Engine authentication itself is stored separately (via
+`earthengine authenticate` / `ee.Authenticate()`), not in these variables.
+
+### Output and cache conventions
+
+- **Outputs** default to `./outputs` (created on demand and git-ignored).
+  Most module CLIs also accept `-o/--output` or `--output-dir` to write
+  elsewhere.
+- **Cache** lives under `outputs/cache/<source>/...` (e.g.
+  `outputs/cache/gee_xee_batch`, `outputs/cache/nex_gddp_batch`). Fetches reuse
+  cached frames for fast repeat runs.
+  - Override the location with `--cache-dir <path>`.
+  - Force a fresh download with `--refresh-cache`.
+- Both `outputs/` and `.tmp/` are git-ignored, so nothing lands in version
+  control by default.
+
+### Smoke test
+
+After install, confirm the package and CLI surface are healthy (no network or
+Earth Engine required):
+
+```bash
+uv run python -c "import climate_tookit; print(climate_tookit.__version__)"
+uv run climate-toolkit --help          # lists all subcommands
+uv run climate-toolkit fetch --help     # per-command options
+uv run pytest -q                        # offline unit suite
+```
+
+Then verify Earth Engine connectivity before any real download (see the
+[Earth Engine setup](#earth-engine-setup) section for the preflight check).
+
 ### Distribution smoke path
 
 Local build / install verification:
