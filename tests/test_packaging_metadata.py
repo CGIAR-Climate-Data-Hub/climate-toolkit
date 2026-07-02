@@ -152,6 +152,7 @@ class PackagingMetadataTests(unittest.TestCase):
         expected = {
             "climate-toolkit": "climate_tookit.cli:main",
             "climate-toolkit-fetch": "climate_tookit.fetch_data.fetch_data:main",
+            "climate-toolkit-gee-check": "climate_tookit.gee_check:main",
             "climate-toolkit-seasons": "climate_tookit.season_analysis.seasons:main",
             "climate-toolkit-seasons-ensemble": "climate_tookit.season_analysis.ensemble:main",
             "climate-toolkit-stats": "climate_tookit.climate_statistics.statistics:main",
