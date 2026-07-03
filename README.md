@@ -1332,3 +1332,26 @@ Reference note:
 ## License
 
 This project is licensed under the [MIT License](./LICENSE).
+
+---
+
+## Funding & Acknowledgements
+
+<p>
+  <img src="docs/assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="48">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/logos/cgiar.svg" alt="CGIAR" height="48">
+</p>
+
+This toolkit was developed as part of the project *Advancing Climate Data
+Integration in Agroecological Research*, funded by the
+[McKnight Foundation](https://www.mcknight.org/) through its
+[Global Collaboration for Resilient Food Systems (CRFS)](https://www.mcknight.org/programs/global-foods/)
+programme. The work was led by the
+[Alliance of Bioversity International and CIAT](https://alliancebioversityciat.org/),
+in partnership with [AIMS Rwanda](https://aims.ac.rw/).
+
+This work was supported by the CGIAR Climate Data Hub (CDH), part of the
+[CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
+(Area of Work 1). We acknowledge the CGIAR Trust Fund and its
+[contributors](https://www.cgiar.org/funders/).
