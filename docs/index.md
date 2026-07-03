@@ -47,11 +47,6 @@ see the workflow guides in the navigation.
 
 ## Funding & acknowledgements
 
-<p>
-  <img src="assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="48" style="margin-right:2em; background:#fff; padding:4px;">
-  <img src="assets/logos/cgiar.svg" alt="CGIAR" height="48" style="background:#fff; padding:4px;">
-</p>
-
 This toolkit was developed as part of the project *Advancing Climate Data
 Integration in Agroecological Research*, funded by the
 [McKnight Foundation](https://www.mcknight.org/) through its
@@ -64,3 +59,12 @@ This work was supported by the CGIAR Climate Data Hub (CDH), part of the
 [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
 (Area of Work 1). We acknowledge the CGIAR Trust Fund and its
 [contributors](https://www.cgiar.org/funders/).
+
+<p style="display:flex; align-items:center; gap:2.5em; flex-wrap:wrap; margin-top:1.5em;">
+  <a href="https://www.mcknight.org/programs/global-foods/">
+    <img src="assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="56" style="background:#fff; padding:6px;">
+  </a>
+  <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar">
+    <img src="assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" height="72" style="background:#fff; padding:6px;">
+  </a>
+</p>
