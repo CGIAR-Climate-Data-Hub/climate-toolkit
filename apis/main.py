@@ -93,6 +93,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Surface the real error instead of an opaque 'Internal Server Error'.
+
+    JSON API routes get a JSON body; HTML pages get a readable error page with
+    the exception type/message (and traceback) so failures are diagnosable.
+    """
+    import traceback
+    from fastapi.responses import JSONResponse
+
+    detail = f"{type(exc).__name__}: {exc}"
+    if request.url.path.startswith("/api"):
+        return JSONResponse(
+            status_code=500,
+            content={"status_code": 500, "status": "SERVICE_UNREACHABLE", "message": detail, "data": None},
+        )
+    tb = traceback.format_exc()
+    html = (
+        "<html><head><title>Server error</title>"
+        "<script src='https://cdn.tailwindcss.com'></script></head>"
+        "<body class='p-8 font-sans max-w-3xl mx-auto'>"
+        "<h1 class='text-2xl font-bold text-red-700 mb-2'>Server error</h1>"
+        f"<p class='mb-4 font-semibold'>{detail}</p>"
+        f"<pre class='bg-gray-900 text-green-200 text-xs p-4 rounded overflow-auto'>{tb}</pre>"
+        "<p class='mt-4'><a class='text-blue-600 underline' href='/'>← Back</a></p>"
+        "</body></html>"
+    )
+    return HTMLResponse(status_code=500, content=html)
+
 app.include_router(data.router, prefix="/api/v1/data", tags=["Data"])
 app.include_router(statistics.router, prefix="/api/v1/statistics", tags=["Statistics"])
 app.include_router(hazards.router, prefix="/api/v1/hazards", tags=["Hazards"])
