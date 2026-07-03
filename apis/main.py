@@ -8,6 +8,22 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+# The HTML form pages POST multipart form data, which Starlette parses via
+# python-multipart. If it is missing, EVERY form POST fails with a 500 before
+# any handler runs — fail fast at startup with a clear fix instead.
+try:
+    import multipart  # noqa: F401  (python-multipart)
+except ImportError:  # pragma: no cover
+    try:
+        import python_multipart  # noqa: F401  (newer package import name)
+    except ImportError:
+        raise RuntimeError(
+            "python-multipart is required for the API's form pages but is not "
+            "installed. Install the API extra from the repo root:\n"
+            "    uv sync --extra api        (or: pip install -e \".[api]\")\n"
+            "and run from the CGIAR repo, e.g. `uv run uvicorn apis.main:app --reload`."
+        )
+
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
@@ -145,34 +161,33 @@ async def fetch_data_page(request: Request):
 
 @app.post("/fetch", tags=["UI"], response_class=HTMLResponse)
 async def fetch_data_page_post(request: Request):
-    form_data = await request.form()
-    
-    variables = form_data.getlist("variables")
-    if not variables:
-        variables_str = form_data.get("variables", "")
-        variables = [v.strip() for v in variables_str.split(",") if v.strip()]
-    if not variables:
-        variables = ["precipitation"]
-    
-    payload = {
-        "lat": float(form_data.get("lat")),
-        "lon": float(form_data.get("lon")),
-        "source": form_data.get("source"),
-        "variables": variables,
-        "date_from": form_data.get("date_from"),
-        "date_to": form_data.get("date_to"),
-        "model": form_data.get("model") or None,
-        "scenario": form_data.get("scenario") or None,
-        "format": form_data.get("format", "json")
-    }
-    
-    from climate_tookit.fetch_data.source_data.sources.utils.models import (
-        ClimateDataset, ClimateVariable, SoilVariable,
-    )
-    from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
-    from datetime import datetime
-    
     try:
+        form_data = await request.form()
+        variables = form_data.getlist("variables")
+        if not variables:
+            variables_str = form_data.get("variables", "")
+            variables = [v.strip() for v in variables_str.split(",") if v.strip()]
+        if not variables:
+            variables = ["precipitation"]
+
+        payload = {
+            "lat": float(form_data.get("lat")),
+            "lon": float(form_data.get("lon")),
+            "source": form_data.get("source"),
+            "variables": variables,
+            "date_from": form_data.get("date_from"),
+            "date_to": form_data.get("date_to"),
+            "model": form_data.get("model") or None,
+            "scenario": form_data.get("scenario") or None,
+            "format": form_data.get("format", "json"),
+        }
+
+        from climate_tookit.fetch_data.source_data.sources.utils.models import (
+            ClimateDataset, ClimateVariable, SoilVariable,
+        )
+        from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+        from datetime import datetime
+
         source_enum = getattr(ClimateDataset, payload["source"], None)
         if not source_enum:
             result = {"status_code": 400, "status": "REQUEST_UNSUCCESSFUL", "message": f"Unknown source: {payload['source']}", "data": None}
@@ -232,24 +247,22 @@ async def statistics_page(request: Request):
 
 @app.post("/statistics", tags=["UI"], response_class=HTMLResponse)
 async def statistics_page_post(request: Request):
-    form_data = await request.form()
-    
-    payload = {
-        "lat": float(form_data.get("lat")),
-        "lon": float(form_data.get("lon")),
-        "date_from": form_data.get("date_from"),
-        "date_to": form_data.get("date_to"),
-        "source": form_data.get("source"),
-        "gap_days": int(form_data.get("gap_days", 30)),
-        "min_season_days": int(form_data.get("min_season_days", 30)),
-        "model": form_data.get("model") or None,
-        "scenario": form_data.get("scenario") or "ssp245",
-        "models": form_data.getlist("models"),
-    }
-
-    ensemble = payload["source"] == "nex_gddp"
     stats_data = None
     try:
+        form_data = await request.form()
+        payload = {
+            "lat": float(form_data.get("lat")),
+            "lon": float(form_data.get("lon")),
+            "date_from": form_data.get("date_from"),
+            "date_to": form_data.get("date_to"),
+            "source": form_data.get("source"),
+            "gap_days": int(form_data.get("gap_days", 30)),
+            "min_season_days": int(form_data.get("min_season_days", 30)),
+            "model": form_data.get("model") or None,
+            "scenario": form_data.get("scenario") or "ssp245",
+            "models": form_data.getlist("models"),
+        }
+        ensemble = payload["source"] == "nex_gddp"
         start_year = int(payload["date_from"].split("-")[0])
         end_year = int(payload["date_to"].split("-")[0])
 
@@ -295,18 +308,16 @@ async def seasons_page(request: Request):
 
 @app.post("/seasons", tags=["UI"], response_class=HTMLResponse)
 async def seasons_page_post(request: Request):
-    form_data = await request.form()
-    
-    payload = {
-        "lat": float(form_data.get("lat")),
-        "lon": float(form_data.get("lon")),
-        "source": form_data.get("source", "auto"),
-        "start_year": int(form_data.get("start_year")),
-        "end_year": int(form_data.get("end_year")),
-        "fixed_season": form_data.get("fixed_season") or None,
-    }
-    
     try:
+        form_data = await request.form()
+        payload = {
+            "lat": float(form_data.get("lat")),
+            "lon": float(form_data.get("lon")),
+            "source": form_data.get("source", "auto"),
+            "start_year": int(form_data.get("start_year")),
+            "end_year": int(form_data.get("end_year")),
+            "fixed_season": form_data.get("fixed_season") or None,
+        }
         from climate_tookit.season_analysis.seasons import fetch_and_analyze_years, fetch_and_analyze_years_fixed
         
         if payload["fixed_season"]:
@@ -347,20 +358,19 @@ async def climatology_page(request: Request):
 
 @app.post("/climatology", tags=["UI"], response_class=HTMLResponse)
 async def climatology_page_post(request: Request):
-    form_data = await request.form()
-    
-    payload = {
-        "lat": float(form_data.get("lat")),
-        "lon": float(form_data.get("lon")),
-        "source": form_data.get("source"),
-        "start_year": int(form_data.get("start_year")),
-        "end_year": int(form_data.get("end_year")),
-        "scenario": form_data.get("scenario") or "ssp245",
-        "models": form_data.getlist("models"),
-    }
-
-    ensemble = payload["source"] == "nex_gddp"
+    plot_urls = []
     try:
+        form_data = await request.form()
+        payload = {
+            "lat": float(form_data.get("lat")),
+            "lon": float(form_data.get("lon")),
+            "source": form_data.get("source"),
+            "start_year": int(form_data.get("start_year")),
+            "end_year": int(form_data.get("end_year")),
+            "scenario": form_data.get("scenario") or "ssp245",
+            "models": form_data.getlist("models"),
+        }
+        ensemble = payload["source"] == "nex_gddp"
         if ensemble:
             # NEX-GDDP CMIP6 ensemble climatology (mean across models, per scenario).
             from climate_tookit.climatology.long_term_climatology import (
@@ -406,25 +416,23 @@ async def hazards_page(request: Request):
 
 @app.post("/hazards", tags=["UI"], response_class=HTMLResponse)
 async def hazards_page_post(request: Request):
-    form_data = await request.form()
-    
-    payload = {
-        "lat": float(form_data.get("lat")),
-        "lon": float(form_data.get("lon")),
-        "date_from": form_data.get("date_from"),
-        "date_to": form_data.get("date_to"),
-        "source": form_data.get("source"),
-        "crop": form_data.get("crop"),
-        "gap_days": int(form_data.get("gap_days", 7)),
-        "fixed_season": form_data.get("fixed_season") or None,
-        "season_start": form_data.get("season_start") or None,
-        "season_end": form_data.get("season_end") or None,
-        "scenario": form_data.get("scenario") or "ssp245",
-        "models": form_data.getlist("models"),
-    }
-
-    ensemble = payload["source"] == "nex_gddp"
     try:
+        form_data = await request.form()
+        payload = {
+            "lat": float(form_data.get("lat")),
+            "lon": float(form_data.get("lon")),
+            "date_from": form_data.get("date_from"),
+            "date_to": form_data.get("date_to"),
+            "source": form_data.get("source"),
+            "crop": form_data.get("crop"),
+            "gap_days": int(form_data.get("gap_days", 7)),
+            "fixed_season": form_data.get("fixed_season") or None,
+            "season_start": form_data.get("season_start") or None,
+            "season_end": form_data.get("season_end") or None,
+            "scenario": form_data.get("scenario") or "ssp245",
+            "models": form_data.getlist("models"),
+        }
+        ensemble = payload["source"] == "nex_gddp"
         if ensemble:
             from climate_tookit.calculate_hazards.ensemble_hazards import calculate_ensemble
             result = calculate_ensemble(
@@ -472,24 +480,22 @@ async def compare_periods_page(request: Request):
 
 @app.post("/compare-periods", tags=["UI"], response_class=HTMLResponse)
 async def compare_periods_page_post(request: Request):
-    form_data = await request.form()
-    
-    payload = {
-        "lat": float(form_data.get("lat")),
-        "lon": float(form_data.get("lon")),
-        "source": form_data.get("source"),
-        "period1_from": form_data.get("period1_from"),
-        "period1_to": form_data.get("period1_to"),
-        "period2_from": form_data.get("period2_from"),
-        "period2_to": form_data.get("period2_to"),
-        "model": form_data.get("model") or None,
-        "scenario": form_data.get("scenario") or "ssp245",
-        "models": form_data.getlist("models"),
-    }
-
-    ensemble = payload["source"] == "nex_gddp"
     comparison = None
     try:
+        form_data = await request.form()
+        payload = {
+            "lat": float(form_data.get("lat")),
+            "lon": float(form_data.get("lon")),
+            "source": form_data.get("source"),
+            "period1_from": form_data.get("period1_from"),
+            "period1_to": form_data.get("period1_to"),
+            "period2_from": form_data.get("period2_from"),
+            "period2_to": form_data.get("period2_to"),
+            "model": form_data.get("model") or None,
+            "scenario": form_data.get("scenario") or "ssp245",
+            "models": form_data.getlist("models"),
+        }
+        ensemble = payload["source"] == "nex_gddp"
         baseline_start = int(payload["period1_from"].split("-")[0])
         baseline_end = int(payload["period1_to"].split("-")[0])
 
@@ -534,20 +540,18 @@ async def compare_datasets_page(request: Request):
 
 @app.post("/compare-datasets", tags=["UI"], response_class=HTMLResponse)
 async def compare_datasets_page_post(request: Request):
-    form_data = await request.form()
-    
-    payload = {
-        "lat": float(form_data.get("lat")),
-        "lon": float(form_data.get("lon")),
-        "date_from": form_data.get("date_from"),
-        "date_to": form_data.get("date_to"),
-        "sources": form_data.getlist("sources"),
-        "model": form_data.get("model") or None,
-        "scenario": form_data.get("scenario") or None
-    }
-    
     plot_urls = []
     try:
+        form_data = await request.form()
+        payload = {
+            "lat": float(form_data.get("lat")),
+            "lon": float(form_data.get("lon")),
+            "date_from": form_data.get("date_from"),
+            "date_to": form_data.get("date_to"),
+            "sources": form_data.getlist("sources"),
+            "model": form_data.get("model") or None,
+            "scenario": form_data.get("scenario") or None,
+        }
         import glob
         import uuid
         from climate_tookit.compare_datasets.compare_datasets import compare_sources, print_report
