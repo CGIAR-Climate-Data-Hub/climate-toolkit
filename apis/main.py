@@ -195,37 +195,48 @@ async def statistics_page_post(request: Request):
         "gap_days": int(form_data.get("gap_days", 30)),
         "min_season_days": int(form_data.get("min_season_days", 30)),
         "model": form_data.get("model") or None,
-        "scenario": form_data.get("scenario") or None
+        "scenario": form_data.get("scenario") or "ssp245",
+        "models": form_data.getlist("models"),
     }
-    
+
+    ensemble = payload["source"] == "nex_gddp"
+    stats_data = None
     try:
-        from climate_tookit.climate_statistics.statistics import analyze_climate_statistics as analyze_stats
-        
-        # Parse years from date strings
-        date_from = payload["date_from"]
-        date_to = payload["date_to"]
-        start_year = int(date_from.split("-")[0])
-        end_year = int(date_to.split("-")[0])
-        
-        result = analyze_stats(
-            location_coord=(payload["lat"], payload["lon"]),
-            start_year=start_year,
-            end_year=end_year,
-            source=payload["source"],
-            model=payload["model"],
-            scenario=payload["scenario"]
-        )
-        
+        start_year = int(payload["date_from"].split("-")[0])
+        end_year = int(payload["date_to"].split("-")[0])
+
+        if ensemble:
+            from climate_tookit.climate_statistics.ensemble_statistics import (
+                analyze_ensemble_nex_gddp,
+            )
+            result = analyze_ensemble_nex_gddp(
+                location_coord=(payload["lat"], payload["lon"]),
+                start_year=start_year,
+                end_year=end_year,
+                scenario=payload["scenario"],
+                models=payload["models"] or None,
+                verbose=False,
+            )
+        else:
+            from climate_tookit.climate_statistics.statistics import analyze_climate_statistics as analyze_stats
+            result = analyze_stats(
+                location_coord=(payload["lat"], payload["lon"]),
+                start_year=start_year,
+                end_year=end_year,
+                source=payload["source"],
+                model=payload["model"],
+                scenario=payload["scenario"] if payload["source"] == "nex_gddp" else None,
+            )
+
         if "error" in result:
             result = {"status_code": 400, "status": "REQUEST_UNSUCCESSFUL", "message": result.get("error", "Error"), "data": result}
-            stats_data = None
         else:
-            result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": "Analysis complete", "data": result}
+            msg = "Ensemble statistics complete" if ensemble else "Analysis complete"
+            result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": msg, "data": result, "ensemble": ensemble}
             stats_data = result["data"]
     except Exception as e:
         result = {"status_code": 500, "status": "SERVICE_UNREACHABLE", "message": str(e), "data": None}
-        stats_data = None
-    
+
     return templates.TemplateResponse(request, "statistics.html", {"request": request, "result": result, "statistics": stats_data})
 
 
@@ -355,33 +366,49 @@ async def hazards_page_post(request: Request):
         "fixed_season": form_data.get("fixed_season") or None,
         "season_start": form_data.get("season_start") or None,
         "season_end": form_data.get("season_end") or None,
+        "scenario": form_data.get("scenario") or "ssp245",
+        "models": form_data.getlist("models"),
     }
 
+    ensemble = payload["source"] == "nex_gddp"
     try:
-        from climate_tookit.calculate_hazards.hazards import calculate_hazards
+        if ensemble:
+            from climate_tookit.calculate_hazards.ensemble_hazards import calculate_ensemble
+            result = calculate_ensemble(
+                crop=payload["crop"],
+                lat=payload["lat"],
+                lon=payload["lon"],
+                start_year=int(payload["date_from"].split("-")[0]),
+                end_year=int(payload["date_to"].split("-")[0]),
+                models=payload["models"] or None,
+                scenarios=[payload["scenario"]],
+                fixed_season=payload["fixed_season"],
+            )
+        else:
+            from climate_tookit.calculate_hazards.hazards import calculate_hazards
+            # Pass season options as given; omitting them lets the module
+            # auto-detect rather than collapsing the whole range into one season.
+            result = calculate_hazards(
+                crop_name=payload["crop"],
+                location_coord=(payload["lat"], payload["lon"]),
+                date_from=payload["date_from"],
+                date_to=payload["date_to"],
+                source=payload["source"],
+                gap_days=payload["gap_days"],
+                min_season_days=30,
+                fixed_season=payload["fixed_season"],
+                season_start=payload["season_start"],
+                season_end=payload["season_end"],
+            )
 
-        # Pass season options as given; omitting them lets the module
-        # auto-detect rather than collapsing the whole range into one season.
-        result = calculate_hazards(
-            crop_name=payload["crop"],
-            location_coord=(payload["lat"], payload["lon"]),
-            date_from=payload["date_from"],
-            date_to=payload["date_to"],
-            source=payload["source"],
-            gap_days=payload["gap_days"],
-            min_season_days=30,
-            fixed_season=payload["fixed_season"],
-            season_start=payload["season_start"],
-            season_end=payload["season_end"],
-        )
-        
         if "error" in result:
             result = {"status_code": 400, "status": "REQUEST_UNSUCCESSFUL", "message": result.get("error", "Error"), "data": result}
         else:
-            result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": f"Hazard analysis for {payload['crop']} complete", "data": result}
+            msg = f"Ensemble hazards for {payload['crop']} complete" if ensemble else f"Hazard analysis for {payload['crop']} complete"
+            result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": msg, "data": result, "ensemble": ensemble}
     except Exception as e:
         result = {"status_code": 500, "status": "SERVICE_UNREACHABLE", "message": str(e), "data": None}
-    
+
     return templates.TemplateResponse(request, "hazards.html", {"request": request, "result": result})
 
 
@@ -403,34 +430,47 @@ async def compare_periods_page_post(request: Request):
         "period2_from": form_data.get("period2_from"),
         "period2_to": form_data.get("period2_to"),
         "model": form_data.get("model") or None,
-        "scenario": form_data.get("scenario") or None
+        "scenario": form_data.get("scenario") or "ssp245",
+        "models": form_data.getlist("models"),
     }
-    
+
+    ensemble = payload["source"] == "nex_gddp"
+    comparison = None
     try:
-        from climate_tookit.compare_periods.periods import compare
-        
         baseline_start = int(payload["period1_from"].split("-")[0])
         baseline_end = int(payload["period1_to"].split("-")[0])
-        focal_year = int(payload["period2_from"].split("-")[0])
-        
-        result = compare(
-            location=(payload["lat"], payload["lon"]),
-            baseline_start=baseline_start,
-            baseline_end=baseline_end,
-            focal_year=focal_year,
-            source=payload["source"]
-        )
-        
+
+        if ensemble:
+            from climate_tookit.compare_periods.ensemble_periods import ensemble_compare
+            result = ensemble_compare(
+                location=(payload["lat"], payload["lon"]),
+                baseline_start=baseline_start,
+                baseline_end=baseline_end,
+                future_start=int(payload["period2_from"].split("-")[0]),
+                future_end=int(payload["period2_to"].split("-")[0]),
+                scenario=payload["scenario"],
+                models=payload["models"] or None,
+                verbose=False,
+            )
+        else:
+            from climate_tookit.compare_periods.periods import compare
+            result = compare(
+                location=(payload["lat"], payload["lon"]),
+                baseline_start=baseline_start,
+                baseline_end=baseline_end,
+                focal_year=int(payload["period2_from"].split("-")[0]),
+                source=payload["source"],
+            )
+
         if "error" in result:
             result = {"status_code": 400, "status": "REQUEST_UNSUCCESSFUL", "message": result.get("error", "Error"), "data": result}
-            comparison = None
         else:
-            result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": "Comparison complete", "data": result}
+            msg = "Ensemble period comparison complete" if ensemble else "Comparison complete"
+            result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": msg, "data": result, "ensemble": ensemble}
             comparison = result["data"]
     except Exception as e:
         result = {"status_code": 500, "status": "SERVICE_UNREACHABLE", "message": str(e), "data": None}
-        comparison = None
-    
+
     return templates.TemplateResponse(request, "compare_periods.html", {"request": request, "result": result, "comparison": comparison})
 
 
