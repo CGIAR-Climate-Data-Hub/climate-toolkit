@@ -93,6 +93,19 @@ class PackagingMetadataTests(unittest.TestCase):
         self.assertIn("Fallback setup with `venv + pip`", readme)
         self.assertIn("python -m pip install -e .", readme)
 
+    def test_readme_documents_runtime_conventions_for_direct_install(self):
+        """Pre-Docker hardening (#80): env vars, cache/output paths, smoke test."""
+        readme = README_PATH.read_text(encoding="utf-8")
+        # Environment variables
+        self.assertIn("### Environment variables", readme)
+        self.assertIn("GCP_PROJECT_ID", readme)
+        # Output / cache conventions
+        self.assertIn("### Output and cache conventions", readme)
+        self.assertIn("outputs/cache/", readme)
+        self.assertIn("--refresh-cache", readme)
+        # Smoke test surface
+        self.assertIn("### Smoke test", readme)
+
     def test_ci_uses_locked_uv_sync(self):
         ci_workflow = CI_WORKFLOW_PATH.read_text(encoding="utf-8")
         self.assertIn("uv sync --locked --group dev", ci_workflow)
@@ -139,6 +152,7 @@ class PackagingMetadataTests(unittest.TestCase):
         expected = {
             "climate-toolkit": "climate_tookit.cli:main",
             "climate-toolkit-fetch": "climate_tookit.fetch_data.fetch_data:main",
+            "climate-toolkit-gee-check": "climate_tookit.gee_check:main",
             "climate-toolkit-seasons": "climate_tookit.season_analysis.seasons:main",
             "climate-toolkit-seasons-ensemble": "climate_tookit.season_analysis.ensemble:main",
             "climate-toolkit-stats": "climate_tookit.climate_statistics.statistics:main",

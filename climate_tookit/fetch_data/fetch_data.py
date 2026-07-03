@@ -244,23 +244,29 @@ def parse_variables(raw):
 def resolve_models(model, models):
     """Resolve --model/--models into a list of NEX-GDDP model names.
 
-    - `models` (comma-separated, or the literal 'all') takes precedence and
-      expands to several models; 'all' = every model in AVAILABLE_MODELS.
-    - otherwise returns [model] (which may be [None] for non-NEX-GDDP sources).
+    - A comma-separated list, or the literal 'all', is accepted on *either*
+      flag and expands to several models; 'all' = every model in
+      AVAILABLE_MODELS. `--models` takes precedence over `--model`.
+    - a single-name `--model` returns [model] unchanged (which may be [None]
+      for non-NEX-GDDP sources), leaving validation to the caller.
     Unknown model names raise ValueError listing the valid options.
     """
-    if models:
-        spec = models.strip()
+    spec = models if models else model
+    if spec:
+        spec = spec.strip()
         if spec.lower() == "all":
             return list(NEX_GDDP_MODELS)
-        names = [m.strip() for m in spec.split(",") if m.strip()]
-        unknown = [m for m in names if m not in NEX_GDDP_MODELS]
-        if unknown:
-            raise ValueError(
-                f"Invalid model(s): {', '.join(unknown)}. "
-                f"Valid models: {', '.join(NEX_GDDP_MODELS)}"
-            )
-        return names
+        # Expand when the value is an explicit list (comma) or came from the
+        # dedicated --models flag; a bare single --model keeps its old path.
+        if models or "," in spec:
+            names = [m.strip() for m in spec.split(",") if m.strip()]
+            unknown = [m for m in names if m not in NEX_GDDP_MODELS]
+            if unknown:
+                raise ValueError(
+                    f"Invalid model(s): {', '.join(unknown)}. "
+                    f"Valid models: {', '.join(NEX_GDDP_MODELS)}"
+                )
+            return names
     return [model]
 
 def suffix_output_path(path, suffix):
@@ -300,7 +306,15 @@ def main() -> int:
     )
     parser.add_argument("--start", required=True)
     parser.add_argument("--end", required=True)
-    parser.add_argument("--model", default=None)
+    parser.add_argument(
+        "--model",
+        default=None,
+        help=(
+            "NEX-GDDP model. A single name, or a comma-separated list / 'all' "
+            "(equivalent to --models) to fetch several models, writing one "
+            "file per model (output stem + _<model>)."
+        ),
+    )
     parser.add_argument(
         "--models",
         default=None,

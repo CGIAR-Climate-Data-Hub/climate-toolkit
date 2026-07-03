@@ -25,6 +25,7 @@ from typing import List, Optional
 # Subcommand name -> "module:function". The subcommand names mirror the
 # ``climate-toolkit-<name>`` console scripts declared in pyproject.toml.
 COMMANDS = {
+    "gee-check": "climate_tookit.gee_check:main",
     "fetch": "climate_tookit.fetch_data.fetch_data:main",
     "seasons": "climate_tookit.season_analysis.seasons:main",
     "seasons-ensemble": "climate_tookit.season_analysis.ensemble:main",
