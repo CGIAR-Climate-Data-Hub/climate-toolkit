@@ -62,9 +62,9 @@ This work was supported by the CGIAR Climate Data Hub (CDH), part of the
 
 <p style="display:flex; align-items:center; gap:1.5em; flex-wrap:nowrap; margin-top:1.5em;">
   <a href="https://www.mcknight.org/programs/global-foods/">
-    <img src="assets/logos/mcknight.jpg" alt="The McKnight Foundation" style="height:32px; width:auto; background:#fff; padding:4px;">
+    <img src="assets/logos/mcknight.jpg" alt="The McKnight Foundation" style="height:44px; width:auto; background:#fff; padding:4px;">
   </a>
   <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar">
-    <img src="assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" style="height:40px; width:auto; background:#fff; padding:4px;">
+    <img src="assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" style="height:56px; width:auto; background:#fff; padding:4px;">
   </a>
 </p>
