@@ -89,8 +89,7 @@
         <h2 class="text-lg font-semibold mb-4">Results</h2>
 
         {% if result.ensemble %}
-        <p class="text-sm text-gray-600 mb-3">NEX-GDDP CMIP6 ensemble climatology (mean across the selected models for the chosen scenario).</p>
-        <pre class="bg-gray-900 text-green-200 text-xs p-4 rounded-lg overflow-auto" style="max-height:32rem">{{ result.data | tojson(indent=2) }}</pre>
+        {% include "_ensemble_result.html" %}
         {% else %}
         {% set clim = result.data %}
 
