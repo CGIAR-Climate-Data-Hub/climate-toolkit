@@ -210,3 +210,11 @@ __all__ = [
     "site_batch_digest",
     "site_date_integrity_summary",
 ]
+
+# CLI(command line interface) examples for repeated --site entries: Repeatable --site (single invocation, many-site):
+# name,lat,lon
+# siteA,-1.286,36.817
+# siteB,-0.950,37.000
+
+# Use: 
+# python -m climate_tookit.fetch_data.fetch_data --source nex_gddp --site "siteA, -1.286, 36.817" --site "siteB, -0.950, 37.000" --start 2050-01-01 --end 2070-12-31 --variables precipitation,max_temperature,min_temperature --model MRI-ESM2-0 --scenario ssp245 --stage preprocessed --format csv --output nex_multi_sites.csv
