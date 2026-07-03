@@ -114,6 +114,9 @@
                 <p class="text-green-800">{{ result.message }}</p>
             </div>
 
+            {% set download_name = "hazards" %}
+            {% include "_download_button.html" %}
+
             {% if result.ensemble %}
             {% include "_ensemble_result.html" %}
             {% else %}

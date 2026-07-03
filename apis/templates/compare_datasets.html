@@ -86,6 +86,9 @@
             <p class="text-green-800">{{ result.message }}</p>
         </div>
 
+        {% set download_name = "compare_datasets" %}
+        {% include "_download_button.html" %}
+
         {% set data = result.data %}
 
         <!-- Inter-Annual Statistics -->

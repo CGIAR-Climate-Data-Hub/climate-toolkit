@@ -88,6 +88,9 @@
     <div class="mt-8 bg-white p-6 rounded-lg shadow">
         <h2 class="text-lg font-semibold mb-4">Results</h2>
 
+        {% set download_name = "climatology" %}
+        {% include "_download_button.html" %}
+
         {% if result.ensemble %}
         {% include "_ensemble_result.html" %}
         {% else %}

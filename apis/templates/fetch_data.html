@@ -138,6 +138,10 @@
             <div class="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
                 <p class="text-green-800">{{ result.message }}</p>
             </div>
+
+            {% set download_name = "fetch_data" %}
+            {% include "_download_button.html" %}
+
             {% if result.data and result.data.records %}
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
