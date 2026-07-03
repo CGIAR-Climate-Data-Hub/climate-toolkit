@@ -1070,7 +1070,187 @@ def compare(
     spi_ref_end: Optional[str] = None,
     workers: int = 1,
 ) -> Dict[str, Any]:
-    """Run statistics.py for baseline + focal, diff the four sections."""
+    """Compare a focal year's climate against a multi-year baseline climatology.
+
+    Runs the full climate-statistics workflow twice for a single point
+    location -- once for the baseline period (``baseline_start`` to
+    ``baseline_end``) and once for the focal year -- then differences the
+    four main report sections between the two runs:
+
+    1. ``raw_climate_summary`` : per-variable daily statistics
+       (Mean/Min/Max/Std for rainfall, temperature, etc.).
+    2. ``overall_statistics`` : period totals and derived metrics,
+       with baseline values annualised (divided by the number of
+       baseline years) so they are comparable to a single year.
+    3. ``season_statistics`` : growing-season metrics, aggregated across
+       baseline seasons (per fixed-season window when ``fixed_season``
+       is given, otherwise across auto-detected seasons).
+    4. ``annual_summary`` : annual rainfall and humid-year status
+       (focal year vs the baseline average / humid-year frequency).
+
+    Each diffed metric reports the focal value, the baseline value (or
+    baseline average), the absolute difference ``diff`` and, where
+    meaningful, the percent change ``pct``. Supplementary comparison
+    blocks for xclim reference indices and (when requested) SPEI/SPI are
+    also included.
+
+    Most sources are fetched via Google Earth Engine and require prior
+    Earth Engine authentication plus a Google Cloud project id in the
+    ``GCP_PROJECT_ID`` environment variable (``GOOGLE_CLOUD_PROJECT`` or
+    ``EE_PROJECT_ID`` also work). The ``nasa_power`` source needs no
+    authentication.
+
+    Parameters
+    ----------
+    location : tuple of float
+        ``(latitude, longitude)`` in decimal degrees, e.g.
+        ``(-1.286, 36.817)`` for Nairobi.
+    baseline_start : int
+        First year of the baseline period (inclusive).
+    baseline_end : int
+        Last year of the baseline period (inclusive). Must be greater
+        than or equal to ``baseline_start``.
+    focal_year : int
+        Single year to compare against the baseline climatology.
+    source : str
+        Climate data source. One of ``'agera_5'``, ``'era_5'``,
+        ``'nasa_power'``, ``'chirps'``, ``'chirps_v2'``,
+        ``'chirps_v3_daily_rnl'``, ``'chirts'``, ``'chirps+chirts'``,
+        ``'chirps_v2+chirts'``, ``'terraclimate'``, ``'imerg'``,
+        ``'tamsat'``, ``'auto'``, or ``'paired'``. Precipitation-only
+        sources (chirps variants, imerg, tamsat) skip temperature-based
+        metrics. ``'paired'`` combines separate precipitation and
+        temperature sources and requires ``precip_source`` and
+        ``temp_source``.
+    fixed_season : str, optional
+        Season window(s) as ``'MM-DD:MM-DD'``, comma-separated for
+        multiple windows, e.g. ``'03-01:05-31'`` (single),
+        ``'03-01:05-31,10-01:12-15'`` (two seasons), or
+        ``'11-01:02-28'`` (year-crossing). Default None (automatic
+        rainfall-based season detection).
+    precip_source : str, optional
+        Precipitation source when ``source='paired'``, e.g.
+        ``'chirps_v2'``, ``'chirps_v3_daily_rnl'``, ``'imerg'``, or
+        ``'tamsat'``. Default None.
+    temp_source : str, optional
+        Temperature source when ``source='paired'``, e.g. ``'agera_5'``,
+        ``'era_5'``, or ``'nasa_power'``. Default None.
+    crop_name : str, optional
+        Crop name used when requesting external crop-calendar presets
+        (e.g. GGCMI) via ``calendar_source``, e.g. ``'maize'``.
+        Default None.
+    livestock_type : str, optional
+        Livestock THI (temperature-humidity index) heat-stress profile,
+        e.g. ``'cattle_dairy'`` (default), ``'cattle_beef'``,
+        ``'cattle_general'``. See
+        :func:`climate_tookit.climatology.heat_stress.list_thi_livestock_profiles`
+        for the full list.
+    livestock_climate_profile : str, optional
+        THI climate context: ``'auto'`` (default; uses latitude plus
+        highland elevation when available), ``'temperate'``, or
+        ``'tropical'``.
+    livestock_elevation_override_m : float, optional
+        Site elevation in metres above sea level, overriding the
+        automatically fetched elevation used for THI climate-context
+        selection. Default None.
+    calendar_source : str, optional
+        Crop-calendar preset source to use when automatic season
+        detection is not reliable. Currently only ``'ggcmi'``.
+        Default None.
+    calendar_system : str, optional
+        Crop-calendar system when ``calendar_source`` is used:
+        ``'rf'`` (rainfed, default), ``'ir'`` (irrigated), or
+        ``'both'``.
+    spei_scale_months : int, optional
+        SPEI accumulation scale in months (e.g. 3, 6, 12). When given,
+        SPEI is computed and compared alongside the other statistics.
+        Default None (SPEI skipped).
+    spei_fit : str, optional
+        SPEI distribution-fitting method: ``'ub-pwm'`` (unbiased
+        probability-weighted moments, default) or ``'empirical'``.
+        Ignored unless ``spei_scale_months`` is set.
+    spei_ref_start : str, optional
+        SPEI reference-period start date as ``'YYYY-MM-DD'``, e.g.
+        ``'1991-01-01'``. Default None.
+    spei_ref_end : str, optional
+        SPEI reference-period end date as ``'YYYY-MM-DD'``, e.g.
+        ``'2020-12-31'``. Default None.
+    spi_scale_months : int, optional
+        SPI accumulation scale in months. When given, SPI is computed
+        and compared alongside the other statistics. Default None
+        (SPI skipped).
+    spi_fit : str, optional
+        SPI distribution-fitting method: ``'ub-pwm'`` (default) or
+        ``'empirical'``. Ignored unless ``spi_scale_months`` is set.
+    spi_ref_start : str, optional
+        SPI reference-period start date as ``'YYYY-MM-DD'``.
+        Default None.
+    spi_ref_end : str, optional
+        SPI reference-period end date as ``'YYYY-MM-DD'``.
+        Default None.
+    workers : int, optional
+        Number of parallel workers for chunked Earth Engine data
+        fetches. Default 1.
+
+    Returns
+    -------
+    dict
+        On success, a dictionary with:
+
+        - Run metadata echoing the request: ``'focal_year'``,
+          ``'baseline_period'`` (``'YYYY-YYYY'`` string),
+          ``'baseline_years'``, ``'source'``, ``'fixed_season'``,
+          ``'precip_source'``, ``'temp_source'``, ``'crop_name'``,
+          livestock settings (``'livestock_type'``,
+          ``'livestock_label'``, ``'livestock_climate_profile'``,
+          ``'livestock_climate_profile_applied'``), calendar settings
+          (``'calendar_source'``, ``'calendar_system'`` and preset-usage
+          flags), SPEI/SPI settings, and ``'temperature_excluded'``
+          (True for precipitation-only sources).
+        - ``'season_detection'`` : diagnostics on season detection for
+          both periods.
+        - ``'raw_climate_summary'`` : ``{variable: {stat: {'focal',
+          'baseline', 'diff', 'pct'}}}``.
+        - ``'overall_statistics'`` : ``{category: {metric:
+          {'focal_year', 'baseline_avg', 'diff', 'pct'}}}`` with
+          annualised baseline values.
+        - ``'season_statistics'`` : seasonal comparison; with
+          ``fixed_season`` a ``{'windows': [...]}`` list with one entry
+          per window, otherwise a single block with season counts,
+          water-balance methodology notes, and a metric ``'diff'``
+          block.
+        - ``'annual_summary'`` : ``'annual_rain_mm'`` (focal vs baseline
+          average) and ``'humid_status'`` (humid-year classification).
+        - ``'xclim_references'`` : comparison of xclim reference
+          indices.
+        - ``'spei'``, ``'spi'`` : drought-index comparisons (None-like
+          when the corresponding scale was not requested).
+
+        On failure, a dictionary with an ``'error'`` key describing the
+        problem (invalid arguments, fetch failure, or unreliable season
+        detection), possibly alongside ``'season_detection'``
+        diagnostics. Check for ``'error'`` before using the result.
+
+    Examples
+    --------
+    Compare 2023 against a 1991-2020 baseline for Nairobi, Kenya, using
+    AgERA-5 with a GGCMI maize calendar (requires Earth Engine
+    authentication and ``GCP_PROJECT_ID`` set):
+
+    >>> import climate_tookit as ct
+    >>> result = ct.compare_climate_periods(
+    ...     location=(-1.286, 36.817),
+    ...     baseline_start=1991,
+    ...     baseline_end=2020,
+    ...     focal_year=2023,
+    ...     source="agera_5",
+    ...     crop_name="maize",
+    ...     calendar_source="ggcmi",
+    ... )
+    >>> if "error" not in result:
+    ...     rain = result["annual_summary"]["annual_rain_mm"]
+    ...     print(rain["focal"], rain["baseline_avg"], rain["pct"])
+    """
     if source.lower() not in SUPPORTED:
         return {"error": f"Source '{source}' not supported. "
                          f"Use one of: {', '.join(sorted(SUPPORTED))}"}

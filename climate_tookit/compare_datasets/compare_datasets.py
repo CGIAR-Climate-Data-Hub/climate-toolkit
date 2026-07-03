@@ -539,6 +539,127 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     precip_source: str | None = None,
                     temp_source: str | None = None,
                     workers: int = 1):
+    """Fetch one or more climate datasets for a location and prepare them for comparison.
+
+    For each requested source, this function fetches cleaned, analysis-ready
+    daily data for a single point (latitude/longitude) over a date range via
+    the toolkit's preprocessing pipeline, exports each dataset to
+    ``<output_dir>/<source>.csv``, and returns the datasets keyed by source
+    name. The returned dictionary is the input expected by ``print_report``,
+    which produces the comparison tables (annual time series, annual
+    statistics, monthly climatologies, pairwise correlations) and PNG plots.
+
+    Climate sources retrieve daily precipitation, maximum temperature, and
+    minimum temperature. The ``soil_grid`` source instead retrieves static
+    soil properties (pH, texture fractions, bulk density, organic carbon,
+    CEC), broadcast as a constant daily series across the date range so it
+    can sit alongside the climate sources. Sources that fail to fetch are
+    skipped with a printed warning rather than aborting the run.
+
+    Most sources are read from Google Earth Engine and require prior Earth
+    Engine authentication plus a Google Cloud project id in the
+    ``GCP_PROJECT_ID`` environment variable (``GOOGLE_CLOUD_PROJECT`` or
+    ``EE_PROJECT_ID`` also work). ``nasa_power`` uses NASA's public web
+    service and needs no authentication.
+
+    Parameters
+    ----------
+    sources : list of str
+        Dataset keys to fetch and compare. Valid keys: ``'agera_5'``,
+        ``'chirps'``, ``'chirps_v2'``, ``'chirps_v3_daily_rnl'``,
+        ``'chirts'``, ``'cmip_6'``, ``'era_5'``, ``'imerg'``,
+        ``'nasa_power'``, ``'nex_gddp'``, ``'soil_grid'``, ``'tamsat'``,
+        ``'terraclimate'``, ``'auto'`` (the toolkit's default historical
+        precipitation + temperature pairing), and ``'paired'`` (a custom
+        pairing; requires `precip_source` and `temp_source`).
+        ``'nex_gddp'`` (future CMIP6 projections) must be run on its own,
+        not mixed with historical sources. Ignored when `input_file` is
+        given.
+    lat : float, optional
+        Latitude of the point of interest in decimal degrees (default
+        ``None``). Required unless `input_file` is given.
+    lon : float, optional
+        Longitude of the point of interest in decimal degrees (default
+        ``None``). Required unless `input_file` is given.
+    start : str, optional
+        Start date as ``'YYYY-MM-DD'`` (default ``None``, meaning the
+        source's earliest available date).
+    end : str, optional
+        End date as ``'YYYY-MM-DD'`` (default ``None``, meaning the
+        source's latest available date).
+    input_file : str, optional
+        Path to a CSV of already-fetched daily data containing a ``date``
+        column plus one column per variable (default ``None``). When given,
+        no sources are fetched; the file is loaded, re-exported to
+        `output_dir`, and returned under the key ``'input_file'``.
+    output_dir : str, optional
+        Directory where per-source CSV files are written; created if it
+        does not exist (default ``'./outputs'``). ``print_report`` also
+        writes its PNG plots here.
+    nex_model : str, optional
+        Single NEX-GDDP-CMIP6 model name, e.g. ``'MRI-ESM2-0'`` (default
+        ``None``). Only used when ``'nex_gddp'`` is in `sources`. If neither
+        `nex_model` nor `nex_models` is given, a default multi-model
+        ensemble for the location is averaged into one series.
+    nex_scenario : str, optional
+        NEX-GDDP-CMIP6 emissions scenario (default ``'ssp245'``). Common
+        options include ``'ssp126'``, ``'ssp245'``, ``'ssp370'`` and
+        ``'ssp585'``; only used when ``'nex_gddp'`` is in `sources`.
+    nex_models : list of str, optional
+        Two or more NEX-GDDP-CMIP6 model names to average into a single
+        ensemble-mean series (default ``None``). Overrides `nex_model`.
+    precip_source : str, optional
+        Precipitation partner for the ``'paired'`` source, e.g.
+        ``'chirps_v3_daily_rnl'``, ``'chirps_v2'``, ``'imerg'`` (default
+        ``None``).
+    temp_source : str, optional
+        Temperature partner for the ``'paired'`` source, e.g. ``'agera_5'``,
+        ``'era_5'``, ``'chirts'`` (default ``None``).
+    workers : int, optional
+        Number of parallel workers for chunked Google Earth Engine fetches
+        (default ``1``).
+
+    Returns
+    -------
+    dict of str to pandas.DataFrame
+        Mapping from result key to a daily DataFrame with a ``date`` column
+        (``datetime64``) plus one numeric column per variable (e.g.
+        ``precipitation``, ``max_temperature``, ``min_temperature``). Keys
+        are usually the source name as passed in; NEX-GDDP results use
+        ``'nex_gddp_<model>_<scenario>'`` or
+        ``'nex_gddp_ensemble_<scenario>'``, custom pairings use
+        ``'paired_<precip>_plus_<temp>'``, and `input_file` runs use
+        ``'input_file'``. Pass this dictionary to ``print_report`` to
+        generate the comparison report and plots.
+
+    Raises
+    ------
+    ValueError
+        If a source key is unknown, ``'nex_gddp'`` is combined with other
+        sources, the NEX-GDDP scenario or model names are invalid, or the
+        paired-source configuration is incomplete or inconsistent.
+    RuntimeError
+        If none of the requested sources returned usable data.
+
+    Examples
+    --------
+    Compare AgERA5 and NASA POWER for Nairobi over 2020, then print the
+    comparison report:
+
+    >>> import climate_tookit as ct
+    >>> results = ct.compare_climate_sources(
+    ...     sources=["agera_5", "nasa_power"],
+    ...     lat=-1.286,
+    ...     lon=36.817,
+    ...     start="2020-01-01",
+    ...     end="2020-12-31",
+    ...     output_dir="./outputs",
+    ... )
+    >>> sorted(results)
+    ['agera_5', 'nasa_power']
+    >>> from climate_tookit.compare_datasets.compare_datasets import print_report
+    >>> stats = print_report(results, output_dir="./outputs")
+    """
     os.makedirs(output_dir, exist_ok=True)
     results = {}
 

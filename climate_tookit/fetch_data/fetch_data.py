@@ -78,28 +78,147 @@ def fetch_data(
     station_id=None,
     workers=1,
 ):
-    """Fetch climate data through the pipeline.
+    """Fetch climate data through the pipeline (source -> transform -> preprocess).
+
+    Also exported as ``climate_tookit.fetch_climate_data``.
+
     Parameters
     ----------
-    source : str
-        Climate dataset name (e.g. 'era_5', 'chirps_v2', 'nex_gddp').
+    source : str or ClimateDataset
+        Climate dataset name. Valid values (``ClimateDataset`` enum names):
+
+        - ``'agera_5'`` : AgERA5 daily reanalysis, 1979-present. Includes
+          humidity, wind_speed, and solar_radiation as companion variables
+          (request them explicitly). Earth Engine.
+        - ``'era_5'`` : ERA5 daily reanalysis, from 1979. The static coverage
+          window ends 2020-07-09 (the ECMWF/ERA5/DAILY GEE asset); live GEE
+          coverage is checked at runtime and requests are clipped to it, with
+          a hint to use 'agera_5' for later periods. Earth Engine.
+        - ``'terraclimate'`` : TerraClimate monthly climate/water balance.
+          Earth Engine.
+        - ``'imerg'`` : GPM IMERG precipitation. Earth Engine.
+        - ``'chirps_v2'`` (alias ``'chirps'``) : CHIRPS v2 daily precipitation.
+          Earth Engine.
+        - ``'chirps_v3_daily_rnl'`` : CHIRPS v3 daily precipitation,
+          1981-present. Earth Engine.
+        - ``'chirts'`` : CHIRTS daily temperature. Earth Engine.
+        - ``'cmip_6'`` : CMIP6 climate projections. Earth Engine.
+        - ``'nex_gddp'`` : NEX-GDDP-CMIP6 downscaled projections. Requires
+          `model` and `scenario`. Earth Engine.
+        - ``'nasa_power'`` : NASA POWER daily point data, 1984-present.
+          Plain HTTPS API; no Earth Engine setup needed.
+        - ``'tamsat'`` : TAMSAT African rainfall. Direct download; no Earth
+          Engine setup needed.
+        - ``'ghcn_daily'``, ``'gsod'`` : station observations (see
+          `station_id`). No Earth Engine setup needed.
+        - ``'soil_grid'``, ``'hwsd'`` : static soil properties (use
+          SoilVariable members). Earth Engine.
+
+        Legacy aliases such as ``'era5'``, ``'agera5'``, ``'nasapower'``,
+        ``'nexgddp'``, and ``'ghcn'`` are normalised automatically.
+
+        Earth Engine sources require prior ``earthengine authenticate`` and a
+        project ID in the ``GCP_PROJECT_ID`` (or ``GOOGLE_CLOUD_PROJECT`` /
+        ``EE_PROJECT_ID``) environment variable.
     location_coord : tuple[float, float], optional
-        (latitude, longitude) for single-site fetches.
+        ``(latitude, longitude)`` in decimal degrees for single-site fetches.
+        Required unless `sites` or `sites_csv` is given.
     variables : list, optional
-        ClimateVariable / SoilVariable enums. Defaults to a sensible set.
-    date_from, date_to : date, optional
-        Date range. Defaults to today.
+        ``ClimateVariable`` and/or ``SoilVariable`` enum members. Import with
+        ``from climate_tookit.fetch_data.source_data.sources.utils.models
+        import ClimateVariable``. Valid ``ClimateVariable`` names: ``rainfall``,
+        ``max_temperature``, ``min_temperature``, ``mean_temperature``,
+        ``precipitation``, ``wind_speed``, ``solar_radiation``, ``humidity``,
+        ``soil_moisture``. Defaults to a standard climate + soil set
+        (precipitation, max/min temperature, solar radiation, soil moisture,
+        wind speed, humidity, plus SoilGrids properties); for ``ghcn_daily``
+        and ``gsod`` the default is precipitation, max_temperature,
+        min_temperature.
+    date_from, date_to : datetime.date, optional
+        Inclusive date range. Both default to today. The range is clipped to
+        the source's known coverage window (a warning is printed when
+        clipping occurs; a ``ValueError`` is raised if no overlap remains).
     settings : Settings, optional
-        Loaded settings. Auto-loaded if not provided.
+        Loaded package settings. Auto-loaded via ``Settings.load()`` if not
+        provided.
     model, scenario : str, optional
-        Required only for `nex_gddp`.
+        Required only for ``'nex_gddp'``: a GCM name (e.g. ``'GFDL-ESM4'``,
+        ``'ACCESS-CM2'``) and an SSP scenario (e.g. ``'ssp245'``,
+        ``'ssp585'``).
     stage : {'raw', 'transformed', 'preprocessed'}
-        How far through the pipeline to run. Default 'preprocessed'.
-    sites, sites_csv : optional
-        Many-site inputs. If present, package-native batch path is used.
+        How far through the pipeline to run: ``'raw'`` downloads only,
+        ``'transformed'`` also standardises column names/units, and
+        ``'preprocessed'`` (default) additionally applies cleaning/QC.
+    verbose : bool, default True
+        Print progress and diagnostic messages while fetching.
+    cache_dir : str or pathlib.Path, optional
+        Project-local cache root for downloaded data (reuse a stable path for
+        fast repeat runs). If omitted, supported sources fall back to their
+        default project-local cache layout.
+    refresh_cache : bool, default False
+        Bypass any saved cache files and force a cold fetch.
+    sites : list, optional
+        Many-site input; when given (or `sites_csv`), the package-native
+        batch path is used instead of `location_coord`. Each item may be a
+        ``Site``, a ``dict`` with ``name``/``lat``/``lon`` keys, or a
+        ``(name, lat, lon)`` tuple. Batch fetching is supported for
+        ``nex_gddp`` and the GEE/Xee sources (``agera_5``, ``era_5``,
+        ``terraclimate``, ``imerg``, ``chirps_v2``, ``chirps_v3_daily_rnl``,
+        ``chirts``, ``cmip_6``).
+    sites_csv : str or pathlib.Path, optional
+        Path to a CSV of sites with required columns ``name``, ``lat``,
+        ``lon``. May be combined with `sites`; duplicates are removed.
+    station_id : str, optional
+        Station identifier for station-backed sources (``ghcn_daily``,
+        ``gsod``). If omitted, the nearest station to `location_coord` is
+        used.
+    workers : int, default 1
+        Bounded worker count for historical GEE/Xee fetch tasks. Mainly
+        useful for multi-site or long-period historical runs.
+
     Returns
     -------
     pandas.DataFrame
+        For single-site fetches at the default stage: one row per date with a
+        ``date`` column plus one column per requested variable (canonical
+        names such as ``precipitation``, ``max_temperature``). Many-site
+        fetches additionally include ``site``, ``lat``, and ``lon`` columns
+        (and ``model``/``scenario`` for ``nex_gddp``). ``stage='raw'``
+        returns source-native column names.
+
+    Examples
+    --------
+    Daily weather for Nairobi from NASA POWER (no Earth Engine needed):
+
+    >>> from datetime import date
+    >>> import climate_tookit as ct
+    >>> from climate_tookit.fetch_data.source_data.sources.utils.models import (
+    ...     ClimateVariable,
+    ... )
+    >>> df = ct.fetch_climate_data(
+    ...     source="nasa_power",
+    ...     location_coord=(-1.286, 36.817),
+    ...     variables=[
+    ...         ClimateVariable.precipitation,
+    ...         ClimateVariable.max_temperature,
+    ...         ClimateVariable.min_temperature,
+    ...     ],
+    ...     date_from=date(2020, 1, 1),
+    ...     date_to=date(2020, 12, 31),
+    ... )
+
+    NEX-GDDP projections (requires Earth Engine auth and GCP_PROJECT_ID):
+
+    >>> df = ct.fetch_climate_data(
+    ...     source="nex_gddp",
+    ...     location_coord=(-1.286, 36.817),
+    ...     variables=[ClimateVariable.precipitation,
+    ...                ClimateVariable.max_temperature],
+    ...     date_from=date(2050, 1, 1),
+    ...     date_to=date(2050, 12, 31),
+    ...     model="GFDL-ESM4",
+    ...     scenario="ssp245",
+    ... )
     """
     if stage not in VALID_STAGES:
         raise ValueError(

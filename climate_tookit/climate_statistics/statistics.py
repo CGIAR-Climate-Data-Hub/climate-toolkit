@@ -1879,12 +1879,245 @@ def analyze_climate_statistics(
     workers: int = 1,
     verbose: bool = False,
 ) -> Dict[str, Any]:
-    """
-    Single entrypoint.
-      Step 1 -- Fetch all climate variables for [start_year, end_year + tail]
-      Step 2 -- Add ET0 (Hargreaves) and water balance
-      Step 3 -- Detect seasons (auto or fixed)
-      Step 4 -- Compute raw / overall / per-season statistics
+    """Run the full seasonal climate-statistics pipeline for one location.
+
+    Single entrypoint that fetches daily climate data for a point,
+    derives reference evapotranspiration (ET0, Hargreaves) and a daily
+    water balance, detects growing seasons (automatically from rainfall,
+    or from a fixed/crop-calendar window), and reduces everything to
+    per-season, per-period, and long-term-mean (LTM) statistics,
+    optionally adding monthly SPEI/SPI drought indices.
+
+    Pipeline steps
+        1. Validate source/period/calendar options; resolve the
+           livestock THI profile and human-heat (humidex) source bundle.
+        2. Fetch all daily climate variables for ``start_year-01-01``
+           through ``end_year-12-31`` plus a tail (up to
+           ``extra_months`` in auto mode, or a full extra year for
+           year-crossing fixed seasons) so late/cross-year seasons are
+           captured.
+        3. Add ET0 (Hargreaves) and daily water balance columns.
+        4. Detect seasons: automatic onset/cessation detection from
+           rainfall, or fixed windows from ``fixed_season`` /
+           ``crop_name`` + ``calendar_source`` (GGCMI crop-calendar
+           preset). If auto detection is unreliable and a calendar
+           preset was requested, the preset is applied as a fallback.
+        5. Compute per-season statistics (rainfall, temperature, dry
+           spells, water balance, livestock THI, humidex, ET0
+           sub-seasons), period-wide summaries, LTM season summaries,
+           and optional SPEI/SPI monthly series.
+
+    Progress and warnings are printed to stdout as the pipeline runs.
+    Recoverable input/validation problems are returned as
+    ``{"error": "..."}`` rather than raised.
+
+    Parameters
+    ----------
+    location_coord : tuple of float
+        ``(lat, lon)`` in decimal degrees (WGS84), e.g.
+        ``(-1.286, 36.817)`` for Nairobi.
+    start_year : int
+        First calendar year of the analysis period (inclusive).
+    end_year : int
+        Last calendar year of the analysis period (inclusive). A
+        baseline of at least 20 years is recommended for LTM output; a
+        shorter span triggers ``coverage_warning``.
+    source : str
+        Daily climate data source. Common choices:
+
+        - ``'agera_5'`` : AgERA5 (recommended single-source historical).
+        - ``'era_5'`` : ERA5.
+        - ``'nasa_power'`` : NASA POWER (no credentials required).
+        - ``'nex_gddp'`` : NEX-GDDP-CMIP6 projections; use with
+          ``model`` and ``scenario``.
+        - ``'chirps_v2'``, ``'chirps_v3_daily_rnl'`` : CHIRPS
+          precipitation (precipitation-only; temperature is filled or
+          must come from a paired source).
+        - ``'chirps_v2+chirts'`` : merged CHIRPS precip + CHIRTS temp.
+        - ``'auto'`` : tries chirps_v3_daily_rnl + agera_5, then
+          agera_5, then era_5, then chirps_v2+chirts.
+        - ``'paired'`` : combine explicit ``precip_source`` +
+          ``temp_source``.
+
+        Earth Engine-backed sources (``agera_5``, ``era_5``,
+        ``chirps_v2``, ``chirps_v3_daily_rnl``, ``nex_gddp``, ...)
+        require prior ``earthengine authenticate`` and a
+        ``GCP_PROJECT_ID`` environment variable (or ``ee_project_id``);
+        ``nasa_power`` needs no credentials.
+    fixed_season : str, optional
+        Fixed season window(s) as ``"MM-DD:MM-DD"`` (onset:cessation),
+        e.g. ``"03-01:08-31"``. Up to two comma-separated windows are
+        allowed (e.g. ``"03-01:05-31,10-01:12-31"``). A cessation
+        earlier than the onset means the season crosses the year
+        boundary. Default None (automatic season detection).
+    model : str, optional
+        Climate model name for ``source='nex_gddp'`` (e.g.
+        ``'ACCESS-ESM1-5'``). Default None.
+    scenario : str, optional
+        Scenario for ``source='nex_gddp'``: ``'historical'`` or an SSP
+        such as ``'ssp245'``/``'ssp585'``. Default None.
+    extra_months : int, default 6
+        In automatic season-detection mode, how many months of tail
+        data past ``end_year-12-31`` to fetch so seasons that end after
+        the final year are captured. Set 0 to disable the tail.
+    precip_source : str, optional
+        Precipitation source for paired mode (e.g.
+        ``'chirps_v3_daily_rnl'``, ``'chirps_v2'``, ``'imerg'``,
+        ``'tamsat'``). Must be provided together with ``temp_source``.
+    temp_source : str, optional
+        Temperature source for paired mode (e.g. ``'agera_5'``,
+        ``'era_5'``). Must be provided together with ``precip_source``.
+    crop_name : str, optional
+        Crop name used to look up a crop-calendar season preset (e.g.
+        ``'maize'``). Requires ``calendar_source``. Default None.
+    calendar_source : str, optional
+        Crop-calendar dataset used with ``crop_name``. Only
+        ``'ggcmi'`` is supported. When given without ``fixed_season``,
+        the preset window is applied directly; it is also used as a
+        fallback when auto detection is unreliable. Default None.
+    calendar_system : str, default 'rf'
+        GGCMI calendar system: ``'rf'`` (rainfed), ``'ir'``
+        (irrigated), or ``'both'``.
+    spei_scale_months : int, optional
+        Accumulation scale in months for monthly SPEI (e.g. 3 for
+        SPEI-3). Default None (SPEI is not computed).
+    spei_fit : str, default 'ub-pwm'
+        SPEI distribution-fitting method. ``'ub-pwm'`` fits the
+        log-logistic distribution per calendar month using unbiased
+        probability-weighted moments (canonical SPEI practice);
+        ``'empirical'`` uses an empirical-quantile fallback.
+    spei_ref_start, spei_ref_end : str, optional
+        Reference (calibration) period bounds for SPEI fitting, e.g.
+        ``'1991-01-01'`` / ``'2020-12-31'``. Default None (fit on the
+        full analysis period).
+    spi_scale_months : int, optional
+        Accumulation scale in months for monthly SPI. Default None
+        (SPI is not computed).
+    spi_fit : str, default 'ub-pwm'
+        SPI fitting method: ``'ub-pwm'`` or ``'empirical'`` (see
+        ``spei_fit``).
+    spi_ref_start, spi_ref_end : str, optional
+        Reference period bounds for SPI fitting. Default None.
+    custom_station_file : str, optional
+        Path to a station CSV/JSON whose observations override the
+        gridded values on matching dates (gridded data fills gaps).
+        Default None.
+    custom_station_variables : list of str, optional
+        Variables to take from the station file, e.g.
+        ``['precipitation', 'max_temperature', 'min_temperature']``.
+        Default None (all supported variables present in the file).
+    custom_station_name : str, optional
+        Label for the custom station in logs/metadata. Default None.
+    custom_temp_unit : str, default 'c'
+        Temperature unit in the station file: ``'c'``, ``'f'``, or
+        ``'k'``.
+    custom_precip_unit : str, default 'mm'
+        Precipitation unit in the station file: ``'mm'``, ``'inch'``,
+        or ``'tenth_mm'``.
+    livestock_type : str, default 'cattle_dairy'
+        Livestock profile for temperature-humidity-index (THI) heat
+        stress statistics. One of ``'cattle_dairy'``,
+        ``'cattle_general'``, ``'cattle_beef'``, ``'goats'``,
+        ``'sheep'``, ``'pigs'``, ``'poultry_broilers'``,
+        ``'poultry_layers'``, ``'poultry_general'``.
+    livestock_climate_profile : str, default 'auto'
+        THI threshold climate adjustment: ``'auto'`` (inferred from
+        latitude/elevation), ``'temperate'``, or ``'tropical'``.
+    livestock_elevation_override_m : float, optional
+        Site elevation in metres used when inferring the livestock
+        climate profile; overrides automatic elevation lookup.
+        Default None.
+    include_period_raw_summary : bool, default True
+        Include the period-wide raw climate summary
+        (``'raw_climate_summary'`` key) in the result.
+    include_season_raw_summary : bool, default True
+        Include a raw climate summary inside each season entry.
+    include_season_overall_statistics : bool, default True
+        Include full overall statistics inside each season entry.
+    include_ltm_season_summary : bool, default True
+        Include the long-term-mean summary across years per season
+        window (``'ltm_season_summary'`` key).
+    ee_project_id : str, optional
+        Google Cloud project ID for Earth Engine, overriding the
+        ``GCP_PROJECT_ID`` environment variable. Default None.
+    workers : int, default 1
+        Number of parallel workers for data fetching.
+    verbose : bool, default False
+        Print extra diagnostic detail during fetching and season
+        detection.
+
+    Returns
+    -------
+    dict
+        On validation or fetch failure, ``{'error': '<message>'}``.
+        Otherwise a dictionary with these top-level keys:
+
+        - ``'location'`` : dict with ``'lat'`` and ``'lon'``.
+        - ``'period'`` : dict with ``'start_year'`` and ``'end_year'``.
+        - ``'source'``, ``'model'``, ``'scenario'``,
+          ``'precip_source'``, ``'temp_source'`` : echo of the data
+          request (source names normalized).
+        - ``'mode'`` : ``'auto'`` or ``'fixed'`` season detection as
+          actually applied.
+        - ``'fixed_season'`` : the applied fixed-season string, or None
+          in auto mode.
+        - ``'human_heat_bundle'`` : provenance of variables feeding the
+          humidex (human heat) metrics.
+        - ``'thi_profile'`` : resolved livestock THI profile and
+          thresholds.
+        - ``'crop_name'``, ``'calendar_source'``, ``'calendar_system'``,
+          ``'calendar_preset_requested'``, ``'calendar_preset_used'``,
+          ``'calendar_preset_fallback'``, ``'calendar_preset'`` :
+          crop-calendar request and what was actually applied.
+        - ``'raw_climate_summary'`` : list of per-variable summary rows
+          for the whole period (empty if disabled).
+        - ``'overall_statistics'`` : dict of period-wide statistics
+          (temperature, rainfall, water balance, THI, humidex, ...).
+        - ``'xclim_references'`` : xclim-based reference indicators for
+          the period.
+        - ``'season_statistics'`` : list of dicts, one per detected
+          season per year, each with ``'year'``, ``'season_number'``,
+          ``'onset'``, ``'cessation'``, ``'regime'``,
+          ``'season_identity'``, rainfall/dry-spell metrics, and
+          (when enabled) nested ``'raw_climate_summary'``,
+          ``'overall_statistics'``, and ``'eto_sub_seasons'``.
+        - ``'ltm_season_summary'`` : long-term means across years per
+          season window (dict with ``'mode'`` and ``'windows'``).
+        - ``'spei'``, ``'spi'`` : None, or dicts with ``'config'``,
+          ``'summary'``, ``'metadata'``, and ``'monthly_series'``
+          (list of monthly records including the index values).
+        - ``'season_slot_warning'``, ``'coverage_warning'`` : warning
+          strings or None.
+        - ``'annual_summary'`` : per-year detection summary rows.
+        - ``'season_detection_status'``, ``'season_detection_reasons'``,
+          ``'human_review_recommended'``,
+          ``'calendar_override_recommended'``,
+          ``'season_detection_guidance'``, ``'season_detection'`` :
+          season-detection reliability diagnostics.
+        - ``'timing'`` : dict of elapsed seconds per pipeline stage.
+        - ``'analysis_date'`` : ISO timestamp of the run.
+        - ``'methodology'`` : short methodology note.
+
+    Examples
+    --------
+    Seasonal climatology for maize in Nairobi, Kenya from AgERA5
+    (requires ``earthengine authenticate`` and ``GCP_PROJECT_ID``;
+    use ``source='nasa_power'`` for a credential-free run):
+
+    >>> import climate_tookit as ct
+    >>> result = ct.analyze_climate_statistics(
+    ...     location_coord=(-1.286, 36.817),
+    ...     start_year=2000,
+    ...     end_year=2020,
+    ...     source="agera_5",
+    ...     crop_name="maize",
+    ...     calendar_source="ggcmi",
+    ...     spei_scale_months=3,
+    ... )
+    >>> sorted(result["ltm_season_summary"].keys())  # doctest: +SKIP
+    ['mode', 'windows']
+    >>> result["season_statistics"][0]["year"]  # doctest: +SKIP
+    2000
     """
     lat, lon = location_coord
     run_started = perf_counter()

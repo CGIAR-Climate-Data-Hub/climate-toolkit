@@ -2246,6 +2246,200 @@ def compare_station_to_grids(
     candidate_report_prefix: str | None = None,
     workers: int = 1,
 ) -> dict[str, Any]:
+    """Validate gridded climate products against nearby station observations.
+
+    Downloads daily station records near ``station_coord`` (via
+    :func:`download_station_data`), fetches each requested gridded
+    product at the station location for the same period, matches the two
+    on date, and computes agreement statistics (bias, MAE, RMSE,
+    correlation) per station, grid source, and variable at daily,
+    monthly, seasonal, and annual timescales. For precipitation it adds
+    wet-day occurrence skill (hit rate, false-alarm ratio, critical
+    success index, frequency bias), totals, upper-tail quantiles, and
+    heavy-rain indices (rx1day, rx5day, R10mm, R20mm). All arguments are
+    keyword-only. The result is a plain Python ``dict`` (the analogue of
+    an R named list), ready for ``json.dumps`` or conversion of its list
+    entries to DataFrames.
+
+    Authentication note: the station side (GHCN-Daily / GSOD) downloads
+    from public NOAA archives and needs no Google Earth Engine
+    credentials, but most grid sources (``agera_5``, ``era_5``,
+    ``chirps``, ``chirts``, ``imerg``, ``terraclimate``, ...) are fetched
+    through Google Earth Engine and require the ``GCP_PROJECT_ID``
+    environment variable (or ``GOOGLE_CLOUD_PROJECT`` /
+    ``EE_PROJECT_ID``) plus an authenticated Earth Engine account.
+    ``nasa_power`` uses the NASA POWER web API and does not need Earth
+    Engine. Failed grid fetches do not abort the run; they are recorded
+    under ``"grid_failures"`` in the result.
+
+    Parameters
+    ----------
+    station_source : str
+        Station backend: ``"ghcn_daily"``, ``"gsod"``, ``"auto"`` (rank
+        across both NOAA backends), or ``"custom_csv"`` (requires
+        ``custom_station_file``). See :func:`download_station_data`.
+    station_coord : tuple of float
+        ``(latitude, longitude)`` of the point of interest in decimal
+        degrees; anchors both the station search and the grid extraction.
+    date_from : datetime.date
+        First day of the comparison period (inclusive).
+    date_to : datetime.date
+        Last day of the comparison period (inclusive).
+    grid_sources : list of str
+        Historical gridded products to evaluate. Valid values:
+        ``"agera_5"``, ``"era_5"``, ``"chirps"``, ``"chirps_v2"``,
+        ``"chirts"``, ``"chirps_v2+chirts"``, ``"chirps_v3_daily_rnl"``,
+        ``"imerg"``, ``"nasa_power"``, ``"terraclimate"``, ``"auto"``
+        (toolkit's composite selector), and ``"paired"`` (combine
+        ``precip_source`` + ``temp_source``). Non-historical or station
+        sources (``"ghcn_daily"``, ``"gsod"``, ``"nex_gddp"``,
+        ``"soil_grid"``, ``"tamsat"``) are rejected with ``ValueError``.
+    variables : list of ClimateVariable or list of str, optional
+        Variables to compare. ``None`` (default) compares
+        ``precipitation``, ``max_temperature``, and ``min_temperature``.
+    station_id : str, optional
+        Explicit station identifier; used with
+        ``selection_mode="specified"``. Default ``None``.
+    selection_mode : str, optional
+        Station-selection behaviour: ``"auto"`` (default; rank nearby
+        candidates automatically), ``"specified"`` (use ``station_id``),
+        or ``"list"`` (return the ranked candidate table only -- **no
+        comparison metrics are computed**).
+    selection_strategy : str, optional
+        How stations map to variables:
+
+        - ``"all_vars_single_station"`` (default) : one station download
+          covering all variables together.
+        - ``"best_per_variable"`` : select the best station separately
+          for each variable (stations may differ between, say,
+          precipitation and temperature).
+    auto_select : str, optional
+        Number of top-ranked stations used when ``selection_mode="auto"``:
+        ``"auto-1"`` (default), ``"auto-<n>"``, or ``"auto-all"``
+        (capped at ``max_auto_stations``).
+    max_distance_km : float, optional
+        Station search radius in km. Default ``50.0``.
+    target_elevation_m : float, optional
+        Reference elevation (m) for the elevation guard; ``None``
+        (default) resolves it from a DEM when
+        ``auto_anchor_elevation=True``.
+    max_elevation_diff_m : float, optional
+        Maximum station-vs-anchor elevation difference (m). Default
+        ``500.0``.
+    min_completeness_ratio : float, optional
+        Minimum per-variable data completeness (0-1) for candidate
+        stations. Default ``0.7``.
+    candidate_limit : int, optional
+        Maximum candidates retained after ranking. Default ``10``.
+    score_limit : int, optional
+        Maximum nearby stations scored for completeness. Default ``25``.
+    auto_anchor_elevation : bool, optional
+        If ``True`` (default), resolve the anchor elevation from a DEM
+        (Earth Engine; falls back gracefully with a warning).
+    disable_completeness_guard : bool, optional
+        If ``True``, skip the completeness threshold when selecting
+        stations. Default ``False``.
+    max_auto_stations : int, optional
+        Hard cap on stations used via ``auto_select``. Default ``10``.
+    cache_dir : str, optional
+        Directory for cached downloads. Default ``None`` (toolkit
+        default).
+    refresh_cache : bool, optional
+        If ``True``, re-download instead of using cached files. Default
+        ``False``.
+    precip_source, temp_source : str, optional
+        Precipitation and temperature products combined when
+        ``"paired"`` is among ``grid_sources``. Default ``None``.
+    wet_day_threshold_mm : float, optional
+        Daily precipitation (mm) at or above which a day counts as wet
+        in the occurrence-skill statistics. Default ``1.0``.
+    min_overlap_days : int, optional
+        Minimum station-grid overlap (days) below which a low-confidence
+        warning is attached to a metric row. Default ``30``.
+    verbose : bool, optional
+        If ``True`` (default), print progress messages.
+    custom_station_file : str, optional
+        Path to a custom station CSV/JSON (with
+        ``station_source="custom_csv"``). Default ``None``.
+    custom_station_name : str, optional
+        Label for the custom station. Default ``None``.
+    custom_temp_unit : str, optional
+        Temperature unit in the custom file: ``"c"`` (default), ``"f"``,
+        or ``"k"``.
+    custom_precip_unit : str, optional
+        Precipitation unit in the custom file: ``"mm"`` (default),
+        ``"inch"``, or ``"tenth_mm"``.
+    candidate_report_prefix : str, optional
+        If given, write a candidate-review report to
+        ``<prefix>.csv``, ``<prefix>.json``, and ``<prefix>.html`` (an
+        interactive map plus ranking table); the paths are returned under
+        ``"candidate_review_artifacts"``. Default ``None`` (no report).
+    workers : int, optional
+        Parallel workers for grid-data fetching. Default ``1``.
+
+    Returns
+    -------
+    dict
+        A report dictionary. Main keys:
+
+        - ``"metrics"`` : list of dict, one per station x grid source x
+          variable, with ``overlap_days``, ``confidence_class``,
+          ``bias``, ``mae``, ``rmse``, ``correlation``, and (for
+          precipitation) wet-day skill and heavy-rain diagnostics.
+        - ``"monthly_metrics"``, ``"seasonal_metrics"``,
+          ``"annual_metrics"`` : the same comparisons on aggregated
+          series; annual rows add ``coverage_ratio`` and
+          ``window_status``.
+        - ``"pooled_daily_metrics"``, ``"pooled_monthly_metrics"``,
+          ``"pooled_seasonal_metrics"``, ``"pooled_annual_metrics"`` :
+          metrics against a per-date mean across selected stations
+          (``station_id="POOLED_REF"``); ``"overall_metrics"`` pools raw
+          overlap rows across stations (``station_id="ALL"``).
+        - ``"use_case_rankings"`` : grid sources ranked (0-1 scores) for
+          use cases such as ``daily_monitoring``, ``seasonal_totals``,
+          ``drought_screening``, ``heavy_rain_screening``, and
+          ``temperature_climatology``.
+        - ``"station_summary"``, ``"selected_stations_by_variable"``,
+          ``"grid_fetch_summary"``, ``"grid_failures"``,
+          ``"grid_source_metadata"`` (including whether each product is
+          station-informed, i.e. not fully independent validation),
+          ``"warnings"``, ``"confidence_summary"``,
+          ``"window_status_summary"``, ``"xclim_precip_indices"``, and
+          echo of the inputs (``"anchor_location"``, ``"date_from"``,
+          ``"grid_sources"``, ...).
+
+        With ``selection_mode="list"`` the dict instead carries
+        ``"candidate_stations"`` (list of candidate records) and all
+        metric lists are empty.
+
+    Raises
+    ------
+    ValueError
+        If ``grid_sources`` is empty, contains unknown or unsupported
+        sources, or if ``selection_strategy`` is invalid.
+    RuntimeError
+        If no station observations are available for comparison.
+
+    Examples
+    --------
+    Compare the best GHCN-Daily station near Nairobi against AgERA5 for
+    2020 (requires ``GCP_PROJECT_ID`` to be set for the grid fetch):
+
+    >>> from datetime import date
+    >>> import climate_tookit as ct
+    >>> report = ct.compare_station_to_grids(
+    ...     station_source="ghcn_daily",
+    ...     station_coord=(-1.286, 36.817),
+    ...     date_from=date(2020, 1, 1),
+    ...     date_to=date(2020, 12, 31),
+    ...     grid_sources=["agera_5"],
+    ...     variables=["precipitation", "max_temperature", "min_temperature"],
+    ... )
+    >>> import pandas as pd
+    >>> pd.DataFrame(report["metrics"])[
+    ...     ["grid_source", "variable", "overlap_days", "bias", "correlation"]
+    ... ]
+    """
     normalized_grid_sources = _normalize_grid_sources(grid_sources)
     requested_variables = variables or DEFAULT_COMPARE_VARIABLES
     resolved_strategy = _normalize_selection_strategy(selection_strategy)

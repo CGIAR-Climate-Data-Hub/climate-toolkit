@@ -240,6 +240,172 @@ def download_station_data(
     custom_temp_unit: str = "c",
     custom_precip_unit: str = "mm",
 ):
+    """Download daily weather-station observations near a point of interest.
+
+    Finds weather stations close to ``station_coord``, ranks them by
+    distance, elevation similarity, and data completeness, then downloads
+    daily observations for the requested date range and variables. All
+    arguments are keyword-only. The result is a pandas DataFrame (the
+    Python analogue of an R ``data.frame``), with one row per
+    station-day, or -- when ``selection_mode="list"`` -- one row per
+    candidate station.
+
+    Station backends (GHCN-Daily and GSOD) are public NOAA archives and
+    need **no Google Earth Engine authentication**. The only optional
+    Earth Engine touchpoint is the DEM elevation lookup used when
+    ``auto_anchor_elevation=True``; if Earth Engine is not configured the
+    lookup fails gracefully, a warning is printed, and station selection
+    proceeds without the elevation guard.
+
+    Parameters
+    ----------
+    station_source : str
+        Station backend to search. Valid values:
+
+        - ``"ghcn_daily"`` : NOAA GHCN-Daily archive (default backend in
+          the CLI; supports all selection modes).
+        - ``"gsod"`` : NOAA Global Summary of the Day. Currently supports
+          ``selection_mode="specified"`` only and requires ``station_id``
+          (a 5-digit WMO-like ID or 11-digit GSOD ID).
+        - ``"auto"`` : rank candidates across both NOAA backends
+          (GHCN-Daily + GSOD) together.
+        - ``"custom_csv"`` : load a user-supplied station file; requires
+          ``custom_station_file``.
+    station_coord : tuple of float
+        ``(latitude, longitude)`` of the point of interest in decimal
+        degrees (the anchor for the station search, not necessarily a
+        station location).
+    date_from : datetime.date
+        First day of the requested period (inclusive).
+    date_to : datetime.date
+        Last day of the requested period (inclusive).
+    variables : list of ClimateVariable or list of str, optional
+        Variables to request, e.g.
+        ``["precipitation", "max_temperature", "min_temperature"]`` or
+        the corresponding ``ClimateVariable`` enum members. ``None``
+        (default) requests the backend's full supported set.
+    station_id : str, optional
+        Explicit station identifier. Required when
+        ``selection_mode="specified"`` and for ``station_source="gsod"``.
+        Default ``None``.
+    stage : str, optional
+        Processing stage of the returned data: ``"raw"``,
+        ``"transformed"``, or ``"preprocessed"`` (default). Use the
+        default for analysis-ready, unit-harmonised values.
+    verbose : bool, optional
+        If ``True`` (default), print progress and selection warnings.
+    cache_dir : str, optional
+        Directory for cached downloads. ``None`` (default) uses the
+        toolkit's default cache location.
+    refresh_cache : bool, optional
+        If ``True``, ignore cached files and re-download. Default
+        ``False``.
+    selection_mode : str, optional
+        How stations are chosen. Valid values:
+
+        - ``"auto"`` (default) : rank nearby candidates and download data
+          from the top station(s) per ``auto_select``.
+        - ``"specified"`` : download exactly the station given by
+          ``station_id``.
+        - ``"list"`` : do not download observations; return a ranked
+          candidate table for review.
+    max_distance_km : float, optional
+        Search radius around ``station_coord``; candidates farther than
+        this are excluded. Default ``50.0``.
+    target_elevation_m : float, optional
+        Reference elevation (m) for the elevation guard. ``None``
+        (default) resolves it from a DEM when
+        ``auto_anchor_elevation=True``.
+    max_elevation_diff_m : float, optional
+        Maximum allowed absolute elevation difference (m) between a
+        candidate station and the target elevation. Default ``500.0``.
+    min_completeness_ratio : float, optional
+        Minimum fraction (0-1) of days with data required per requested
+        variable for a candidate to pass the completeness guard. Default
+        ``0.7``.
+    candidate_limit : int, optional
+        Maximum number of candidates retained after ranking. Default
+        ``10``.
+    score_limit : int, optional
+        Maximum number of nearby stations scored for completeness (the
+        expensive step). Default ``25``.
+    auto_select : str, optional
+        How many top-ranked stations to download in
+        ``selection_mode="auto"``: ``"auto-1"`` (default, best station
+        only), ``"auto-<n>"`` (top *n*, e.g. ``"auto-3"``), or
+        ``"auto-all"``. Always capped at ``max_auto_stations``.
+    auto_anchor_elevation : bool, optional
+        If ``True`` (default) and ``target_elevation_m`` is ``None``,
+        look up the anchor elevation from a DEM (via Earth Engine, with
+        graceful fallback).
+    disable_completeness_guard : bool, optional
+        If ``True``, skip the completeness threshold and return the
+        nearest-ranked stations regardless of data coverage. Default
+        ``False``.
+    max_auto_stations : int, optional
+        Hard cap on stations downloaded via ``auto_select``. Default
+        ``10``.
+    custom_station_file : str, optional
+        Path to a custom station CSV/JSON file. Required when
+        ``station_source="custom_csv"``. Default ``None``.
+    custom_station_name : str, optional
+        Label for the custom station. Default ``None``.
+    custom_temp_unit : str, optional
+        Temperature unit in the custom file: ``"c"`` (default), ``"f"``,
+        or ``"k"``.
+    custom_precip_unit : str, optional
+        Precipitation unit in the custom file: ``"mm"`` (default),
+        ``"inch"``, or ``"tenth_mm"``.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Structure depends on ``selection_mode``:
+
+        - ``"auto"`` or ``"specified"`` : daily observations, one row per
+          station-day, with a ``date`` column, station metadata columns
+          (``station_id``, ``station_name``, ``station_lat``,
+          ``station_lon``, ``station_elevation_m``, ...), one column per
+          requested variable (e.g. ``precipitation``,
+          ``max_temperature``, ``min_temperature``), and selection
+          metadata (``selection_rank``, ``selection_status``,
+          ``distance_km``, ``fields_passing_threshold``, ...). With
+          ``auto_select`` > 1 station, rows for all stations are stacked
+          and distinguished by ``selection_rank``. Empty DataFrame if no
+          station returned data.
+        - ``"list"`` : one row per candidate station with ranking
+          diagnostics (``distance_km``, ``elevation_diff_m``,
+          completeness ratios, ``threshold_status``,
+          ``fields_passing_threshold``, ``fields_failing_threshold``,
+          ...) and no daily observations. Selection warnings, if any, are
+          attached in ``frame.attrs["selection_warnings"]``.
+
+    Raises
+    ------
+    ValueError
+        If ``station_source`` is unsupported, if required arguments for
+        the chosen mode are missing (e.g. ``station_id`` with
+        ``selection_mode="specified"``), or if ``auto_select`` is
+        malformed.
+
+    Examples
+    --------
+    Download 2020 daily records from the single best GHCN-Daily station
+    within 50 km of Nairobi:
+
+    >>> from datetime import date
+    >>> import climate_tookit as ct
+    >>> obs = ct.download_station_data(
+    ...     station_source="ghcn_daily",
+    ...     station_coord=(-1.286, 36.817),
+    ...     date_from=date(2020, 1, 1),
+    ...     date_to=date(2020, 12, 31),
+    ...     variables=["precipitation", "max_temperature", "min_temperature"],
+    ...     selection_mode="auto",
+    ...     auto_select="auto-1",
+    ... )
+    >>> obs[["date", "station_id", "precipitation", "max_temperature"]].head()
+    """
     station_source = str(station_source).strip().lower()
     if station_source not in SUPPORTED_STATION_SOURCES:
         raise ValueError(

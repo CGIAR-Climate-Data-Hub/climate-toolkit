@@ -2050,7 +2050,186 @@ def calculate_hazards(
     ee_project_id: Optional[str] = None,
     workers: int = 1,
 ) -> Dict[str, Any]:
+    """Assess growing-season climate hazards for a crop at a point location.
 
+    Fetches daily climate data (precipitation, temperature, humidity) for one
+    or more growing seasons, runs a daily soil water-balance model, and scores
+    each season against crop-specific hazard thresholds. Hazards assessed:
+
+    - Seasonal precipitation total versus crop rainfall requirements
+    - Mean season temperature versus crop temperature tolerance
+    - Extreme heat: NTx35 / NTx40 (days with Tmax above 35 / 40 deg C)
+    - Drought: NDD (dry days, < 1 mm), dry-spell statistics (>= 7 consecutive
+      dry days), NDWS (water-stress days from the soil water-balance model),
+      and WRSI (water requirement satisfaction index)
+    - Waterlogging: NDWL0 (days with soil water above field capacity)
+    - Livestock heat stress: THI (temperature-humidity index) for the chosen
+      livestock type and climate profile
+    - Human heat stress: Humidex screening (mean/max, high and extreme days)
+
+    The growing-season window is resolved in one of three ways:
+
+    1. Explicit window -- pass ``season_start`` and ``season_end`` together.
+    2. Fixed calendar window(s) -- pass ``fixed_season``
+       (e.g. ``'03-01:06-30'``), applied to every year between ``date_from``
+       and ``date_to``.
+    3. Auto-detection (default) -- rainfall-based onset/cessation detection
+       per year; if detection is unreliable and ``calendar_source='ggcmi'``
+       was given, falls back to the GGCMI crop-calendar preset window.
+
+    This function is exported as ``climate_tookit.evaluate_hazards``.
+
+    Parameters
+    ----------
+    crop_name : str
+        Crop to assess (case-insensitive). Crops with built-in hazard
+        thresholds: 'beans', 'maize', 'millet', 'groundnuts', 'sorghum',
+        'cassava', 'rice'. Other crops require ``custom_thresholds``.
+    location_coord : tuple of float
+        ``(latitude, longitude)`` in decimal degrees,
+        e.g. ``(-1.286, 36.817)`` for Nairobi.
+    date_from, date_to : str
+        Analysis window as ISO dates ``'YYYY-MM-DD'``. In fixed-season and
+        auto-detect modes, every calendar year in this range is analysed.
+    season_start, season_end : str, optional
+        Explicit season window (ISO dates ``'YYYY-MM-DD'``). Must be supplied
+        together; takes precedence over ``fixed_season`` and auto-detection.
+        Default None.
+    fixed_season : str, optional
+        Fixed calendar window(s) as ``'MM-DD:MM-DD'``, comma-separated for
+        two seasons per year (e.g. ``'03-01:05-31,10-01:12-15'``).
+        Year-crossing windows such as ``'11-01:02-28'`` are supported.
+        Default None.
+    source : str, default 'auto'
+        Climate dataset: 'auto', 'agera_5', 'era_5', 'chirps_v2+chirts'
+        (alias 'chirps+chirts'), 'nasa_power', or 'paired'. ``'auto'`` tries
+        chirps_v3_daily_rnl + agera_5, then agera_5, then era_5, then
+        chirps_v2+chirts. Precipitation-only sources ('chirps_v3_daily_rnl',
+        'imerg', 'tamsat') are rejected here -- use them through
+        ``source='paired'``. 'chirps_v2+chirts' only covers years up to 2016.
+    precip_source, temp_source : str, optional
+        Required together when ``source='paired'``: explicit precipitation
+        and temperature datasets, e.g. ``precip_source='chirps_v3_daily_rnl'``
+        with ``temp_source='agera_5'``. Default None.
+    custom_thresholds : dict, optional
+        Per-metric threshold overrides merged over the built-in crop and
+        hazard-index thresholds. Shape ``{metric: {band: (low, high)}}``,
+        where metric is one of 'Total Precip', 'TAVG', 'NDD', 'NTx35',
+        'NTx40', 'NDWS', 'NDWL0', 'THI', 'HUMIDEX'. Band names are e.g.
+        'no_stress', 'moderate_stress', 'severe_stress', 'extreme_stress'
+        (crop 'Total Precip' / 'TAVG' use 'moderate_stress_low' /
+        'moderate_stress_up' / 'severe_stress_low' / 'severe_stress_up');
+        ``None`` in a ``(low, high)`` tuple means open-ended. Metrics omitted
+        keep package defaults. Supplying this also allows assessing crops
+        without built-in thresholds. Default None.
+    gap_days : int, default 30
+        Intended dry-gap (days) that ends an auto-detected season. Currently
+        accepted for CLI parity but not forwarded to the season detector,
+        which uses its own default.
+    min_season_days : int, default 30
+        Intended minimum auto-detected season length (days). Same caveat as
+        ``gap_days``.
+    soilcp : float, default 100.0
+        Plant-available soil water capacity (mm) between wilting point and
+        field capacity, used by the water-balance model (NDWS/NDWL0/WRSI).
+        When both ``soilcp`` and ``soilsat`` are left at their defaults,
+        site-specific values are derived from gridded soil data
+        (SoilGrids/HWSD) where available; pass explicit values to override.
+    soilsat : float, default 100.0
+        Additional soil water storage (mm) between field capacity and
+        saturation; governs waterlogging (NDWL0). See ``soilcp`` for the
+        automatic site-specific derivation.
+    spinup_days : int, default 60
+        Days of climate data fetched before season onset so the soil water
+        balance starts from a realistic moisture state.
+    water_balance_window : {'full_window', 'crop_active'}, default 'full_window'
+        How NDWS/NDWL0 are counted within fixed-season runs: 'full_window'
+        uses the whole fixed window; 'crop_active' restricts counting to
+        detected ETO sub-season(s) inside the window when available.
+    calendar_source : {'ggcmi'}, optional
+        Crop-calendar preset source used as a fallback when auto season
+        detection is unreliable. Default None (no fallback).
+    calendar_system : {'rf', 'ir', 'both'}, default 'rf'
+        GGCMI crop-calendar system when ``calendar_source`` is used:
+        rainfed ('rf'), irrigated ('ir'), or both.
+    livestock_type : str, default 'cattle_dairy'
+        Livestock THI profile, e.g. 'cattle_dairy', 'cattle_general',
+        'cattle_beef', 'goats', 'sheep'. See
+        ``climate_tookit.climatology.heat_stress.list_thi_livestock_profiles``
+        for the full list.
+    livestock_climate_profile : {'auto', 'temperate', 'tropical'}, default 'auto'
+        THI climate context. 'auto' selects from latitude plus highland
+        elevation when available.
+    livestock_elevation_override_m : float, optional
+        Site elevation (metres above sea level) used by the 'auto' THI
+        climate-context selection instead of an automatic elevation lookup.
+        Default None.
+    ee_project_id : str, optional
+        Google Cloud project ID for Earth Engine-backed climate sources.
+        Overrides the ``GCP_PROJECT_ID`` environment variable. Default None.
+    workers : int, default 1
+        Bounded worker count for chunked historical Earth Engine fetches.
+
+    Returns
+    -------
+    dict
+        On failure: ``{'error': <message>}``, optionally with
+        ``'available_crops'`` (unknown crop) or ``'season_detection'``
+        (season-detection diagnostics).
+
+        When exactly one season is resolved, a flat assessment dict with keys
+        ``'crop'``, ``'location'`` (``{'latitude', 'longitude'}``),
+        ``'season_info'`` (onset/cessation dates, length, detection method,
+        data source), ``'thi_profile'``, ``'soil_parameters'``,
+        ``'water_balance_parameters'``, ``'water_balance_methodology'``,
+        ``'season_statistics'`` (precipitation and temperature summaries,
+        dry-spell statistics, NDD, NTx35, NTx40, NDWS, NDWL0, WRSI, Humidex
+        and THI metrics), ``'hazard_evaluation'`` (per-hazard value and
+        status such as 'no_stress' / 'moderate_stress' / 'severe_stress'),
+        plus ``'season_detection'``, ``'calendar_source'``,
+        ``'calendar_system'``, ``'calendar_preset_requested'``,
+        ``'calendar_preset_used'``, and ``'calendar_preset'``.
+
+        When multiple seasons are resolved (multi-year range and/or two
+        seasons per year), a wrapper dict with ``'assessments'`` (list of
+        per-season dicts shaped as above), ``'thi_profile'``,
+        ``'soil_parameters'``, ``'water_balance_parameters'``,
+        ``'water_balance_methodology'``, ``'season_detection'``, the calendar
+        keys above, ``'baseline_ltm'`` (long-term mean baseline across
+        seasons, or None), and ``'baseline_ltm_comparisons'`` (per-year
+        deltas versus that baseline). A ``'warning'`` key is included when
+        the baseline is suppressed (e.g. inconsistent auto-detected season
+        counts across years).
+
+    Notes
+    -----
+    Earth Engine-backed sources ('agera_5', 'era_5', 'chirps_v2+chirts',
+    'chirps_v3_daily_rnl', and the default 'auto' chain) require a one-time
+    ``earthengine authenticate`` and a Google Cloud project ID, supplied via
+    the ``GCP_PROJECT_ID`` environment variable or the ``ee_project_id``
+    argument. The 'nasa_power' source needs no credentials.
+
+    Progress messages are printed to stdout during data fetching. Use
+    ``climate_tookit.calculate_hazards.hazards.print_hazard_results`` to
+    pretty-print the returned dict.
+
+    Examples
+    --------
+    Maize near Nairobi for the 2020 long-rains season, explicit window:
+
+    >>> import climate_tookit as ct
+    >>> result = ct.evaluate_hazards(
+    ...     crop_name='maize',
+    ...     location_coord=(-1.286, 36.817),
+    ...     date_from='2020-01-01',
+    ...     date_to='2020-12-31',
+    ...     season_start='2020-03-01',
+    ...     season_end='2020-06-30',
+    ...     source='agera_5',
+    ... )  # doctest: +SKIP
+    >>> result['hazard_evaluation']['NTx35']['status']  # doctest: +SKIP
+    'no_stress'
+    """
     lat, lon = location_coord
     calendar_system = str(calendar_system).lower()
     if calendar_system not in CALENDAR_SYSTEM_CHOICES:
