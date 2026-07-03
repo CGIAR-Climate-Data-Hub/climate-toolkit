@@ -733,3 +733,13 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+##If you want the SPEI CLI command
+
+# Use:
+# python -m climate_tookit.climatology.spei --location "-1.286,36.817" --source agera_5 --start 2020-01-01 --end 2020-12-31 --index spei --scale-months 12
+
+# Or if installed as a console script:
+# Use:
+#climate-toolkit-spei --location "-1.286,36.817" --source agera_5 --start 2020-01-01 --end 2020-12-31 --index spei --scale-months 12
