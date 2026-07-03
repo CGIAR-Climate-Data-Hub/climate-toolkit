@@ -87,32 +87,47 @@ def fetch_data(
     source : str or ClimateDataset
         Climate dataset name. Valid values (``ClimateDataset`` enum names):
 
-        - ``'agera_5'`` : AgERA5 daily reanalysis, 1979-present. Includes
-          humidity, wind_speed, and solar_radiation as companion variables
-          (request them explicitly). Earth Engine.
-        - ``'era_5'`` : ERA5 daily reanalysis, from 1979. The static coverage
-          window ends 2020-07-09 (the ECMWF/ERA5/DAILY GEE asset); live GEE
-          coverage is checked at runtime and requests are clipped to it, with
-          a hint to use 'agera_5' for later periods. Earth Engine.
-        - ``'terraclimate'`` : TerraClimate monthly climate/water balance.
-          Earth Engine.
-        - ``'imerg'`` : GPM IMERG precipitation. Earth Engine.
-        - ``'chirps_v2'`` (alias ``'chirps'``) : CHIRPS v2 daily precipitation.
-          Earth Engine.
+        - ``'agera_5'`` : ERA5-Land daily aggregates (GEE asset
+          ``ECMWF/ERA5_LAND/DAILY_AGGR``), 0.1 deg (~11 km), 1979-present.
+          Broadest daily variable set: precipitation, max/min/mean
+          temperature, humidity, wind_speed, solar_radiation (request
+          companions explicitly). Recommended default. Earth Engine.
+        - ``'era_5'`` : ERA5 daily reanalysis, 0.25 deg (~28 km), from 1979.
+          The static coverage window ends 2020-07-09 (the ECMWF/ERA5/DAILY
+          GEE asset); live GEE coverage is checked at runtime and requests
+          are clipped to it, with a hint to use 'agera_5' for later periods.
+          Precipitation, max/min temperature, wind. Earth Engine.
+        - ``'terraclimate'`` : TerraClimate monthly climate/water balance,
+          ~4 km, 1958-present. Monthly cadence. Earth Engine.
+        - ``'imerg'`` : GPM IMERG v07 satellite precipitation, 0.1 deg,
+          2000-present. Precipitation only. Earth Engine.
+        - ``'chirps_v2'`` (alias ``'chirps'``) : CHIRPS v2 daily blended
+          satellite-gauge precipitation, 0.05 deg (~5.5 km), 1981-present.
+          Precipitation only. Earth Engine.
         - ``'chirps_v3_daily_rnl'`` : CHIRPS v3 daily precipitation,
-          1981-present. Earth Engine.
-        - ``'chirts'`` : CHIRTS daily temperature. Earth Engine.
-        - ``'cmip_6'`` : CMIP6 climate projections. Earth Engine.
-        - ``'nex_gddp'`` : NEX-GDDP-CMIP6 downscaled projections. Requires
-          `model` and `scenario`. Earth Engine.
-        - ``'nasa_power'`` : NASA POWER daily point data, 1984-present.
+          0.05 deg, 1981-present. Precipitation only. Earth Engine.
+        - ``'chirts'`` : CHIRTS daily satellite-station temperature,
+          0.05 deg, 1983-2016. Max/min temperature. Earth Engine.
+        - ``'cmip_6'`` : NASA GDDP-CMIP6 downscaled projections, 0.25 deg.
+          Precipitation, max/min temperature. Earth Engine.
+        - ``'nex_gddp'`` : NEX-GDDP-CMIP6 downscaled projections, 0.25 deg;
+          historical runs end 2014-12-31, scenario runs start 2015-01-01.
+          Requires `model` and `scenario`. Precipitation, max/min
+          temperature, humidity. Earth Engine.
+        - ``'nasa_power'`` : NASA POWER daily point data, ~0.5 deg,
+          1984-present. Precipitation, max/min/mean temperature, humidity.
           Plain HTTPS API; no Earth Engine setup needed.
-        - ``'tamsat'`` : TAMSAT African rainfall. Direct download; no Earth
-          Engine setup needed.
-        - ``'ghcn_daily'``, ``'gsod'`` : station observations (see
+        - ``'tamsat'`` : TAMSAT v3.1 African rainfall + soil moisture,
+          0.05 deg (~4 km), Africa only, 1983-present. Direct download; no
+          Earth Engine setup needed.
+        - ``'ghcn_daily'``, ``'gsod'`` : point station observations (see
           `station_id`). No Earth Engine setup needed.
-        - ``'soil_grid'``, ``'hwsd'`` : static soil properties (use
-          SoilVariable members). Earth Engine.
+        - ``'soil_grid'`` (ISRIC SoilGrids, 250 m), ``'hwsd'`` (FAO HWSD v2,
+          ~1 km) : static soil properties (use SoilVariable members).
+          Earth Engine.
+
+        Full dataset descriptions: see docs/datasets.md (or the "Datasets"
+        page of the documentation site).
 
         Legacy aliases such as ``'era5'``, ``'agera5'``, ``'nasapower'``,
         ``'nexgddp'``, and ``'ghcn'`` are normalised automatically.
