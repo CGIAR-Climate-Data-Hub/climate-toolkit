@@ -65,6 +65,24 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+# Generated artifacts (plots) are written under outputs/api and served at
+# /artifacts. Use a non-interactive matplotlib backend so plotting is safe in
+# the server thread (no GUI/Tk).
+import matplotlib
+matplotlib.use("Agg")
+ARTIFACTS_ROOT = os.path.join(project_root, "outputs", "api")
+os.makedirs(ARTIFACTS_ROOT, exist_ok=True)
+app.mount("/artifacts", StaticFiles(directory=ARTIFACTS_ROOT), name="artifacts")
+
+
+def _plot_urls(paths):
+    """Map generated plot file paths to /artifacts/... URLs for the browser."""
+    urls = []
+    for p in paths or []:
+        rel = os.path.relpath(p, ARTIFACTS_ROOT).replace(os.sep, "/")
+        urls.append("/artifacts/" + rel)
+    return urls
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -328,22 +346,27 @@ async def climatology_page_post(request: Request):
             )
         else:
             from climate_tookit.climatology.long_term_climatology import calculate_climatology
+            # Write annual + monthly PNGs into the served artifacts directory.
             result = calculate_climatology(
                 location_coord=(payload["lat"], payload["lon"]),
                 start_year=payload["start_year"],
                 end_year=payload["end_year"],
                 source=payload["source"],
+                output_dir=os.path.join(ARTIFACTS_ROOT, "climatology"),
             )
 
+        plot_urls = []
         if "error" in result:
             result = {"status_code": 400, "status": "REQUEST_UNSUCCESSFUL", "message": result.get("error", "Error"), "data": result}
         else:
+            plot_urls = _plot_urls(result.get("plots"))
             msg = "Ensemble climatology complete" if ensemble else "Climatology analysis complete"
             result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": msg, "data": result, "ensemble": ensemble}
     except Exception as e:
         result = {"status_code": 500, "status": "SERVICE_UNREACHABLE", "message": str(e), "data": None}
+        plot_urls = []
 
-    return templates.TemplateResponse(request, "climatology.html", {"request": request, "result": result})
+    return templates.TemplateResponse(request, "climatology.html", {"request": request, "result": result, "plot_urls": plot_urls})
 
 
 @app.get("/hazards", tags=["UI"], response_class=HTMLResponse)

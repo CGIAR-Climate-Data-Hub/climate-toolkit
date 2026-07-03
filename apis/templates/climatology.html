@@ -96,6 +96,19 @@
         {% else %}
         {% set clim = result.data %}
 
+        {% if plot_urls %}
+        <div class="mb-6">
+            <h3 class="font-semibold text-lg mb-3">Visualizations</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for url in plot_urls %}
+                <a href="{{ url }}" target="_blank">
+                    <img src="{{ url }}" alt="climatology plot" class="w-full border border-gray-200 rounded-lg">
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Summary -->
         <div class="grid grid-cols-3 gap-4 mb-6">
             <div class="bg-blue-50 p-4 rounded-lg">
