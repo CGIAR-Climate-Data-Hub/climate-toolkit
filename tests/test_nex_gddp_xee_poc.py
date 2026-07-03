@@ -23,12 +23,12 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-from climate_tookit.fetch_data.source_data.sources import nex_gddp, nex_gddp_xee
-from climate_tookit.fetch_data.source_data.sources.utils.models import (
+from climate_toolkit.fetch_data.source_data.sources import nex_gddp, nex_gddp_xee
+from climate_toolkit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 
 class NexGddpXeePocTests(unittest.TestCase):

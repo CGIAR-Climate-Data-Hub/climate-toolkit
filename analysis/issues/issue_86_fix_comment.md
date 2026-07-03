@@ -4,13 +4,13 @@ This mismatch is resolved on `codex-nex-gddp-access-rnd`.
 
 What changed on branch:
 
-- active NEX backend is now `climate_tookit/fetch_data/source_data/sources/nex_gddp_xee.py`
-- `climate_tookit/fetch_data/source_data/sources/nex_gddp.py` now delegates to that real adapter
+- active NEX backend is now `climate_toolkit/fetch_data/source_data/sources/nex_gddp_xee.py`
+- `climate_toolkit/fetch_data/source_data/sources/nex_gddp.py` now delegates to that real adapter
 - active `SCENARIO_MAPPING` now includes `ssp370` plus alias `SSP3-7.0`
 
 So current branch state is:
 
-- `climate_tookit/calculate_hazards/ensemble_hazards.py` default scenarios still include `ssp370`
+- `climate_toolkit/calculate_hazards/ensemble_hazards.py` default scenarios still include `ssp370`
 - active NEX backend now accepts `ssp370`
 - original default-list/backend mismatch no longer reproduces on branch
 

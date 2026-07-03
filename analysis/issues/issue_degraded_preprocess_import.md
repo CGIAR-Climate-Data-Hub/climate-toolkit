@@ -6,7 +6,7 @@ Status note:
 - later package-refactor work removed stale `PREPROCESS_AVAILABLE` compatibility shims from `climate_statistics.statistics`
 - keep this note as historical repro evidence, not current-state description for refactored branch
 
-`climate_tookit.climate_statistics.statistics` and `climate_tookit.climatology.long_term_climatology` import successfully under normal package execution, but silently disable their core preprocessing pipeline by setting `PREPROCESS_AVAILABLE = False`.
+`climate_toolkit.climate_statistics.statistics` and `climate_toolkit.climatology.long_term_climatology` import successfully under normal package execution, but silently disable their core preprocessing pipeline by setting `PREPROCESS_AVAILABLE = False`.
 
 This happens because both modules rely on `sys.path` mutation plus top-level imports like `from preprocess_data import preprocess_data` instead of package-relative imports.
 
@@ -21,8 +21,8 @@ This finding came from a code audit assisted by GPT-5.4 and then manually verifi
 
 Audit steps:
 
-- inspected import setup in `climate_tookit/climate_statistics/statistics.py`
-- inspected import setup in `climate_tookit/climatology/long_term_climatology.py`
+- inspected import setup in `climate_toolkit/climate_statistics/statistics.py`
+- inspected import setup in `climate_toolkit/climatology/long_term_climatology.py`
 - verified both modules mutate `sys.path` and then attempt top-level imports
 - imported both modules under normal package execution
 - confirmed both modules set `PREPROCESS_AVAILABLE = False`
@@ -33,7 +33,7 @@ Audit steps:
 
 ### `statistics.py`
 
-`climate_tookit/climate_statistics/statistics.py`:
+`climate_toolkit/climate_statistics/statistics.py`:
 
 - appends `fetch_data/preprocess_data` and `season_analysis` to `sys.path`
 - tries `from preprocess_data import preprocess_data`
@@ -46,7 +46,7 @@ print("Warning: preprocess_data pipeline not available")
 
 ### `long_term_climatology.py`
 
-`climate_tookit/climatology/long_term_climatology.py`:
+`climate_toolkit/climatology/long_term_climatology.py`:
 
 - inserts `fetch_data/preprocess_data` and `fetch_data/source_data/sources` into `sys.path`
 - tries `from preprocess_data import preprocess_data`
@@ -76,8 +76,8 @@ pip install -r requirements.txt matplotlib
 import importlib
 
 mods = [
-    ('climate_tookit.climate_statistics.statistics', 'PREPROCESS_AVAILABLE'),
-    ('climate_tookit.climatology.long_term_climatology', 'PREPROCESS_AVAILABLE'),
+    ('climate_toolkit.climate_statistics.statistics', 'PREPROCESS_AVAILABLE'),
+    ('climate_toolkit.climatology.long_term_climatology', 'PREPROCESS_AVAILABLE'),
 ]
 
 for mod_name, flag in mods:
@@ -90,9 +90,9 @@ Actual result:
 
 ```text
 Warning: preprocess_data pipeline not available
-climate_tookit.climate_statistics.statistics False
+climate_toolkit.climate_statistics.statistics False
 Warning: Preprocessing pipeline not available
-climate_tookit.climatology.long_term_climatology False
+climate_toolkit.climatology.long_term_climatology False
 ```
 
 ### Failing unittest repro
@@ -106,11 +106,11 @@ import importlib
 
 class DegradedImportReproTests(unittest.TestCase):
     def test_statistics_preprocess_pipeline_available_under_package_import(self):
-        mod = importlib.import_module('climate_tookit.climate_statistics.statistics')
+        mod = importlib.import_module('climate_toolkit.climate_statistics.statistics')
         self.assertTrue(mod.PREPROCESS_AVAILABLE)
 
     def test_climatology_preprocess_pipeline_available_under_package_import(self):
-        mod = importlib.import_module('climate_tookit.climatology.long_term_climatology')
+        mod = importlib.import_module('climate_toolkit.climatology.long_term_climatology')
         self.assertTrue(mod.PREPROCESS_AVAILABLE)
 
 suite = unittest.defaultTestLoader.loadTestsFromTestCase(DegradedImportReproTests)
@@ -133,8 +133,8 @@ AssertionError: False is not true
 
 Under normal package import:
 
-- `climate_tookit.climate_statistics.statistics` should have `PREPROCESS_AVAILABLE = True`
-- `climate_tookit.climatology.long_term_climatology` should have `PREPROCESS_AVAILABLE = True`
+- `climate_toolkit.climate_statistics.statistics` should have `PREPROCESS_AVAILABLE = True`
+- `climate_toolkit.climatology.long_term_climatology` should have `PREPROCESS_AVAILABLE = True`
 - no fallback warning should be emitted for core pipeline imports
 
 ## Actual behavior

@@ -12,8 +12,8 @@ capabilities, from fetching raw climate data to projecting crop hazards.
 >   `climate-toolkit-fetch ...` (without `uv run`, or from a non-installed
 >   checkout) will fail with "command not recognized".
 > - From a bare source checkout you can instead use the module form: every
->   `climate-toolkit-<name>` maps to `python -m climate_tookit.<module>`
->   (e.g. `python -m climate_tookit.season_analysis.seasons ...`).
+>   `climate-toolkit-<name>` maps to `python -m climate_toolkit.<module>`
+>   (e.g. `python -m climate_toolkit.season_analysis.seasons ...`).
 > - Replace coordinates, dates, and any `<PLACEHOLDER>` with your own values.
 
 ## Prerequisites
@@ -261,7 +261,7 @@ uv run climate-toolkit-hazards-ensemble Maize --location "-1.286,36.817" \
 
 - **Console scripts require installation** (`uv sync` / `pip install -e .`). A
   raw `requirements.txt` install does not expose them — use the
-  `python -m climate_tookit.<module>` form instead.
+  `python -m climate_toolkit.<module>` form instead.
 - **Earth Engine project ID** must be in the environment (`GCP_PROJECT_ID`),
   or pass `uv run --env-file .env`. It is not auto-loaded from `.env`.
 - **"auto"/"paired" source** resolves to `chirps_v3_daily_rnl` (precip) +

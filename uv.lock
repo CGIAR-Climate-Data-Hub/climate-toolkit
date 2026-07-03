@@ -445,7 +445,7 @@ wheels = [
 ]
 
 [[package]]
-name = "climate-tookit"
+name = "climate-toolkit"
 version = "0.1.0a0"
 source = { editable = "." }
 dependencies = [

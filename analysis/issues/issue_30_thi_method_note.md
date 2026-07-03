@@ -56,5 +56,5 @@ Still open after this first cut:
 
 Additional repo follow-up now completed:
 
-- public metadata helper: `climate_tookit.climatology.describe_thi_method()`
+- public metadata helper: `climate_toolkit.climatology.describe_thi_method()`
 - user-facing method guide: `docs/thi_workflow.md`

@@ -37,31 +37,31 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-from climate_tookit.fetch_data.fetch_data import fetch_data
-from climate_tookit.fetch_data.cache_inventory import save_output as save_cache_inventory_output
-from climate_tookit.fetch_data.fetch_data import save_output as save_fetch_output
-from climate_tookit.fetch_data.gee_xee_batch import (
+from climate_toolkit.fetch_data.fetch_data import fetch_data
+from climate_toolkit.fetch_data.cache_inventory import save_output as save_cache_inventory_output
+from climate_toolkit.fetch_data.fetch_data import save_output as save_fetch_output
+from climate_toolkit.fetch_data.gee_xee_batch import (
     _requested_band_names as batch_requested_band_names,
 )
-from climate_tookit.fetch_data.source_data.source_data import SourceData
-source_data_module = importlib.import_module("climate_tookit.fetch_data.source_data.source_data")
-from climate_tookit.fetch_data.transform_data.transform_data import transform_data
-from climate_tookit.fetch_data.source_data.sources.gee import DownloadData as GeeDownloadData
-from climate_tookit.fetch_data.source_data.sources.gee_xee import (
+from climate_toolkit.fetch_data.source_data.source_data import SourceData
+source_data_module = importlib.import_module("climate_toolkit.fetch_data.source_data.source_data")
+from climate_toolkit.fetch_data.transform_data.transform_data import transform_data
+from climate_toolkit.fetch_data.source_data.sources.gee import DownloadData as GeeDownloadData
+from climate_toolkit.fetch_data.source_data.sources.gee_xee import (
     DownloadData as GeeXeeDownloadData,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.models import (
+from climate_toolkit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
     SoilVariable,
     clip_source_date_range,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
-from climate_tookit.fetch_data.transform_data.transform_data import validate_inputs
-from climate_tookit.fetch_data.preprocess_data.preprocess_data import apply_unit_conversions
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.transform_data.transform_data import validate_inputs
+from climate_toolkit.fetch_data.preprocess_data.preprocess_data import apply_unit_conversions
 
-fetch_data_module = importlib.import_module("climate_tookit.fetch_data.fetch_data")
-source_data_module = importlib.import_module("climate_tookit.fetch_data.source_data.source_data")
+fetch_data_module = importlib.import_module("climate_toolkit.fetch_data.fetch_data")
+source_data_module = importlib.import_module("climate_toolkit.fetch_data.source_data.source_data")
 
 
 class FetchPipelineTests(unittest.TestCase):
@@ -341,7 +341,7 @@ class FetchPipelineTests(unittest.TestCase):
         with (
             contextlib.redirect_stdout(buf),
             mock.patch(
-                "climate_tookit.fetch_data.fetch_data.SourceData",
+                "climate_toolkit.fetch_data.fetch_data.SourceData",
                 _FakeSourceData,
             ),
         ):
@@ -362,7 +362,7 @@ class FetchPipelineTests(unittest.TestCase):
         batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-07-09"])})
 
         with mock.patch(
-            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            "climate_toolkit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
             return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
         ) as batch_mock:
             result = fetch_data(
@@ -379,7 +379,7 @@ class FetchPipelineTests(unittest.TestCase):
 
     def test_clip_source_date_range_prefers_live_gee_coverage_when_available(self):
         with mock.patch(
-            "climate_tookit.fetch_data.source_data.sources.utils.models._fetch_live_source_date_limits",
+            "climate_toolkit.fetch_data.source_data.sources.utils.models._fetch_live_source_date_limits",
             return_value={
                 "start": date(1979, 1, 2),
                 "end": date(2020, 12, 31),
@@ -401,7 +401,7 @@ class FetchPipelineTests(unittest.TestCase):
 
     def test_clip_source_date_range_falls_back_to_static_coverage_when_live_lookup_fails(self):
         with mock.patch(
-            "climate_tookit.fetch_data.source_data.sources.utils.models._fetch_live_source_date_limits",
+            "climate_toolkit.fetch_data.source_data.sources.utils.models._fetch_live_source_date_limits",
             return_value=None,
         ):
             clipped_start, clipped_end, warning = clip_source_date_range(
@@ -426,7 +426,7 @@ class FetchPipelineTests(unittest.TestCase):
                 return pd.DataFrame()
 
         with mock.patch(
-            "climate_tookit.fetch_data.source_data.source_data.DownloadNEXGDDP",
+            "climate_toolkit.fetch_data.source_data.source_data.DownloadNEXGDDP",
             RealNexStub,
         ):
             src = SourceData(
@@ -454,7 +454,7 @@ class FetchPipelineTests(unittest.TestCase):
                 return pd.DataFrame()
 
         with mock.patch(
-            "climate_tookit.fetch_data.source_data.source_data.DownloadNEXGDDP",
+            "climate_toolkit.fetch_data.source_data.source_data.DownloadNEXGDDP",
             RealNexStub,
         ):
             SourceData(
@@ -482,7 +482,7 @@ class FetchPipelineTests(unittest.TestCase):
                 return pd.DataFrame()
 
         with mock.patch(
-            "climate_tookit.fetch_data.source_data.source_data.DownloadGEEXee",
+            "climate_toolkit.fetch_data.source_data.source_data.DownloadGEEXee",
             GeeXeeStub,
         ):
             SourceData(
@@ -509,7 +509,7 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(
             type(src.client).__module__,
-            "climate_tookit.fetch_data.source_data.sources.era_5",
+            "climate_toolkit.fetch_data.source_data.sources.era_5",
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
 
@@ -525,7 +525,7 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(
             type(src.client).__module__,
-            "climate_tookit.fetch_data.source_data.sources.agera_5",
+            "climate_toolkit.fetch_data.source_data.sources.agera_5",
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
 
@@ -541,7 +541,7 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(
             type(src.client).__module__,
-            "climate_tookit.fetch_data.source_data.sources.gee_xee",
+            "climate_toolkit.fetch_data.source_data.sources.gee_xee",
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
 
@@ -557,7 +557,7 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(
             type(src.client).__module__,
-            "climate_tookit.fetch_data.source_data.sources.gee_xee",
+            "climate_toolkit.fetch_data.source_data.sources.gee_xee",
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
 
@@ -572,7 +572,7 @@ class FetchPipelineTests(unittest.TestCase):
                 return pd.DataFrame()
 
         with mock.patch(
-            "climate_tookit.fetch_data.source_data.source_data.DownloadNASA",
+            "climate_toolkit.fetch_data.source_data.source_data.DownloadNASA",
             NASAStub,
         ):
             src = SourceData(
@@ -605,7 +605,7 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(
             type(src.client).__module__,
-            "climate_tookit.fetch_data.source_data.sources.gee",
+            "climate_toolkit.fetch_data.source_data.sources.gee",
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
 
@@ -630,7 +630,7 @@ class FetchPipelineTests(unittest.TestCase):
         )
 
         with mock.patch(
-            "climate_tookit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
+            "climate_toolkit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
             return_value=(raw_df, pd.DataFrame(), pd.DataFrame()),
         ):
             result = downloader.download_variables()
@@ -691,7 +691,7 @@ class FetchPipelineTests(unittest.TestCase):
         batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2050-01-01"])})
 
         with mock.patch(
-            "climate_tookit.fetch_data.fetch_data.fetch_nex_gddp_batch_data",
+            "climate_toolkit.fetch_data.fetch_data.fetch_nex_gddp_batch_data",
             return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
         ) as batch_mock:
             result = fetch_data(
@@ -711,7 +711,7 @@ class FetchPipelineTests(unittest.TestCase):
         batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
 
         with mock.patch(
-            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            "climate_toolkit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
             return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
         ) as batch_mock:
             result = fetch_data(
@@ -730,7 +730,7 @@ class FetchPipelineTests(unittest.TestCase):
         batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
 
         with mock.patch(
-            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            "climate_toolkit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
             return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
         ) as batch_mock:
             result = fetch_data(
@@ -749,7 +749,7 @@ class FetchPipelineTests(unittest.TestCase):
         batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
 
         with mock.patch(
-            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            "climate_toolkit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
             return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
         ) as batch_mock:
             result = fetch_data(
@@ -767,7 +767,7 @@ class FetchPipelineTests(unittest.TestCase):
         batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
 
         with mock.patch(
-            "climate_tookit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
+            "climate_toolkit.fetch_data.fetch_data.fetch_gee_xee_batch_data",
             return_value=(batch_df, pd.DataFrame(), pd.DataFrame()),
         ) as batch_mock:
             result = fetch_data(
@@ -813,7 +813,7 @@ class FetchPipelineTests(unittest.TestCase):
                 return raw_df.copy()
 
         with mock.patch(
-            "climate_tookit.fetch_data.transform_data.transform_data.SourceData",
+            "climate_toolkit.fetch_data.transform_data.transform_data.SourceData",
             _FakeSourceData,
         ):
             result = transform_data(
@@ -866,7 +866,7 @@ class FetchPipelineTests(unittest.TestCase):
                 return raw_df.copy()
 
         with mock.patch(
-            "climate_tookit.fetch_data.transform_data.transform_data.SourceData",
+            "climate_toolkit.fetch_data.transform_data.transform_data.SourceData",
             _FakeSourceData,
         ):
             result = transform_data(

@@ -9,11 +9,11 @@ dispatch and source implementation status, not aspirational module docstrings.
 
 Primary dispatch:
 
-- `climate_tookit/fetch_data/source_data/source_data.py`
+- `climate_toolkit/fetch_data/source_data/source_data.py`
 
 Shared Earth Engine path:
 
-- `climate_tookit/fetch_data/source_data/sources/gee.py`
+- `climate_toolkit/fetch_data/source_data/sources/gee.py`
 
 Key observation:
 
@@ -75,10 +75,10 @@ Key observation:
 ## Code Evidence
 
 - Dispatch to shared GEE path:
-  - `climate_tookit/fetch_data/source_data/source_data.py`
+  - `climate_toolkit/fetch_data/source_data/source_data.py`
 - Shared GEE initialization:
-  - `climate_tookit/fetch_data/source_data/sources/gee.py`
+  - `climate_toolkit/fetch_data/source_data/sources/gee.py`
 - Current synthetic NEX placeholder:
-  - `climate_tookit/fetch_data/source_data/sources/nex_gddp.py`
+  - `climate_toolkit/fetch_data/source_data/sources/nex_gddp.py`
 - Current Xee PoC:
-  - `climate_tookit/fetch_data/source_data/sources/nex_gddp_xee.py`
+  - `climate_toolkit/fetch_data/source_data/sources/nex_gddp_xee.py`

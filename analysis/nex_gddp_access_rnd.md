@@ -35,7 +35,7 @@ Current repo state on this branch:
 
 Current PoC file:
 
-- `climate_tookit/fetch_data/source_data/sources/nex_gddp_xee.py`
+- `climate_toolkit/fetch_data/source_data/sources/nex_gddp_xee.py`
 - `analysis/run_nex_gddp_xee_smoke.py`
 - `analysis/run_nex_gddp_many_points_ee.py`
 

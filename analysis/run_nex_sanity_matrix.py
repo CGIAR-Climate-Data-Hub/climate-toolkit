@@ -26,9 +26,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from climate_tookit.fetch_data.preprocess_data.preprocess_data import preprocess_data
-from climate_tookit.fetch_data.source_data.sources.nex_gddp import AVAILABLE_MODELS
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+from climate_toolkit.fetch_data.preprocess_data.preprocess_data import preprocess_data
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp import AVAILABLE_MODELS
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,6 @@
 # climate_statistics.statistics source matrix
 
-Module: `climate_tookit.climate_statistics.statistics`
+Module: `climate_toolkit.climate_statistics.statistics`
 
 Test window used for historical sources:
 - location: `-1.286,36.817` (Nairobi)

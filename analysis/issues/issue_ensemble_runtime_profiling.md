@@ -42,7 +42,7 @@ We need evidence before attempting:
 
 ## Proposed work
 
-Add explicit per-stage timers inside `climate_tookit.compare_periods.ensemble_periods` for each model:
+Add explicit per-stage timers inside `climate_toolkit.compare_periods.ensemble_periods` for each model:
 
 - baseline fetch + stats
 - future fetch + stats

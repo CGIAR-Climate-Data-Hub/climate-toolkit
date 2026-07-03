@@ -3,7 +3,7 @@
 Status: current user-facing workflow guide  
 Updated: 2026-06-21
 
-This guide covers observed-station support in `climate_tookit`.
+This guide covers observed-station support in `climate_toolkit`.
 
 ## What weather-station support is for
 
@@ -26,8 +26,8 @@ CLI:
 
 Python API:
 
-- `climate_tookit.download_station_data`
-- `climate_tookit.compare_station_to_grids`
+- `climate_toolkit.download_station_data`
+- `climate_toolkit.compare_station_to_grids`
 
 ## Before you run
 

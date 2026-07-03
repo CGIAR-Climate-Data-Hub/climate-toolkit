@@ -46,11 +46,11 @@ _install_test_stubs()
 
 class PreprocessImportTests(unittest.TestCase):
     def test_statistics_preprocess_pipeline_available_under_package_import(self):
-        mod = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        mod = importlib.import_module("climate_toolkit.climate_statistics.statistics")
         self.assertTrue(mod.PREPROCESS_AVAILABLE)
 
     def test_climatology_preprocess_pipeline_available_under_package_import(self):
-        mod = importlib.import_module("climate_tookit.climatology.long_term_climatology")
+        mod = importlib.import_module("climate_toolkit.climatology.long_term_climatology")
         self.assertTrue(mod.PREPROCESS_AVAILABLE)
 
 

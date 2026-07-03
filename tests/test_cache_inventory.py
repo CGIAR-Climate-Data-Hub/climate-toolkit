@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from climate_tookit.fetch_data.cache_inventory import (
+from climate_toolkit.fetch_data.cache_inventory import (
     cache_dedup_audit,
     cache_inventory,
     cache_summary,

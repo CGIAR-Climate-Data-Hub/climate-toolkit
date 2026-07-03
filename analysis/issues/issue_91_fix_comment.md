@@ -2,7 +2,7 @@ Branch fix now exists on `codex-nex-gddp-access-rnd`.
 
 What changed:
 
-- `climate_tookit/compare_periods/ensemble_periods.py`
+- `climate_toolkit/compare_periods/ensemble_periods.py`
 - `_compare_one_model()` baseline branch now forces `scenario="historical"`
 - future branch still uses requested SSP scenario
 
@@ -24,7 +24,7 @@ Verification run on branch:
 
 ```bash
 .venv/bin/python -m unittest tests.test_compare_periods_baseline tests.test_nex_gddp_behavior tests.test_fetch_pipeline
-python3 -m py_compile climate_tookit/compare_periods/ensemble_periods.py tests/test_compare_periods_baseline.py
+python3 -m py_compile climate_toolkit/compare_periods/ensemble_periods.py tests/test_compare_periods_baseline.py
 ```
 
 Result: passing on branch.

@@ -1,6 +1,6 @@
 import unittest
 
-from climate_tookit.calculate_hazards.hazards import resolve_thresholds
+from climate_toolkit.calculate_hazards.hazards import resolve_thresholds
 
 
 class CropRegistryHazardTests(unittest.TestCase):

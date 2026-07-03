@@ -201,7 +201,7 @@ That prevents conflicting metrics from different hidden methods.
 
 Add something like:
 
-- `climate_tookit/calculate_hazards/wrsi.py`
+- `climate_toolkit/calculate_hazards/wrsi.py`
 
 Responsibilities:
 

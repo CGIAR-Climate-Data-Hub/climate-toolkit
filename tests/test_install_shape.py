@@ -16,10 +16,10 @@ def _base_env() -> dict[str, str]:
 class InstallShapeSmokeTests(unittest.TestCase):
     def test_package_import_works_outside_repo_root(self):
         code = """
-import climate_tookit
-assert callable(climate_tookit.fetch_climate_data)
-assert callable(climate_tookit.analyze_climate_statistics)
-print(climate_tookit.__version__)
+import climate_toolkit
+assert callable(climate_toolkit.fetch_climate_data)
+assert callable(climate_toolkit.analyze_climate_statistics)
+print(climate_toolkit.__version__)
 """.strip()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -37,7 +37,7 @@ print(climate_tookit.__version__)
     def test_module_cli_help_works_outside_repo_root(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             result = subprocess.run(
-                [sys.executable, "-m", "climate_tookit.fetch_data.fetch_data", "--help"],
+                [sys.executable, "-m", "climate_toolkit.fetch_data.fetch_data", "--help"],
                 cwd=tmpdir,
                 env=_base_env(),
                 text=True,

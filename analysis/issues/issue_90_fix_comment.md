@@ -7,9 +7,9 @@ Resolution choice:
 
 What changed:
 
-- `climate_tookit/fetch_data/source_data/source_data.py`
+- `climate_toolkit/fetch_data/source_data/source_data.py`
   - `ClimateDataset.agera_5` now dispatches explicitly to `sources/agera_5.py`
-- `climate_tookit/fetch_data/source_data/sources/agera_5.py`
+- `climate_toolkit/fetch_data/source_data/sources/agera_5.py`
   - no longer dead `NotImplemented` stub
   - now defines AgERA5 adapter as Earth Engine-backed wrapper over GEE path
 
@@ -28,12 +28,12 @@ Verification run on branch:
 
 ```bash
 .venv/bin/python -m unittest tests.test_fetch_pipeline tests.test_preprocess_imports tests.test_ensemble_hazards_import
-python3 -m py_compile climate_tookit/fetch_data/source_data/source_data.py climate_tookit/fetch_data/source_data/sources/agera_5.py tests/test_fetch_pipeline.py
+python3 -m py_compile climate_toolkit/fetch_data/source_data/source_data.py climate_toolkit/fetch_data/source_data/sources/agera_5.py tests/test_fetch_pipeline.py
 .venv/bin/python - <<'PY'
 from datetime import date
-from climate_tookit.fetch_data.source_data.source_data import SourceData
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.source_data import SourceData
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 src = SourceData(
     location_coord=(-1.286, 36.817),
@@ -51,7 +51,7 @@ PY
 Actual branch result:
 
 ```text
-climate_tookit.fetch_data.source_data.sources.agera_5
+climate_toolkit.fetch_data.source_data.sources.agera_5
 DownloadData
 ```
 

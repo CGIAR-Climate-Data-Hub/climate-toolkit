@@ -10,8 +10,8 @@ outputs and the nearest `xclim` reference workflow.
 
 Toolkit monthly drought-index helpers live in:
 
-- `climate_tookit.climatology.spei.compute_monthly_spi`
-- `climate_tookit.climatology.spei.compute_monthly_spei`
+- `climate_toolkit.climatology.spei.compute_monthly_spi`
+- `climate_toolkit.climatology.spei.compute_monthly_spei`
 
 Default behavior:
 
@@ -24,8 +24,8 @@ Default behavior:
 
 Nearest `xclim` reference helpers now live in:
 
-- `climate_tookit.climatology.compute_xclim_spi_reference`
-- `climate_tookit.climatology.compute_xclim_spei_reference`
+- `climate_toolkit.climatology.compute_xclim_spi_reference`
+- `climate_toolkit.climatology.compute_xclim_spei_reference`
 
 These use `xclim.indices.stats.standardized_index` as a cross-check rather than
 as a strict implementation source.
