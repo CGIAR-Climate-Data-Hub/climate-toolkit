@@ -48,10 +48,17 @@ dev = [
   "twine",
   "wheel",
 ]
+docs = [
+  "mkdocs-material",
+  "mkdocstrings[python]",
+]
 
 [project.urls]
+Homepage = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit"
+Documentation = "https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/"
 Repository = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit"
 Issues = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues"
+Changelog = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/CHANGELOG.md"
 
 [project.scripts]
 # Unified entry point: `climate-toolkit <command>` dispatches to the tools

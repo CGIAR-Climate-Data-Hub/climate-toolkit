@@ -1,0 +1,62 @@
+site_name: Climate Toolkit
+site_description: Location-based climate, season, climatology, hazard, and projection analysis.
+site_url: https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/
+repo_url: https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit
+repo_name: CGIAR-Climate-Data-Hub/climate-toolkit
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: green
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: green
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: false
+            show_root_heading: true
+            heading_level: 2
+            members_order: source
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting_started.md
+  - Workflows:
+      - End-to-end example: example_workflow.md
+      - Weather stations: weather_station_workflows.md
+      - Human heat stress: human_heat_workflow.md
+      - Livestock heat (THI): thi_workflow.md
+      - Distribution & releases: distribution_workflow.md
+  - Python API:
+      - Overview: api/index.md
+      - Fetching data: api/fetching.md
+      - Analysis: api/analysis.md
+      - Comparison & validation: api/comparison.md

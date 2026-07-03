@@ -25,3 +25,4 @@ climate_stats_*.json
 dist/
 build/
 .tmp/
+site/
