@@ -516,9 +516,15 @@ async def compare_datasets_page_post(request: Request):
         "scenario": form_data.get("scenario") or None
     }
     
+    plot_urls = []
     try:
+        import glob
+        import uuid
         from climate_tookit.compare_datasets.compare_datasets import compare_sources, print_report
-        
+
+        # Write comparison plots/CSVs into a unique served directory per run.
+        out_dir = os.path.join(ARTIFACTS_ROOT, "compare_datasets", uuid.uuid4().hex[:8])
+        os.makedirs(out_dir, exist_ok=True)
         results = compare_sources(
             sources=payload["sources"],
             lat=payload["lat"],
@@ -526,19 +532,22 @@ async def compare_datasets_page_post(request: Request):
             start=payload["date_from"],
             end=payload["date_to"],
             nex_model=payload["model"],
-            nex_scenario=payload["scenario"]
+            nex_scenario=payload["scenario"],
+            output_dir=out_dir,
         )
-        
-        stats = print_report(results)
-        
+
+        stats = print_report(results, output_dir=out_dir)
+
         if not results:
             result = {"status_code": 400, "status": "REQUEST_UNSUCCESSFUL", "message": "No data retrieved", "data": None}
         else:
+            plot_urls = _plot_urls(sorted(glob.glob(os.path.join(out_dir, "*.png"))))
             result = {"status_code": 200, "status": "REQUEST_SUCCESSFUL", "message": "Dataset comparison complete", "data": stats}
     except Exception as e:
         result = {"status_code": 500, "status": "SERVICE_UNREACHABLE", "message": str(e), "data": None}
-    
-    return templates.TemplateResponse(request, "compare_datasets.html", {"request": request, "result": result})
+        plot_urls = []
+
+    return templates.TemplateResponse(request, "compare_datasets.html", {"request": request, "result": result, "plot_urls": plot_urls})
 
 
 @app.get("/api", tags=["Root"])

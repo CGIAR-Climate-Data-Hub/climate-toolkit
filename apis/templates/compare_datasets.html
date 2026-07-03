@@ -89,6 +89,19 @@
         {% set download_name = "compare_datasets" %}
         {% include "_download_button.html" %}
 
+        {% if plot_urls %}
+        <div class="mb-8">
+            <h3 class="font-semibold text-lg mb-3">Visualizations</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for url in plot_urls %}
+                <a href="{{ url }}" target="_blank">
+                    <img src="{{ url }}" alt="dataset comparison plot" class="w-full border border-gray-200 rounded-lg">
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         {% set data = result.data %}
 
         <!-- Inter-Annual Statistics -->
