@@ -627,6 +627,35 @@ vpd = summarize_vpd_period(df)
 
 ---
 
+## HTTP API (optional)
+
+An optional FastAPI service in `apis/` exposes the toolkit over HTTP — a JSON
+API under `/api/v1/*` plus simple HTML pages for interactive use. It is **not**
+required for CLI/library use, so its dependencies are an optional extra.
+
+Install and run:
+
+```bash
+# install the API extra (fastapi/uvicorn/jinja2/python-multipart)
+uv sync --extra api          # or: pip install -e ".[api]"
+
+# run the dev server from the repo root
+uv run uvicorn apis.main:app --reload
+```
+
+Then open:
+
+- `http://127.0.0.1:8000/` — HTML landing page / forms
+- `http://127.0.0.1:8000/docs` — interactive OpenAPI (Swagger) docs
+- `http://127.0.0.1:8000/api/v1/data/sources` — example JSON endpoint
+
+Endpoints wrap the same functions as the CLI (`data`, `statistics`, `hazards`,
+`compare`, `seasons`, `climatology`, `compare-datasets`), so the Earth Engine
+auth and `GCP_PROJECT_ID` expectations from
+[Environment variables](#environment-variables) apply to any GEE-backed request.
+
+---
+
 ## Stable vs Internal Entry Points
 
 Supported end-user CLI contracts:
