@@ -1,4 +1,4 @@
-"""Basic usage of climate_tookit as a regular Python package.
+"""Basic usage of climate_toolkit as a regular Python package.
 
 Demonstrates the four main entry points exposed at the top level:
 
@@ -80,8 +80,8 @@ d. Verify the setup with the bundled preflight check::
 
 from datetime import date
 
-import climate_tookit as ct
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+import climate_toolkit as ct
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 # Nairobi, Kenya — swap in your own site
 LAT, LON = -1.286, 36.817
@@ -149,7 +149,7 @@ def demo_compare_periods() -> None:
 if __name__ == "__main__":
     import os
 
-    print(f"climate_tookit v{ct.__version__}\n")
+    print(f"climate_toolkit v{ct.__version__}\n")
     demo_fetch()
 
     # The remaining demos fetch multi-year data from GEE-backed sources.
