@@ -297,6 +297,20 @@ Build the image:
 docker build -t climate-toolkit .
 ```
 
+**Recommended: use the `docker-run.sh` wrapper.** It deletes stale containers
+from previous runs on every start, then launches a fresh one with `--rm` so it
+also cleans up on exit — you never accumulate leftover containers. It builds the
+image automatically on first use and forwards all arguments to the CLI:
+
+```bash
+./docker-run.sh --help
+GCP_PROJECT_ID=your-project ./docker-run.sh fetch --source nasa_power \
+  --lat -1.286 --lon 36.817 --from 2020-01-01 --to 2020-12-31
+```
+
+The wrapper mounts your Earth Engine credentials and `outputs/` for you. Under
+the hood it runs the plain commands below.
+
 Offline smoke test — proves the environment reproduces, needs neither Earth
 Engine nor network:
 
@@ -323,6 +337,18 @@ docker run --rm \
 A `docker-compose.yml` wraps those mounts so you can run
 `docker compose run --rm toolkit <command>` instead. NASA POWER needs no
 credentials; the offline unit suite and CLI surface work without Earth Engine.
+
+**Container cleanup.** Every documented command uses `--rm`, so a successful run
+never leaves a container behind. Stale containers can only appear if a run
+crashes or is started without `--rm`; the `docker-run.sh` wrapper sweeps those
+before each start. To clean up manually at any time:
+
+```bash
+# Remove stopped containers built from the image
+docker ps -aq --filter ancestor=climate-toolkit --filter status=exited | xargs -r docker rm
+# Or, when using compose
+docker compose down --remove-orphans
+```
 
 ### Release strategy
 

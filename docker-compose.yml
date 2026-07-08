@@ -6,6 +6,10 @@
 #       fetch --source nasa_power --lat -1.286 --lon 36.817 \
 #       --from 2020-01-01 --to 2020-12-31
 #
+# Always pass --rm so each run removes its own container on exit. To sweep any
+# stale containers left by earlier runs, run:
+#   docker compose down --remove-orphans
+#
 # Earth Engine-backed sources also need the mounted credentials below plus a
 # real GCP_PROJECT_ID. NASA POWER needs neither.
 
@@ -13,7 +17,7 @@ services:
   toolkit:
     build:
       context: .
-    image: climate-toolkit:local
+    image: climate-toolkit
     environment:
       # Passed through from your shell; empty is fine for NASA POWER / offline use.
       - GCP_PROJECT_ID=${GCP_PROJECT_ID:-}
