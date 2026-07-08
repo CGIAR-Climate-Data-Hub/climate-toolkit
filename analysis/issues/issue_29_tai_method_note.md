@@ -33,7 +33,7 @@ Implication:
 
 Current package drought/water-balance path already has useful components:
 
-- `climate_tookit.climatology.spei.prepare_monthly_climatic_water_balance(...)`
+- `climate_toolkit.climatology.spei.prepare_monthly_climatic_water_balance(...)`
   aggregates monthly precipitation and monthly ET totals
 - when ET is not supplied, that path derives daily `ET0_mm_day`
   from `season_analysis.add_et0(...)`

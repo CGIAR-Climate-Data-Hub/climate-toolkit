@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from climate_tookit import gee_check
+from climate_toolkit import gee_check
 
 
 class ProjectResolutionTests(unittest.TestCase):

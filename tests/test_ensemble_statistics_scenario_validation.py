@@ -46,8 +46,8 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.climate_statistics.ensemble_statistics as es
-import climate_tookit.climate_statistics.statistics as stats
+import climate_toolkit.climate_statistics.ensemble_statistics as es
+import climate_toolkit.climate_statistics.statistics as stats
 
 
 class EnsembleStatisticsScenarioValidationTests(unittest.TestCase):

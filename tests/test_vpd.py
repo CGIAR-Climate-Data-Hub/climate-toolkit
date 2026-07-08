@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from climate_tookit.climatology import compute_daily_vpd, summarize_vpd_period
+from climate_toolkit.climatology import compute_daily_vpd, summarize_vpd_period
 
 
 class VpdTests(unittest.TestCase):

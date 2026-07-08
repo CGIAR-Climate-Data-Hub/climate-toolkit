@@ -13,7 +13,7 @@ There are now two distinct groups:
 1. Direct standard-metric checks
 - Core precipitation and temperature period metrics can now be checked against
   `xclim` indicators through
-  `climate_tookit.climatology.compute_xclim_core_period_metrics()`.
+  `climate_toolkit.climatology.compute_xclim_core_period_metrics()`.
 - Focused regression tests now verify that the package’s core period reducers
   agree with those `xclim` reference values for the overlapping standard
   metrics.

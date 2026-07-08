@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Iterable
 
 import pandas as pd
-from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS,
     POLICY_PROFILE_CHOICES,
     default_ensemble_models_for_location,
@@ -142,7 +142,7 @@ def build_worker_command(
     command = [
         python_executable,
         "-m",
-        "climate_tookit.fetch_data.nex_gddp_batch",
+        "climate_toolkit.fetch_data.nex_gddp_batch",
         "--sites-csv",
         str(worker_sites_csv),
         "--start",

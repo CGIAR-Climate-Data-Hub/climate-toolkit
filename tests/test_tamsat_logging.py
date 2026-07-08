@@ -10,8 +10,8 @@ import requests
 import xarray as xr
 import numpy as np
 
-from climate_tookit.fetch_data.source_data.sources.tamsat import DownloadTAMSAT
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+from climate_toolkit.fetch_data.source_data.sources.tamsat import DownloadTAMSAT
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 
 class TamsatLoggingTests(unittest.TestCase):
@@ -35,8 +35,8 @@ class TamsatLoggingTests(unittest.TestCase):
                 def close(self):
                     return None
 
-            with mock.patch("climate_tookit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FakeSession()):
-                with self.assertLogs("climate_tookit.fetch_data.source_data.sources.tamsat", level="INFO") as captured:
+            with mock.patch("climate_toolkit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FakeSession()):
+                with self.assertLogs("climate_toolkit.fetch_data.source_data.sources.tamsat", level="INFO") as captured:
                     values = downloader.download_precipitation()
 
         self.assertEqual(5, len(values))
@@ -69,7 +69,7 @@ class TamsatLoggingTests(unittest.TestCase):
                 first_calls.append(kwargs["url"])
                 return float(len(first_calls))
 
-            with mock.patch("climate_tookit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FakeSession()):
+            with mock.patch("climate_toolkit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FakeSession()):
                 with mock.patch.object(downloader, "_fetch_single_day_value", side_effect=fake_fetch_single_day_value):
                     first = downloader.download_precipitation()
 
@@ -84,7 +84,7 @@ class TamsatLoggingTests(unittest.TestCase):
                 cache_dir=tmpdir,
             )
 
-            with mock.patch("climate_tookit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FakeSession()):
+            with mock.patch("climate_toolkit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FakeSession()):
                 with mock.patch.object(second_downloader, "_fetch_single_day_value", side_effect=AssertionError("network fetch should not run on warm cache")):
                     second = second_downloader.download_precipitation()
 
@@ -145,7 +145,7 @@ class TamsatLoggingTests(unittest.TestCase):
                 cache_dir=tmpdir,
             )
 
-            with mock.patch("climate_tookit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FakeSession()):
+            with mock.patch("climate_toolkit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FakeSession()):
                 with mock.patch.object(downloader, "_fetch_single_day_value", side_effect=AssertionError("daily fallback should not run when zip covers all dates")):
                     values = downloader.download_precipitation()
 
@@ -171,7 +171,7 @@ class TamsatLoggingTests(unittest.TestCase):
                 def close(self):
                     return None
 
-            with mock.patch("climate_tookit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FailSession()):
+            with mock.patch("climate_toolkit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=FailSession()):
                 first = downloader.download_precipitation()
 
             self.assertTrue(first[0] != first[0])
@@ -193,7 +193,7 @@ class TamsatLoggingTests(unittest.TestCase):
                 def close(self):
                     return None
 
-            with mock.patch("climate_tookit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=SuccessSession()):
+            with mock.patch("climate_toolkit.fetch_data.source_data.sources.tamsat.requests.Session", return_value=SuccessSession()):
                 with mock.patch.object(second_downloader, "_download_rainfall_year_archive", return_value=None):
                     with mock.patch.object(second_downloader, "_fetch_single_day_value", return_value=7.0) as fetch_mock:
                         second = second_downloader.download_precipitation()

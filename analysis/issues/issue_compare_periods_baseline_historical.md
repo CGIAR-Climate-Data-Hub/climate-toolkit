@@ -1,6 +1,6 @@
 ## Summary
 
-`climate_tookit/compare_periods/ensemble_periods.py` says each model should be compared against its own **historical** baseline run, but `_compare_one_model()` currently passes the selected future SSP to both the baseline period and the future period.
+`climate_toolkit/compare_periods/ensemble_periods.py` says each model should be compared against its own **historical** baseline run, but `_compare_one_model()` currently passes the selected future SSP to both the baseline period and the future period.
 
 This means baseline-vs-future comparisons are structurally using:
 
@@ -55,7 +55,7 @@ This finding came from a code audit assisted by GPT-5.4 at medium reasoning effo
 
 Audit steps:
 
-- inspected `climate_tookit/compare_periods/ensemble_periods.py`
+- inspected `climate_toolkit/compare_periods/ensemble_periods.py`
 - compared module docstring/comments against `_compare_one_model()` implementation
 - verified both baseline and future branches forward the same `scenario` argument
 - checked branch contents to confirm where `ensemble_periods.py` exists
@@ -67,7 +67,7 @@ Audit steps:
 
 ### Module contract says baseline should be historical
 
-At top of `climate_tookit/compare_periods/ensemble_periods.py`:
+At top of `climate_toolkit/compare_periods/ensemble_periods.py`:
 
 - `Both baseline and future data come from NEX-GDDP, so each model is compared against its own historical run`
 
@@ -110,7 +110,7 @@ So baseline branch receives future SSP unchanged.
 
 ### Current synthetic NEX backend makes this materially wrong today too
 
-Active `climate_tookit/fetch_data/source_data/sources/nex_gddp.py` applies scenario-specific factors directly:
+Active `climate_toolkit/fetch_data/source_data/sources/nex_gddp.py` applies scenario-specific factors directly:
 
 - `historical`: lower warming / neutral precip factor
 - `ssp245`, `ssp585`, etc.: warmer / drier factors
@@ -153,8 +153,8 @@ Run:
 
 ```bash
 .venv/bin/python - <<'PY'
-from climate_tookit.compare_periods.ensemble_periods import _compare_one_model
-import climate_tookit.compare_periods.ensemble_periods as ep
+from climate_toolkit.compare_periods.ensemble_periods import _compare_one_model
+import climate_toolkit.compare_periods.ensemble_periods as ep
 
 calls = []
 
@@ -215,7 +215,7 @@ Run:
 ```bash
 .venv/bin/python - <<'PY'
 import unittest
-import climate_tookit.compare_periods.ensemble_periods as ep
+import climate_toolkit.compare_periods.ensemble_periods as ep
 
 class BaselineScenarioReproTests(unittest.TestCase):
     def test_baseline_should_use_historical_not_future_ssp(self):

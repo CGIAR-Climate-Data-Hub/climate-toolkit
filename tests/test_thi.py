@@ -3,7 +3,7 @@ from unittest import mock
 
 import pandas as pd
 
-from climate_tookit.climatology import (
+from climate_toolkit.climatology import (
     build_thi_hazard_thresholds,
     classify_thi_values,
     compute_daily_thi,
@@ -101,7 +101,7 @@ class LivestockThiTests(unittest.TestCase):
 
     def test_infer_livestock_climate_profile_uses_dem_fetch_for_highland_proxy(self):
         with mock.patch(
-            "climate_tookit.weather_station.dem.fetch_anchor_elevation",
+            "climate_toolkit.weather_station.dem.fetch_anchor_elevation",
             return_value=1667.0,
         ):
             inferred = infer_livestock_climate_profile(

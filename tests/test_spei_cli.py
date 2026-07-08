@@ -35,7 +35,7 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.climatology.spei as spei_cli
+import climate_toolkit.climatology.spei as spei_cli
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")

@@ -35,30 +35,30 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.weather_station.ghcn_daily as ghcn
-import climate_tookit.weather_station.gsod as gsod
-import climate_tookit.weather_station.dem as dem
-import climate_tookit.weather_station.compare as station_compare
-import climate_tookit.weather_station.download as station_download
-import climate_tookit.weather_station.station_selector as station_selector
-from climate_tookit.weather_station.custom_station import (
+import climate_toolkit.weather_station.ghcn_daily as ghcn
+import climate_toolkit.weather_station.gsod as gsod
+import climate_toolkit.weather_station.dem as dem
+import climate_toolkit.weather_station.compare as station_compare
+import climate_toolkit.weather_station.download as station_download
+import climate_toolkit.weather_station.station_selector as station_selector
+from climate_toolkit.weather_station.custom_station import (
     custom_station_format_help,
     load_custom_station_data,
 )
-from climate_tookit.fetch_data.preprocess_data.preprocess_data import (
+from climate_toolkit.fetch_data.preprocess_data.preprocess_data import (
     apply_unit_conversions,
     clean_climate_data,
     preprocess_transformed_data,
 )
-from climate_tookit.climatology.xclim_reference import (
+from climate_toolkit.climatology.xclim_reference import (
     XCLIM_AVAILABLE,
     assess_xclim_precip_annual_readiness,
     compare_xclim_precip_indices,
     compute_xclim_precip_indices,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
-fetch_data_module = importlib.import_module("climate_tookit.fetch_data.fetch_data")
+fetch_data_module = importlib.import_module("climate_toolkit.fetch_data.fetch_data")
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 GSOD_LIKE_CUSTOM_STATION_FIXTURE = FIXTURES_DIR / "custom_station_gsod_like.csv"
 
@@ -1655,7 +1655,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
         self.assertNotIn("variables_used", rankings)
 
     def test_get_climate_data_applies_custom_station_override(self):
-        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        stats_module = importlib.import_module("climate_toolkit.climate_statistics.statistics")
         base_frame = pd.DataFrame(
             {
                 "date": pd.date_range("2020-01-01", periods=2, freq="D"),
@@ -1692,7 +1692,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
         self.assertEqual([24.0, 25.0], result["tmax"].tolist())
 
     def test_get_climate_data_custom_station_override_preserves_base_on_missing_days(self):
-        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        stats_module = importlib.import_module("climate_toolkit.climate_statistics.statistics")
         base_frame = pd.DataFrame(
             {
                 "date": pd.date_range("2020-01-01", periods=3, freq="D"),
@@ -1728,7 +1728,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
         self.assertEqual([24.0, 25.0, 26.0], result["tmax"].tolist())
 
     def test_get_climate_data_applies_custom_station_temp_override_only(self):
-        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        stats_module = importlib.import_module("climate_toolkit.climate_statistics.statistics")
         base_frame = pd.DataFrame(
             {
                 "date": pd.date_range("2020-01-01", periods=2, freq="D"),
@@ -1770,7 +1770,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
         self.assertEqual(0, summary[0]["fallback_days"])
 
     def test_get_climate_data_skips_custom_override_when_no_overlap(self):
-        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        stats_module = importlib.import_module("climate_toolkit.climate_statistics.statistics")
         base_frame = pd.DataFrame(
             {
                 "date": pd.date_range("2020-03-01", periods=2, freq="D"),
@@ -1803,7 +1803,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
         self.assertEqual(2, summary[0]["fallback_days"])
 
     def test_get_climate_data_reports_partial_custom_override_coverage(self):
-        stats_module = importlib.import_module("climate_tookit.climate_statistics.statistics")
+        stats_module = importlib.import_module("climate_toolkit.climate_statistics.statistics")
         base_frame = pd.DataFrame(
             {
                 "date": pd.date_range("2020-01-01", periods=3, freq="D"),

@@ -50,7 +50,7 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.climatology.long_term_climatology as ltc
+import climate_toolkit.climatology.long_term_climatology as ltc
 
 
 class ClimatologyOutputTests(unittest.TestCase):

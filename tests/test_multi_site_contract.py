@@ -3,8 +3,8 @@ import unittest
 
 import pandas as pd
 
-from climate_tookit.fetch_data import Site, load_sites, parse_site_spec
-from climate_tookit.fetch_data.multi_site import (
+from climate_toolkit.fetch_data import Site, load_sites, parse_site_spec
+from climate_toolkit.fetch_data.multi_site import (
     CACHE_COORD_DECIMALS,
     normalize_cache_coord,
     safe_coord_fragment,

@@ -45,7 +45,7 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.calculate_hazards.ensemble_hazards as eh
+import climate_toolkit.calculate_hazards.ensemble_hazards as eh
 
 
 class EnsembleHazardsAggregationTests(unittest.TestCase):

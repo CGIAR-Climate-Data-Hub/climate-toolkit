@@ -46,7 +46,7 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.season_analysis.ensemble as ensemble
+import climate_toolkit.season_analysis.ensemble as ensemble
 
 
 class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):

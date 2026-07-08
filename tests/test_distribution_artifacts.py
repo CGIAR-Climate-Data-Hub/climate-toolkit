@@ -50,8 +50,8 @@ class DistributionArtifactSmokeTests(unittest.TestCase):
             check=True,
         )
 
-        wheels = sorted(dist_dir.glob("climate_tookit-*.whl"))
-        sdists = sorted(dist_dir.glob("climate_tookit-*.tar.gz"))
+        wheels = sorted(dist_dir.glob("climate_toolkit-*.whl"))
+        sdists = sorted(dist_dir.glob("climate_toolkit-*.tar.gz"))
         self.assertEqual(1, len(wheels), wheels)
         self.assertEqual(1, len(sdists), sdists)
         return wheels[0], sdists[0]
@@ -78,9 +78,9 @@ class DistributionArtifactSmokeTests(unittest.TestCase):
     def _assert_installed_contract(self, venv_dir: Path) -> None:
         python_path = _venv_python(venv_dir)
         code = """
-import climate_tookit
-assert callable(climate_tookit.fetch_climate_data)
-print(climate_tookit.__version__)
+import climate_toolkit
+assert callable(climate_toolkit.fetch_climate_data)
+print(climate_toolkit.__version__)
 """.strip()
         result = subprocess.run(
             [str(python_path), "-c", code],
@@ -112,7 +112,7 @@ print(climate_tookit.__version__)
 
             with zipfile.ZipFile(wheel_path) as archive:
                 names = archive.namelist()
-            self.assertIn("climate_tookit/__init__.py", names)
+            self.assertIn("climate_toolkit/__init__.py", names)
             self.assertTrue(any(name.endswith("entry_points.txt") for name in names))
             self.assertTrue(any(name.endswith("METADATA") for name in names))
             self.assertTrue(

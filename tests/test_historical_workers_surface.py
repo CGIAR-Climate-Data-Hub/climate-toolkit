@@ -5,20 +5,20 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-from climate_tookit.calculate_hazards import hazards
-from climate_tookit.climate_statistics import statistics
-from climate_tookit.climatology import long_term_climatology as ltc
-from climate_tookit.compare_datasets import compare_datasets
-from climate_tookit.compare_periods import periods
-from climate_tookit.fetch_data.source_data import source_data as source_data_module
-from climate_tookit.season_analysis import seasons
-from climate_tookit.weather_station import compare as station_compare
+from climate_toolkit.calculate_hazards import hazards
+from climate_toolkit.climate_statistics import statistics
+from climate_toolkit.climatology import long_term_climatology as ltc
+from climate_toolkit.compare_datasets import compare_datasets
+from climate_toolkit.compare_periods import periods
+from climate_toolkit.fetch_data.source_data import source_data as source_data_module
+from climate_toolkit.season_analysis import seasons
+from climate_toolkit.weather_station import compare as station_compare
 
 preprocess_module = importlib.import_module(
-    "climate_tookit.fetch_data.preprocess_data.preprocess_data"
+    "climate_toolkit.fetch_data.preprocess_data.preprocess_data"
 )
 transform_module = importlib.import_module(
-    "climate_tookit.fetch_data.transform_data.transform_data"
+    "climate_toolkit.fetch_data.transform_data.transform_data"
 )
 
 
