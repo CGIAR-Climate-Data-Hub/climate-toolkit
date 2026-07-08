@@ -92,7 +92,7 @@ Reason:
 ## Package direction
 
 Immediate implementation slice:
-1. add `climate_tookit.climatology.human_heat_stress`
+1. add `climate_toolkit.climatology.human_heat_stress`
 2. expose `compute_daily_humidex()` helper
 3. expose source-support + method-description helpers
 4. add tests

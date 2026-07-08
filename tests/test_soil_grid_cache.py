@@ -22,12 +22,12 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-from climate_tookit.fetch_data.source_data.source_data import SourceData
-from climate_tookit.fetch_data.source_data.sources.utils.models import (
+from climate_toolkit.fetch_data.source_data.source_data import SourceData
+from climate_toolkit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     SoilVariable,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 
 class SoilGridCacheTests(unittest.TestCase):
@@ -50,7 +50,7 @@ class SoilGridCacheTests(unittest.TestCase):
             return pd.DataFrame([{"b0": 12.0}])
 
         with tempfile.TemporaryDirectory() as tmpdir, mock.patch(
-            "climate_tookit.fetch_data.source_data.sources.gee.DownloadData.get_gee_data_static",
+            "climate_toolkit.fetch_data.source_data.sources.gee.DownloadData.get_gee_data_static",
             new=fake_get_gee_data_static,
         ):
             first = SourceData(
@@ -107,7 +107,7 @@ class SoilGridCacheTests(unittest.TestCase):
             return pd.DataFrame([{"b0": 12.0}])
 
         with tempfile.TemporaryDirectory() as tmpdir, mock.patch(
-            "climate_tookit.fetch_data.source_data.sources.gee.DownloadData.get_gee_data_static",
+            "climate_toolkit.fetch_data.source_data.sources.gee.DownloadData.get_gee_data_static",
             new=fake_get_gee_data_static,
         ):
             SourceData(
@@ -154,7 +154,7 @@ class SoilGridCacheTests(unittest.TestCase):
             )
 
         with tempfile.TemporaryDirectory() as tmpdir, mock.patch(
-            "climate_tookit.fetch_data.source_data.sources.gee.DownloadData.get_gee_data_static",
+            "climate_toolkit.fetch_data.source_data.sources.gee.DownloadData.get_gee_data_static",
             new=fake_get_gee_data_static,
         ):
             first = SourceData(

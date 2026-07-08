@@ -137,7 +137,7 @@ Examples where extra caution is needed:
 Programmatic inspection:
 
 ```python
-from climate_tookit.climatology import describe_thi_method
+from climate_toolkit.climatology import describe_thi_method
 
 method = describe_thi_method()
 print(method["profiles"]["cattle_dairy"])
@@ -178,7 +178,7 @@ Not supported:
 Programmatic inspection:
 
 ```python
-from climate_tookit.climatology import describe_thi_method, describe_thi_source_support
+from climate_toolkit.climatology import describe_thi_method, describe_thi_source_support
 
 print(describe_thi_source_support())
 print(describe_thi_method()["source_support"]["nex_gddp"])

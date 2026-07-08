@@ -4,27 +4,27 @@ Active placeholder path is replaced on `codex-nex-gddp-access-rnd`.
 
 Main branch changes:
 
-- `climate_tookit/fetch_data/source_data/sources/nex_gddp.py`
+- `climate_toolkit/fetch_data/source_data/sources/nex_gddp.py`
   - no longer serves as standalone synthetic generator
   - now delegates to real adapter
-- `climate_tookit/fetch_data/source_data/sources/nex_gddp_xee.py`
+- `climate_toolkit/fetch_data/source_data/sources/nex_gddp_xee.py`
   - new Earth Engine + Xee-backed single-site implementation
   - real `historical`, `ssp126`, `ssp245`, `ssp370`, `ssp585`
   - scenario/year validation
   - retry/backoff
   - chunked fetch
   - cache + manifest + integrity checks
-- `climate_tookit/fetch_data/nex_gddp_batch.py`
+- `climate_toolkit/fetch_data/nex_gddp_batch.py`
   - package-native many-site batch extraction
   - cache + manifest + resume/integrity behavior
   - `raw` / `transformed` / `preprocessed` stage support
 
 Related package integration work on branch:
 
-- `climate_tookit/fetch_data/source_data/source_data.py`
-- `climate_tookit/fetch_data/fetch_data.py`
-- `climate_tookit/fetch_data/preprocess_data/preprocess_data.py`
-- `climate_tookit/fetch_data/transform_data/transform_data.py`
+- `climate_toolkit/fetch_data/source_data/source_data.py`
+- `climate_toolkit/fetch_data/fetch_data.py`
+- `climate_toolkit/fetch_data/preprocess_data/preprocess_data.py`
+- `climate_toolkit/fetch_data/transform_data/transform_data.py`
 
 That means `source='nex_gddp'` on this branch is no longer synthetic placeholder in package fetch path.
 

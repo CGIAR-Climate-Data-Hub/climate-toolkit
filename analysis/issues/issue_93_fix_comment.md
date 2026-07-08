@@ -2,7 +2,7 @@ Branch fix now exists on `codex-nex-gddp-access-rnd`.
 
 What changed:
 
-- `climate_tookit/climate_statistics/ensemble_statistics.py`
+- `climate_toolkit/climate_statistics/ensemble_statistics.py`
 
 Two parts:
 
@@ -31,7 +31,7 @@ Verification run on branch:
 
 ```bash
 .venv/bin/python -m unittest tests.test_ensemble_statistics_scenario_validation tests.test_compare_periods_baseline tests.test_nex_gddp_behavior
-python3 -m py_compile climate_tookit/climate_statistics/ensemble_statistics.py tests/test_ensemble_statistics_scenario_validation.py
+python3 -m py_compile climate_toolkit/climate_statistics/ensemble_statistics.py tests/test_ensemble_statistics_scenario_validation.py
 ```
 
 Result: passing on branch.

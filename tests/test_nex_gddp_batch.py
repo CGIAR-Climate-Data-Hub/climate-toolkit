@@ -20,7 +20,7 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-from climate_tookit.fetch_data.nex_gddp_batch import (
+from climate_toolkit.fetch_data.nex_gddp_batch import (
     _integrity_summary,
     cache_paths_for_batch,
     fetch_nex_gddp_batch_data,
@@ -99,7 +99,7 @@ class NexGddpBatchTests(unittest.TestCase):
         ]
 
         with mock.patch(
-            "climate_tookit.fetch_data.nex_gddp_batch.fetch_nex_gddp_batch_data",
+            "climate_toolkit.fetch_data.nex_gddp_batch.fetch_nex_gddp_batch_data",
             return_value=(fake_data, fake_summary, fake_manifest),
         ) as fetch_mock, mock.patch("sys.argv", argv):
             rc = main()
@@ -129,13 +129,13 @@ class NexGddpBatchTests(unittest.TestCase):
         sites = load_sites(sites=[("Nairobi", -1.286, 36.817)])
 
         with mock.patch(
-            "climate_tookit.fetch_data.nex_gddp_batch._requested_band_names",
+            "climate_toolkit.fetch_data.nex_gddp_batch._requested_band_names",
             return_value=["pr", "tasmax", "tasmin"],
         ), mock.patch(
-            "climate_tookit.fetch_data.nex_gddp_batch._load_valid_cached_batch",
+            "climate_toolkit.fetch_data.nex_gddp_batch._load_valid_cached_batch",
             return_value=(cached_df, cached_manifest),
         ), mock.patch(
-            "climate_tookit.fetch_data.nex_gddp_batch._log_progress",
+            "climate_toolkit.fetch_data.nex_gddp_batch._log_progress",
         ) as progress_log:
             result, summary, manifest = run_batch_extraction(
                 sites=sites,
@@ -224,7 +224,7 @@ class NexGddpBatchTests(unittest.TestCase):
         )
 
         with mock.patch(
-            "climate_tookit.fetch_data.nex_gddp_batch.run_batch_extraction",
+            "climate_toolkit.fetch_data.nex_gddp_batch.run_batch_extraction",
             return_value=(raw_df, pd.DataFrame(), pd.DataFrame()),
         ):
             data_df, _, _ = fetch_nex_gddp_batch_data(
@@ -255,7 +255,7 @@ class NexGddpBatchTests(unittest.TestCase):
         manifest_df = pd.DataFrame({"cache_hit": [False]})
 
         with mock.patch(
-            "climate_tookit.fetch_data.nex_gddp_batch.run_batch_extraction",
+            "climate_toolkit.fetch_data.nex_gddp_batch.run_batch_extraction",
             return_value=(raw_df, summary_df, manifest_df),
         ):
             data_df, returned_summary, returned_manifest = fetch_nex_gddp_batch_data(
@@ -301,7 +301,7 @@ class NexGddpBatchTests(unittest.TestCase):
         )
 
         with mock.patch(
-            "climate_tookit.fetch_data.nex_gddp_batch.run_batch_extraction",
+            "climate_toolkit.fetch_data.nex_gddp_batch.run_batch_extraction",
             return_value=(raw_df, pd.DataFrame(), pd.DataFrame()),
         ):
             data_df, _, _ = fetch_nex_gddp_batch_data(

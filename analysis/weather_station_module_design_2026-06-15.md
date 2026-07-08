@@ -67,16 +67,16 @@ The package should ship station metadata, but not the observations.
 ### Recommended built-in files
 
 ```text
-climate_tookit/data/stations/ghcn_daily_stations.parquet
-climate_tookit/data/stations/global_hourly_stations.parquet
-climate_tookit/data/stations/README.md
+climate_toolkit/data/stations/ghcn_daily_stations.parquet
+climate_toolkit/data/stations/global_hourly_stations.parquet
+climate_toolkit/data/stations/README.md
 ```
 
 Optional later:
 
 ```text
-climate_tookit/data/stations/gsod_stations.parquet
-climate_tookit/data/stations/meteostat_station_crosswalk.parquet
+climate_toolkit/data/stations/gsod_stations.parquet
+climate_toolkit/data/stations/meteostat_station_crosswalk.parquet
 ```
 
 ### Why Parquet
@@ -568,7 +568,7 @@ outputs/cache/weather_stations/
 ### Discover nearby stations
 
 ```bash
-.venv/bin/python -m climate_tookit.weather_station.compare \
+.venv/bin/python -m climate_toolkit.weather_station.compare \
   --lat -1.286 \
   --lon 36.817 \
   --variables precipitation,min_temperature,max_temperature \
@@ -580,7 +580,7 @@ outputs/cache/weather_stations/
 ### Run historical validation
 
 ```bash
-.venv/bin/python -m climate_tookit.weather_station.compare \
+.venv/bin/python -m climate_toolkit.weather_station.compare \
   --lat -1.286 \
   --lon 36.817 \
   --variables precipitation,min_temperature,max_temperature \
@@ -594,7 +594,7 @@ outputs/cache/weather_stations/
 ### Run NEX-GDDP historical validation
 
 ```bash
-.venv/bin/python -m climate_tookit.weather_station.compare \
+.venv/bin/python -m climate_toolkit.weather_station.compare \
   --lat -1.286 \
   --lon 36.817 \
   --variables precipitation,min_temperature,max_temperature \
@@ -660,7 +660,7 @@ Every output row should make clear:
 Build this as a separate module:
 
 ```text
-climate_tookit/weather_station/
+climate_toolkit/weather_station/
   __init__.py
   station_index.py
   download_station_data.py

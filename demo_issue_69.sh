@@ -18,7 +18,7 @@ PY=".venv/bin/python"
 CACHE_DIR="/tmp/nexgddp_coldtest"
 
 CMD_ARGS=(
-  -m climate_tookit.fetch_data.nex_gddp_batch
+  -m climate_toolkit.fetch_data.nex_gddp_batch
   --variables precipitation,max_temperature,min_temperature
   --from 2050-01-01 --to 2050-01-10
   --lon 36.817 --lat -1.286

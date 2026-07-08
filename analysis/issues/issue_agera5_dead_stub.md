@@ -1,6 +1,6 @@
 ## Summary
 
-`ClimateDataset.agera_5` does not use its source-specific module at runtime. Instead, it always dispatches to the generic GEE backend, while `climate_tookit/fetch_data/source_data/sources/agera_5.py` remains in the repository as a fully unimplemented dead stub.
+`ClimateDataset.agera_5` does not use its source-specific module at runtime. Instead, it always dispatches to the generic GEE backend, while `climate_toolkit/fetch_data/source_data/sources/agera_5.py` remains in the repository as a fully unimplemented dead stub.
 
 Confirmed on:
 
@@ -15,9 +15,9 @@ This finding came from a code audit assisted by GPT-5.4 and then manually verifi
 
 Audit steps:
 
-- inspected active dispatcher in `climate_tookit/fetch_data/source_data/source_data.py`
+- inspected active dispatcher in `climate_toolkit/fetch_data/source_data/source_data.py`
 - verified `ClimateDataset.agera_5` is routed to `DownloadGEE`
-- inspected `climate_tookit/fetch_data/source_data/sources/agera_5.py`
+- inspected `climate_toolkit/fetch_data/source_data/sources/agera_5.py`
 - confirmed all AgERA5 download methods, including `download_variables()`, are `NotImplemented`
 - checked `main`, `staging`, and relevant feature branches to confirm the same structure exists there
 - validated active dispatch with a no-network runtime repro and a failing unittest repro
@@ -26,17 +26,17 @@ Audit steps:
 
 ### Active runtime dispatch
 
-`climate_tookit/fetch_data/source_data/source_data.py` routes `ClimateDataset.agera_5` through:
+`climate_toolkit/fetch_data/source_data/source_data.py` routes `ClimateDataset.agera_5` through:
 
 - `DownloadGEE`
 
 not through:
 
-- `climate_tookit/fetch_data/source_data/sources/agera_5.py`
+- `climate_toolkit/fetch_data/source_data/sources/agera_5.py`
 
 ### Dead source-specific AgERA5 module
 
-`climate_tookit/fetch_data/source_data/sources/agera_5.py`:
+`climate_toolkit/fetch_data/source_data/sources/agera_5.py`:
 
 - describes itself as AgERA5 downloader
 - defines `DownloadData`
@@ -64,9 +64,9 @@ source .venv/bin/activate
 pip install -r requirements.txt matplotlib
 .venv/bin/python - <<'PY'
 from datetime import date
-from climate_tookit.fetch_data.source_data.source_data import SourceData
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.source_data import SourceData
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 src = SourceData(
     location_coord=(-1.286, 36.817),
@@ -85,7 +85,7 @@ PY
 Actual result:
 
 ```text
-climate_tookit.fetch_data.source_data.sources.gee
+climate_toolkit.fetch_data.source_data.sources.gee
 DownloadData
 ```
 
@@ -99,9 +99,9 @@ Run:
 .venv/bin/python - <<'PY'
 import unittest
 from datetime import date
-from climate_tookit.fetch_data.source_data.source_data import SourceData
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.source_data import SourceData
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 class Agera5DispatchReproTests(unittest.TestCase):
     def test_agera5_should_not_dispatch_to_gee_backend(self):
@@ -115,7 +115,7 @@ class Agera5DispatchReproTests(unittest.TestCase):
         )
         self.assertNotEqual(
             type(src.client).__module__,
-            'climate_tookit.fetch_data.source_data.sources.gee',
+            'climate_toolkit.fetch_data.source_data.sources.gee',
         )
 
 suite = unittest.defaultTestLoader.loadTestsFromTestCase(Agera5DispatchReproTests)
@@ -134,7 +134,7 @@ FAIL: test_agera5_should_not_dispatch_to_gee_backend (__main__.Agera5DispatchRep
 ----------------------------------------------------------------------
 Traceback (most recent call last):
   File "<stdin>", line 17, in test_agera5_should_not_dispatch_to_gee_backend
-AssertionError: 'climate_tookit.fetch_data.source_data.sources.gee' == 'climate_tookit.fetch_data.source_data.sources.gee'
+AssertionError: 'climate_toolkit.fetch_data.source_data.sources.gee' == 'climate_toolkit.fetch_data.source_data.sources.gee'
 ```
 
 ## Expected behavior

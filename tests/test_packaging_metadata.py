@@ -21,38 +21,38 @@ LICENSE_PATH = REPO_ROOT / "LICENSE"
 
 class PackagingMetadataTests(unittest.TestCase):
     INTERNAL_HELPER_ENTRYPOINTS = {
-        "climate_tookit.fetch_data.source_data.source_data:main",
-        "climate_tookit.fetch_data.preprocess_data.preprocess_data:main",
-        "climate_tookit.fetch_data.transform_data.transform_data:main",
-        "climate_tookit.fetch_data.gee_xee_batch:main",
-        "climate_tookit.fetch_data.nex_gddp_batch:main",
-        "climate_tookit.fetch_data.cache_inventory:main",
+        "climate_toolkit.fetch_data.source_data.source_data:main",
+        "climate_toolkit.fetch_data.preprocess_data.preprocess_data:main",
+        "climate_toolkit.fetch_data.transform_data.transform_data:main",
+        "climate_toolkit.fetch_data.gee_xee_batch:main",
+        "climate_toolkit.fetch_data.nex_gddp_batch:main",
+        "climate_toolkit.fetch_data.cache_inventory:main",
     }
     EXPLICIT_SUBPACKAGE_EXPORTS = {
-        "climate_tookit.calculate_hazards": {"calculate_hazards"},
-        "climate_tookit.climate_statistics": {"analyze_climate_statistics"},
-        "climate_tookit.compare_datasets": {"compare_sources", "print_report"},
-        "climate_tookit.compare_periods": {"compare"},
-        "climate_tookit.crop_calendar": {
+        "climate_toolkit.calculate_hazards": {"calculate_hazards"},
+        "climate_toolkit.climate_statistics": {"analyze_climate_statistics"},
+        "climate_toolkit.compare_datasets": {"compare_sources", "print_report"},
+        "climate_toolkit.compare_periods": {"compare"},
+        "climate_toolkit.crop_calendar": {
             "extract_point_calendar",
             "get_crop_support",
             "normalize_crop_name",
             "resolve_calendar_preset",
         },
-        "climate_tookit.fetch_data": {
+        "climate_toolkit.fetch_data": {
             "Site",
             "fetch_gee_xee_batch_data",
             "fetch_nex_gddp_batch_data",
             "load_sites",
             "parse_site_spec",
         },
-        "climate_tookit.season_analysis": {
+        "climate_toolkit.season_analysis": {
             "detect_onset_cessation",
             "fetch_and_analyze_years",
             "fetch_and_analyze_years_fixed",
             "parse_fixed_seasons",
         },
-        "climate_tookit.weather_station": {
+        "climate_toolkit.weather_station": {
             "compare_station_to_grids",
             "download_station_data",
             "render_compare_report",
@@ -150,23 +150,23 @@ class PackagingMetadataTests(unittest.TestCase):
 
         scripts = pyproject["project"]["scripts"]
         expected = {
-            "climate-toolkit": "climate_tookit.cli:main",
-            "climate-toolkit-fetch": "climate_tookit.fetch_data.fetch_data:main",
-            "climate-toolkit-gee-check": "climate_tookit.gee_check:main",
-            "climate-toolkit-seasons": "climate_tookit.season_analysis.seasons:main",
-            "climate-toolkit-seasons-ensemble": "climate_tookit.season_analysis.ensemble:main",
-            "climate-toolkit-stats": "climate_tookit.climate_statistics.statistics:main",
-            "climate-toolkit-stats-ensemble": "climate_tookit.climate_statistics.ensemble_statistics:main",
-            "climate-toolkit-periods": "climate_tookit.compare_periods.periods:main",
-            "climate-toolkit-periods-ensemble": "climate_tookit.compare_periods.ensemble_periods:main",
-            "climate-toolkit-hazards": "climate_tookit.calculate_hazards.hazards:main",
-            "climate-toolkit-hazards-ensemble": "climate_tookit.calculate_hazards.ensemble_hazards:main",
-            "climate-toolkit-weather-station-download": "climate_tookit.weather_station.download:main",
-            "climate-toolkit-weather-station-compare": "climate_tookit.weather_station.compare:main",
-            "climate-toolkit-compare-datasets": "climate_tookit.compare_datasets.compare_datasets:main",
-            "climate-toolkit-climatology": "climate_tookit.climatology.long_term_climatology:main",
-            "climate-toolkit-spei": "climate_tookit.climatology.spei:main",
-            "climate-toolkit-xclim-reference": "climate_tookit.climatology.xclim_reference:main",
+            "climate-toolkit": "climate_toolkit.cli:main",
+            "climate-toolkit-fetch": "climate_toolkit.fetch_data.fetch_data:main",
+            "climate-toolkit-gee-check": "climate_toolkit.gee_check:main",
+            "climate-toolkit-seasons": "climate_toolkit.season_analysis.seasons:main",
+            "climate-toolkit-seasons-ensemble": "climate_toolkit.season_analysis.ensemble:main",
+            "climate-toolkit-stats": "climate_toolkit.climate_statistics.statistics:main",
+            "climate-toolkit-stats-ensemble": "climate_toolkit.climate_statistics.ensemble_statistics:main",
+            "climate-toolkit-periods": "climate_toolkit.compare_periods.periods:main",
+            "climate-toolkit-periods-ensemble": "climate_toolkit.compare_periods.ensemble_periods:main",
+            "climate-toolkit-hazards": "climate_toolkit.calculate_hazards.hazards:main",
+            "climate-toolkit-hazards-ensemble": "climate_toolkit.calculate_hazards.ensemble_hazards:main",
+            "climate-toolkit-weather-station-download": "climate_toolkit.weather_station.download:main",
+            "climate-toolkit-weather-station-compare": "climate_toolkit.weather_station.compare:main",
+            "climate-toolkit-compare-datasets": "climate_toolkit.compare_datasets.compare_datasets:main",
+            "climate-toolkit-climatology": "climate_toolkit.climatology.long_term_climatology:main",
+            "climate-toolkit-spei": "climate_toolkit.climatology.spei:main",
+            "climate-toolkit-xclim-reference": "climate_toolkit.climatology.xclim_reference:main",
         }
         self.assertEqual(expected, scripts)
 
@@ -191,7 +191,7 @@ class PackagingMetadataTests(unittest.TestCase):
         self.assertTrue(self.INTERNAL_HELPER_ENTRYPOINTS.isdisjoint(scripts))
 
     def test_top_level_package_exposes_stable_public_api(self):
-        package = importlib.import_module("climate_tookit")
+        package = importlib.import_module("climate_toolkit")
         self.assertTrue(hasattr(package, "__version__"))
         self.assertIsInstance(package.__version__, str)
 
@@ -223,7 +223,7 @@ class PackagingMetadataTests(unittest.TestCase):
                     self.assertTrue(callable(exported))
 
     def test_fetch_data_package_root_keeps_internal_run_helpers_off_public_all(self):
-        module = importlib.import_module("climate_tookit.fetch_data")
+        module = importlib.import_module("climate_toolkit.fetch_data")
         public_exports = set(getattr(module, "__all__", []))
         self.assertNotIn("run_gee_xee_batch_extraction", public_exports)
         self.assertNotIn("run_batch_extraction", public_exports)
@@ -232,12 +232,12 @@ class PackagingMetadataTests(unittest.TestCase):
         self.assertTrue(callable(getattr(module, "run_batch_extraction")))
 
     def test_fetch_data_package_root_does_not_advertise_shadow_prone_fetch_entrypoint(self):
-        module = importlib.import_module("climate_tookit.fetch_data")
+        module = importlib.import_module("climate_toolkit.fetch_data")
         public_exports = set(getattr(module, "__all__", []))
         self.assertNotIn("fetch_data", public_exports)
 
     def test_weather_station_package_root_keeps_backend_helpers_off_public_all(self):
-        module = importlib.import_module("climate_tookit.weather_station")
+        module = importlib.import_module("climate_toolkit.weather_station")
         public_exports = set(getattr(module, "__all__", []))
 
         self.assertNotIn("fetch_ghcn_daily_records", public_exports)
@@ -251,7 +251,7 @@ class PackagingMetadataTests(unittest.TestCase):
 
     def test_internal_source_utils_root_does_not_advertise_logging_side_effect_helper(self):
         module = importlib.import_module(
-            "climate_tookit.fetch_data.source_data.sources.utils"
+            "climate_toolkit.fetch_data.source_data.sources.utils"
         )
         public_exports = set(getattr(module, "__all__", []))
         self.assertNotIn("set_logging", public_exports)

@@ -46,8 +46,8 @@ _install_test_stubs()
 
 class EnsembleHazardsImportTests(unittest.TestCase):
     def test_ensemble_hazards_importable_as_package(self):
-        mod = importlib.import_module("climate_tookit.calculate_hazards.ensemble_hazards")
-        self.assertEqual(mod.__name__, "climate_tookit.calculate_hazards.ensemble_hazards")
+        mod = importlib.import_module("climate_toolkit.calculate_hazards.ensemble_hazards")
+        self.assertEqual(mod.__name__, "climate_toolkit.calculate_hazards.ensemble_hazards")
         self.assertTrue(getattr(mod, "PREPROCESS_AVAILABLE", False))
 
 

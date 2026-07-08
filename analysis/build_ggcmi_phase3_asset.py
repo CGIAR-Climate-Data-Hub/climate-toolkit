@@ -15,8 +15,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from climate_tookit.crop_calendar.ggcmi import DATA_SOURCE_USED_LABELS
-from climate_tookit.crop_calendar.registry import iter_crops
+from climate_toolkit.crop_calendar.ggcmi import DATA_SOURCE_USED_LABELS
+from climate_toolkit.crop_calendar.registry import iter_crops
 
 
 FILE_PATTERN = re.compile(
@@ -24,7 +24,7 @@ FILE_PATTERN = re.compile(
 )
 
 DEFAULT_INPUT_DIR = Path("/private/tmp/ggcmi_phase3")
-DEFAULT_OUTPUT_DIR = Path("climate_tookit/data/ggcmi_phase3")
+DEFAULT_OUTPUT_DIR = Path("climate_toolkit/data/ggcmi_phase3")
 SOURCE_RECORD_URL = "https://zenodo.org/records/5062513"
 
 

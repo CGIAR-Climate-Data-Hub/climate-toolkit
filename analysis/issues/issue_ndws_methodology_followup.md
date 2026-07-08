@@ -20,8 +20,8 @@ Location:
 - Nairobi `(-1.286, 36.817)`
 
 Command family:
-- `climate_tookit.calculate_hazards.hazards ... --fixed-season "03-01:06-30,10-01:12-31" --source auto`
-- `climate_tookit.climate_statistics.statistics ... --fixed-season "03-01:06-30,10-01:12-31" --source auto`
+- `climate_toolkit.calculate_hazards.hazards ... --fixed-season "03-01:06-30,10-01:12-31" --source auto`
+- `climate_toolkit.climate_statistics.statistics ... --fixed-season "03-01:06-30,10-01:12-31" --source auto`
 
 Representative outputs:
 

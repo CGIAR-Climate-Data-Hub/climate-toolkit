@@ -48,7 +48,7 @@ This finding came from a code audit assisted by GPT-5.4 at medium reasoning effo
 
 Audit steps:
 
-- inspected active `climate_tookit/fetch_data/source_data/sources/nex_gddp.py`
+- inspected active `climate_toolkit/fetch_data/source_data/sources/nex_gddp.py`
 - noted that scenario effects are hard-coded, but no site-specific climatology terms are present beyond RNG seeding
 - built a sanity harness over the active preprocess pipeline
 - ran a 5-site × 3-scenario × 16-model ensemble matrix
@@ -64,7 +64,7 @@ Artifacts produced during audit:
 
 ### Active placeholder backend uses mostly shared global structure
 
-`climate_tookit/fetch_data/source_data/sources/nex_gddp.py` currently uses:
+`climate_toolkit/fetch_data/source_data/sources/nex_gddp.py` currently uses:
 
 - fixed precipitation base: `3.5`
 - fixed temperature bases: `26.0`, `16.0`

@@ -3,7 +3,7 @@ Status note:
 - historical branch note
 - README guidance has since moved further:
   - public CLI remains `climate-toolkit-fetch`
-  - notebook/public Python guidance now prefers top-level API names such as `from climate_tookit import fetch_climate_data`
+  - notebook/public Python guidance now prefers top-level API names such as `from climate_toolkit import fetch_climate_data`
 
 Branch fix now exists on `codex-nex-gddp-access-rnd`.
 
@@ -15,10 +15,10 @@ Resolution choice:
 What changed:
 
 - `README.md`
-  - corrected the package path from `climate_toolkit/` to `climate_tookit/`
+  - corrected the package path from `climate_toolkit/` to `climate_toolkit/`
   - replaced the old `python climate_toolkit/fetch_data/source_data/source_data.py` guidance
   - documented the supported CLI entry point:
-    - `python -m climate_tookit.fetch_data.fetch_data ...`
+    - `python -m climate_toolkit.fetch_data.fetch_data ...`
   - added a Jupyter/notebook section explaining:
     - shell commands in notebooks need `!`
     - import-based `fetch_data(...)` is the safer notebook workflow
@@ -32,8 +32,8 @@ Why this addresses the issue:
 Verification run on branch:
 
 ```bash
-.venv/bin/python -m climate_tookit.fetch_data.fetch_data --help
-rg -n "climate_toolkit|source_data\\.py|python -m climate_tookit\\.fetch_data\\.fetch_data|Jupyter / notebook usage" README.md
+.venv/bin/python -m climate_toolkit.fetch_data.fetch_data --help
+rg -n "climate_toolkit|source_data\\.py|python -m climate_toolkit\\.fetch_data\\.fetch_data|Jupyter / notebook usage" README.md
 ```
 
 Actual branch result:

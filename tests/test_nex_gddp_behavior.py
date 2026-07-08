@@ -45,16 +45,16 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-from climate_tookit.compare_datasets.compare_datasets import _build_nex_ensemble
-from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
+from climate_toolkit.compare_datasets.compare_datasets import _build_nex_ensemble
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp import (
     DownloadData,
     _normalize_scenario,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.models import (
+from climate_toolkit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 
 class NexGddpBehaviorTests(unittest.TestCase):

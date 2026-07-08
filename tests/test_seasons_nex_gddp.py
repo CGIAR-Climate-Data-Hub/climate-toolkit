@@ -49,8 +49,8 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.season_analysis.seasons as seasons
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+import climate_toolkit.season_analysis.seasons as seasons
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 
 class SeasonsNexGddpTests(unittest.TestCase):

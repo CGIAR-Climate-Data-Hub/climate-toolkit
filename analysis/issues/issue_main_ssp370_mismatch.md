@@ -1,6 +1,6 @@
 ## Summary
 
-`climate_tookit/calculate_hazards/ensemble_hazards.py` on `main` includes `ssp370` in its default scenario list, but the active `nex_gddp` source implementation does not support `ssp370`.
+`climate_toolkit/calculate_hazards/ensemble_hazards.py` on `main` includes `ssp370` in its default scenario list, but the active `nex_gddp` source implementation does not support `ssp370`.
 
 This mismatch is present on:
 
@@ -18,9 +18,9 @@ This finding came from a code audit assisted by GPT-5.4 at medium reasoning effo
 
 Audit steps:
 
-- inspected `origin/main:climate_tookit/calculate_hazards/ensemble_hazards.py`
-- inspected `origin/staging:climate_tookit/calculate_hazards/ensemble_hazards.py`
-- inspected active scenario validation in `climate_tookit/fetch_data/source_data/sources/nex_gddp.py`
+- inspected `origin/main:climate_toolkit/calculate_hazards/ensemble_hazards.py`
+- inspected `origin/staging:climate_toolkit/calculate_hazards/ensemble_hazards.py`
+- inspected active scenario validation in `climate_toolkit/fetch_data/source_data/sources/nex_gddp.py`
 - compared the default scenario list in the file against `SCENARIO_MAPPING`
 - reproduced the mismatch with a minimal failing unittest
 
@@ -28,7 +28,7 @@ Audit steps:
 
 ### `main`
 
-`origin/main:climate_tookit/calculate_hazards/ensemble_hazards.py` contains:
+`origin/main:climate_toolkit/calculate_hazards/ensemble_hazards.py` contains:
 
 ```python
 SCENARIOS = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
@@ -36,7 +36,7 @@ SCENARIOS = ['ssp126', 'ssp245', 'ssp370', 'ssp585']
 
 ### Active NEX support
 
-`climate_tookit/fetch_data/source_data/sources/nex_gddp.py` supports:
+`climate_toolkit/fetch_data/source_data/sources/nex_gddp.py` supports:
 
 - `ssp126`
 - `ssp245`
@@ -51,7 +51,7 @@ It does **not** include:
 
 ### `staging`
 
-`origin/staging:climate_tookit/calculate_hazards/ensemble_hazards.py` does not include `ssp370`.
+`origin/staging:climate_toolkit/calculate_hazards/ensemble_hazards.py` does not include `ssp370`.
 
 Instead it defines:
 
@@ -77,9 +77,9 @@ pip install -r requirements.txt matplotlib
 .venv/bin/python - <<'PY'
 import ast
 from pathlib import Path
-from climate_tookit.fetch_data.source_data.sources.nex_gddp import SCENARIO_MAPPING
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp import SCENARIO_MAPPING
 
-path = Path('climate_tookit/calculate_hazards/ensemble_hazards.py')
+path = Path('climate_toolkit/calculate_hazards/ensemble_hazards.py')
 mod = ast.parse(path.read_text())
 scenarios = None
 
@@ -115,11 +115,11 @@ Run:
 import ast
 import unittest
 from pathlib import Path
-from climate_tookit.fetch_data.source_data.sources.nex_gddp import SCENARIO_MAPPING
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp import SCENARIO_MAPPING
 
 class ScenarioMismatchReproTests(unittest.TestCase):
     def test_ensemble_default_scenarios_are_supported_by_active_nex_backend(self):
-        mod = ast.parse(Path('climate_tookit/calculate_hazards/ensemble_hazards.py').read_text())
+        mod = ast.parse(Path('climate_toolkit/calculate_hazards/ensemble_hazards.py').read_text())
         scenarios = None
         for node in mod.body:
             if isinstance(node, ast.Assign):

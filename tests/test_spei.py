@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from climate_tookit.climatology.spei import (
+from climate_toolkit.climatology.spei import (
     _cdf_generalized_logistic,
     _fit_generalized_logistic_ub_pwm,
     _ppf_generalized_logistic,
@@ -11,7 +11,7 @@ from climate_tookit.climatology.spei import (
     prepare_monthly_climatic_water_balance,
     prepare_monthly_precipitation_totals,
 )
-from climate_tookit.climatology.xclim_reference import (
+from climate_toolkit.climatology.xclim_reference import (
     XCLIM_AVAILABLE,
     compute_xclim_spei_reference,
     compute_xclim_spi_reference,

@@ -58,10 +58,10 @@ Important nuance:
 ## Proposed design
 
 Add explicit paired-source support to analysis modules that depend on both precip and temperature:
-- `climate_tookit/climate_statistics/statistics.py`
-- `climate_tookit/season_analysis/seasons.py`
-- `climate_tookit/compare_periods/periods.py`
-- likely `climate_tookit/calculate_hazards/hazards.py` too
+- `climate_toolkit/climate_statistics/statistics.py`
+- `climate_toolkit/season_analysis/seasons.py`
+- `climate_toolkit/compare_periods/periods.py`
+- likely `climate_toolkit/calculate_hazards/hazards.py` too
 
 Possible CLI/API shape:
 

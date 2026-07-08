@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This note translates WMO / NOAA climate-normal guidance and station-vs-grid validation literature into practical comparison windows for `climate_tookit.weather_station.compare`.
+This note translates WMO / NOAA climate-normal guidance and station-vs-grid validation literature into practical comparison windows for `climate_toolkit.weather_station.compare`.
 
 It is not a claim that one official standard applies to every use case. The recommendations below are an implementation-oriented interpretation for this toolkit.
 

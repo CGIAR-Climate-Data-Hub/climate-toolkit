@@ -26,7 +26,7 @@ new repeated-option contract for list handling.
 - keep console-script name unchanged:
   - `climate-toolkit-climatology`
 - keep module entry point unchanged:
-  - `climate_tookit.climatology.long_term_climatology:main`
+  - `climate_toolkit.climatology.long_term_climatology:main`
 - move parsing/help to Typer
 - keep execution logic in a separate `_run_climatology_cli(...)` helper
 - disable Typer shell-completion flags in help for now with `add_completion=False`
