@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "climate-tookit"
+name = "climate-toolkit"
 version = "0.1.0a0"
 description = "Climate toolkit for location-based climate, season, climatology, hazard, and projection analysis."
 readme = "README.md"
@@ -58,41 +58,48 @@ dev = [
   "twine",
   "wheel",
 ]
+docs = [
+  "mkdocs-material",
+  "mkdocstrings[python]",
+]
 
 [project.urls]
+Homepage = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit"
+Documentation = "https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/"
 Repository = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit"
 Issues = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues"
+Changelog = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/CHANGELOG.md"
 
 [project.scripts]
 # Unified entry point: `climate-toolkit <command>` dispatches to the tools
 # below. The individual `climate-toolkit-<command>` scripts are kept as
 # backward-compatible aliases.
-climate-toolkit = "climate_tookit.cli:main"
-climate-toolkit-fetch = "climate_tookit.fetch_data.fetch_data:main"
-climate-toolkit-gee-check = "climate_tookit.gee_check:main"
-climate-toolkit-seasons = "climate_tookit.season_analysis.seasons:main"
-climate-toolkit-seasons-ensemble = "climate_tookit.season_analysis.ensemble:main"
-climate-toolkit-stats = "climate_tookit.climate_statistics.statistics:main"
-climate-toolkit-stats-ensemble = "climate_tookit.climate_statistics.ensemble_statistics:main"
-climate-toolkit-periods = "climate_tookit.compare_periods.periods:main"
-climate-toolkit-periods-ensemble = "climate_tookit.compare_periods.ensemble_periods:main"
-climate-toolkit-hazards = "climate_tookit.calculate_hazards.hazards:main"
-climate-toolkit-hazards-ensemble = "climate_tookit.calculate_hazards.ensemble_hazards:main"
-climate-toolkit-weather-station-download = "climate_tookit.weather_station.download:main"
-climate-toolkit-weather-station-compare = "climate_tookit.weather_station.compare:main"
-climate-toolkit-compare-datasets = "climate_tookit.compare_datasets.compare_datasets:main"
-climate-toolkit-climatology = "climate_tookit.climatology.long_term_climatology:main"
-climate-toolkit-spei = "climate_tookit.climatology.spei:main"
-climate-toolkit-xclim-reference = "climate_tookit.climatology.xclim_reference:main"
+climate-toolkit = "climate_toolkit.cli:main"
+climate-toolkit-fetch = "climate_toolkit.fetch_data.fetch_data:main"
+climate-toolkit-gee-check = "climate_toolkit.gee_check:main"
+climate-toolkit-seasons = "climate_toolkit.season_analysis.seasons:main"
+climate-toolkit-seasons-ensemble = "climate_toolkit.season_analysis.ensemble:main"
+climate-toolkit-stats = "climate_toolkit.climate_statistics.statistics:main"
+climate-toolkit-stats-ensemble = "climate_toolkit.climate_statistics.ensemble_statistics:main"
+climate-toolkit-periods = "climate_toolkit.compare_periods.periods:main"
+climate-toolkit-periods-ensemble = "climate_toolkit.compare_periods.ensemble_periods:main"
+climate-toolkit-hazards = "climate_toolkit.calculate_hazards.hazards:main"
+climate-toolkit-hazards-ensemble = "climate_toolkit.calculate_hazards.ensemble_hazards:main"
+climate-toolkit-weather-station-download = "climate_toolkit.weather_station.download:main"
+climate-toolkit-weather-station-compare = "climate_toolkit.weather_station.compare:main"
+climate-toolkit-compare-datasets = "climate_toolkit.compare_datasets.compare_datasets:main"
+climate-toolkit-climatology = "climate_toolkit.climatology.long_term_climatology:main"
+climate-toolkit-spei = "climate_toolkit.climatology.spei:main"
+climate-toolkit-xclim-reference = "climate_toolkit.climatology.xclim_reference:main"
 
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["climate_tookit*", "analysis*"]
+include = ["climate_toolkit*", "analysis*"]
 
 [tool.setuptools.package-data]
-climate_tookit = [
+climate_toolkit = [
   "calculate_hazards/*.json",
   "data/ggcmi_phase3/*.json",
   "data/ggcmi_phase3/*.parquet",

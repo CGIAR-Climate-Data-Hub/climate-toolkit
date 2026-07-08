@@ -26,12 +26,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from climate_tookit.fetch_data.source_data.sources.nex_gddp_xee import DownloadData
-from climate_tookit.fetch_data.source_data.sources.utils.models import (
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp_xee import DownloadData
+from climate_toolkit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 
 DEFAULT_VARIABLES = [

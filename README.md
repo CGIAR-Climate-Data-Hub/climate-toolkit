@@ -132,7 +132,7 @@ If you see:
 
    ```bash
    uv run climate-toolkit-stats --help
-   uv run python -c "import climate_tookit; print('import ok')"
+   uv run python -c "import climate_toolkit; print('import ok')"
    uv run ruff check .
    uv run pytest -q
    ```
@@ -190,11 +190,11 @@ If you see:
    > instead, e.g.:
    >
    > ```bash
-   > python -m climate_tookit.season_analysis.seasons --help
+   > python -m climate_toolkit.season_analysis.seasons --help
    > ```
    >
    > Every `climate-toolkit-<name>` script maps to a
-   > `python -m climate_tookit.<module>` entry point.
+   > `python -m climate_toolkit.<module>` entry point.
    >
    > Once installed, the tools are also available as subcommands of a single
    > `climate-toolkit` command, e.g. `climate-toolkit fetch ...` instead of
@@ -241,7 +241,7 @@ After install, confirm the package and CLI surface are healthy (no network or
 Earth Engine required):
 
 ```bash
-uv run python -c "import climate_tookit; print(climate_tookit.__version__)"
+uv run python -c "import climate_toolkit; print(climate_toolkit.__version__)"
 uv run climate-toolkit --help          # lists all subcommands
 uv run climate-toolkit fetch --help     # per-command options
 uv run pytest -q                        # offline unit suite
@@ -258,7 +258,7 @@ Local build / install verification:
 rm -rf .tmp/dist-release
 uv run python -m build --no-isolation --outdir .tmp/dist-release
 uv run twine check .tmp/dist-release/*
-python -m pip install .tmp/dist-release/climate_tookit-*.whl
+python -m pip install .tmp/dist-release/climate_toolkit-*.whl
 ```
 
 If you only want artifact verification without mutating current environment,
@@ -306,7 +306,7 @@ climate-toolkit-fetch \
 Fallback module form:
 
 ```bash
-python -m climate_tookit.fetch_data.fetch_data \
+python -m climate_toolkit.fetch_data.fetch_data \
   --source chirps_v3_daily_rnl \
   --lat -1.286 \
   --lon 36.817 \
@@ -380,7 +380,7 @@ Livestock THI source support:
 Python users can inspect same support map directly:
 
 ```python
-from climate_tookit.climatology import describe_thi_method, describe_thi_source_support
+from climate_toolkit.climatology import describe_thi_method, describe_thi_source_support
 
 print(describe_thi_source_support())
 print(describe_thi_method()["profiles"]["cattle_dairy"])
@@ -406,7 +406,7 @@ Human heat first-pass note:
 Python users can inspect current human-heat choice directly:
 
 ```python
-from climate_tookit.climatology import (
+from climate_toolkit.climatology import (
     build_human_heat_source_bundle,
     compute_daily_humidex,
     describe_human_heat_method,
@@ -576,21 +576,21 @@ historical-analysis workflows. Current custom station flags include:
 
 Top-level stable Python API names:
 
-- `from climate_tookit import fetch_climate_data`
-- `from climate_tookit import analyze_climate_statistics`
-- `from climate_tookit import compare_climate_periods`
-- `from climate_tookit import compare_climate_sources`
-- `from climate_tookit import evaluate_hazards`
-- `from climate_tookit import download_station_data`
-- `from climate_tookit import compare_station_to_grids`
+- `from climate_toolkit import fetch_climate_data`
+- `from climate_toolkit import analyze_climate_statistics`
+- `from climate_toolkit import compare_climate_periods`
+- `from climate_toolkit import compare_climate_sources`
+- `from climate_toolkit import evaluate_hazards`
+- `from climate_toolkit import download_station_data`
+- `from climate_toolkit import compare_station_to_grids`
 
 Notebook-safe example:
 
 ```python
 from datetime import date
 
-from climate_tookit import fetch_climate_data
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateVariable
+from climate_toolkit import fetch_climate_data
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateVariable
 
 df = fetch_climate_data(
     source="chirps_v3_daily_rnl",
@@ -605,7 +605,7 @@ df = fetch_climate_data(
 In Jupyter, prefix shell commands with `!`:
 
 ```bash
-!python -m climate_tookit.fetch_data.fetch_data --help
+!python -m climate_toolkit.fetch_data.fetch_data --help
 ```
 
 ### Climatology
@@ -652,12 +652,12 @@ Use them from Python after fetching/preprocessing climate data. VPD helpers use
 moisture-informed inputs (`relative_humidity` or `dewpoint`) when available:
 
 ```python
-from climate_tookit.climatology.spei import (
+from climate_toolkit.climatology.spei import (
     compute_monthly_spei,
     prepare_monthly_climatic_water_balance,
 )
-from climate_tookit.climatology import summarize_vpd_period
-from climate_tookit.climatology.xclim_reference import (
+from climate_toolkit.climatology import summarize_vpd_period
+from climate_toolkit.climatology.xclim_reference import (
     compute_xclim_precip_indices,
 )
 
@@ -728,30 +728,30 @@ CLI implementation note:
 Preferred stable import paths:
 
 - top-level package for end-user workflows:
-  - `climate_tookit.fetch_climate_data`
-  - `climate_tookit.analyze_climate_statistics`
-  - `climate_tookit.compare_climate_periods`
-  - `climate_tookit.compare_climate_sources`
-  - `climate_tookit.evaluate_hazards`
-  - `climate_tookit.download_station_data`
-  - `climate_tookit.compare_station_to_grids`
+  - `climate_toolkit.fetch_climate_data`
+  - `climate_toolkit.analyze_climate_statistics`
+  - `climate_toolkit.compare_climate_periods`
+  - `climate_toolkit.compare_climate_sources`
+  - `climate_toolkit.evaluate_hazards`
+  - `climate_toolkit.download_station_data`
+  - `climate_toolkit.compare_station_to_grids`
 - explicit subpackage roots for supported advanced use:
-  - `climate_tookit.fetch_data`
-  - `climate_tookit.weather_station`
-  - `climate_tookit.crop_calendar`
-  - `climate_tookit.climatology`
+  - `climate_toolkit.fetch_data`
+  - `climate_toolkit.weather_station`
+  - `climate_toolkit.crop_calendar`
+  - `climate_toolkit.climatology`
 
 Avoid depending on deep internal modules unless you are doing package
 development. Examples of internal paths that are importable but not stable
 contracts:
 
-- `climate_tookit.fetch_data.source_data.source_data`
-- `climate_tookit.fetch_data.preprocess_data.preprocess_data`
-- `climate_tookit.fetch_data.transform_data.transform_data`
-- `climate_tookit.fetch_data.gee_xee_batch`
-- `climate_tookit.fetch_data.nex_gddp_batch`
-- `climate_tookit.fetch_data.cache_inventory`
-- `climate_tookit.fetch_data.source_data.sources.utils`
+- `climate_toolkit.fetch_data.source_data.source_data`
+- `climate_toolkit.fetch_data.preprocess_data.preprocess_data`
+- `climate_toolkit.fetch_data.transform_data.transform_data`
+- `climate_toolkit.fetch_data.gee_xee_batch`
+- `climate_toolkit.fetch_data.nex_gddp_batch`
+- `climate_toolkit.fetch_data.cache_inventory`
+- `climate_toolkit.fetch_data.source_data.sources.utils`
 
 ### Cache and reuse
 
@@ -822,7 +822,7 @@ historical source.
 ## Project Structure
 
 ```
-climate_tookit/
+climate_toolkit/
 ├── calculate_hazards/       # Hazard and risk workflows
 ├── climate_statistics/      # Seasonal / climatological stats
 ├── compare_periods/         # Baseline vs focal/future comparisons
@@ -838,8 +838,8 @@ climate_tookit/
 ### Setting Up
 
 - All configuration values (e.g., API keys) are managed via `.env` using `python-dotenv`.
-- Modular dataset handlers are found in `climate_tookit/fetch_data/source_data/sources/`, each with `DownloadData` classes.
-- Common utilities like enums and settings are stored in `climate_tookit/fetch_data/source_data/sources/utils/`.
+- Modular dataset handlers are found in `climate_toolkit/fetch_data/source_data/sources/`, each with `DownloadData` classes.
+- Common utilities like enums and settings are stored in `climate_toolkit/fetch_data/source_data/sources/utils/`.
 - Current package architecture summary: `analysis/package_architecture_summary.md`
 - NEX-GDDP real-access R&D note: `analysis/nex_gddp_access_rnd.md`
 - `nex_gddp` now uses real Earth Engine/Xee retrieval. It requires Earth Engine auth plus `GCP_PROJECT_ID`.
@@ -1361,3 +1361,26 @@ Reference note:
 ## License
 
 This project is licensed under the [MIT License](./LICENSE).
+
+---
+
+## Funding & Acknowledgements
+
+This toolkit was developed as part of the project *Advancing Climate Data
+Integration in Agroecological Research*, funded by the
+[McKnight Foundation](https://www.mcknight.org/) through its
+[Global Collaboration for Resilient Food Systems (CRFS)](https://www.mcknight.org/programs/global-foods/)
+programme. The work was led by the
+[Alliance of Bioversity International and CIAT](https://alliancebioversityciat.org/),
+in partnership with [AIMS Rwanda](https://aims.ac.rw/).
+
+This work was supported by the CGIAR Climate Data Hub (CDH), part of the
+[CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
+(Area of Work 1). We acknowledge the CGIAR Trust Fund and its
+[contributors](https://www.cgiar.org/funders/).
+
+<p>
+  <a href="https://www.mcknight.org/programs/global-foods/"><img src="docs/assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="44"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar"><img src="docs/assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" height="56"></a>
+</p>

@@ -49,7 +49,7 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.climatology.long_term_climatology as ltc
+import climate_toolkit.climatology.long_term_climatology as ltc
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")

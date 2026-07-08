@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from climate_tookit.climatology import (
+from climate_toolkit.climatology import (
     build_human_heat_source_bundle,
     build_humidex_screening_thresholds,
     classify_humidex_value,

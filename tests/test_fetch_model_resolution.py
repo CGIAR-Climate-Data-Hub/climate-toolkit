@@ -1,7 +1,7 @@
 import unittest
 
-from climate_tookit.fetch_data.fetch_data import resolve_models
-from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
+from climate_toolkit.fetch_data.fetch_data import resolve_models
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
 )
 

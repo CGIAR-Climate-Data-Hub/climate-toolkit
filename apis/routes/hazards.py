@@ -14,7 +14,7 @@ router = APIRouter()
 @router.post("/calculate", response_model=ClimateResponse)
 async def calculate_hazards(request: HazardsRequest, settings=Depends(get_settings)):
     try:
-        from climate_tookit.calculate_hazards.hazards import calculate_hazards
+        from climate_toolkit.calculate_hazards.hazards import calculate_hazards
 
         # Pass season options through as given. Forcing
         # season_start=date_from/season_end=date_to (the previous behaviour)
@@ -61,7 +61,7 @@ async def calculate_hazards(request: HazardsRequest, settings=Depends(get_settin
 async def calculate_ensemble_hazards(request: EnsembleHazardsRequest, settings=Depends(get_settings)):
     """NEX-GDDP CMIP6 ensemble hazard assessment (multi-model x scenario)."""
     try:
-        from climate_tookit.calculate_hazards.ensemble_hazards import (
+        from climate_toolkit.calculate_hazards.ensemble_hazards import (
             calculate_ensemble, MODELS,
         )
 

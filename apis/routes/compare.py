@@ -17,7 +17,7 @@ async def compare_periods(request: ComparePeriodsRequest, settings=Depends(get_s
         # periods.py exposes a single compare() entrypoint: it runs a baseline
         # period and a focal year and diffs them. Period 1 is the baseline
         # range; period 2's start year is the focal year.
-        from climate_tookit.compare_periods.periods import compare
+        from climate_toolkit.compare_periods.periods import compare
 
         baseline_start = int(request.period1_from.split("-")[0])
         baseline_end = int(request.period1_to.split("-")[0])
@@ -59,7 +59,7 @@ async def compare_periods(request: ComparePeriodsRequest, settings=Depends(get_s
 async def compare_ensemble_periods(request: EnsembleCompareRequest, settings=Depends(get_settings)):
     """NEX-GDDP CMIP6 ensemble Baseline-LTM vs Future-LTM comparison."""
     try:
-        from climate_tookit.compare_periods.ensemble_periods import ensemble_compare
+        from climate_toolkit.compare_periods.ensemble_periods import ensemble_compare
 
         result = ensemble_compare(
             location=(request.lat, request.lon),

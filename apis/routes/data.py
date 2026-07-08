@@ -14,12 +14,12 @@ from apis.schemas.responses import (
 router = APIRouter()
 
 from apis.dependencies import get_settings
-from climate_tookit.fetch_data.source_data.sources.utils.models import (
+from climate_toolkit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
     SoilVariable,
 )
-from climate_tookit.fetch_data.source_data.source_data import SourceData
+from climate_toolkit.fetch_data.source_data.source_data import SourceData
 
 
 AVAILABLE_SOURCES = [
@@ -149,7 +149,7 @@ async def fetch_data(request: DataFetchRequest, settings=Depends(get_settings)):
 
         # Multi-model NEX-GDDP fetch: request.models is a list, or ['all'].
         if request.models:
-            from climate_tookit.fetch_data.source_data.sources.nex_gddp import AVAILABLE_MODELS as NEX_GDDP_MODELS
+            from climate_toolkit.fetch_data.source_data.sources.nex_gddp import AVAILABLE_MODELS as NEX_GDDP_MODELS
             spec = request.models
             if len(spec) == 1 and spec[0].lower() == "all":
                 model_list = list(NEX_GDDP_MODELS)
@@ -252,7 +252,7 @@ async def download_data(request: DataFetchRequest, settings=Depends(get_settings
 
         # Multi-model -> ZIP of per-model files.
         if request.models:
-            from climate_tookit.fetch_data.source_data.sources.nex_gddp import AVAILABLE_MODELS as NEX_GDDP_MODELS
+            from climate_toolkit.fetch_data.source_data.sources.nex_gddp import AVAILABLE_MODELS as NEX_GDDP_MODELS
             spec = request.models
             model_list = list(NEX_GDDP_MODELS) if (len(spec) == 1 and spec[0].lower() == "all") else spec
             unknown = [m for m in model_list if m not in NEX_GDDP_MODELS]

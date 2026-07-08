@@ -19,7 +19,7 @@ Evidence
 Live `season_analysis.seasons` auto run for Nairobi:
 
 ```bash
-.venv/bin/python -m climate_tookit.season_analysis.seasons \
+.venv/bin/python -m climate_toolkit.season_analysis.seasons \
   --location="-1.286,36.817" \
   --start-year=2018 \
   --end-year=2019 \
@@ -54,9 +54,9 @@ This affects more than `hazards.py`.
 
 Current slot-based grouping also appears in:
 
-- `climate_tookit/calculate_hazards/hazards.py`
-- `climate_tookit/climate_statistics/statistics.py`
-- `climate_tookit/compare_periods/periods.py`
+- `climate_toolkit/calculate_hazards/hazards.py`
+- `climate_toolkit/climate_statistics/statistics.py`
+- `climate_toolkit/compare_periods/periods.py`
 - likely ensemble wrappers that inherit same season-slot assumption
 
 When yearly season counts differ, downstream LTM and comparison outputs can look precise while comparing non-like-with-like seasonal blocks.

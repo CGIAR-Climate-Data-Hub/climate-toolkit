@@ -5,7 +5,7 @@ instead of drifting per-template hardcoded lists. Source keys here must match
 ``ClimateDataset`` in the toolkit.
 """
 
-from climate_tookit.fetch_data.source_data.sources.nex_gddp import (
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
 )
 

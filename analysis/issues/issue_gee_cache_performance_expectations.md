@@ -79,7 +79,7 @@ That is sensible, but it means first-use experience can be noticeably slower tha
 Cold-cache multisite fetch:
 
 ```bash
-env GCP_PROJECT_ID=YOUR_PROJECT_ID .venv/bin/python -m climate_tookit.fetch_data.fetch_data \
+env GCP_PROJECT_ID=YOUR_PROJECT_ID .venv/bin/python -m climate_toolkit.fetch_data.fetch_data \
   --source chirps_v3_daily_rnl \
   --site "Nairobi,-1.286,36.817" \
   --site "Lodwar,3.119,35.5973" \
@@ -94,7 +94,7 @@ env GCP_PROJECT_ID=YOUR_PROJECT_ID .venv/bin/python -m climate_tookit.fetch_data
 Cold-cache AgERA5 companion fetch:
 
 ```bash
-env GCP_PROJECT_ID=YOUR_PROJECT_ID .venv/bin/python -m climate_tookit.fetch_data.fetch_data \
+env GCP_PROJECT_ID=YOUR_PROJECT_ID .venv/bin/python -m climate_toolkit.fetch_data.fetch_data \
   --source agera_5 \
   --site "Nairobi,-1.286,36.817" \
   --site "Lodwar,3.119,35.5973" \
@@ -110,7 +110,7 @@ env GCP_PROJECT_ID=YOUR_PROJECT_ID .venv/bin/python -m climate_tookit.fetch_data
 Warm-cache module rerun:
 
 ```bash
-env GCP_PROJECT_ID=YOUR_PROJECT_ID .venv/bin/python -m climate_tookit.climate_statistics.statistics \
+env GCP_PROJECT_ID=YOUR_PROJECT_ID .venv/bin/python -m climate_toolkit.climate_statistics.statistics \
   --location=-1.286,36.817 \
   --start-year=2020 \
   --end-year=2020 \

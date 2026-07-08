@@ -1,4 +1,4 @@
-# Refactor Investigation: make `climate_tookit` behave like traditional Python package
+# Refactor Investigation: make `climate_toolkit` behave like traditional Python package
 
 ## Final status snapshot (2026-06-19)
 
@@ -11,7 +11,7 @@ Issue `#10` is core-complete. This note now serves as:
 Completed package-refactor scope:
 
 - `pyproject.toml` exists
-- top-level `climate_tookit/__init__.py` exists
+- top-level `climate_toolkit/__init__.py` exists
 - console-script entry points exist
 - packaged resource loading has install-shape tests
 - major `sys.path` hacks and mixed import failures called out here have been reduced substantially
@@ -46,7 +46,7 @@ with package-shaped folders than normal installable Python package.
 At that point it worked mainly because:
 
 - commands run from repository root
-- `python -m climate_tookit...` adds cwd to import path
+- `python -m climate_toolkit...` adds cwd to import path
 - several modules mutate `sys.path` at runtime
 - some modules import siblings as bare top-level modules
 
@@ -57,7 +57,7 @@ Traditional package expectations then not met:
 - no declared package data
 - no console-script entry points
 - no consistent relative import strategy
-- no top-level `climate_tookit/__init__.py`
+- no top-level `climate_toolkit/__init__.py`
 
 ## Concrete findings
 
@@ -76,12 +76,12 @@ Impact:
 
 Examples:
 
-- `climate_tookit/season_analysis/seasons.py`
-- `climate_tookit/season_analysis/ensemble.py`
-- `climate_tookit/compare_periods/periods.py`
-- `climate_tookit/compare_periods/ensemble_periods.py`
-- `climate_tookit/climate_statistics/ensemble_statistics.py`
-- `climate_tookit/calculate_hazards/hazards.py`
+- `climate_toolkit/season_analysis/seasons.py`
+- `climate_toolkit/season_analysis/ensemble.py`
+- `climate_toolkit/compare_periods/periods.py`
+- `climate_toolkit/compare_periods/ensemble_periods.py`
+- `climate_toolkit/climate_statistics/ensemble_statistics.py`
+- `climate_toolkit/calculate_hazards/hazards.py`
 
 These modules insert parent/project directories into `sys.path`.
 
@@ -97,7 +97,7 @@ Impact:
 Package uses all of these patterns:
 
 - proper absolute package imports  
-  Example: `from climate_tookit.fetch_data.fetch_data import fetch_data`
+  Example: `from climate_toolkit.fetch_data.fetch_data import fetch_data`
 
 - proper relative imports  
   Example: `from ..fetch_data.runtime_notes import ...`
@@ -141,7 +141,7 @@ Impact:
 
 ## 5. Top-level package incomplete
 
-Subpackages have `__init__.py`, but top-level `climate_tookit/__init__.py` absent.
+Subpackages have `__init__.py`, but top-level `climate_toolkit/__init__.py` absent.
 
 Namespace packages can work, but this is not traditional-package shape and adds ambiguity during packaging/refactor.
 
@@ -155,11 +155,11 @@ Impact:
 
 Important runtime assets:
 
-- `climate_tookit/fetch_data/transform_data/data_dictionary.yaml`
-- `climate_tookit/fetch_data/source_data/sources/utils/config.yaml`
-- `climate_tookit/calculate_hazards/crop_water_balance_params.json`
-- `climate_tookit/data/ggcmi_phase3/crop_calendar.parquet`
-- `climate_tookit/data/ggcmi_phase3/crop_calendar_manifest.json`
+- `climate_toolkit/fetch_data/transform_data/data_dictionary.yaml`
+- `climate_toolkit/fetch_data/source_data/sources/utils/config.yaml`
+- `climate_toolkit/calculate_hazards/crop_water_balance_params.json`
+- `climate_toolkit/data/ggcmi_phase3/crop_calendar.parquet`
+- `climate_toolkit/data/ggcmi_phase3/crop_calendar_manifest.json`
 
 Current access mostly uses file-relative paths, which is fine only if assets are included in built distribution.
 
@@ -185,9 +185,9 @@ Impact:
 
 Likely user-facing entry points exist, but package does not declare stable import surface such as:
 
-- `climate_tookit.fetch_data.fetch_data`
-- `climate_tookit.climate_statistics.analyze_climate_statistics`
-- `climate_tookit.compare_periods.compare_periods`
+- `climate_toolkit.fetch_data.fetch_data`
+- `climate_toolkit.climate_statistics.analyze_climate_statistics`
+- `climate_toolkit.compare_periods.compare_periods`
 
 Impact:
 
@@ -199,7 +199,7 @@ Impact:
 Toolkit should behave like this:
 
 1. `pip install -e .` works from clean checkout
-2. `python -m climate_tookit...` works without cwd/path hacks
+2. `python -m climate_toolkit...` works without cwd/path hacks
 3. all internal imports use one style only
 4. data assets ship with package
 5. CLI entrypoints exposed via console scripts
@@ -211,7 +211,7 @@ Toolkit should behave like this:
 ### Phase 1. Packaging skeleton
 
 - add `pyproject.toml`
-- add top-level `climate_tookit/__init__.py`
+- add top-level `climate_toolkit/__init__.py`
 - define build backend and core dependencies
 - declare package data inclusion
 - expose version string
@@ -259,7 +259,7 @@ Example desired commands:
 Smallest useful slice:
 
 1. add `pyproject.toml`
-2. add `climate_tookit/__init__.py`
+2. add `climate_toolkit/__init__.py`
 3. include YAML/JSON/parquet package data
 4. normalize imports in:
    - `season_analysis/seasons.py`

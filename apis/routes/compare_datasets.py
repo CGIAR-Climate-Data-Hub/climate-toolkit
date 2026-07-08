@@ -24,7 +24,7 @@ async def compare_datasets(
     settings=Depends(get_settings)
 ):
     try:
-        from climate_tookit.compare_datasets.compare_datasets import (
+        from climate_toolkit.compare_datasets.compare_datasets import (
             compare_sources,
             print_report
         )

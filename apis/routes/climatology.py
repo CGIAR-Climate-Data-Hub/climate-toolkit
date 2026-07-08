@@ -26,7 +26,7 @@ async def analyze_climatology(
         # NEX-GDDP runs the CMIP6 ensemble (mirrors the CLI), which needs a
         # scenario; other sources use the single-series climatology.
         if source == "nex_gddp":
-            from climate_tookit.climatology.long_term_climatology import (
+            from climate_toolkit.climatology.long_term_climatology import (
                 calculate_climatology_ensemble,
             )
             result = calculate_climatology_ensemble(
@@ -37,7 +37,7 @@ async def analyze_climatology(
                 verbose=False,
             )
         else:
-            from climate_tookit.climatology.long_term_climatology import calculate_climatology
+            from climate_toolkit.climatology.long_term_climatology import calculate_climatology
             result = calculate_climatology(
                 location_coord=(lat, lon),
                 start_year=start_year,
@@ -73,7 +73,7 @@ async def analyze_climatology(
 async def ensemble_climatology(request: EnsembleClimatologyRequest, settings=Depends(get_settings)):
     """NEX-GDDP CMIP6 ensemble climatology, one result per requested scenario."""
     try:
-        from climate_tookit.climatology.long_term_climatology import (
+        from climate_toolkit.climatology.long_term_climatology import (
             calculate_climatology_ensemble,
         )
 

@@ -14,7 +14,7 @@ router = APIRouter()
 @router.post("/analyze", response_model=ClimateResponse)
 async def analyze_climate_statistics(request: StatisticsRequest, settings=Depends(get_settings)):
     try:
-        from climate_tookit.climate_statistics.statistics import (
+        from climate_toolkit.climate_statistics.statistics import (
             analyze_climate_statistics as analyze_stats
         )
 
@@ -62,7 +62,7 @@ async def analyze_climate_statistics(request: StatisticsRequest, settings=Depend
 async def analyze_ensemble_statistics(request: EnsembleStatisticsRequest, settings=Depends(get_settings)):
     """NEX-GDDP CMIP6 ensemble climate statistics (future LTM, mean across models)."""
     try:
-        from climate_tookit.climate_statistics.ensemble_statistics import (
+        from climate_toolkit.climate_statistics.ensemble_statistics import (
             analyze_ensemble_nex_gddp,
         )
 

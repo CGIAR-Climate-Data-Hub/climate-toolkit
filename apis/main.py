@@ -182,10 +182,10 @@ async def fetch_data_page_post(request: Request):
             "format": form_data.get("format", "json"),
         }
 
-        from climate_tookit.fetch_data.source_data.sources.utils.models import (
+        from climate_toolkit.fetch_data.source_data.sources.utils.models import (
             ClimateDataset, ClimateVariable, SoilVariable,
         )
-        from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+        from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
         from datetime import datetime
 
         source_enum = getattr(ClimateDataset, payload["source"], None)
@@ -209,7 +209,7 @@ async def fetch_data_page_post(request: Request):
         
         settings = Settings.load()
         
-        from climate_tookit.fetch_data.source_data.source_data import SourceData
+        from climate_toolkit.fetch_data.source_data.source_data import SourceData
         source_data = SourceData(
             location_coord=(payload["lat"], payload["lon"]),
             variables=vars_list,
@@ -267,7 +267,7 @@ async def statistics_page_post(request: Request):
         end_year = int(payload["date_to"].split("-")[0])
 
         if ensemble:
-            from climate_tookit.climate_statistics.ensemble_statistics import (
+            from climate_toolkit.climate_statistics.ensemble_statistics import (
                 analyze_ensemble_nex_gddp,
             )
             result = analyze_ensemble_nex_gddp(
@@ -279,7 +279,7 @@ async def statistics_page_post(request: Request):
                 verbose=False,
             )
         else:
-            from climate_tookit.climate_statistics.statistics import analyze_climate_statistics as analyze_stats
+            from climate_toolkit.climate_statistics.statistics import analyze_climate_statistics as analyze_stats
             result = analyze_stats(
                 location_coord=(payload["lat"], payload["lon"]),
                 start_year=start_year,
@@ -318,10 +318,10 @@ async def seasons_page_post(request: Request):
             "end_year": int(form_data.get("end_year")),
             "fixed_season": form_data.get("fixed_season") or None,
         }
-        from climate_tookit.season_analysis.seasons import fetch_and_analyze_years, fetch_and_analyze_years_fixed
+        from climate_toolkit.season_analysis.seasons import fetch_and_analyze_years, fetch_and_analyze_years_fixed
         
         if payload["fixed_season"]:
-            from climate_tookit.season_analysis.seasons import parse_fixed_seasons
+            from climate_toolkit.season_analysis.seasons import parse_fixed_seasons
             fixed_defs = parse_fixed_seasons(payload["fixed_season"])
             seasons_dict, annual_dict = fetch_and_analyze_years_fixed(
                 payload["lat"], payload["lon"],
@@ -373,7 +373,7 @@ async def climatology_page_post(request: Request):
         ensemble = payload["source"] == "nex_gddp"
         if ensemble:
             # NEX-GDDP CMIP6 ensemble climatology (mean across models, per scenario).
-            from climate_tookit.climatology.long_term_climatology import (
+            from climate_toolkit.climatology.long_term_climatology import (
                 calculate_climatology_ensemble,
             )
             result = calculate_climatology_ensemble(
@@ -385,7 +385,7 @@ async def climatology_page_post(request: Request):
                 verbose=False,
             )
         else:
-            from climate_tookit.climatology.long_term_climatology import calculate_climatology
+            from climate_toolkit.climatology.long_term_climatology import calculate_climatology
             # Write annual + monthly PNGs into the served artifacts directory.
             result = calculate_climatology(
                 location_coord=(payload["lat"], payload["lon"]),
@@ -434,7 +434,7 @@ async def hazards_page_post(request: Request):
         }
         ensemble = payload["source"] == "nex_gddp"
         if ensemble:
-            from climate_tookit.calculate_hazards.ensemble_hazards import calculate_ensemble
+            from climate_toolkit.calculate_hazards.ensemble_hazards import calculate_ensemble
             result = calculate_ensemble(
                 crop=payload["crop"],
                 lat=payload["lat"],
@@ -446,7 +446,7 @@ async def hazards_page_post(request: Request):
                 fixed_season=payload["fixed_season"],
             )
         else:
-            from climate_tookit.calculate_hazards.hazards import calculate_hazards
+            from climate_toolkit.calculate_hazards.hazards import calculate_hazards
             # Pass season options as given; omitting them lets the module
             # auto-detect rather than collapsing the whole range into one season.
             result = calculate_hazards(
@@ -500,7 +500,7 @@ async def compare_periods_page_post(request: Request):
         baseline_end = int(payload["period1_to"].split("-")[0])
 
         if ensemble:
-            from climate_tookit.compare_periods.ensemble_periods import ensemble_compare
+            from climate_toolkit.compare_periods.ensemble_periods import ensemble_compare
             result = ensemble_compare(
                 location=(payload["lat"], payload["lon"]),
                 baseline_start=baseline_start,
@@ -512,7 +512,7 @@ async def compare_periods_page_post(request: Request):
                 verbose=False,
             )
         else:
-            from climate_tookit.compare_periods.periods import compare
+            from climate_toolkit.compare_periods.periods import compare
             result = compare(
                 location=(payload["lat"], payload["lon"]),
                 baseline_start=baseline_start,
@@ -554,7 +554,7 @@ async def compare_datasets_page_post(request: Request):
         }
         import glob
         import uuid
-        from climate_tookit.compare_datasets.compare_datasets import compare_sources, print_report
+        from climate_toolkit.compare_datasets.compare_datasets import compare_sources, print_report
 
         # Write comparison plots/CSVs into a unique served directory per run.
         out_dir = os.path.join(ARTIFACTS_ROOT, "compare_datasets", uuid.uuid4().hex[:8])

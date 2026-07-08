@@ -8,7 +8,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
     import tomli as tomllib
 
-from climate_tookit import cli
+from climate_toolkit import cli
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"
@@ -55,7 +55,7 @@ class CliDispatchTests(unittest.TestCase):
             rc = cli.main(["fetch", "--source", "agera_5", "--lat", "1.0"])
 
         self.assertEqual(0, rc)
-        import_module.assert_called_once_with("climate_tookit.fetch_data.fetch_data")
+        import_module.assert_called_once_with("climate_toolkit.fetch_data.fetch_data")
         fake_main.assert_called_once_with()
         # Remaining args are forwarded to the tool's own parser via sys.argv.
         self.assertEqual(

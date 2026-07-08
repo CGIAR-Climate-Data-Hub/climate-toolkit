@@ -1,6 +1,6 @@
 ## Summary
 
-`climate_tookit.calculate_hazards.ensemble_hazards` is not reliably importable under normal package execution because it still depends on `sys.path` mutation and top-level imports (`preprocess_data`, `utils.models`, `hazards`) instead of consistent package-relative imports.
+`climate_toolkit.calculate_hazards.ensemble_hazards` is not reliably importable under normal package execution because it still depends on `sys.path` mutation and top-level imports (`preprocess_data`, `utils.models`, `hazards`) instead of consistent package-relative imports.
 
 Confirmed on both:
 
@@ -12,7 +12,7 @@ Confirmed on both:
 This finding came from a code audit assisted by GPT-5.4 and then manually verified by tracing the active import path in the repository and checking both `main` and `staging`.
 
 Audit steps:
-- inspected import setup in `climate_tookit/calculate_hazards/ensemble_hazards.py`
+- inspected import setup in `climate_toolkit/calculate_hazards/ensemble_hazards.py`
 - traced top-level imports pulled in via `sys.path.insert(...)`
 - verified that dependent modules now rely on package-relative import context
 - reproduced failure with a minimal package import test
@@ -33,7 +33,7 @@ import unittest
 
 class ImportReproTests(unittest.TestCase):
     def test_ensemble_hazards_importable_as_package(self):
-        importlib.import_module("climate_tookit.calculate_hazards.ensemble_hazards")
+        importlib.import_module("climate_toolkit.calculate_hazards.ensemble_hazards")
 
 if __name__ == "__main__":
     unittest.main()
@@ -55,11 +55,11 @@ ImportError: attempted relative import with no known parent package
 ```
 
 Expected result:
-- `climate_tookit.calculate_hazards.ensemble_hazards` imports successfully under normal package execution
+- `climate_toolkit.calculate_hazards.ensemble_hazards` imports successfully under normal package execution
 
 ## Evidence
 
-`climate_tookit/calculate_hazards/ensemble_hazards.py` currently:
+`climate_toolkit/calculate_hazards/ensemble_hazards.py` currently:
 - mutates `sys.path`
 - imports `hazards` as a top-level module
 - imports `preprocess_data` as a top-level module
@@ -79,5 +79,5 @@ This causes brittle behavior in:
 ## Proposed fix
 
 - replace `sys.path`-dependent imports with package-relative imports
-- make `calculate_hazards` importable as part of normal `climate_tookit` package execution
+- make `calculate_hazards` importable as part of normal `climate_toolkit` package execution
 - keep CLI entrypoints working without requiring alternate module identities

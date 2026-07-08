@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest import mock
 
-from climate_tookit.fetch_data.source_data.sources import xee_common
+from climate_toolkit.fetch_data.source_data.sources import xee_common
 
 
 class XeeCommonTests(unittest.TestCase):

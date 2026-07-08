@@ -69,11 +69,11 @@ Not currently suitable:
 ## Current helper surface
 
 Python helpers:
-- `climate_tookit.climatology.build_human_heat_source_bundle`
-- `climate_tookit.climatology.compute_daily_humidex`
-- `climate_tookit.climatology.summarize_humidex_period`
-- `climate_tookit.climatology.describe_human_heat_method`
-- `climate_tookit.climatology.describe_human_heat_source_support`
+- `climate_toolkit.climatology.build_human_heat_source_bundle`
+- `climate_toolkit.climatology.compute_daily_humidex`
+- `climate_toolkit.climatology.summarize_humidex_period`
+- `climate_toolkit.climatology.describe_human_heat_method`
+- `climate_toolkit.climatology.describe_human_heat_source_support`
 
 Package propagation:
 - `climate_statistics`

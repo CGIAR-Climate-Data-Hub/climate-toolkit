@@ -2,11 +2,11 @@ Title: SPEI method alignment update
 
 Summary
 
-SPEI support in `climate_tookit` has moved from provisional empirical month-wise z-score groundwork to a much closer match to established SPEI practice.
+SPEI support in `climate_toolkit` has moved from provisional empirical month-wise z-score groundwork to a much closer match to established SPEI practice.
 
 What changed
 
-- New `climate_tookit.climatology.spei.compute_monthly_spei()` default now uses:
+- New `climate_toolkit.climatology.spei.compute_monthly_spei()` default now uses:
   - monthly climatic water balance `P - ET0`
   - rolling accumulation by `scale_months`
   - month-wise generalized logistic fit
@@ -17,8 +17,8 @@ What changed
   - `fit="empirical"`
 
 - SPEI is now exposed through:
-  - `climate_tookit.climate_statistics.statistics`
-  - `climate_tookit.compare_periods.periods`
+  - `climate_toolkit.climate_statistics.statistics`
+  - `climate_toolkit.compare_periods.periods`
 
 Why previous version was not sufficient
 

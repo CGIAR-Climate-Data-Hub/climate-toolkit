@@ -23,13 +23,13 @@ async def analyze_seasons(
     settings=Depends(get_settings)
 ):
     try:
-        from climate_tookit.season_analysis.seasons import (
+        from climate_toolkit.season_analysis.seasons import (
             fetch_and_analyze_years,
             fetch_and_analyze_years_fixed,
         )
 
         if fixed_season:
-            from climate_tookit.season_analysis.seasons import parse_fixed_seasons
+            from climate_toolkit.season_analysis.seasons import parse_fixed_seasons
             fixed_defs = parse_fixed_seasons(fixed_season)
             seasons_dict, annual_dict = fetch_and_analyze_years_fixed(
                 lat, lon,

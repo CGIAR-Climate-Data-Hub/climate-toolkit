@@ -46,8 +46,8 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.compare_periods.ensemble_periods as ep
-import climate_tookit.compare_periods.periods as cp
+import climate_toolkit.compare_periods.ensemble_periods as ep
+import climate_toolkit.compare_periods.periods as cp
 
 
 class ComparePeriodsBaselineScenarioTests(unittest.TestCase):
