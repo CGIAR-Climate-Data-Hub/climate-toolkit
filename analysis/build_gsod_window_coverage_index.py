@@ -7,8 +7,8 @@ import json
 from datetime import date
 from pathlib import Path
 
-from climate_tookit.fetch_data.fetch_data import parse_variables
-from climate_tookit.weather_station.gsod import list_gsod_station_candidates
+from climate_toolkit.fetch_data.fetch_data import parse_variables
+from climate_toolkit.weather_station.gsod import list_gsod_station_candidates
 
 
 def _coord_token(value: float) -> str:

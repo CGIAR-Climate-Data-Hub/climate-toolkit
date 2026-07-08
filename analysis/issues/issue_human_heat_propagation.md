@@ -3,7 +3,7 @@
 Propagate phase-1 human heat metric support through package workflows.
 
 Current state:
-- `climate_tookit.climatology.human_heat_stress` now provides xclim-backed
+- `climate_toolkit.climatology.human_heat_stress` now provides xclim-backed
   `humidex` helpers
 - method choice and source audit resolved in `#91`
 

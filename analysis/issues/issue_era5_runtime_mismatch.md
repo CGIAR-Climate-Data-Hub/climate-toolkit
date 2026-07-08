@@ -5,7 +5,7 @@
 This creates a setup/runtime mismatch:
 
 - users can configure `CDS_URL` / `CDS_KEY`
-- repository contains `climate_tookit/fetch_data/source_data/sources/era_5.py`
+- repository contains `climate_toolkit/fetch_data/source_data/sources/era_5.py`
 - but active `era_5` execution actually routes through `gee.py` and therefore depends on Earth Engine auth and `GCP_PROJECT_ID`
 
 Confirmed on:
@@ -21,9 +21,9 @@ This finding came from a code audit assisted by GPT-5.4 and then manually verifi
 
 Audit steps:
 
-- inspected active dispatcher in `climate_tookit/fetch_data/source_data/source_data.py`
+- inspected active dispatcher in `climate_toolkit/fetch_data/source_data/source_data.py`
 - verified `ClimateDataset.era_5` is routed to `DownloadGEE`, not to `sources/era_5.py`
-- inspected `climate_tookit/fetch_data/source_data/sources/era_5.py` and confirmed it initializes a CDS client from `CDS_URL` / `CDS_KEY`
+- inspected `climate_toolkit/fetch_data/source_data/sources/era_5.py` and confirmed it initializes a CDS client from `CDS_URL` / `CDS_KEY`
 - searched repository references and found no active runtime import path that uses `sources/era_5.py`
 - checked `main`, `staging`, and relevant feature branches to confirm the same mismatch exists there too
 - validated the behavior with a no-network runtime repro and a failing unittest repro
@@ -32,7 +32,7 @@ Audit steps:
 
 ### Active runtime dispatch
 
-`climate_tookit/fetch_data/source_data/source_data.py` routes:
+`climate_toolkit/fetch_data/source_data/source_data.py` routes:
 
 - `ClimateDataset.era_5`
 - `ClimateDataset.agera_5`
@@ -43,11 +43,11 @@ through:
 
 not through:
 
-- `climate_tookit/fetch_data/source_data/sources/era_5.py`
+- `climate_toolkit/fetch_data/source_data/sources/era_5.py`
 
 ### Exposed but inactive CDS ERA5 backend
 
-`climate_tookit/fetch_data/source_data/sources/era_5.py`:
+`climate_toolkit/fetch_data/source_data/sources/era_5.py`:
 
 - imports `cdsapi`
 - reads `CDS_URL` and `CDS_KEY`
@@ -89,9 +89,9 @@ source .venv/bin/activate
 pip install -r requirements.txt matplotlib
 .venv/bin/python - <<'PY'
 from datetime import date
-from climate_tookit.fetch_data.source_data.source_data import SourceData
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.source_data import SourceData
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 src = SourceData(
     location_coord=(-1.286, 36.817),
@@ -110,7 +110,7 @@ PY
 Actual result:
 
 ```text
-climate_tookit.fetch_data.source_data.sources.gee
+climate_toolkit.fetch_data.source_data.sources.gee
 DownloadData
 ```
 
@@ -124,9 +124,9 @@ Run:
 .venv/bin/python - <<'PY'
 import unittest
 from datetime import date
-from climate_tookit.fetch_data.source_data.source_data import SourceData
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.source_data import SourceData
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateDataset, ClimateVariable
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 class Era5DispatchReproTests(unittest.TestCase):
     def test_era5_should_not_dispatch_to_gee_backend(self):
@@ -140,7 +140,7 @@ class Era5DispatchReproTests(unittest.TestCase):
         )
         self.assertNotEqual(
             type(src.client).__module__,
-            'climate_tookit.fetch_data.source_data.sources.gee',
+            'climate_toolkit.fetch_data.source_data.sources.gee',
         )
 
 suite = unittest.defaultTestLoader.loadTestsFromTestCase(Era5DispatchReproTests)
@@ -159,7 +159,7 @@ FAIL: test_era5_should_not_dispatch_to_gee_backend (__main__.Era5DispatchReproTe
 ----------------------------------------------------------------------
 Traceback (most recent call last):
   File "<stdin>", line 17, in test_era5_should_not_dispatch_to_gee_backend
-AssertionError: 'climate_tookit.fetch_data.source_data.sources.gee' == 'climate_tookit.fetch_data.source_data.sources.gee'
+AssertionError: 'climate_toolkit.fetch_data.source_data.sources.gee' == 'climate_toolkit.fetch_data.source_data.sources.gee'
 ```
 
 ## Expected behavior

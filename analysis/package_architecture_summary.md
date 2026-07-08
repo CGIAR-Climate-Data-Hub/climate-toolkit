@@ -9,7 +9,7 @@ behavior, not aspirational design.
 
 ## Purpose
 
-`climate_tookit` is modular Python package for:
+`climate_toolkit` is modular Python package for:
 
 - fetching and harmonizing climate data
 - detecting seasons and summarizing climate conditions
@@ -26,13 +26,13 @@ Package supports both:
 
 Top-level stable Python API:
 
-- `climate_tookit.fetch_climate_data`
-- `climate_tookit.analyze_climate_statistics`
-- `climate_tookit.compare_climate_periods`
-- `climate_tookit.compare_climate_sources`
-- `climate_tookit.evaluate_hazards`
-- `climate_tookit.download_station_data`
-- `climate_tookit.compare_station_to_grids`
+- `climate_toolkit.fetch_climate_data`
+- `climate_toolkit.analyze_climate_statistics`
+- `climate_toolkit.compare_climate_periods`
+- `climate_toolkit.compare_climate_sources`
+- `climate_toolkit.evaluate_hazards`
+- `climate_toolkit.download_station_data`
+- `climate_toolkit.compare_station_to_grids`
 
 Stable CLI entry points from `pyproject.toml`:
 
@@ -58,7 +58,7 @@ Internal modules below these surfaces are importable but not stable contract.
 
 Human-facing entry points:
 
-- top-level package exports in `climate_tookit/__init__.py`
+- top-level package exports in `climate_toolkit/__init__.py`
 - CLI modules with `main()` functions
 
 This layer should remain thin. It should parse args, call library functions,
@@ -123,7 +123,7 @@ These modules support multiple higher-level workflows.
 
 Static packaged resources:
 
-- GGCMI crop calendar parquet/json under `climate_tookit/data/ggcmi_phase3/`
+- GGCMI crop calendar parquet/json under `climate_toolkit/data/ggcmi_phase3/`
 - variable dictionaries / YAML config files
 - hazard parameter JSON
 

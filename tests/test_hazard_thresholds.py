@@ -7,7 +7,7 @@ import io
 from pathlib import Path
 from unittest import mock
 import pandas as pd
-from climate_tookit.climatology.xclim_reference import (
+from climate_toolkit.climatology.xclim_reference import (
     XCLIM_AVAILABLE,
     compute_xclim_hazard_count_metrics,
 )
@@ -35,7 +35,7 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-from climate_tookit.calculate_hazards.hazards import (
+from climate_toolkit.calculate_hazards.hazards import (
     CROP_ACTIVE_WATER_BALANCE,
     DEFAULT_SOILCP,
     DEFAULT_SOILSAT,
@@ -55,7 +55,7 @@ from climate_tookit.calculate_hazards.hazards import (
 
 class HazardThresholdTests(unittest.TestCase):
     def test_print_actual_vs_ltm_comparisons_uses_compact_headers(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         buf = io.StringIO()
         orig_stdout = sys.stdout
@@ -143,7 +143,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertGreater(stats["max_humidex"], stats["mean_humidex"])
 
     def test_evaluate_hazard_metrics_includes_thi_band(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         hazard_eval = evaluate_hazard_metrics(
             {"mean_thi": 80.0},
@@ -154,7 +154,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual(80.0, hazard_eval["THI"]["value_thi"])
 
     def test_evaluate_hazard_metrics_includes_humidex_band(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         hazard_eval = evaluate_hazard_metrics(
             {"mean_humidex": 47.0},
@@ -175,11 +175,11 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual((76.0, 82.0), thresholds["THI"]["moderate"])
 
     def test_fetch_soil_grid_snapshot_uses_callable_fetch_data_function(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         hazards._fetch_soil_grid_snapshot.cache_clear()
         with mock.patch(
-            "climate_tookit.fetch_data.fetch_data.fetch_data",
+            "climate_toolkit.fetch_data.fetch_data.fetch_data",
             return_value=hazards.pd.DataFrame(
                 [{"soil_field_capacity": 0.34, "soil_wilting_point": 0.14}]
             ),
@@ -190,7 +190,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("soil_grid", fake_fetch.call_args.kwargs["source"])
 
     def test_main_creates_missing_output_directory_for_json(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_calculate = hazards.calculate_hazards
         orig_argv = sys.argv[:]
@@ -214,7 +214,7 @@ class HazardThresholdTests(unittest.TestCase):
             sys.argv = orig_argv
 
     def test_main_json_routes_progress_text_to_stderr(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_calculate = hazards.calculate_hazards
         orig_argv = sys.argv[:]
@@ -246,7 +246,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertIn("progress line from detector", stderr.getvalue())
 
     def test_calculate_hazards_disables_ltm_when_auto_detected_season_counts_vary(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_detect = hazards.fetch_and_analyze_years
         orig_window_fetch = hazards.get_climate_data_for_season
@@ -319,7 +319,7 @@ class HazardThresholdTests(unittest.TestCase):
         )
 
     def test_get_climate_data_for_season_forwards_requested_source(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         calls = []
 
@@ -384,7 +384,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertIn("ET0_mm_day", frame.columns)
 
     def test_calculate_hazards_fixed_season_uses_selected_source_for_window_fetch(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         season_fetch_calls = []
         fixed_call_kwargs = []
@@ -478,7 +478,7 @@ class HazardThresholdTests(unittest.TestCase):
         )
 
     def test_calculate_hazards_fixed_season_forwards_paired_sources(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         season_fetch_calls = []
         fixed_call_kwargs = []
@@ -573,7 +573,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("paired", result["season_info"]["source"])
 
     def test_calculate_hazards_fixed_season_uses_carried_fetch_error_without_refetch(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_fixed = hazards.fetch_and_analyze_years_fixed
         orig_window_fetch = hazards.get_climate_data_for_season
@@ -621,7 +621,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertIn("paired precip=tamsat returned no usable daily values", result["error"])
 
     def test_calculate_hazards_fixed_season_reuses_prefetched_window_df(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_fixed = hazards.fetch_and_analyze_years_fixed
         orig_window_fetch = hazards.get_climate_data_for_season
@@ -693,7 +693,7 @@ class HazardThresholdTests(unittest.TestCase):
         )
 
     def test_calculate_hazards_fixed_season_reuses_prefetched_source_df_for_spinup(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_fixed = hazards.fetch_and_analyze_years_fixed
         orig_window_fetch = hazards.get_climate_data_for_season
@@ -767,7 +767,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("2020-01-01", result["season_statistics"]["first_date"])
 
     def test_calculate_hazards_fixed_season_can_count_ndws_on_crop_active_subseasons(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_fixed = hazards.fetch_and_analyze_years_fixed
         orig_calc_stats = hazards.calculate_season_statistics
@@ -864,7 +864,7 @@ class HazardThresholdTests(unittest.TestCase):
         )
 
     def test_calculate_hazards_fixed_season_reports_perhumid_crop_active_fallback(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_fixed = hazards.fetch_and_analyze_years_fixed
         orig_calc_stats = hazards.calculate_season_statistics
@@ -940,7 +940,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("full_window", ndws_hazard["count_window_mode"])
 
     def test_print_result_renders_ndws_interpretation_note(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         payload = {
             "crop": "maize",
@@ -995,7 +995,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertIn("note: Fixed-season NDWS/NDWL0 thresholds are being interpreted", rendered)
 
     def test_calculate_hazards_auto_detect_honors_requested_source(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         detect_calls = []
         season_fetch_calls = []
@@ -1074,7 +1074,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("agera_5", result["season_info"]["source"])
 
     def test_calculate_hazards_auto_detect_forwards_paired_sources(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         detect_calls = []
         season_fetch_calls = []
@@ -1224,7 +1224,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertIn("Requested range for source 'era_5' is outside current coverage", result["error"])
 
     def test_calculate_hazards_auto_detect_keeps_no_season_message_for_true_empty_detection(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_detect = hazards.fetch_and_analyze_years
         hazards.fetch_and_analyze_years = lambda *args, **kwargs: ({2020: []}, {})
@@ -1245,7 +1245,7 @@ class HazardThresholdTests(unittest.TestCase):
         )
 
     def test_calculate_hazards_auto_detect_uses_ggcmi_fallback_when_requested(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_resolve_calendar = hazards.resolve_calendar_preset
         orig_fetch_master = hazards.fetch_master_range_with_tail
@@ -1337,7 +1337,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("fixed_season", result["season_info"]["method"])
 
     def test_calculate_hazards_auto_detect_surfaces_detection_fetch_error(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_detect = hazards.fetch_and_analyze_years
         hazards.fetch_and_analyze_years = lambda *args, **kwargs: (
@@ -1496,7 +1496,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual("field_capacity_ratio", derived["wilting_point_source"])
 
     def test_calculate_hazards_uses_resolved_soil_parameters_for_ndws(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         orig_fetch = hazards.fetch_and_analyze_years_fixed
         orig_window_fetch = hazards.get_climate_data_for_season
@@ -1583,7 +1583,7 @@ class HazardThresholdTests(unittest.TestCase):
         self.assertEqual(load_crop_water_balance_params()["Maize"]["kc_mid"], result["water_balance_parameters"]["kc_mid"])
 
     def test_calculate_hazards_fetches_spinup_window_before_analysis_period(self):
-        import climate_tookit.calculate_hazards.hazards as hazards
+        import climate_toolkit.calculate_hazards.hazards as hazards
 
         fetch_calls = []
 

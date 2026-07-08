@@ -14,7 +14,7 @@ PROJECT_ROOT = CURRENT_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from climate_tookit.climate_statistics.statistics import analyze_climate_statistics
+from climate_toolkit.climate_statistics.statistics import analyze_climate_statistics
 
 
 @dataclass(frozen=True)

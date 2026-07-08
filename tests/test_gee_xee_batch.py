@@ -22,16 +22,16 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-from climate_tookit.fetch_data import fetch_gee_xee_batch_data
-import climate_tookit.fetch_data.gee_xee_batch as gee_batch
-from climate_tookit.fetch_data.gee_xee_batch import (
+from climate_toolkit.fetch_data import fetch_gee_xee_batch_data
+import climate_toolkit.fetch_data.gee_xee_batch as gee_batch
+from climate_toolkit.fetch_data.gee_xee_batch import (
     _chunk_dates,
     _coerce_source,
     _maybe_unbounded_collection,
     _resolve_batch_workers,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.models import ClimateDataset
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateDataset
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 
 class GeeXeeBatchTests(unittest.TestCase):
@@ -131,7 +131,7 @@ class GeeXeeBatchTests(unittest.TestCase):
         manifest_df = pd.DataFrame({"cache_hit": [False]})
 
         with mock.patch(
-            "climate_tookit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
+            "climate_toolkit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
             return_value=(raw_df, summary_df, manifest_df),
         ):
             data_df, returned_summary, returned_manifest = fetch_gee_xee_batch_data(
@@ -164,7 +164,7 @@ class GeeXeeBatchTests(unittest.TestCase):
         manifest_df = pd.DataFrame({"cache_hit": [False]})
 
         with mock.patch(
-            "climate_tookit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
+            "climate_toolkit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
             return_value=(raw_df, summary_df, manifest_df),
         ) as extraction_mock:
             data_df, returned_summary, returned_manifest = fetch_gee_xee_batch_data(
@@ -226,7 +226,7 @@ class GeeXeeBatchTests(unittest.TestCase):
         )
 
         with mock.patch(
-            "climate_tookit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
+            "climate_toolkit.fetch_data.gee_xee_batch.run_gee_xee_batch_extraction",
             return_value=(raw_df, pd.DataFrame(), pd.DataFrame()),
         ):
             data_df, _, _ = fetch_gee_xee_batch_data(
@@ -247,7 +247,7 @@ class GeeXeeBatchTests(unittest.TestCase):
         self.assertEqual(site_b.loc[0, "min_temperature"], 18.0)
 
     def test_cache_paths_default_when_cache_dir_is_none(self):
-        from climate_tookit.fetch_data.gee_xee_batch import _cache_paths
+        from climate_toolkit.fetch_data.gee_xee_batch import _cache_paths
 
         data_path, manifest_path = _cache_paths(
             cache_dir=None,

@@ -18,19 +18,19 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from climate_tookit.fetch_data.nex_gddp_batch import (
+from climate_toolkit.fetch_data.nex_gddp_batch import (
     load_sites,
     parse_site_spec,
     run_batch_extraction,
     save_frame,
 )
-from climate_tookit.fetch_data.source_data.sources.nex_gddp_xee import (
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp_xee import (
     _infer_ee_project_id,
     _normalize_scenario,
     _validate_period_against_scenario,
 )
-from climate_tookit.fetch_data.source_data.sources.nex_gddp import AVAILABLE_MODELS
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.sources.nex_gddp import AVAILABLE_MODELS
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 
 def parse_args() -> argparse.Namespace:

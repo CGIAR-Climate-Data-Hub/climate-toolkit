@@ -4,7 +4,7 @@ import unittest
 from unittest import mock
 import pandas as pd
 
-from climate_tookit.compare_datasets.compare_datasets import (
+from climate_toolkit.compare_datasets.compare_datasets import (
     _validate_source_selection,
     compare_sources,
     main,
@@ -63,10 +63,10 @@ class CompareDatasetsSourcePolicyTests(unittest.TestCase):
     def test_compare_sources_accepts_auto_source(self):
         fake_df = self._fake_dataset()
         with mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets._fetch_source",
+            "climate_toolkit.compare_datasets.compare_datasets._fetch_source",
             return_value=fake_df,
         ) as fetch_mock, mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.export_data",
+            "climate_toolkit.compare_datasets.compare_datasets.export_data",
         ):
             results = compare_sources(
                 sources=["auto"],
@@ -82,10 +82,10 @@ class CompareDatasetsSourcePolicyTests(unittest.TestCase):
     def test_compare_sources_accepts_paired_source_with_explicit_partners(self):
         fake_df = self._fake_dataset()
         with mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets._fetch_source",
+            "climate_toolkit.compare_datasets.compare_datasets._fetch_source",
             return_value=fake_df,
         ) as fetch_mock, mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.export_data",
+            "climate_toolkit.compare_datasets.compare_datasets.export_data",
         ):
             results = compare_sources(
                 sources=["paired"],
@@ -126,14 +126,14 @@ class CompareDatasetsSourcePolicyTests(unittest.TestCase):
         results = {"agera_5": self._fake_dataset()}
 
         with mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.plot_annual_timeseries",
+            "climate_toolkit.compare_datasets.compare_datasets.plot_annual_timeseries",
             side_effect=RuntimeError("plot boom"),
         ), mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.plot_monthly_climatology",
+            "climate_toolkit.compare_datasets.compare_datasets.plot_monthly_climatology",
         ), mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.plot_multisource_annual",
+            "climate_toolkit.compare_datasets.compare_datasets.plot_multisource_annual",
         ), mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.plot_multisource_monthly_climatology",
+            "climate_toolkit.compare_datasets.compare_datasets.plot_multisource_monthly_climatology",
         ):
             report = print_report(results, output_dir="./outputs")
 
@@ -161,17 +161,17 @@ class CompareDatasetsSourcePolicyTests(unittest.TestCase):
         ]
 
         with mock.patch("sys.argv", argv), mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.compare_sources",
+            "climate_toolkit.compare_datasets.compare_datasets.compare_sources",
             return_value=fake_results,
         ), mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.plot_annual_timeseries",
+            "climate_toolkit.compare_datasets.compare_datasets.plot_annual_timeseries",
             side_effect=RuntimeError("plot boom"),
         ), mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.plot_monthly_climatology",
+            "climate_toolkit.compare_datasets.compare_datasets.plot_monthly_climatology",
         ), mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.plot_multisource_annual",
+            "climate_toolkit.compare_datasets.compare_datasets.plot_multisource_annual",
         ), mock.patch(
-            "climate_tookit.compare_datasets.compare_datasets.plot_multisource_monthly_climatology",
+            "climate_toolkit.compare_datasets.compare_datasets.plot_multisource_monthly_climatology",
         ), mock.patch("sys.stdout", new_callable=io.StringIO) as stdout:
             exit_code = main()
 

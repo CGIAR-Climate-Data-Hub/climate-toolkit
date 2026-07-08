@@ -1,33 +1,33 @@
 import unittest
 from importlib.resources import files
 
-from climate_tookit.calculate_hazards.hazards import load_crop_water_balance_params
-from climate_tookit.crop_calendar import ggcmi
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
-from climate_tookit.fetch_data.transform_data.transform_data import load_variable_mappings
+from climate_toolkit.calculate_hazards.hazards import load_crop_water_balance_params
+from climate_toolkit.crop_calendar import ggcmi
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.transform_data.transform_data import load_variable_mappings
 
 
 class PackageResourceTests(unittest.TestCase):
     def test_resource_files_present_via_package_loader(self):
         checks = [
             (
-                "climate_tookit.calculate_hazards",
+                "climate_toolkit.calculate_hazards",
                 "crop_water_balance_params.json",
             ),
             (
-                "climate_tookit.fetch_data.transform_data",
+                "climate_toolkit.fetch_data.transform_data",
                 "data_dictionary.yaml",
             ),
             (
-                "climate_tookit.fetch_data.source_data.sources.utils",
+                "climate_toolkit.fetch_data.source_data.sources.utils",
                 "config.yaml",
             ),
             (
-                "climate_tookit.data.ggcmi_phase3",
+                "climate_toolkit.data.ggcmi_phase3",
                 "crop_calendar.parquet",
             ),
             (
-                "climate_tookit.data.ggcmi_phase3",
+                "climate_toolkit.data.ggcmi_phase3",
                 "crop_calendar_manifest.json",
             ),
         ]

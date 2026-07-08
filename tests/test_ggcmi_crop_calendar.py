@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from climate_tookit.crop_calendar import ggcmi
-from climate_tookit.crop_calendar.registry import get_crop_support, normalize_crop_name
+from climate_toolkit.crop_calendar import ggcmi
+from climate_toolkit.crop_calendar.registry import get_crop_support, normalize_crop_name
 
 
 class CropRegistryTests(unittest.TestCase):

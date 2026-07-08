@@ -8,7 +8,7 @@ from unittest import mock
 
 import pandas as pd
 
-from climate_tookit.climatology.xclim_reference import (
+from climate_toolkit.climatology.xclim_reference import (
     XCLIM_AVAILABLE,
     compute_xclim_core_period_metrics,
     compute_xclim_precip_indices,
@@ -53,7 +53,7 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
-import climate_tookit.climate_statistics.statistics as stats
+import climate_toolkit.climate_statistics.statistics as stats
 
 
 class StatisticsSourcePolicyTests(unittest.TestCase):

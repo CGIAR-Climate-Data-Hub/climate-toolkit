@@ -5,12 +5,12 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from climate_tookit.fetch_data.source_data.sources.nasa_power import DownloadData
-from climate_tookit.fetch_data.source_data.sources.utils.models import (
+from climate_toolkit.fetch_data.source_data.sources.nasa_power import DownloadData
+from climate_toolkit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 
 class _Response:
@@ -67,7 +67,7 @@ class NasaPowerCacheTests(unittest.TestCase):
         )
 
     def test_nasa_power_cache_roundtrip_uses_saved_files(self):
-        import climate_tookit.fetch_data.source_data.sources.nasa_power as nasa_power
+        import climate_toolkit.fetch_data.source_data.sources.nasa_power as nasa_power
 
         calls: list[str] = []
         original_get = nasa_power.requests.get
@@ -90,7 +90,7 @@ class NasaPowerCacheTests(unittest.TestCase):
         self.assertIn("/nasa_power/", str(data_path))
 
     def test_nasa_power_refresh_cache_forces_refetch(self):
-        import climate_tookit.fetch_data.source_data.sources.nasa_power as nasa_power
+        import climate_toolkit.fetch_data.source_data.sources.nasa_power as nasa_power
 
         payloads = [_payload(1.0), _payload(10.0)]
         calls: list[str] = []
@@ -113,7 +113,7 @@ class NasaPowerCacheTests(unittest.TestCase):
         self.assertEqual([10.0, 20.0, 30.0], refreshed["precipitation"].tolist())
 
     def test_nasa_power_legacy_cache_layout_still_reads(self):
-        import climate_tookit.fetch_data.source_data.sources.nasa_power as nasa_power
+        import climate_toolkit.fetch_data.source_data.sources.nasa_power as nasa_power
 
         original_get = nasa_power.requests.get
         nasa_power.requests.get = lambda *args, **kwargs: _Response(_payload())

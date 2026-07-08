@@ -1,6 +1,6 @@
 ## Summary
 
-`climate_tookit/climate_statistics/ensemble_statistics.py` accepts SSP scenarios such as `ssp245` for pre-2021 year ranges like `1991-2020`, but `_ltm_header_ensemble()` labels those runs as `BASELINE LTM` using the year window alone.
+`climate_toolkit/climate_statistics/ensemble_statistics.py` accepts SSP scenarios such as `ssp245` for pre-2021 year ranges like `1991-2020`, but `_ltm_header_ensemble()` labels those runs as `BASELINE LTM` using the year window alone.
 
 This creates a semantic mismatch:
 
@@ -44,7 +44,7 @@ This finding came from a code audit assisted by GPT-5.4 at medium reasoning effo
 
 Audit steps:
 
-- inspected `climate_tookit/climate_statistics/ensemble_statistics.py`
+- inspected `climate_toolkit/climate_statistics/ensemble_statistics.py`
 - traced scenario propagation in `analyze_ensemble_nex_gddp()`
 - confirmed `_ltm_header_ensemble()` chooses `BASELINE` / `FUTURE` labels from years alone
 - verified that explicit `ssp245` and `historical` requests are both forwarded unchanged to the underlying per-model call path
@@ -89,7 +89,7 @@ No scenario check is involved there.
 
 ### Current NEX backend distinguishes `historical` from SSP scenarios
 
-Active `climate_tookit/fetch_data/source_data/sources/nex_gddp.py` treats scenarios differently:
+Active `climate_toolkit/fetch_data/source_data/sources/nex_gddp.py` treats scenarios differently:
 
 - `historical`: lower warming / neutral precip factor
 - `ssp245`, `ssp585`, etc.: warmer / drier factors
@@ -98,7 +98,7 @@ So this is not only cosmetic. Even with current placeholder backend, `historical
 
 ### `long_term_climatology.py` does not appear to have same labeling bug
 
-`climate_tookit/climatology/long_term_climatology.py` prints explicit scenario context such as:
+`climate_toolkit/climatology/long_term_climatology.py` prints explicit scenario context such as:
 
 - `Scenario : <canon>`
 - `| scenario=<scenario> |`
@@ -118,7 +118,7 @@ Run:
 .venv/bin/python - <<'PY'
 import io
 from contextlib import redirect_stdout
-import climate_tookit.climate_statistics.ensemble_statistics as es
+import climate_toolkit.climate_statistics.ensemble_statistics as es
 
 result = {
     'period': {'start_year': 1991, 'end_year': 2020},
@@ -166,7 +166,7 @@ Run:
 ```bash
 .venv/bin/python - <<'PY'
 import unittest
-import climate_tookit.climate_statistics.ensemble_statistics as es
+import climate_toolkit.climate_statistics.ensemble_statistics as es
 
 class EnsembleHeaderScenarioLabelTests(unittest.TestCase):
     def test_pre2021_ssp_run_is_not_labeled_baseline(self):

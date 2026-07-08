@@ -1,6 +1,6 @@
 import unittest
 
-from climate_tookit.season_analysis.season_identity import build_season_identity
+from climate_toolkit.season_analysis.season_identity import build_season_identity
 
 
 class SeasonIdentityTests(unittest.TestCase):

@@ -1,6 +1,6 @@
 ## Summary
 
-`climate_tookit.calculate_hazards.ensemble_hazards` currently violates expected ensemble order in two ways:
+`climate_toolkit.calculate_hazards.ensemble_hazards` currently violates expected ensemble order in two ways:
 
 1. It pools different SSP scenarios together before the final aggregation step.
 2. It computes hazard status from ensemble-mean climate statistics instead of preserving per-projection hazard results and only aggregating at the end.
@@ -35,7 +35,7 @@ That can hide scenario divergence and produces hazard labels for a synthetic ave
 
 Results are appended for every `(model, scenario, window)` combination:
 
-- `climate_tookit/calculate_hazards/ensemble_hazards.py`
+- `climate_toolkit/calculate_hazards/ensemble_hazards.py`
   - `_evaluate(...)` returns `projection: {'model': model, 'scenario': scenario}`
   - `calculate_ensemble(...)` loops over `for sc in scenarios` and `for m in models`
 

@@ -34,12 +34,12 @@ import pandas as pd
 import s3fs
 import xarray as xr
 
-from climate_tookit.fetch_data.source_data.sources.nasa_power import DownloadData
-from climate_tookit.fetch_data.source_data.sources.utils.models import (
+from climate_toolkit.fetch_data.source_data.sources.nasa_power import DownloadData
+from climate_toolkit.fetch_data.source_data.sources.utils.models import (
     ClimateDataset,
     ClimateVariable,
 )
-from climate_tookit.fetch_data.source_data.sources.utils.settings import Settings
+from climate_toolkit.fetch_data.source_data.sources.utils.settings import Settings
 
 
 TEMPORAL_STORE = "nasa-power/merra2/temporal/power_merra2_daily_temporal_lst.zarr"
