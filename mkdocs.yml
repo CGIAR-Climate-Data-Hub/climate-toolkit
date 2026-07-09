@@ -51,6 +51,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting started: getting_started.md
+  - Use as a package: use-as-a-package.md
   - Datasets: datasets.md
   - Workflows:
       - End-to-end example: example_workflow.md
