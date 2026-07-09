@@ -242,6 +242,7 @@ def fetch_data(
     settings = settings or Settings.load()
     source_name = normalize_climate_dataset_name(source)
     variables = variables or _default_variables_for_source(source_name)
+    variables = _coerce_variable_list(variables)
     date_from = date_from or date.today()
     date_to = date_to or date.today()
     date_from, date_to, coverage_warning = clip_source_date_range(
@@ -374,6 +375,19 @@ def parse_variables(raw):
     for v in raw.split(","):
         variables.append(parse_variable_token(v))
     return variables
+
+
+def _coerce_variable_list(variables):
+    """Normalize a user-supplied ``variables`` argument to enum members.
+
+    Accepts a list of ``ClimateVariable``/``SoilVariable`` members and/or plain
+    strings (e.g. ``"precipitation"``), or a single comma-separated string, so
+    the Python API is as forgiving as the CLI. Enum members pass through
+    unchanged.
+    """
+    if isinstance(variables, str):
+        return parse_variables(variables)
+    return [parse_variable_token(v) if isinstance(v, str) else v for v in variables]
 
 def resolve_models(model, models):
     """Resolve --model/--models into a list of NEX-GDDP model names.
