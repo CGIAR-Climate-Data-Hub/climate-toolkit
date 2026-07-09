@@ -32,6 +32,12 @@ against the real package and API.
 
 ## 1. What you get
 
+!!! tip "New here?"
+    For a 5-minute install and first run, start with
+    [Getting started](getting_started.md). This page is the fuller reference —
+    every public function, the sources and variables, caching, recipes, and
+    troubleshooting.
+
 `climate_toolkit` is a location-based climate analysis library. From a single
 `import climate_toolkit as ct` you get **seven public functions**:
 
@@ -64,42 +70,20 @@ NEX-GDDP, NASA POWER, CMIP6, SoilGrids, plus GHCN-Daily / GSOD stations.
 
 ## 3. Installation
 
-Pick the track that matches how you want to work.
-
-### Track A — work inside the cloned repo (simplest)
-
-```bash
-# get uv if you don't have it
-curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"      # add to ~/.zshrc to persist
-
-git clone https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git
-cd climate-toolkit
-uv sync --locked --group dev              # creates .venv (Python 3.11) + deps
-```
-
-Run your code with `uv run`:
+The full steps — GitHub install, Jupyter `%pip`, and the `uv` development
+setup — are in [Getting started → Install](getting_started.md#1-install). In
+short:
 
 ```bash
-uv run python my_script.py
-```
-
-### Track B — install into your own project / virtualenv
-
-Because it isn't on PyPI yet, install from Git or a local path:
-
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-
-# from GitHub:
+# into your own project or notebook (not on PyPI yet, so install from Git):
 pip install "git+https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git"
 
-# ...or from a local clone:
-pip install /path/to/climate-toolkit
+# ...or, for development from a clone:
+cd climate-toolkit && uv sync
 ```
 
-After this, `import climate_toolkit` works from any directory.
+After either, `import climate_toolkit` works from any directory. Run scripts in
+the repo's environment with `uv run python my_script.py`.
 
 ---
 
@@ -181,21 +165,13 @@ years for a real long-term climatology; short windows just print a warning.)
 
 ## 7. Earth Engine setup
 
-Do this once to unlock the gridded and projection sources.
+The gridded and projection sources need a one-time Earth Engine setup. The full
+walkthrough — including the **free** noncommercial registration path — is in
+[Getting started → Google Earth Engine credentials](getting_started.md#2-google-earth-engine-credentials).
+In brief: run `earthengine authenticate`, set `GCP_PROJECT_ID`, then verify with
+`climate-toolkit gee-check` (exits 0 on success).
 
-```bash
-# 1. authenticate (opens a browser; stores credentials in ~/.config/earthengine)
-uv run python -c "import ee; ee.Authenticate()"
-
-# 2. point at your Google Cloud project
-export GCP_PROJECT_ID=your-real-gcp-project-id
-#    (GOOGLE_CLOUD_PROJECT and EE_PROJECT_ID are accepted as fallbacks)
-
-# 3. preflight check — validates project id, auth, and a live round-trip
-uv run climate-toolkit gee-check          # exits 0 on success
-```
-
-Then any function works with EE sources:
+Once that's done, any function works with EE sources:
 
 ```python
 # ClimateVariable was imported in the quick-start snippet above.
