@@ -2,6 +2,14 @@
 
 A unified toolkit for retrieving climate data from various global datasets such as CHIRPS, AGERA5, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids.
 
+<p>
+  <a href="https://www.mcknight.org/programs/global-foods/"><img src="docs/assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="44"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar"><img src="docs/assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" height="56"></a>
+</p>
+
+Funded by the [McKnight Foundation CRFS programme](https://www.mcknight.org/programs/global-foods/) and supported by the CGIAR Climate Data Hub, [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/) — see [Funding & Acknowledgements](#funding--acknowledgements).
+
 ## API Dataset Badges
 
 [![CHIRPS](https://img.shields.io/badge/CHIRPS-Precipitation_4.8-blue)](https://data.chc.ucsb.edu/products/CHIRPS-2.0/)
