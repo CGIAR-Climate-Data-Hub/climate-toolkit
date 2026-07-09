@@ -41,6 +41,11 @@ public access via JASMIN has shown slow performance and intermittent SSL /
 download failures in live testing. Prefer `chirps_v3_daily_rnl + agera_5` for
 normal user workflows.
 
+> **Using it as a Python library?** See the
+> [Use as a package](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/use-as-a-package/)
+> guide for install, the seven public functions, sources, recipes, and
+> troubleshooting.
+
 ---
 
 ## Quick Start
