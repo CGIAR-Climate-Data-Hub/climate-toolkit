@@ -2,6 +2,8 @@
 
 A unified toolkit for retrieving climate data from various global datasets such as CHIRPS, AGERA5, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids.
 
+[![Documentation](https://img.shields.io/badge/docs-climate--toolkit-2ea44f)](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/) — full documentation: getting started, workflows, and API reference.
+
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) — try the toolkit live in your browser, no install needed.
 
 <p>
