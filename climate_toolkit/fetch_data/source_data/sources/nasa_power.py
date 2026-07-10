@@ -7,6 +7,7 @@ source module and every caller in the toolkit (compare_datasets, climatology,
 calculate_hazards, season_analysis, etc.).
 """
 
+import hashlib
 import json
 import logging
 import os
@@ -23,6 +24,10 @@ from ...multi_site import normalize_cache_coord, safe_coord_fragment
 logger = logging.getLogger(__name__)
 NASA_POWER_CACHE_SCHEMA_VERSION = "v1"
 DEFAULT_CACHE_PARENT = Path("outputs/cache")
+# A single filename component is capped at 255 bytes on common filesystems, and
+# the variable fragment shares that budget with the date range and suffixes.
+# Beyond this length, fall back to a short, stable digest of the variable set.
+MAX_VARIABLE_FRAGMENT_LEN = 120
 
 class DownloadData(models.DataDownloadBase):
     def __init__(
@@ -76,8 +81,22 @@ class DownloadData(models.DataDownloadBase):
     def _requested_variable_names(self) -> list[str]:
         return sorted(v.name for v in self.variables)
 
+    def _variable_fragment(self) -> str:
+        """Filename-safe fragment for the requested variables.
+
+        Uses the readable ``name1-name2-...`` form, but falls back to a short,
+        stable digest of the full set when that would overflow the filesystem's
+        per-component length limit (e.g. the default all-variables fetch).
+        """
+        names = self._requested_variable_names()
+        fragment = "-".join(names) or "no_variables"
+        if len(fragment) <= MAX_VARIABLE_FRAGMENT_LEN:
+            return fragment
+        digest = hashlib.sha1(fragment.encode("utf-8")).hexdigest()[:16]
+        return f"vars_{len(names)}_{digest}"
+
     def _cache_paths(self) -> tuple[Path, Path]:
-        variable_fragment = "-".join(self._requested_variable_names()) or "no_variables"
+        variable_fragment = self._variable_fragment()
         filename = (
             f"{self.date_from_utc.isoformat()}_{self.date_to_utc.isoformat()}_"
             f"{variable_fragment}.json"
@@ -91,7 +110,7 @@ class DownloadData(models.DataDownloadBase):
         if legacy_root is None:
             return None
         lat, lon = self.location_coord
-        variable_fragment = "-".join(self._requested_variable_names()) or "no_variables"
+        variable_fragment = self._variable_fragment()
         filename = (
             f"{self.date_from_utc.isoformat()}_{self.date_to_utc.isoformat()}_"
             f"{variable_fragment}.json"
