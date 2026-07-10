@@ -2,6 +2,8 @@
 
 A unified toolkit for retrieving climate data from various global datasets such as CHIRPS, AGERA5, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids.
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) — try the toolkit live in your browser, no install needed.
+
 <p>
   <a href="https://www.mcknight.org/programs/global-foods/"><img src="docs/assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="44"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
