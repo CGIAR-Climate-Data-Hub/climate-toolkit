@@ -512,6 +512,7 @@ def list_ghcn_station_candidates(
     candidate_limit: int | None = DEFAULT_CANDIDATE_LIMIT,
     score_limit: int = DEFAULT_SCORE_LIMIT,
     enforce_threshold: bool = False,
+    verbose: bool = False,
 ) -> pd.DataFrame:
     base = _candidate_station_base_table(
         location_coord=location_coord,
@@ -584,6 +585,7 @@ def select_ghcn_station_candidates(
     score_limit: int = DEFAULT_SCORE_LIMIT,
     relax_thresholds: bool = True,
     allow_partial_fallback: bool = True,
+    verbose: bool = False,
 ) -> pd.DataFrame:
     ranked = list_ghcn_station_candidates(
         location_coord=location_coord,
@@ -600,6 +602,7 @@ def select_ghcn_station_candidates(
         candidate_limit=None,
         score_limit=score_limit,
         enforce_threshold=False,
+        verbose=verbose,
     )
     threshold_sequence = build_completeness_threshold_sequence(min_completeness_ratio)
     if not relax_thresholds:
