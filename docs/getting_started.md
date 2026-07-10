@@ -1,5 +1,11 @@
 # Getting started
 
+!!! tip "No local setup? Use Colab"
+    [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
+    — follow this whole page interactively in the
+    [companion notebook](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb):
+    install, first fetch, and the optional Earth Engine setup, all in the browser.
+
 ## 1. Install
 
 Straight from GitHub, no clone needed:
