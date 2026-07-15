@@ -5,6 +5,13 @@ compute seasonal climatologies and drought indices, assess crop and livestock
 hazards, and compare periods, data sources, and weather stations — for any
 point location.
 
+!!! tip "Try it in your browser — no install"
+    [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
+
+    The [companion Colab notebook](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
+    installs the package and runs the credential-free examples end-to-end
+    on a free Google-hosted runtime.
+
 ## Install
 
 ```bash

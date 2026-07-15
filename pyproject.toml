@@ -24,19 +24,22 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Topic :: Scientific/Engineering :: Atmospheric Science",
 ]
+# Ranges, not exact pins: this is a library, so it must coexist with the
+# host environment's packages (Colab, user projects). Exact versions for
+# development live in uv.lock.
 dependencies = [
-  "earthengine_api==1.6.12",
-  "matplotlib==3.10.5",
-  "pandas==2.3.1",
-  "pydantic==2.11.7",
-  "python-dotenv==1.1.1",
-  "PyYAML==6.0.2",
-  "Requests==2.32.4",
-  "tabulate==0.9.0",
-  "typer==0.26.7",
-  "xarray==2025.6.1",
-  "xclim==0.61.1",
-  "xee==0.1.0",
+  "earthengine_api>=1.5,<2",
+  "matplotlib>=3.8,<4",
+  "pandas>=2.2,<3",
+  "pydantic>=2.7,<3",
+  "python-dotenv>=1.0,<2",
+  "PyYAML>=6.0,<7",
+  "Requests>=2.31,<3",
+  "tabulate>=0.9,<1",
+  "typer>=0.12,<1",
+  "xarray>=2024.6",
+  "xclim>=0.60,<1",
+  "xee>=0.1,<0.2",
 ]
 
 [dependency-groups]
@@ -86,7 +89,7 @@ climate-toolkit-xclim-reference = "climate_toolkit.climatology.xclim_reference:m
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["climate_toolkit*", "analysis*"]
+include = ["climate_toolkit*"]
 
 [tool.setuptools.package-data]
 climate_toolkit = [
