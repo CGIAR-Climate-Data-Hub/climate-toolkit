@@ -8,6 +8,12 @@ against the real package and API.
 > as `climate-toolkit`. Version `0.1.0a0` (alpha). It is **not on PyPI yet**, so
 > you install from source.
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
+Prefer to try it live? The companion notebook
+[`examples/climate_toolkit_colab.ipynb`](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
+runs this guide's credential-free examples end-to-end in Google Colab — no
+install or setup on your machine.
+
 ---
 
 ## Table of contents
