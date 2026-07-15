@@ -89,7 +89,7 @@ climate-toolkit-xclim-reference = "climate_toolkit.climatology.xclim_reference:m
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["climate_toolkit*", "analysis*"]
+include = ["climate_toolkit*"]
 
 [tool.setuptools.package-data]
 climate_toolkit = [
