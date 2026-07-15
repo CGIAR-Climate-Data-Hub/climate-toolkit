@@ -460,13 +460,15 @@ class DownloadData(models.DataDownloadBase):
         self.ee_opt_url = ee_opt_url
         self.cache_dir = Path(
             cache_dir
+            or os.getenv("CLIMATE_TOOLKIT_NEX_GDDP_CACHE_DIR")
             or os.getenv("CLIMATE_TOOKIT_NEX_GDDP_CACHE_DIR")
             or DEFAULT_CACHE_DIR
         )
         self.refresh_cache = refresh_cache
         self.verbose = verbose
         self.chunk_days = chunk_days or int(
-            os.getenv("CLIMATE_TOOKIT_NEX_GDDP_CHUNK_DAYS", str(DEFAULT_CHUNK_DAYS))
+            os.getenv("CLIMATE_TOOLKIT_NEX_GDDP_CHUNK_DAYS")
+            or os.getenv("CLIMATE_TOOKIT_NEX_GDDP_CHUNK_DAYS", str(DEFAULT_CHUNK_DAYS))
         )
         self.retry_attempts = max(1, retry_attempts)
 

@@ -44,7 +44,7 @@ class DownloadData(models.DataDownloadBase):
 
         try:
             logger.info(f"Downloading file from: {url}")
-            response = requests.get(url, stream=True)
+            response = requests.get(url, stream=True, timeout=60)
             response.raise_for_status()
 
             with open(filename, "wb") as f:
