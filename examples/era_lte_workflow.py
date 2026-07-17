@@ -1,0 +1,211 @@
+"""ERA LTE workflow — drive the Climate Toolkit with ERA's own season windows.
+
+This is a *workflow built on the toolkit's public API*, not just a run over ERA
+coordinates. For each ERA Long-Term Experiment (LTE) site it:
+
+1. translates the LTE's reported season window(s) into the toolkit's
+   ``fixed_season`` syntax (``"MM-DD:MM-DD"``, or two comma-separated windows),
+2. runs :func:`climate_toolkit.analyze_climate_statistics` with that fixed
+   season (ERA's season, *not* auto-detection), and
+3. optionally compares the toolkit's seasonal rainfall against ERA's reported
+   rainfall — the validation/benchmarking loop that motivates #110.
+
+Input CSV contract
+------------------
+One row per LTE site-period, with columns (registry aliases in parentheses):
+
+    site_id (Site.ID), lat (Latitude), lon (Longitude),
+    start_year (Year.start), end_year (Year.end),
+    s1_start, s1_end            # season-1 window as month-day, e.g. "03-01"
+    s2_start, s2_end            # optional second season
+    reported_rain_mm            # optional ERA-reported seasonal rainfall
+
+The season boundaries come from ERA's ``Site.Start.S1`` / ``Site.End.S1`` (and
+S2) fields, exported to month-day form. Year-crossing seasons (end month before
+start month) are supported — the toolkit wraps them to the next year.
+
+Usage
+-----
+    # No credentials needed if --source nasa_power:
+    python examples/era_lte_workflow.py era_lte.csv --dry-run    # show season mapping
+    python examples/era_lte_workflow.py era_lte.csv --source nasa_power --limit 5
+    python examples/era_lte_workflow.py era_lte.csv --out era_lte_compare.csv
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+
+import pandas as pd
+
+from climate_toolkit.climate_statistics import analyze_climate_statistics
+
+COLUMN_ALIASES = {
+    "Site.ID": "site_id",
+    "Latitude": "lat",
+    "Longitude": "lon",
+    "Year.start": "start_year",
+    "Year.end": "end_year",
+    "Site.Start.S1": "s1_start",
+    "Site.End.S1": "s1_end",
+    "Site.Start.S2": "s2_start",
+    "Site.End.S2": "s2_end",
+}
+
+
+def parse_month_day(value) -> str:
+    """Normalize an ERA season boundary to zero-padded ``"MM-DD"``.
+
+    Accepts ``"MM-DD"``, ``"M-D"``, ``"MM/DD"``, ``"MM.DD"``, 4-digit ``"MMDD"``,
+    and date-like objects. Raises ``ValueError`` for anything unparseable or out
+    of range, so bad ERA rows fail loudly rather than silently mis-seasoning.
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        raise ValueError("season boundary is missing")
+    if hasattr(value, "month") and hasattr(value, "day"):
+        month, day = int(value.month), int(value.day)
+    else:
+        token = str(value).strip()
+        parts = re.split(r"[-/.]", token)
+        if len(parts) == 2:
+            month, day = int(parts[0]), int(parts[1])
+        elif re.fullmatch(r"\d{4}", token):
+            month, day = int(token[:2]), int(token[2:])
+        else:
+            raise ValueError(f"unrecognized month-day value: {value!r}")
+    if not (1 <= month <= 12 and 1 <= day <= 31):
+        raise ValueError(f"month-day out of range: {value!r} -> {month:02d}-{day:02d}")
+    return f"{month:02d}-{day:02d}"
+
+
+def lte_to_fixed_season(row) -> str:
+    """Build a toolkit ``fixed_season`` string from an LTE row's season windows.
+
+    One season -> ``"MM-DD:MM-DD"``; two seasons -> ``"MM-DD:MM-DD,MM-DD:MM-DD"``.
+    """
+    s1 = f"{parse_month_day(row['s1_start'])}:{parse_month_day(row['s1_end'])}"
+    s2_start, s2_end = row.get("s2_start"), row.get("s2_end")
+    has_s2 = not (
+        s2_start is None
+        or s2_end is None
+        or (isinstance(s2_start, float) and pd.isna(s2_start))
+        or str(s2_start).strip() == ""
+    )
+    if has_s2:
+        s2 = f"{parse_month_day(s2_start)}:{parse_month_day(s2_end)}"
+        return f"{s1},{s2}"
+    return s1
+
+
+def _year(value):
+    """Parse an ERA ``Year.start`` / ``Year.end`` cell into an int, or None."""
+    try:
+        return int(float(str(value).strip()[:4]))
+    except (ValueError, TypeError):
+        return None
+
+
+def load_sites(csv_path) -> pd.DataFrame:
+    """Load an ERA LTE export, applying registry-name aliases."""
+    df = pd.read_csv(csv_path).rename(columns=COLUMN_ALIASES)
+    df["start_year"] = df["start_year"].map(_year)
+    df["end_year"] = df["end_year"].map(_year)
+    df = df.dropna(subset=["lat", "lon", "s1_start", "s1_end"])
+    df = df[df["start_year"].notna() & df["end_year"].notna()]
+    return df.reset_index(drop=True)
+
+
+def seasonal_rows(result) -> list[dict]:
+    """Flatten ``season_statistics`` into per (year, season) toolkit metrics."""
+    rows = []
+    for s in result.get("season_statistics", []):
+        precip = s.get("precipitation") or {}
+        wb = s.get("water_balance") or {}
+        length = s.get("length_days")
+        rainy = precip.get("rainy_days")
+        rows.append(
+            {
+                "year": s.get("year"),
+                "season_number": s.get("season_number"),
+                "tk_rain_total_mm": precip.get("total_mm"),
+                "tk_rainy_days": rainy,
+                "tk_dry_days": (length - rainy)
+                if (length is not None and rainy is not None)
+                else None,
+                "tk_NDWS": wb.get("NDWS"),
+                "tk_WRSI": wb.get("WRSI"),
+            }
+        )
+    return rows
+
+
+def run_site(row, source: str) -> list[dict]:
+    """Run the toolkit for one LTE site using ITS fixed season, return metrics."""
+    fixed = lte_to_fixed_season(row)
+    result = analyze_climate_statistics(
+        location_coord=(float(row["lat"]), float(row["lon"])),
+        start_year=int(row["start_year"]),
+        end_year=int(row["end_year"]),
+        source=source,
+        fixed_season=fixed,
+        verbose=False,
+    )
+    out = []
+    for tk in seasonal_rows(result):
+        record = {"site_id": row.get("site_id"), "fixed_season": fixed, **tk}
+        if "reported_rain_mm" in row and not pd.isna(row.get("reported_rain_mm")):
+            reported = float(row["reported_rain_mm"])
+            record["reported_rain_mm"] = reported
+            if tk["tk_rain_total_mm"] is not None:
+                record["rain_delta_mm"] = tk["tk_rain_total_mm"] - reported
+        out.append(record)
+    return out
+
+
+def run(csv_path, source="nasa_power", out_csv="era_lte_compare.csv", limit=None, dry_run=False):
+    sites = load_sites(csv_path)
+    if limit:
+        sites = sites.head(limit)
+    print(f"{len(sites)} ERA LTE site-periods")
+
+    if dry_run:
+        for _, row in sites.iterrows():
+            try:
+                print(f"  {row.get('site_id')}: fixed_season={lte_to_fixed_season(row)!r}")
+            except ValueError as exc:
+                print(f"  {row.get('site_id')}: [bad season window] {exc}")
+        return sites
+
+    out_rows = []
+    for _, row in sites.iterrows():
+        try:
+            out_rows.extend(run_site(row, source))
+        except Exception as exc:  # one bad site shouldn't stop the workflow
+            print(f"[skip] {row.get('site_id')}: {exc}")
+
+    frame = pd.DataFrame(out_rows)
+    frame.to_csv(out_csv, index=False)
+    print(f"wrote {out_csv} ({len(frame)} rows)")
+    if "rain_delta_mm" in frame and frame["rain_delta_mm"].notna().any():
+        deltas = frame["rain_delta_mm"].dropna()
+        print(
+            "toolkit vs ERA-reported rainfall — "
+            f"bias={deltas.mean():.1f} mm | MAE={deltas.abs().mean():.1f} mm | n={len(deltas)}"
+        )
+    return frame
+
+
+def main():
+    parser = argparse.ArgumentParser(description="ERA LTE workflow on the Climate Toolkit.")
+    parser.add_argument("csv", help="ERA LTE export CSV (see module docstring for columns)")
+    parser.add_argument("--source", default="nasa_power", help="Climate source (default: nasa_power)")
+    parser.add_argument("--out", default="era_lte_compare.csv", help="Output CSV path")
+    parser.add_argument("--limit", type=int, default=None, help="Only process the first N sites")
+    parser.add_argument("--dry-run", action="store_true", help="Show season mapping without fetching")
+    args = parser.parse_args()
+    run(args.csv, args.source, args.out, args.limit, args.dry_run)
+
+
+if __name__ == "__main__":
+    main()
