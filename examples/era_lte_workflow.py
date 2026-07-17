@@ -15,14 +15,24 @@ Input CSV contract
 One row per LTE site-period, with columns (registry aliases in parentheses):
 
     site_id (Site.ID), lat (Latitude), lon (Longitude),
-    start_year (Year.start), end_year (Year.end),
-    s1_start, s1_end            # season-1 window as month-day, e.g. "03-01"
+    start_year (Year.start), end_year (Year.end),          # required
+    s1_start, s1_end            # optional season-1 window as month-day, "03-01"
     s2_start, s2_end            # optional second season
     reported_rain_mm            # optional ERA-reported seasonal rainfall
 
-The season boundaries come from ERA's ``Site.Start.S1`` / ``Site.End.S1`` (and
-S2) fields, exported to month-day form. Year-crossing seasons (end month before
-start month) are supported — the toolkit wraps them to the next year.
+Two modes, chosen per row:
+
+* **Fixed-season** (when ``s1_start``/``s1_end`` are present): the LTE's own
+  season window is translated to the toolkit's ``fixed_season`` and compared
+  against ``reported_rain_mm`` if given. Year-crossing seasons (end month before
+  start month) are supported — the toolkit wraps them to the next year. Season
+  windows come from ERA's ``Site.Start.S1`` / ``Site.End.S1`` (and S2) fields.
+* **Auto** (no season columns): falls back to auto season detection, so ERA's
+  shipped registry ``data/unique_ltes.csv`` (lat/lon/years only) runs as-is.
+
+To get the fixed-season + comparison path, export the season windows and
+reported rainfall from the ERA ``ERAg`` package tables (they are *not* in the
+registry CSV) into the columns above; see https://github.com/ERAgriculture/LTEs.
 
 Usage
 -----
@@ -98,6 +108,24 @@ def lte_to_fixed_season(row) -> str:
     return s1
 
 
+def has_season_windows(row) -> bool:
+    """True if the row carries an S1 season window (enables fixed-season mode).
+
+    ERA's shipped ``unique_ltes.csv`` is registry-only (no season windows), so
+    the workflow falls back to auto season detection for it; an enriched export
+    with ``s1_start``/``s1_end`` unlocks the fixed-season + comparison path.
+    """
+    def _present(key):
+        val = row.get(key)
+        return not (
+            val is None
+            or (isinstance(val, float) and pd.isna(val))
+            or str(val).strip() == ""
+        )
+
+    return _present("s1_start") and _present("s1_end")
+
+
 def _year(value):
     """Parse an ERA ``Year.start`` / ``Year.end`` cell into an int, or None."""
     try:
@@ -107,11 +135,20 @@ def _year(value):
 
 
 def load_sites(csv_path) -> pd.DataFrame:
-    """Load an ERA LTE export, applying registry-name aliases."""
-    df = pd.read_csv(csv_path).rename(columns=COLUMN_ALIASES)
+    """Load an ERA LTE export or the shipped registry, applying name aliases.
+
+    Only lat/lon/years are required; season windows are optional (see
+    :func:`has_season_windows`). ERA's ``unique_ltes.csv`` is cp1252-encoded, so
+    fall back to that if UTF-8 decoding fails.
+    """
+    try:
+        df = pd.read_csv(csv_path)
+    except UnicodeDecodeError:
+        df = pd.read_csv(csv_path, encoding="cp1252")
+    df = df.rename(columns=COLUMN_ALIASES)
     df["start_year"] = df["start_year"].map(_year)
     df["end_year"] = df["end_year"].map(_year)
-    df = df.dropna(subset=["lat", "lon", "s1_start", "s1_end"])
+    df = df.dropna(subset=["lat", "lon"])
     df = df[df["start_year"].notna() & df["end_year"].notna()]
     return df.reset_index(drop=True)
 
@@ -141,19 +178,32 @@ def seasonal_rows(result) -> list[dict]:
 
 
 def run_site(row, source: str) -> list[dict]:
-    """Run the toolkit for one LTE site using ITS fixed season, return metrics."""
-    fixed = lte_to_fixed_season(row)
-    result = analyze_climate_statistics(
+    """Run the toolkit for one LTE site, return per-season metrics.
+
+    Uses ERA's own season window when present (``fixed_season``), otherwise
+    falls back to auto season detection so the shipped registry CSV still runs.
+    """
+    kwargs = dict(
         location_coord=(float(row["lat"]), float(row["lon"])),
         start_year=int(row["start_year"]),
         end_year=int(row["end_year"]),
         source=source,
-        fixed_season=fixed,
         verbose=False,
     )
+    if has_season_windows(row):
+        fixed = lte_to_fixed_season(row)
+        kwargs["fixed_season"] = fixed
+    else:
+        fixed = None
+    result = analyze_climate_statistics(**kwargs)
     out = []
     for tk in seasonal_rows(result):
-        record = {"site_id": row.get("site_id"), "fixed_season": fixed, **tk}
+        record = {
+            "site_id": row.get("site_id"),
+            "mode": "fixed" if fixed else "auto",
+            "fixed_season": fixed,
+            **tk,
+        }
         if "reported_rain_mm" in row and not pd.isna(row.get("reported_rain_mm")):
             reported = float(row["reported_rain_mm"])
             record["reported_rain_mm"] = reported
@@ -171,10 +221,13 @@ def run(csv_path, source="nasa_power", out_csv="era_lte_compare.csv", limit=None
 
     if dry_run:
         for _, row in sites.iterrows():
-            try:
-                print(f"  {row.get('site_id')}: fixed_season={lte_to_fixed_season(row)!r}")
-            except ValueError as exc:
-                print(f"  {row.get('site_id')}: [bad season window] {exc}")
+            if has_season_windows(row):
+                try:
+                    print(f"  {row.get('site_id')}: fixed_season={lte_to_fixed_season(row)!r}")
+                except ValueError as exc:
+                    print(f"  {row.get('site_id')}: [bad season window] {exc}")
+            else:
+                print(f"  {row.get('site_id')}: auto season detection (no season window)")
         return sites
 
     out_rows = []

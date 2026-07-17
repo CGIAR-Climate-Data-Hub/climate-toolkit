@@ -14,7 +14,11 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from examples.era_lte_workflow import lte_to_fixed_season, parse_month_day
+from examples.era_lte_workflow import (
+    has_season_windows,
+    lte_to_fixed_season,
+    parse_month_day,
+)
 
 
 class ParseMonthDayTests(unittest.TestCase):
@@ -58,6 +62,17 @@ class LteToFixedSeasonTests(unittest.TestCase):
     def test_empty_s2_ignored(self):
         row = {"s1_start": "03-01", "s1_end": "05-31", "s2_start": "", "s2_end": ""}
         self.assertEqual(lte_to_fixed_season(row), "03-01:05-31")
+
+
+class ModeSelectionTests(unittest.TestCase):
+    def test_season_windows_present_enables_fixed_mode(self):
+        self.assertTrue(has_season_windows({"s1_start": "03-01", "s1_end": "05-31"}))
+
+    def test_registry_row_falls_back_to_auto(self):
+        # ERA's shipped unique_ltes.csv has no season columns.
+        for row in ({}, {"s1_start": "", "s1_end": ""}, {"s1_start": None, "s1_end": None}):
+            with self.subTest(row=row):
+                self.assertFalse(has_season_windows(row))
 
 
 if __name__ == "__main__":
