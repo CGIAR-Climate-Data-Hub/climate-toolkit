@@ -74,4 +74,7 @@ This work was supported by the CGIAR Climate Data Hub (CDH), part of the
   <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar">
     <img src="assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" style="height:56px; width:auto; background:#fff; padding:4px;">
   </a>
+  <a href="https://aims.ac.rw/">
+    <img src="assets/logos/aims.png" alt="AIMS Rwanda" style="height:52px; width:auto; background:#fff; padding:4px;">
+  </a>
 </p>
