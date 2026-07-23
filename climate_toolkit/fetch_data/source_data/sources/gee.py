@@ -15,6 +15,7 @@ import pandas as pd
 from .utils import models
 from .utils.models import Cadence
 from .utils.settings import Settings
+from .xee_common import format_ee_setup_error, infer_ee_project_id
 from ...multi_site import normalize_cache_coord, safe_coord_fragment
 
 logger = logging.getLogger(__name__)
@@ -34,13 +35,23 @@ AGERA5_MEAN_TEMPERATURE_BAND = "temperature_2m"
 AGERA5_DEWPOINT_BAND = "dewpoint_temperature_2m"
 
 def _ensure_gee_initialized() -> None:
-    """Authenticate + initialize GEE exactly once per Python process."""
+    """Initialize Earth Engine exactly once per Python process.
+
+    Never calls ``ee.Authenticate()``: a library must not launch an interactive
+    browser OAuth flow on the user's behalf (that hijacks the browser and saves
+    credentials without opt-in). Authenticate once out-of-band with
+    ``earthengine authenticate`` / ``ee.Authenticate()`` (see the README Earth
+    Engine setup); this matches how the Xee path already initializes. If Earth
+    Engine is not set up, raise a clear, actionable error instead.
+    """
     global _GEE_READY
     if _GEE_READY:
         return
-    logger.info("Authenticating to GEE (first call)...")
-    ee.Authenticate()
-    ee.Initialize(project=os.getenv("GCP_PROJECT_ID"))
+    logger.info("Initializing Earth Engine (first call)...")
+    try:
+        ee.Initialize(project=infer_ee_project_id(None))
+    except Exception as exc:
+        raise RuntimeError(format_ee_setup_error(exc)) from exc
     _GEE_READY = True
 
 
