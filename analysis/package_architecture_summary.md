@@ -33,6 +33,14 @@ Top-level stable Python API:
 - `climate_toolkit.evaluate_hazards`
 - `climate_toolkit.download_station_data`
 - `climate_toolkit.compare_station_to_grids`
+- `climate_toolkit.run_pipeline`
+
+`run_pipeline` (`climate_toolkit/pipeline.py`) is the top-level orchestration
+wrapper. It chains `fetch_climate_data` → `climatology.long_term_climatology`
+(WMO 1991-2020 baseline) → `compare_climate_sources` (optional) →
+`analyze_climate_statistics` → `evaluate_hazards` → `compare_climate_periods`
+(optional), per site, with per-site status/error capture and a headline summary.
+It composes the building blocks; it owns no analytics of its own.
 
 Stable CLI entry points from `pyproject.toml`:
 
