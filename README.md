@@ -285,7 +285,7 @@ rely on automated smoke tests and CI build checks.
 
 ### Reproducible environment with Docker
 
-For a byte-for-byte reproducible runtime that does not depend on your local
+For a reproducible runtime that does not depend on your local
 Python version, use the provided `Dockerfile`. Reproducibility comes from three
 pins: the base image (pinned by digest to CPython 3.10, matching CI), `uv`
 (pinned to an exact release), and `uv.lock` (every dependency fixed to an exact

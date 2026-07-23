@@ -39,8 +39,18 @@ if [ -n "$stale" ]; then
   docker rm -f $stale >/dev/null
 fi
 
-exec docker run --rm \
-  -e GCP_PROJECT_ID="${GCP_PROJECT_ID:-}" \
-  -v "$HOME/.config/earthengine:/home/app/.config/earthengine:ro" \
-  -v "$PWD/outputs:/app/outputs" \
-  "$IMAGE" "$@"
+# Create the outputs dir up front so it is owned by the current user. Docker
+# would otherwise create a missing bind-mount source as root, and the non-root
+# container (uid 1000) could not then write cache into it on Linux.
+mkdir -p "$PWD/outputs"
+
+run_args=(--rm -e GCP_PROJECT_ID="${GCP_PROJECT_ID:-}" -v "$PWD/outputs:/app/outputs")
+
+# Mount Earth Engine credentials read-only only if they exist — otherwise Docker
+# would create an empty root-owned ~/.config/earthengine on the host. Not needed
+# for NASA POWER or the offline surface.
+if [ -d "$HOME/.config/earthengine" ]; then
+  run_args+=(-v "$HOME/.config/earthengine:/home/app/.config/earthengine:ro")
+fi
+
+exec docker run "${run_args[@]}" "$IMAGE" "$@"

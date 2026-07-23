@@ -12,6 +12,11 @@
 #
 # Earth Engine-backed sources also need the mounted credentials below plus a
 # real GCP_PROJECT_ID. NASA POWER needs neither.
+#
+# Create ./outputs before the first run (`mkdir -p outputs`) so it is owned by
+# you — Docker would otherwise create the missing bind-mount source as root, and
+# the non-root container could not write cache into it on Linux. The
+# docker-run.sh wrapper does this for you.
 
 services:
   toolkit:
