@@ -1349,7 +1349,9 @@ def _auto_season_slot_warning(season_results: List[Dict[str, Any]]) -> Optional[
     return (
         "Auto-detected season counts differ across years, so LTM season windows by "
         f"season_number would blend incomparable seasons. Counts by year: {summary}. "
-        "Use --fixed-season for stable multi-year seasonal LTM output."
+        "For stable multi-year seasonal LTM output, pin the season: "
+        'fixed_season="MM-DD:MM-DD" in the Python API '
+        "(or --fixed-season on the CLI), e.g. \"03-01:05-31\"."
     )
 
 
