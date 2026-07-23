@@ -77,26 +77,59 @@ Setup steps:
 
 ## 3. First analysis
 
+Fetch daily data (NASA POWER needs no credentials) and confirm what came back:
+
 ```python
 import climate_toolkit as ct
 from datetime import date
 
-# Daily data — no credentials needed for nasa_power
 df = ct.fetch_climate_data(
     source="nasa_power",
-    location_coord=(-1.286, 36.817),
+    location_coord=(-1.286, 36.817),   # Nairobi (lat, lon)
     date_from=date(2020, 1, 1),
     date_to=date(2020, 12, 31),
+    verbose=False,
+)
+print("rows:", df.shape[0], "| columns:", df.columns.tolist())
+df.head()
+```
+
+`fetch_climate_data` returns a **pandas DataFrame**. NASA POWER carries no soil
+fields, so you'll see a note that those were skipped — the climate columns are
+still returned.
+
+### Seasonal statistics as a table
+
+`analyze_climate_statistics` returns a nested dict. Pin the season with
+`fixed_season="MM-DD:MM-DD"` for stable, comparable multi-year output, then
+tabulate the per-season results:
+
+```python
+import pandas as pd
+
+stats = ct.analyze_climate_statistics(
+    location_coord=(-1.286, 36.817),
+    start_year=2016, end_year=2020,
+    source="nasa_power",
+    fixed_season="03-01:05-31",        # March–May long rains
 )
 
-# Crop hazards for a season (uses Earth Engine sources by default)
-hazards = ct.evaluate_hazards(
-    crop_name="maize",
-    location_coord=(-1.286, 36.817),
-    date_from="2020-01-01",
-    date_to="2020-12-31",
-)
+pd.DataFrame([
+    {
+        "year": s["year"],
+        "rain_mm": (s["precipitation"] or {}).get("total_mm"),
+        "NDWS": (s["water_balance"] or {}).get("NDWS"),
+        "WRSI": (s["water_balance"] or {}).get("WRSI"),
+    }
+    for s in stats["season_statistics"]
+])
 ```
+
+!!! note "Why `fixed_season`?"
+    With automatic detection, different years can have different season counts,
+    and the toolkit warns that it can't build comparable multi-year windows.
+    Passing `fixed_season="MM-DD:MM-DD"` (one or two comma-separated windows)
+    pins the season so results line up year to year.
 
 ## Getting help
 
