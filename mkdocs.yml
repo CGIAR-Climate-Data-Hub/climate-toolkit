@@ -27,6 +27,26 @@ theme:
 
 plugins:
   - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          name: English
+          default: true
+          build: true
+        - locale: fr
+          name: Français
+          build: true
+          nav_translations:
+            About: À propos
+        - locale: es
+          name: Español
+          build: true
+          nav_translations:
+            About: Acerca de
   - mkdocstrings:
       handlers:
         python:
@@ -41,15 +61,21 @@ plugins:
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - pymdownx.highlight
   - pymdownx.superfences
   - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - tables
   - toc:
       permalink: true
 
 nav:
   - Home: index.md
+  - About: about.md
   - Getting started: getting_started.md
   - Use as a package: use-as-a-package.md
   - Datasets: datasets.md
