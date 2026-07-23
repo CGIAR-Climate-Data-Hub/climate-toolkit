@@ -10,6 +10,8 @@ A unified toolkit for retrieving climate data from various global datasets such 
   <a href="https://www.mcknight.org/programs/global-foods/"><img src="docs/assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="44"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar"><img src="docs/assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" height="56"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://aims.ac.rw/"><img src="docs/assets/logos/aims.png" alt="AIMS Rwanda" height="52"></a>
 </p>
 
 Funded by the [McKnight Foundation CRFS programme](https://www.mcknight.org/programs/global-foods/) and supported by the CGIAR Climate Data Hub, [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/) — see [Funding & Acknowledgements](#funding--acknowledgements).
@@ -1371,4 +1373,6 @@ This work was supported by the CGIAR Climate Data Hub (CDH), part of the
   <a href="https://www.mcknight.org/programs/global-foods/"><img src="docs/assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="44"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar"><img src="docs/assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" height="56"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://aims.ac.rw/"><img src="docs/assets/logos/aims.png" alt="AIMS Rwanda" height="52"></a>
 </p>
