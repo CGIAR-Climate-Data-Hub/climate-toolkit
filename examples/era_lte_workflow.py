@@ -30,9 +30,23 @@ Two modes, chosen per row:
 * **Auto** (no season columns): falls back to auto season detection, so ERA's
   shipped registry ``data/unique_ltes.csv`` (lat/lon/years only) runs as-is.
 
-To get the fixed-season + comparison path, export the season windows and
-reported rainfall from the ERA ``ERAg`` package tables (they are *not* in the
-registry CSV) into the columns above; see https://github.com/ERAgriculture/LTEs.
+Producing the enriched export
+-----------------------------
+The season windows and reported rainfall live in the ERA data tables, not the
+shipped registry CSV. Namita Joshi's ``lte_summary.Rmd`` in the ERA repo builds
+exactly the joined table needed (it stitches ``Site.Out``, ``Data.Out``,
+``Times.Out`` and ``PD.Out`` on ``B.Code``). Export its result to CSV and this
+workflow consumes it directly — the ERA-native column names are aliased:
+
+    Site.LatD/Site.LonD -> lat/lon        Site.Start.S1/Site.End.S1 -> s1_start/s1_end
+    Study.Start/Study.End -> start/end_year   Site.Start.S2/Site.End.S2 -> s2_start/s2_end
+    Site.MSP.S1 (mean seasonal precip) -> reported_rain_mm   P.Product -> crop_name
+
+Note ``Site.MSP.S1`` is ERA's long-term *mean* seasonal precipitation, so the
+comparison is each toolkit season-year against the ERA seasonal mean.
+
+Guides: https://github.com/ERAgriculture/LTEs (see ``lte_summary.Rmd`` and
+``data/metadata.csv`` for the full field list).
 
 Usage
 -----
@@ -53,14 +67,26 @@ from climate_toolkit.climate_statistics import analyze_climate_statistics
 
 COLUMN_ALIASES = {
     "Site.ID": "site_id",
+    # Coordinates: the lte_summary export renames to Latitude/Longitude, but
+    # accept the raw Site.Out names too.
     "Latitude": "lat",
     "Longitude": "lon",
+    "Site.LatD": "lat",
+    "Site.LonD": "lon",
+    # Study duration.
     "Year.start": "start_year",
     "Year.end": "end_year",
+    "Study.Start": "start_year",
+    "Study.End": "end_year",
+    # Season windows (Character date fields in the ERA Site.Out table).
     "Site.Start.S1": "s1_start",
     "Site.End.S1": "s1_end",
     "Site.Start.S2": "s2_start",
     "Site.End.S2": "s2_end",
+    # ERA-reported mean seasonal precipitation -> ground truth for comparison.
+    "Site.MSP.S1": "reported_rain_mm",
+    # Crop, for per-site hazard/season context.
+    "P.Product": "crop_name",
 }
 
 

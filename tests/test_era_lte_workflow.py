@@ -14,8 +14,12 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
+import os
+import tempfile
+
 from examples.era_lte_workflow import (
     has_season_windows,
+    load_sites,
     lte_to_fixed_season,
     parse_month_day,
 )
@@ -73,6 +77,32 @@ class ModeSelectionTests(unittest.TestCase):
         for row in ({}, {"s1_start": "", "s1_end": ""}, {"s1_start": None, "s1_end": None}):
             with self.subTest(row=row):
                 self.assertFalse(has_season_windows(row))
+
+
+class EraNativeColumnTests(unittest.TestCase):
+    """The ERA `lte_summary` export (native Site.* column names) loads directly."""
+
+    def test_lte_summary_columns_alias_and_map(self):
+        csv = (
+            "Site.ID,Site.LatD,Site.LonD,Study.Start,Study.End,"
+            "Site.Start.S1,Site.End.S1,Site.MSP.S1,P.Product\n"
+            "Adigudem,-1.286,36.817,2016,2020,03-01,05-31,320,maize\n"
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+            f.write(csv)
+            path = f.name
+        try:
+            df = load_sites(path)
+        finally:
+            os.unlink(path)
+
+        row = df.iloc[0].to_dict()
+        self.assertEqual((row["lat"], row["lon"]), (-1.286, 36.817))
+        self.assertEqual((row["start_year"], row["end_year"]), (2016, 2020))
+        self.assertEqual(row["reported_rain_mm"], 320)
+        self.assertEqual(row["crop_name"], "maize")
+        self.assertTrue(has_season_windows(row))
+        self.assertEqual(lte_to_fixed_season(row), "03-01:05-31")
 
 
 if __name__ == "__main__":
