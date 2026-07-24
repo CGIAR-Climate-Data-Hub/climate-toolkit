@@ -158,7 +158,7 @@ class EraNativeColumnTests(unittest.TestCase):
         csv = (
             "Site.ID,Site.LatD,Site.LonD,Study.Start,Study.End,"
             "Site.Start.S1,Site.End.S1,Site.MSP.S1,P.Product\n"
-            "Adigudem,-1.286,36.817,2016,2020,03-01,05-31,320,maize\n"
+            "Nairobi,-1.286,36.817,2016,2020,03-01,05-31,320,maize\n"
         )
         with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
             f.write(csv)
@@ -175,6 +175,27 @@ class EraNativeColumnTests(unittest.TestCase):
         self.assertEqual(row["crop_name"], "maize")
         self.assertTrue(has_season_windows(row))
         self.assertEqual(lte_to_fixed_season(row), "03-01:05-31")
+
+    def test_duplicate_alias_sources_do_not_create_duplicate_columns(self):
+        """An export carrying both `Latitude` and `Site.LatD` must still yield one `lat`."""
+        csv = (
+            "Site.ID,Latitude,Site.LatD,Longitude,Site.LonD,Study.Start,Study.End,"
+            "Site.Start.S1,Site.End.S1\n"
+            "Nairobi,-1.286,-1.286,36.817,36.817,2016,2020,Mid-Mar,Late-Jun\n"
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+            f.write(csv)
+            path = f.name
+        try:
+            df = load_sites(path)
+        finally:
+            os.unlink(path)
+
+        self.assertEqual(list(df.columns).count("lat"), 1)
+        self.assertEqual(list(df.columns).count("lon"), 1)
+        row = df.iloc[0].to_dict()
+        self.assertEqual((row["lat"], row["lon"]), (-1.286, 36.817))
+        self.assertEqual(lte_to_fixed_season(row), "03-15:06-25")
 
 
 if __name__ == "__main__":

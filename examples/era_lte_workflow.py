@@ -205,6 +205,27 @@ def _year(value):
         return None
 
 
+def _drop_redundant_aliases(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop alias columns whose canonical target is already present.
+
+    Several ERA names map to the same target (e.g. both ``Latitude`` and
+    ``Site.LatD`` -> ``lat``). ``lte_summary`` emits only one of each, but if an
+    export ever carried both — or already carried the canonical ``lat`` — the
+    rename would produce duplicate columns. Keep the first claimant and drop the
+    rest so that is impossible.
+    """
+    taken = {col for col in df.columns if col not in COLUMN_ALIASES}
+    redundant = []
+    for source, target in COLUMN_ALIASES.items():
+        if source not in df.columns:
+            continue
+        if target in taken:
+            redundant.append(source)
+        else:
+            taken.add(target)
+    return df.drop(columns=redundant) if redundant else df
+
+
 def load_sites(csv_path) -> pd.DataFrame:
     """Load an ERA LTE export or the shipped registry, applying name aliases.
 
@@ -216,7 +237,7 @@ def load_sites(csv_path) -> pd.DataFrame:
         df = pd.read_csv(csv_path)
     except UnicodeDecodeError:
         df = pd.read_csv(csv_path, encoding="cp1252")
-    df = df.rename(columns=COLUMN_ALIASES)
+    df = _drop_redundant_aliases(df).rename(columns=COLUMN_ALIASES)
     df["start_year"] = df["start_year"].map(_year)
     df["end_year"] = df["end_year"].map(_year)
     df = df.dropna(subset=["lat", "lon"])
