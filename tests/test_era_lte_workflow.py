@@ -49,6 +49,78 @@ class ParseMonthDayTests(unittest.TestCase):
                     parse_month_day(bad)
 
 
+class EraSoftDateTests(unittest.TestCase):
+    """ERA records season bounds as descriptive strings, not MM-DD.
+
+    Conversion rules (confirmed with the ERA team): bare month -> 1st for a
+    start / last day for an end; Early- -> 5th, Mid- -> 15th, Late- -> 25th.
+    """
+
+    def test_qualified_months(self):
+        cases = {
+            "Early-Mar": "03-05",
+            "Mid-Mar": "03-15",
+            "Late-Jun": "06-25",
+            "Mid-May": "05-15",
+            "Early-Nov": "11-05",
+            "Late-Oct": "10-25",
+            "mid-july": "07-15",   # case-insensitive
+            "MID-MAR": "03-15",
+        }
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(parse_month_day(raw), expected)
+
+    def test_bare_month_start_is_first_of_month(self):
+        for raw, expected in {"Mar": "03-01", "Jun": "06-01", "July": "07-01"}.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(parse_month_day(raw), expected)
+
+    def test_bare_month_end_is_last_day_of_month(self):
+        cases = {"July": "07-31", "Sep": "09-30", "Feb": "02-28", "Mar": "03-31"}
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(parse_month_day(raw, is_end=True), expected)
+
+    def test_qualifier_ignores_is_end(self):
+        # Only bare month names depend on start/end context.
+        self.assertEqual(parse_month_day("Late-Jun", is_end=True), "06-25")
+
+    def test_numeric_forms_still_work(self):
+        self.assertEqual(parse_month_day("03-01"), "03-01")
+        self.assertEqual(parse_month_day("03-31", is_end=True), "03-31")
+
+    def test_unknown_month_name_raises(self):
+        for bad in ("Smarch", "Early-Smarch", "notamonth"):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ValueError):
+                    parse_month_day(bad)
+
+    def test_era_rows_map_to_fixed_season(self):
+        # Real shapes from the ERA Site.Out table.
+        self.assertEqual(
+            lte_to_fixed_season({"s1_start": "Mid-Mar", "s1_end": "Late-Jun"}),
+            "03-15:06-25",
+        )
+        self.assertEqual(
+            lte_to_fixed_season({"s1_start": "Mar", "s1_end": "July"}),
+            "03-01:07-31",
+        )
+        # Year-crossing season (Late-Oct -> Late-Apr) passes straight through.
+        self.assertEqual(
+            lte_to_fixed_season({"s1_start": "Late-Oct", "s1_end": "Late-Apr"}),
+            "10-25:04-25",
+        )
+        # Two seasons.
+        self.assertEqual(
+            lte_to_fixed_season({
+                "s1_start": "Mid-Mar", "s1_end": "Mid-July",
+                "s2_start": "Early-Nov", "s2_end": "Early-Apr",
+            }),
+            "03-15:07-15,11-05:04-05",
+        )
+
+
 class LteToFixedSeasonTests(unittest.TestCase):
     def test_single_season(self):
         row = {"s1_start": "03-01", "s1_end": "05-31"}
