@@ -62,9 +62,11 @@ programme. The work was led by the
 [Alliance of Bioversity International and CIAT](https://alliancebioversityciat.org/),
 in partnership with [AIMS Rwanda](https://aims.ac.rw/).
 
-This work was supported by the CGIAR Climate Data Hub (CDH), part of the
+This work was supported by the
 [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
-(Area of Work 1). We acknowledge the CGIAR Trust Fund and its
+through its **Area of Work 1 (AoW1) — the Climate Data Hub (CDH)**, which
+funds and coordinates the climate-data infrastructure this toolkit is part of.
+We acknowledge the CGIAR Trust Fund and its
 [contributors](https://www.cgiar.org/funders/).
 
 <p style="display:flex; align-items:center; gap:1.5em; flex-wrap:nowrap; margin-top:1.5em;">
