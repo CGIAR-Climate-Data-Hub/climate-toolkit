@@ -2,6 +2,8 @@
 
 A unified toolkit for retrieving climate data from various global datasets such as CHIRPS, AGERA5, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids.
 
+[![About](https://img.shields.io/badge/about-the%20project-blue)](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/about/) — what the toolkit is, who it's for, and how to get involved (also in [français](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/about/) / [español](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/about/)).
+
 [![Documentation](https://img.shields.io/badge/docs-climate--toolkit-2ea44f)](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/) — full documentation: getting started, workflows, and API reference.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) — try the toolkit live in your browser, no install needed.
@@ -14,7 +16,7 @@ A unified toolkit for retrieving climate data from various global datasets such 
   <a href="https://aims.ac.rw/"><img src="docs/assets/logos/aims.png" alt="AIMS Rwanda" height="52"></a>
 </p>
 
-Funded by the [McKnight Foundation CRFS programme](https://www.mcknight.org/programs/global-foods/) and supported by the CGIAR Climate Data Hub, [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/) — see [Funding & Acknowledgements](#funding--acknowledgements).
+Funded by the [McKnight Foundation CRFS programme](https://www.mcknight.org/programs/global-foods/) and supported by the [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/) through its Area of Work 1 (AoW1) — the Climate Data Hub — see [Funding & Acknowledgements](#funding--acknowledgements).
 
 ## API Dataset Badges
 
@@ -1425,9 +1427,11 @@ programme. The work was led by the
 [Alliance of Bioversity International and CIAT](https://alliancebioversityciat.org/),
 in partnership with [AIMS Rwanda](https://aims.ac.rw/).
 
-This work was supported by the CGIAR Climate Data Hub (CDH), part of the
+This work was supported by the
 [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
-(Area of Work 1). We acknowledge the CGIAR Trust Fund and its
+through its **Area of Work 1 (AoW1) — the Climate Data Hub (CDH)**, which
+funds and coordinates the climate-data infrastructure this toolkit is part of.
+We acknowledge the CGIAR Trust Fund and its
 [contributors](https://www.cgiar.org/funders/).
 
 <p>
