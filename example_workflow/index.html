@@ -1,0 +1,1426 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Location-based climate, season, climatology, hazard, and projection analysis.">
+      
+      
+      
+        <link rel="canonical" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/example_workflow/">
+      
+      
+        <link rel="prev" href="../datasets/">
+      
+      
+        <link rel="next" href="../weather_station_workflows/">
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../fr/example_workflow/" hreflang="fr">
+        
+          <link rel="alternate" href="../es/example_workflow/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>End-to-end example - Climate Toolkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#example-end-to-end-workflow" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Climate Toolkit" class="md-header__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Climate Toolkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              End-to-end example
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../fr/example_workflow/" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../es/example_workflow/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Climate Toolkit" class="md-nav__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Climate Toolkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-as-a-package/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use as a package
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    End-to-end example
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    End-to-end example
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-fetch-raw-climate-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Fetch raw climate data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-validate-against-weather-stations-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Validate against weather stations (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-climatology-the-local-normal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Climatology (the local "normal")
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-detect-rainy-seasons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Detect rainy seasons
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-climate-statistics-by-season" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Climate statistics by season
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-compare-periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6 — Compare periods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-7-crop-hazards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7 — Crop hazards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-8-project-hazards-nex-gddp-ensemble" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8 — Project hazards (NEX-GDDP ensemble)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-walkthrough-maize-suitability-near-nairobi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete walkthrough: Maize suitability near Nairobi
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes-gotchas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes &amp; gotchas
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../weather_station_workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Weather stations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../human_heat_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Human heat stress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../thi_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Livestock heat (THI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distribution_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distribution & releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/fetching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fetching data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison & validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-fetch-raw-climate-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Fetch raw climate data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-validate-against-weather-stations-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Validate against weather stations (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-climatology-the-local-normal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Climatology (the local "normal")
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-detect-rainy-seasons" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Detect rainy seasons
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-climate-statistics-by-season" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Climate statistics by season
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-compare-periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6 — Compare periods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-7-crop-hazards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7 — Crop hazards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-8-project-hazards-nex-gddp-ensemble" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8 — Project hazards (NEX-GDDP ensemble)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-walkthrough-maize-suitability-near-nairobi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete walkthrough: Maize suitability near Nairobi
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes-gotchas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes &amp; gotchas
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="example-end-to-end-workflow">Example End-to-End Workflow<a class="headerlink" href="#example-end-to-end-workflow" title="Permanent link">&para;</a></h1>
+<p>A simple "story" a new user can follow to understand the toolkit's
+capabilities, from fetching raw climate data to projecting crop hazards.</p>
+<blockquote>
+<p>[!IMPORTANT]
+<strong>The example commands below are prefixed with <code>uv run</code> so they work
+copy-paste.</strong> Run them from the repo root after <code>uv sync</code>.</p>
+<ul>
+<li>The <code>climate-toolkit-*</code> console scripts only exist once the package is
+  installed (<code>uv sync</code> or <code>pip install -e .</code>). Running the bare
+  <code>climate-toolkit-fetch ...</code> (without <code>uv run</code>, or from a non-installed
+  checkout) will fail with "command not recognized".</li>
+<li>From a bare source checkout you can instead use the module form: every
+  <code>climate-toolkit-&lt;name&gt;</code> maps to <code>python -m climate_toolkit.&lt;module&gt;</code>
+  (e.g. <code>python -m climate_toolkit.season_analysis.seasons ...</code>).</li>
+<li>Replace coordinates, dates, and any <code>&lt;PLACEHOLDER&gt;</code> with your own values.</li>
+</ul>
+</blockquote>
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Google Earth Engine</strong> (required for the GEE-backed sources):</li>
+<li>Create an account at <a href="https://earthengine.google.com">earthengine.google.com</a></li>
+<li>Authenticate once: <code>earthengine authenticate</code></li>
+<li>Set your Cloud project so Earth Engine can initialise. The toolkit reads
+     it from the environment, <strong>not</strong> from a <code>.env</code> file automatically:
+     <div class="highlight"><pre><span></span><code><span class="c1"># macOS / Linux</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">GCP_PROJECT_ID</span><span class="o">=</span>your-ee-project-id
+</code></pre></div>
+     <div class="highlight"><pre><span></span><code><span class="c"># Windows PowerShell</span>
+<span class="nv">$env:GCP_PROJECT_ID</span> <span class="p">=</span> <span class="s2">&quot;your-ee-project-id&quot;</span>
+</code></pre></div>
+     (Or pass <code>uv run --env-file .env ...</code> if you keep it in a <code>.env</code>.)</li>
+<li><strong>Install</strong>: <code>uv sync</code> (preferred) or <code>pip install -e .</code></li>
+<li><strong>Inputs</strong>: a latitude/longitude. Crop name and date ranges come later.</li>
+</ol>
+<hr />
+<h2 id="step-1-fetch-raw-climate-data">Step 1 — Fetch raw climate data<a class="headerlink" href="#step-1-fetch-raw-climate-data" title="Permanent link">&para;</a></h2>
+<p><code>climate-toolkit-fetch</code> uses <code>--lat</code>/<code>--lon</code> (single site) and <code>--start</code>/<code>--end</code>.</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-fetch<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--lat<span class="w"> </span>-1.286<span class="w"> </span>--lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="w"> </span>csv<span class="w"> </span>-o<span class="w"> </span>outputs/climate_data.csv
+</code></pre></div>
+<ul>
+<li>Downloads source → transforms variable names → preprocesses (units, QC).</li>
+<li><strong>Source coverage:</strong> AgERA5 (1979–present, incl. humidity), ERA5
+  (1979–present), CHIRPS v3 <code>chirps_v3_daily_rnl</code> (1981–present, precip),
+  NASA POWER (1984–present), NEX-GDDP (projections; needs <code>--scenario</code> and
+  <code>--model</code>/<code>--models</code>).</li>
+<li><strong>Multiple NEX-GDDP models in one run</strong> — pass a comma-separated list or
+  <code>all</code> to either <code>--models</code> or <code>--model</code>; one file is written per model:
+  <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-fetch<span class="w"> </span>--source<span class="w"> </span>nex_gddp<span class="w"> </span>--lat<span class="w"> </span>-1.286<span class="w"> </span>--lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2050</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2050</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--models<span class="w"> </span>ACCESS-CM2,EC-Earth3,MRI-ESM2-0<span class="w"> </span>--scenario<span class="w"> </span>ssp245<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="w"> </span>csv<span class="w"> </span>-o<span class="w"> </span>outputs/nex_2050.csv
+</code></pre></div></li>
+</ul>
+<hr />
+<h2 id="step-2-validate-against-weather-stations-optional">Step 2 — Validate against weather stations (optional)<a class="headerlink" href="#step-2-validate-against-weather-stations-optional" title="Permanent link">&para;</a></h2>
+<p>Discover nearby stations:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-weather-station-download<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-source<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lat<span class="w"> </span>-1.286<span class="w"> </span>--station-lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--max-distance-km<span class="w"> </span><span class="m">100</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--report-prefix<span class="w"> </span>outputs/weather_station/nearby_candidates<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--open-report
+</code></pre></div>
+<p>Compare gridded vs. station data:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-weather-station-compare<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--grid-source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-source<span class="w"> </span>gsod<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-id<span class="w"> </span>&lt;STATION_ID&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lat<span class="w"> </span>-1.286<span class="w"> </span>--station-lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="w"> </span>json
+</code></pre></div>
+<hr />
+<h2 id="step-3-climatology-the-local-normal">Step 3 — Climatology (the local "normal")<a class="headerlink" href="#step-3-climatology-the-local-normal" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-climatology<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="w"> </span><span class="m">1991</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2020</span>
+</code></pre></div>
+<p>For NEX-GDDP, <code>--source nex_gddp</code> runs the CMIP6 ensemble (averaged across
+models); add <code>--model-workers</code> to parallelise.</p>
+<hr />
+<h2 id="step-4-detect-rainy-seasons">Step 4 — Detect rainy seasons<a class="headerlink" href="#step-4-detect-rainy-seasons" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-seasons<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="w"> </span><span class="m">2015</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2020</span>
+</code></pre></div>
+<ul>
+<li>Water-balance (Hargreaves ET0) detection of onset/cessation per year.</li>
+<li>Save plots/artifacts with <code>--output-dir outputs/seasons</code>.</li>
+<li><strong>If auto-detection is unreliable</strong> (very wet or erratic climates), use a
+  fixed calendar window instead (see Step 5's <code>--fixed-season</code>).</li>
+</ul>
+<hr />
+<h2 id="step-5-climate-statistics-by-season">Step 5 — Climate statistics by season<a class="headerlink" href="#step-5-climate-statistics-by-season" title="Permanent link">&para;</a></h2>
+<p>Auto-detected seasons:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-stats<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="w"> </span><span class="m">2015</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>paired<span class="w"> </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--temp-source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/climate_stats_2015_2020.json
+</code></pre></div>
+<p>Fixed seasons (e.g. MAM and OND):</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-stats<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="w"> </span><span class="m">2015</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>paired<span class="w"> </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--temp-source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--fixed-season<span class="w"> </span><span class="s2">&quot;03-01:05-31,10-01:12-31&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/climate_stats_fixed.json
+</code></pre></div>
+<p>Outputs include seasonal rainfall, temperature extremes, water-balance
+indicators (NDWS, NDWL0), heat-stress indices, and SPEI when requested.</p>
+<hr />
+<h2 id="step-6-compare-periods">Step 6 — Compare periods<a class="headerlink" href="#step-6-compare-periods" title="Permanent link">&para;</a></h2>
+<p><code>climate-toolkit-periods</code> uses <code>--baseline-start</code> / <code>--baseline-end</code> /
+<code>--focal-year</code> (note: not <code>*-year</code> suffixes).</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-periods<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--baseline-start<span class="w"> </span><span class="m">2001</span><span class="w"> </span>--baseline-end<span class="w"> </span><span class="m">2015</span><span class="w"> </span>--focal-year<span class="w"> </span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>paired<span class="w"> </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--temp-source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/2020_vs_2001_2015.json
+</code></pre></div>
+<hr />
+<h2 id="step-7-crop-hazards">Step 7 — Crop hazards<a class="headerlink" href="#step-7-crop-hazards" title="Permanent link">&para;</a></h2>
+<p><code>climate-toolkit-hazards</code> takes the <strong>crop as a positional argument</strong> and uses
+<code>--date-from</code> / <code>--date-to</code> (not <code>--start-date</code>/<code>--end-date</code>).</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-hazards<span class="w"> </span>Maize<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--date-from<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--date-to<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>paired<span class="w"> </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--temp-source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/maize_hazards_2020.json
+</code></pre></div>
+<p>Supported crops: Beans, Cassava, Groundnuts, Maize, Millet, Rice, Sorghum.
+Indicators include NDWS, NDWL0, NTx35/NTx40, NDD, and crop-specific
+precipitation/temperature thresholds.</p>
+<hr />
+<h2 id="step-8-project-hazards-nex-gddp-ensemble">Step 8 — Project hazards (NEX-GDDP ensemble)<a class="headerlink" href="#step-8-project-hazards-nex-gddp-ensemble" title="Permanent link">&para;</a></h2>
+<p><code>climate-toolkit-hazards-ensemble</code> takes the crop positionally and uses
+<code>--start-year</code>/<code>--end-year</code>, <code>--models</code> (comma list or <code>all</code>), <code>--scenarios</code>
+(comma list), and <code>--model-workers</code> for parallelism.</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-hazards-ensemble<span class="w"> </span>Maize<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="w"> </span><span class="m">2050</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2060</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--fixed-season<span class="w"> </span><span class="s2">&quot;03-01:05-31&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--models<span class="w"> </span>MPI-ESM1-2-LR,GFDL-ESM4<span class="w"> </span>--scenarios<span class="w"> </span>ssp245,ssp585<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--model-workers<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/maize_hazards_2050_2060.json
+</code></pre></div>
+<hr />
+<h2 id="complete-walkthrough-maize-suitability-near-nairobi">Complete walkthrough: Maize suitability near Nairobi<a class="headerlink" href="#complete-walkthrough-maize-suitability-near-nairobi" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># 1. Fetch climate data</span>
+uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-fetch<span class="w"> </span>--source<span class="w"> </span>agera_5<span class="w"> </span>--lat<span class="w"> </span>-1.286<span class="w"> </span>--lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2015</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="w"> </span>csv<span class="w"> </span>-o<span class="w"> </span>outputs/nairobi_climate.csv
+
+<span class="c1"># 2. (optional) discover nearby stations</span>
+uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-weather-station-download<span class="w"> </span>--station-source<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lat<span class="w"> </span>-1.286<span class="w"> </span>--station-lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2015</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--report-prefix<span class="w"> </span>outputs/nairobi_stations<span class="w"> </span>--open-report
+
+<span class="c1"># 3. Climatology baseline</span>
+uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-climatology<span class="w"> </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span>--source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="w"> </span><span class="m">1991</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2020</span>
+
+<span class="c1"># 4. Detect rainy seasons</span>
+uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-seasons<span class="w"> </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span>--source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="w"> </span><span class="m">2015</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2020</span>
+
+<span class="c1"># 5. Climate statistics</span>
+uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-stats<span class="w"> </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="w"> </span><span class="m">2015</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>paired<span class="w"> </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--temp-source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/nairobi_stats.json
+
+<span class="c1"># 6. Compare 2020 to a baseline</span>
+uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-periods<span class="w"> </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--baseline-start<span class="w"> </span><span class="m">2001</span><span class="w"> </span>--baseline-end<span class="w"> </span><span class="m">2015</span><span class="w"> </span>--focal-year<span class="w"> </span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>paired<span class="w"> </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--temp-source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/nairobi_2020_vs_baseline.json
+
+<span class="c1"># 7. Maize hazards in 2020</span>
+uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-hazards<span class="w"> </span>Maize<span class="w"> </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--date-from<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--date-to<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>paired<span class="w"> </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--temp-source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/nairobi_maize_2020.json
+
+<span class="c1"># 8. Project maize hazards to 2050-2060</span>
+uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit-hazards-ensemble<span class="w"> </span>Maize<span class="w"> </span>--location<span class="w"> </span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="w"> </span><span class="m">2050</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2060</span><span class="w"> </span>--fixed-season<span class="w"> </span><span class="s2">&quot;03-01:05-31&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--models<span class="w"> </span>MPI-ESM1-2-LR,GFDL-ESM4<span class="w"> </span>--scenarios<span class="w"> </span>ssp245<span class="w"> </span>--model-workers<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/nairobi_maize_2050_2060.json
+</code></pre></div>
+<hr />
+<h2 id="notes-gotchas">Notes &amp; gotchas<a class="headerlink" href="#notes-gotchas" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Console scripts require installation</strong> (<code>uv sync</code> / <code>pip install -e .</code>). A
+  raw <code>requirements.txt</code> install does not expose them — use the
+  <code>python -m climate_toolkit.&lt;module&gt;</code> form instead.</li>
+<li><strong>Earth Engine project ID</strong> must be in the environment (<code>GCP_PROJECT_ID</code>),
+  or pass <code>uv run --env-file .env</code>. It is not auto-loaded from <code>.env</code>.</li>
+<li><strong>"auto"/"paired" source</strong> resolves to <code>chirps_v3_daily_rnl</code> (precip) +
+  <code>agera_5</code> (temperature) for the historical daily path.</li>
+<li><strong>CHIRPS naming</strong>: v3 is <code>chirps_v3_daily_rnl</code> (recommended); the older
+  <code>chirps_v2</code> ended in 2016. Prefer v3 or AgERA5 for reliability.</li>
+<li><strong>First GEE call</strong> in a session is slow (auth handshake); repeat runs reuse
+  the cache.</li>
+<li><strong>Flag conventions differ per tool</strong> — run any command with <code>--help</code> to
+  confirm (e.g. <code>fetch</code> uses <code>--lat/--lon</code>; <code>stats</code>/<code>seasons</code>/<code>hazards</code> use
+  <code>--location</code>; <code>hazards</code> takes the crop positionally with <code>--date-from</code>/
+  <code>--date-to</code>; <code>periods</code> uses <code>--baseline-start</code>/<code>--baseline-end</code>).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
