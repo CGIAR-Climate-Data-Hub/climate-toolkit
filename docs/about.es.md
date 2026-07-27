@@ -13,6 +13,22 @@ Fue creada por una razón sencilla: quienes más necesitan evidencia climática
 no deberían tener que convertirse en especialistas en datos climáticos para
 obtenerla.
 
+Financiado por la [Fundación McKnight (programa CRFS)](https://www.mcknight.org/programs/global-foods/)
+y el [programa Climate Action del CGIAR](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
+a través del AoW1: el Climate Data Hub, en asociación con [AIMS Rwanda](https://aims.ac.rw/):
+
+<p style="display:flex; align-items:center; gap:1.5em; flex-wrap:wrap; margin:1em 0;">
+  <a href="https://www.mcknight.org/programs/global-foods/">
+    <img src="../../assets/logos/mcknight.jpg" alt="The McKnight Foundation" style="height:44px; width:auto; background:#fff; padding:4px;">
+  </a>
+  <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar">
+    <img src="../../assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" style="height:56px; width:auto; background:#fff; padding:4px;">
+  </a>
+  <a href="https://aims.ac.rw/">
+    <img src="../../assets/logos/aims.png" alt="AIMS Rwanda" style="height:52px; width:auto; background:#fff; padding:4px;">
+  </a>
+</p>
+
 ---
 
 ## El problema
@@ -184,7 +200,8 @@ El trabajo fue liderado por la
 [Alianza de Bioversity International y el CIAT](https://alliancebioversityciat.org/),
 en asociación con [AIMS Rwanda](https://aims.ac.rw/).
 
-Este trabajo contó con el apoyo del CGIAR Climate Data Hub, parte del
+Este trabajo contó con el apoyo del
 [programa Climate Action del CGIAR](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
-(Area of Work 1). Agradecemos al Fondo Fiduciario del CGIAR y a sus
+a través de su **Área de Trabajo 1 (AoW1): el Climate Data Hub (CDH)**.
+Agradecemos al Fondo Fiduciario del CGIAR y a sus
 [contribuyentes](https://www.cgiar.org/funders/).
