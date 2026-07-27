@@ -59,6 +59,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import calendar
 import re
 
 import pandas as pd
@@ -90,26 +91,67 @@ COLUMN_ALIASES = {
 }
 
 
-def parse_month_day(value) -> str:
+_MONTHS = {
+    "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
+    "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7,
+    "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9,
+    "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
+}
+
+# ERA records soft season bounds like "Early-Mar" / "Mid-Jun" / "Late-Oct".
+_QUALIFIER_DAY = {"early": 5, "mid": 15, "late": 25}
+
+_SOFT_DATE_RE = re.compile(r"^(?:(early|mid|late)[-\s]*)?([a-z]+)\.?$", re.IGNORECASE)
+
+
+def _last_day_of_month(month: int) -> int:
+    """Last day of ``month``, using a non-leap year so February is 28."""
+    return calendar.monthrange(2001, month)[1]
+
+
+def parse_month_day(value, *, is_end: bool = False) -> str:
     """Normalize an ERA season boundary to zero-padded ``"MM-DD"``.
 
-    Accepts ``"MM-DD"``, ``"M-D"``, ``"MM/DD"``, ``"MM.DD"``, 4-digit ``"MMDD"``,
-    and date-like objects. Raises ``ValueError`` for anything unparseable or out
-    of range, so bad ERA rows fail loudly rather than silently mis-seasoning.
+    Handles both the numeric forms (``"MM-DD"``, ``"M-D"``, ``"MM/DD"``,
+    ``"MM.DD"``, 4-digit ``"MMDD"``, date-like objects) and ERA's *descriptive*
+    season bounds recorded in ``Site.Start.S1`` / ``Site.End.S1``:
+
+    * bare month  -> 1st of the month for a start, last day for an end
+      (``"Mar"`` -> ``03-01``; ``"July"`` (end) -> ``07-31``)
+    * ``Early-``  -> 5th   (``"Early-Mar"`` -> ``03-05``)
+    * ``Mid-``    -> 15th  (``"Mid-Mar"``   -> ``03-15``)
+    * ``Late-``   -> 25th  (``"Late-Jun"``  -> ``06-25``)
+
+    ``is_end`` only affects bare month names. Raises ``ValueError`` for anything
+    unparseable, so bad ERA rows fail loudly rather than silently mis-seasoning.
     """
     if value is None or (isinstance(value, float) and pd.isna(value)):
         raise ValueError("season boundary is missing")
+
     if hasattr(value, "month") and hasattr(value, "day"):
         month, day = int(value.month), int(value.day)
     else:
         token = str(value).strip()
-        parts = re.split(r"[-/.]", token)
-        if len(parts) == 2:
-            month, day = int(parts[0]), int(parts[1])
-        elif re.fullmatch(r"\d{4}", token):
-            month, day = int(token[:2]), int(token[2:])
+        if not token:
+            raise ValueError("season boundary is missing")
+
+        soft = _SOFT_DATE_RE.match(token)
+        if soft and soft.group(2).lower() in _MONTHS:
+            qualifier, month_name = soft.group(1), soft.group(2).lower()
+            month = _MONTHS[month_name]
+            if qualifier:
+                day = _QUALIFIER_DAY[qualifier.lower()]
+            else:
+                day = _last_day_of_month(month) if is_end else 1
         else:
-            raise ValueError(f"unrecognized month-day value: {value!r}")
+            parts = re.split(r"[-/.]", token)
+            if len(parts) == 2 and all(p.strip().isdigit() for p in parts):
+                month, day = int(parts[0]), int(parts[1])
+            elif re.fullmatch(r"\d{4}", token):
+                month, day = int(token[:2]), int(token[2:])
+            else:
+                raise ValueError(f"unrecognized season boundary: {value!r}")
+
     if not (1 <= month <= 12 and 1 <= day <= 31):
         raise ValueError(f"month-day out of range: {value!r} -> {month:02d}-{day:02d}")
     return f"{month:02d}-{day:02d}"
@@ -120,7 +162,10 @@ def lte_to_fixed_season(row) -> str:
 
     One season -> ``"MM-DD:MM-DD"``; two seasons -> ``"MM-DD:MM-DD,MM-DD:MM-DD"``.
     """
-    s1 = f"{parse_month_day(row['s1_start'])}:{parse_month_day(row['s1_end'])}"
+    s1 = (
+        f"{parse_month_day(row['s1_start'])}"
+        f":{parse_month_day(row['s1_end'], is_end=True)}"
+    )
     s2_start, s2_end = row.get("s2_start"), row.get("s2_end")
     has_s2 = not (
         s2_start is None
@@ -129,7 +174,7 @@ def lte_to_fixed_season(row) -> str:
         or str(s2_start).strip() == ""
     )
     if has_s2:
-        s2 = f"{parse_month_day(s2_start)}:{parse_month_day(s2_end)}"
+        s2 = f"{parse_month_day(s2_start)}:{parse_month_day(s2_end, is_end=True)}"
         return f"{s1},{s2}"
     return s1
 
@@ -160,6 +205,27 @@ def _year(value):
         return None
 
 
+def _drop_redundant_aliases(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop alias columns whose canonical target is already present.
+
+    Several ERA names map to the same target (e.g. both ``Latitude`` and
+    ``Site.LatD`` -> ``lat``). ``lte_summary`` emits only one of each, but if an
+    export ever carried both — or already carried the canonical ``lat`` — the
+    rename would produce duplicate columns. Keep the first claimant and drop the
+    rest so that is impossible.
+    """
+    taken = {col for col in df.columns if col not in COLUMN_ALIASES}
+    redundant = []
+    for source, target in COLUMN_ALIASES.items():
+        if source not in df.columns:
+            continue
+        if target in taken:
+            redundant.append(source)
+        else:
+            taken.add(target)
+    return df.drop(columns=redundant) if redundant else df
+
+
 def load_sites(csv_path) -> pd.DataFrame:
     """Load an ERA LTE export or the shipped registry, applying name aliases.
 
@@ -171,7 +237,7 @@ def load_sites(csv_path) -> pd.DataFrame:
         df = pd.read_csv(csv_path)
     except UnicodeDecodeError:
         df = pd.read_csv(csv_path, encoding="cp1252")
-    df = df.rename(columns=COLUMN_ALIASES)
+    df = _drop_redundant_aliases(df).rename(columns=COLUMN_ALIASES)
     df["start_year"] = df["start_year"].map(_year)
     df["end_year"] = df["end_year"].map(_year)
     df = df.dropna(subset=["lat", "lon"])
