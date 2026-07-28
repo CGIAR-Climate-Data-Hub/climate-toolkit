@@ -358,6 +358,40 @@ Both `outputs/` and `.tmp/` are git-ignored.
 
 ## 12. Recipes
 
+### One call for the whole workflow: `run_pipeline`
+
+`run_pipeline` chains fetch → long-term climatology → (optional source
+comparison) → seasonal statistics → crop hazards → (optional period comparison)
+for one site or many, returning a headline `summary` table plus every
+intermediate result. One failing site never aborts a batch.
+
+```python
+import climate_toolkit as ct
+
+# Single site
+result = ct.run_pipeline(
+    name="Nairobi", location_coord=(-1.286, 36.817),
+    start_year=2019, end_year=2020, source="nasa_power",
+    fixed_season="03-01:05-31", crop_name="maize",
+)
+result.summary                      # one headline row per site (DataFrame)
+result.site_results[0].climate_statistics   # full nested result, per site
+
+# Many sites (list of dicts, or sites_csv="...", or site_table=DataFrame)
+batch = ct.run_pipeline(
+    sites=[{"name": "A", "lat": -1.0, "lon": 36.0},
+           {"name": "B", "lat": -2.0, "lon": 37.0}],
+    start_year=2019, end_year=2020, source="nasa_power",
+)
+batch.summary            # one row per site
+batch.errors             # per-site failures captured, batch still completes
+```
+
+The long-term climatology defaults to the WMO 1991–2020 baseline
+(`climatology_baseline=(1991, 2020)`). Turn optional steps on with
+`run_compare_sources=True` (+ `compare_sources_list=[...]`) or
+`run_compare_periods=True` (+ `baseline_start/baseline_end/focal_year`).
+
 ### Compare two sources at one site
 
 ```python
