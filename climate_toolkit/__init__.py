@@ -59,6 +59,7 @@ __all__ = [
     "download_station_data",
     "evaluate_hazards",
     "fetch_climate_data",
+    "run_pipeline",
 ]
 
 
@@ -73,6 +74,10 @@ def __getattr__(name: str):
         from .fetch_data.fetch_data import fetch_data as _fetch_data
 
         return _fetch_data
+    if name == "run_pipeline":
+        from .pipeline import run_pipeline as _run_pipeline
+
+        return _run_pipeline
     if name == "analyze_climate_statistics":
         from .climate_statistics.statistics import (
             analyze_climate_statistics as _analyze_climate_statistics,
