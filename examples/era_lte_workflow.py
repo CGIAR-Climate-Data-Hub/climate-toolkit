@@ -55,10 +55,26 @@ Guides: https://github.com/ERAgriculture/LTEs (see ``lte_summary.Rmd`` and
 
 Usage
 -----
-    # No credentials needed if --source nasa_power:
-    python examples/era_lte_workflow.py era_lte.csv --dry-run    # show season mapping
-    python examples/era_lte_workflow.py era_lte.csv --source nasa_power --limit 5
+All examples are credential-free with ``--source nasa_power`` (the default).
+
+    # Discover the Site.ID values in the CSV (to pick with --site):
+    python examples/era_lte_workflow.py era_lte.csv --list-sites
+
+    # Preview the season mapping only, no network calls:
+    python examples/era_lte_workflow.py era_lte.csv --dry-run
+
+    # ALL sites (default — no --site / --limit):
     python examples/era_lte_workflow.py era_lte.csv --out era_lte_compare.csv
+
+    # SINGLE site:
+    python examples/era_lte_workflow.py era_lte.csv --site Kitale
+
+    # MULTIPLE sites (repeat --site, or comma-separate):
+    python examples/era_lte_workflow.py era_lte.csv --site Kitale --site Tamale
+    python examples/era_lte_workflow.py era_lte.csv --site Kitale,Tamale
+
+    # First N sites (handy for a quick demo); combines with --site:
+    python examples/era_lte_workflow.py era_lte.csv --limit 5
 """
 
 from __future__ import annotations
@@ -95,14 +111,31 @@ COLUMN_ALIASES = {
     "P.Product": "crop_name",
     # Agronomic context carried through to the output so climate metrics can be
     # lined up against the ERA-reported outcome (the point of the lte_summary
-    # table): experimental treatment and its yield.
+    # table): experimental treatment, its yield, and the yield's error.
     "Treatment": "treatment",
     "Yield": "reported_yield",
+    "ED.Error": "yield_error",
+    # Experiment identifiers and the outcome year the yield refers to.
+    "LTE.ID": "lte_id",
+    "Code": "code",
+    "Time": "outcome_year",
+    # ERA site climate normals + second-season rainfall, kept for context.
+    "Site.MSP.S2": "reported_rain_s2_mm",
+    "Site.MAP": "map_mm",
+    "Site.MAT": "mat_c",
+    # Planting window, useful alongside the season window.
+    "Planting.Start": "planting_start",
+    "Planting.End": "planting_end",
 }
 
-# ERA context columns echoed onto every output row (when present) so downstream
-# analysis can correlate the toolkit's climate metrics with reported outcomes.
-CONTEXT_FIELDS = ("crop_name", "treatment", "reported_yield")
+# ERA input columns echoed onto every output row (when present), in output
+# order, so the comparison table is self-contained for downstream analysis —
+# identifiers, location, study window, agronomic context, and site normals.
+CONTEXT_FIELDS = (
+    "site_id", "lte_id", "code", "lat", "lon", "start_year", "end_year",
+    "crop_name", "treatment", "outcome_year", "reported_yield", "yield_error",
+    "planting_start", "planting_end", "map_mm", "mat_c", "reported_rain_s2_mm",
+)
 
 
 _MONTHS = {
@@ -250,7 +283,7 @@ def load_sites(csv_path) -> pd.DataFrame:
     try:
         df = pd.read_csv(csv_path)
     except UnicodeDecodeError:
-        df = pd.read_csv(csv_path, encoding="cp1252")
+        df = pd.read_csv('lte_summary.csv', encoding="cp1252")
     df = _drop_redundant_aliases(df).rename(columns=COLUMN_ALIASES)
     df["start_year"] = df["start_year"].map(_year)
     df["end_year"] = df["end_year"].map(_year)
@@ -302,18 +335,20 @@ def run_site(row, source: str) -> list[dict]:
     else:
         fixed = None
     result = analyze_climate_statistics(**kwargs)
-    context = {
-        field: row[field]
-        for field in CONTEXT_FIELDS
-        if field in row and not pd.isna(row.get(field))
-    }
+    # Echo the input context onto every row (site_id always; the rest when
+    # present), so the output table stands on its own for analysis.
+    context = {"site_id": row.get("site_id")}
+    for field in CONTEXT_FIELDS:
+        if field == "site_id" or field not in row:
+            continue
+        if not pd.isna(row.get(field)):
+            context[field] = row[field]
     out = []
     for tk in seasonal_rows(result):
         record = {
-            "site_id": row.get("site_id"),
+            **context,
             "mode": "fixed" if fixed else "auto",
             "fixed_season": fixed,
-            **context,
             **tk,
         }
         if "reported_rain_mm" in row and not pd.isna(row.get("reported_rain_mm")):
@@ -325,10 +360,37 @@ def run_site(row, source: str) -> list[dict]:
     return out
 
 
-def run(csv_path, source="nasa_power", out_csv="era_lte_compare.csv", limit=None, dry_run=False):
-    sites = load_sites(csv_path)
+def select_sites(sites, site_ids=None, limit=None):
+    """Narrow the loaded frame to the requested Site.ID value(s), then N.
+
+    ``site_ids`` accepts a list where each item may itself be comma-separated
+    (``--site A --site B`` and ``--site A,B`` both work). ``None``/empty means
+    all sites. Unknown IDs raise, so a typo fails loudly instead of running
+    nothing. ``limit`` keeps the first N of whatever remains.
+    """
+    if site_ids:
+        wanted = [s.strip() for item in site_ids for s in str(item).split(",") if s.strip()]
+        available = set(sites["site_id"].astype(str))
+        missing = [s for s in wanted if s not in available]
+        if missing:
+            raise SystemExit(
+                f"--site: no such Site.ID {missing} (available: {sorted(available)})"
+            )
+        sites = sites[sites["site_id"].astype(str).isin(wanted)]
     if limit:
         sites = sites.head(limit)
+    return sites.reset_index(drop=True)
+
+
+def run(
+    csv_path,
+    source="nasa_power",
+    out_csv="era_lte_compare.csv",
+    limit=None,
+    dry_run=False,
+    site_ids=None,
+):
+    sites = select_sites(load_sites(csv_path), site_ids=site_ids, limit=limit)
     print(f"{len(sites)} ERA LTE site-periods")
 
     if dry_run:
@@ -366,10 +428,29 @@ def main():
     parser.add_argument("csv", help="ERA LTE export CSV (see module docstring for columns)")
     parser.add_argument("--source", default="nasa_power", help="Climate source (default: nasa_power)")
     parser.add_argument("--out", default="era_lte_compare.csv", help="Output CSV path")
+    parser.add_argument(
+        "--site",
+        action="append",
+        default=None,
+        metavar="SITE_ID",
+        help="Run only this Site.ID. Repeatable and/or comma-separated "
+        "(--site A --site B, or --site A,B). Default: all sites.",
+    )
     parser.add_argument("--limit", type=int, default=None, help="Only process the first N sites")
+    parser.add_argument(
+        "--list-sites",
+        action="store_true",
+        help="Print the Site.ID values in the CSV and exit (use to pick --site).",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Show season mapping without fetching")
     args = parser.parse_args()
-    run(args.csv, args.source, args.out, args.limit, args.dry_run)
+
+    if args.list_sites:
+        for site_id in load_sites(args.csv)["site_id"].astype(str).drop_duplicates():
+            print(site_id)
+        return
+
+    run(args.csv, args.source, args.out, args.limit, args.dry_run, site_ids=args.site)
 
 
 if __name__ == "__main__":

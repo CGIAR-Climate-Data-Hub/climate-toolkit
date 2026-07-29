@@ -18,12 +18,15 @@ import os
 import tempfile
 from unittest import mock
 
+import pandas as pd
+
 from examples.era_lte_workflow import (
     has_season_windows,
     load_sites,
     lte_to_fixed_season,
     parse_month_day,
     run_site,
+    select_sites,
 )
 
 
@@ -262,6 +265,78 @@ class CompiledTableTests(unittest.TestCase):
         # Comparison against ERA-reported rainfall still works alongside context.
         self.assertEqual(rec["reported_rain_mm"], 320.0)
         self.assertAlmostEqual(rec["rain_delta_mm"], -20.0)
+
+    def test_extra_input_columns_are_captured_on_output(self):
+        row = {
+            "site_id": "SITE1",
+            "lte_id": "LTE001",
+            "code": "BC001",
+            "lat": -1.0,
+            "lon": 35.0,
+            "start_year": 2019,
+            "end_year": 2020,
+            "outcome_year": 2019,
+            "crop_name": "maize",
+            "treatment": "Manure",
+            "reported_yield": 3.4,
+            "yield_error": 0.4,
+            "planting_start": "Mid-Mar",
+            "planting_end": "Late-Mar",
+            "map_mm": 1100,
+            "mat_c": 18.5,
+        }
+        fake = {
+            "season_statistics": [
+                {
+                    "year": 2019,
+                    "season_number": 1,
+                    "length_days": 90,
+                    "precipitation": {"total_mm": 300.0, "rainy_days": 40},
+                    "water_balance": {"NDWS": 5, "WRSI": 0.9},
+                }
+            ]
+        }
+        with mock.patch(
+            "examples.era_lte_workflow.analyze_climate_statistics", return_value=fake
+        ):
+            rec = run_site(row, source="nasa_power")[0]
+
+        for field in ("lte_id", "code", "lat", "lon", "start_year", "end_year",
+                      "outcome_year", "yield_error", "planting_start", "planting_end",
+                      "map_mm", "mat_c"):
+            self.assertIn(field, rec)
+        self.assertEqual(rec["lte_id"], "LTE001")
+        self.assertEqual(rec["map_mm"], 1100)
+        # site_id leads the record; toolkit metrics still present.
+        self.assertEqual(next(iter(rec)), "site_id")
+        self.assertIn("tk_WRSI", rec)
+
+
+class SelectSitesTests(unittest.TestCase):
+    def _frame(self):
+        return pd.DataFrame(
+            {"site_id": ["A", "A", "B", "C"], "lat": [1, 1, 2, 3], "lon": [1, 1, 2, 3]}
+        )
+
+    def test_default_returns_all(self):
+        self.assertEqual(len(select_sites(self._frame())), 4)
+
+    def test_single_site(self):
+        out = select_sites(self._frame(), site_ids=["B"])
+        self.assertEqual(list(out["site_id"]), ["B"])
+
+    def test_multiple_sites_repeated_and_comma(self):
+        self.assertEqual(sorted(select_sites(self._frame(), site_ids=["A", "C"])["site_id"].unique()),
+                         ["A", "C"])
+        self.assertEqual(sorted(select_sites(self._frame(), site_ids=["A,C"])["site_id"].unique()),
+                         ["A", "C"])
+
+    def test_unknown_site_raises(self):
+        with self.assertRaises(SystemExit):
+            select_sites(self._frame(), site_ids=["Z"])
+
+    def test_limit_after_selection(self):
+        self.assertEqual(len(select_sites(self._frame(), site_ids=["A"], limit=1)), 1)
 
 
 if __name__ == "__main__":
