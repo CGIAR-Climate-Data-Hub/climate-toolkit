@@ -75,6 +75,22 @@ All examples are credential-free with ``--source nasa_power`` (the default).
 
     # First N sites (handy for a quick demo); combines with --site:
     python examples/era_lte_workflow.py era_lte.csv --limit 5
+
+From Python (as a library)
+--------------------------
+The same functions the CLI calls are importable — drive the workflow from a
+notebook or script and get pandas objects back, no terminal needed::
+
+    import sys; sys.path.insert(0, "/path/to/climate-toolkit")  # repo checkout
+    from examples.era_lte_workflow import load_sites, select_sites, run
+
+    sites = load_sites("lte_summary.csv")          # -> DataFrame (aliased cols)
+    subset = select_sites(sites, site_ids=["Kitale", "Tamale"])  # or None = all
+    df = run("lte_summary.csv", source="nasa_power", site_ids=["Kitale"])
+    #   -> pandas DataFrame of toolkit metrics + ERA context, also written to CSV
+
+``run_site(row, source)`` runs a single loaded row and returns the per-season
+records if you want to build the frame yourself.
 """
 
 from __future__ import annotations
