@@ -41,6 +41,11 @@ workflow consumes it directly — the ERA-native column names are aliased:
     Site.LatD/Site.LonD -> lat/lon        Site.Start.S1/Site.End.S1 -> s1_start/s1_end
     Study.Start/Study.End -> start/end_year   Site.Start.S2/Site.End.S2 -> s2_start/s2_end
     Site.MSP.S1 (mean seasonal precip) -> reported_rain_mm   P.Product -> crop_name
+    Treatment -> treatment                Yield -> reported_yield
+
+``treatment``, ``crop_name`` and ``reported_yield`` are echoed onto every output
+row so the toolkit's climate metrics can be lined up against the ERA-reported
+outcome — the reason for compiling ``lte_summary`` in the first place.
 
 Note ``Site.MSP.S1`` is ERA's long-term *mean* seasonal precipitation, so the
 comparison is each toolkit season-year against the ERA seasonal mean.
@@ -88,7 +93,16 @@ COLUMN_ALIASES = {
     "Site.MSP.S1": "reported_rain_mm",
     # Crop, for per-site hazard/season context.
     "P.Product": "crop_name",
+    # Agronomic context carried through to the output so climate metrics can be
+    # lined up against the ERA-reported outcome (the point of the lte_summary
+    # table): experimental treatment and its yield.
+    "Treatment": "treatment",
+    "Yield": "reported_yield",
 }
+
+# ERA context columns echoed onto every output row (when present) so downstream
+# analysis can correlate the toolkit's climate metrics with reported outcomes.
+CONTEXT_FIELDS = ("crop_name", "treatment", "reported_yield")
 
 
 _MONTHS = {
@@ -288,12 +302,18 @@ def run_site(row, source: str) -> list[dict]:
     else:
         fixed = None
     result = analyze_climate_statistics(**kwargs)
+    context = {
+        field: row[field]
+        for field in CONTEXT_FIELDS
+        if field in row and not pd.isna(row.get(field))
+    }
     out = []
     for tk in seasonal_rows(result):
         record = {
             "site_id": row.get("site_id"),
             "mode": "fixed" if fixed else "auto",
             "fixed_season": fixed,
+            **context,
             **tk,
         }
         if "reported_rain_mm" in row and not pd.isna(row.get("reported_rain_mm")):

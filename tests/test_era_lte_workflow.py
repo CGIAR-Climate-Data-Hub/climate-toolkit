@@ -16,12 +16,14 @@ if REPO_ROOT not in sys.path:
 
 import os
 import tempfile
+from unittest import mock
 
 from examples.era_lte_workflow import (
     has_season_windows,
     load_sites,
     lte_to_fixed_season,
     parse_month_day,
+    run_site,
 )
 
 
@@ -196,6 +198,70 @@ class EraNativeColumnTests(unittest.TestCase):
         row = df.iloc[0].to_dict()
         self.assertEqual((row["lat"], row["lon"]), (-1.286, 36.817))
         self.assertEqual(lte_to_fixed_season(row), "03-15:06-25")
+
+
+class CompiledTableTests(unittest.TestCase):
+    """The #141 `lte_summary` compiled table (treatment + yield) flows through."""
+
+    def test_treatment_and_yield_alias_and_load(self):
+        # A slice of the lte_summary schema: two treatment rows for one site.
+        csv = (
+            "Site.ID,Latitude,Longitude,Study.Start,Study.End,"
+            "Site.Start.S1,Site.End.S1,Site.MSP.S1,P.Product,Treatment,Yield\n"
+            "SITE1,-1.286,36.817,2016,2020,Mid-Mar,Late-Jun,320,maize,Control,1.2\n"
+            "SITE1,-1.286,36.817,2016,2020,Mid-Mar,Late-Jun,320,maize,Mulch,2.8\n"
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+            f.write(csv)
+            path = f.name
+        try:
+            df = load_sites(path)
+        finally:
+            os.unlink(path)
+
+        self.assertEqual(list(df["treatment"]), ["Control", "Mulch"])
+        self.assertEqual(list(df["reported_yield"]), [1.2, 2.8])
+        self.assertEqual(list(df["crop_name"]), ["maize", "maize"])
+
+    def test_context_fields_echoed_onto_output_rows(self):
+        row = {
+            "site_id": "SITE1",
+            "lat": -1.286,
+            "lon": 36.817,
+            "start_year": 2019,
+            "end_year": 2020,
+            "s1_start": "03-01",
+            "s1_end": "05-31",
+            "reported_rain_mm": 320.0,
+            "crop_name": "maize",
+            "treatment": "Mulch",
+            "reported_yield": 2.8,
+        }
+        fake = {
+            "season_statistics": [
+                {
+                    "year": 2019,
+                    "season_number": 1,
+                    "length_days": 90,
+                    "precipitation": {"total_mm": 300.0, "rainy_days": 40},
+                    "water_balance": {"NDWS": 5, "WRSI": 0.9},
+                }
+            ]
+        }
+        with mock.patch(
+            "examples.era_lte_workflow.analyze_climate_statistics", return_value=fake
+        ):
+            out = run_site(row, source="nasa_power")
+
+        self.assertEqual(len(out), 1)
+        rec = out[0]
+        self.assertEqual(rec["treatment"], "Mulch")
+        self.assertEqual(rec["reported_yield"], 2.8)
+        self.assertEqual(rec["crop_name"], "maize")
+        self.assertEqual(rec["fixed_season"], "03-01:05-31")
+        # Comparison against ERA-reported rainfall still works alongside context.
+        self.assertEqual(rec["reported_rain_mm"], 320.0)
+        self.assertAlmostEqual(rec["rain_delta_mm"], -20.0)
 
 
 if __name__ == "__main__":
