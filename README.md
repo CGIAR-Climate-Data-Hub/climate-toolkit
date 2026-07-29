@@ -285,6 +285,73 @@ python -m pip install .tmp/dist-release/climate_toolkit-*.whl
 If you only want artifact verification without mutating current environment,
 rely on automated smoke tests and CI build checks.
 
+### Reproducible environment with Docker
+
+For a reproducible runtime that does not depend on your local
+Python version, use the provided `Dockerfile`. Reproducibility comes from three
+pins: the base image (pinned by digest to CPython 3.10, matching CI), `uv`
+(pinned to an exact release), and `uv.lock` (every dependency fixed to an exact
+version + hash).
+
+Build the image:
+
+```bash
+docker build -t climate-toolkit .
+```
+
+**Recommended: use the `docker-run.sh` wrapper.** It deletes stale containers
+from previous runs on every start, then launches a fresh one with `--rm` so it
+also cleans up on exit — you never accumulate leftover containers. It builds the
+image automatically on first use and forwards all arguments to the CLI:
+
+```bash
+./docker-run.sh --help
+GCP_PROJECT_ID=your-project ./docker-run.sh fetch --source nasa_power \
+  --lat -1.286 --lon 36.817 --from 2020-01-01 --to 2020-12-31
+```
+
+The wrapper mounts your Earth Engine credentials and `outputs/` for you. Under
+the hood it runs the plain commands below.
+
+Offline smoke test — proves the environment reproduces, needs neither Earth
+Engine nor network:
+
+```bash
+docker run --rm climate-toolkit --help
+docker run --rm --entrypoint python climate-toolkit \
+  -c "import climate_toolkit as ct; print(ct.__version__)"
+```
+
+Earth Engine credentials are **not** baked into the image (they are per-user
+OAuth). For Earth Engine-backed sources, mount your credentials read-only and
+pass `GCP_PROJECT_ID` at runtime. Mount `outputs/` so cached frames persist
+across runs:
+
+```bash
+docker run --rm \
+  -e GCP_PROJECT_ID=your-project \
+  -v "$HOME/.config/earthengine:/home/app/.config/earthengine:ro" \
+  -v "$(pwd)/outputs:/app/outputs" \
+  climate-toolkit fetch --source nasa_power \
+    --lat -1.286 --lon 36.817 --from 2020-01-01 --to 2020-12-31
+```
+
+A `docker-compose.yml` wraps those mounts so you can run
+`docker compose run --rm toolkit <command>` instead. NASA POWER needs no
+credentials; the offline unit suite and CLI surface work without Earth Engine.
+
+**Container cleanup.** Every documented command uses `--rm`, so a successful run
+never leaves a container behind. Stale containers can only appear if a run
+crashes or is started without `--rm`; the `docker-run.sh` wrapper sweeps those
+before each start. To clean up manually at any time:
+
+```bash
+# Remove stopped containers built from the image
+docker ps -aq --filter ancestor=climate-toolkit --filter status=exited | xargs -r docker rm
+# Or, when using compose
+docker compose down --remove-orphans
+```
+
 ### Release strategy
 
 Current decision:
