@@ -389,6 +389,44 @@ class FetchCacheTests(unittest.TestCase):
         self.assertEqual(len(out), 1)
 
 
+class SiteOutExtractTests(unittest.TestCase):
+    """The Site.Out extractor keeps only season+rainfall rows, toolkit-ready."""
+
+    def test_extract_filters_and_loads(self):
+        import importlib.util
+        if importlib.util.find_spec("ijson") is None:
+            self.skipTest("ijson not installed")
+        import json as _json
+
+        from examples.era_extract_site_out import extract
+
+        data = {"Site.Out": [
+            {"Site.ID": "A", "Site.LatD": 1.0, "Site.LonD": 2.0,
+             "Site.Start.S1": "Mar", "Site.End.S1": "Jun", "Site.MSP.S1": 300},
+            {"Site.ID": "B", "Site.LatD": 3.0, "Site.LonD": 4.0,  # no season/MSP -> skipped
+             "Site.Start.S1": None, "Site.End.S1": None, "Site.MSP.S1": None},
+            {"Site.ID": "A", "Site.LatD": 1.0, "Site.LonD": 2.0,  # dup site -> skipped
+             "Site.Start.S1": "Mar", "Site.End.S1": "Jun", "Site.MSP.S1": 310},
+        ]}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as jf:
+            _json.dump(data, jf)
+            jpath = jf.name
+        out = jpath + ".csv"
+        try:
+            n = extract(jpath, out, 1991, 2020)
+            self.assertEqual(n, 1)  # only site A, once
+            df = load_sites(out)
+            row = df.iloc[0].to_dict()
+            self.assertEqual((row["lat"], row["lon"]), (1.0, 2.0))
+            self.assertEqual(row["reported_rain_mm"], 300)
+            self.assertEqual((row["start_year"], row["end_year"]), (1991, 2020))
+            self.assertEqual(lte_to_fixed_season(row), "03-01:06-30")
+        finally:
+            os.unlink(jpath)
+            if os.path.exists(out):
+                os.unlink(out)
+
+
 class SelectSitesTests(unittest.TestCase):
     def _frame(self):
         return pd.DataFrame(
