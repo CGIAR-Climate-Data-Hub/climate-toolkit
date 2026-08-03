@@ -231,16 +231,26 @@ def parse_month_day(value, *, is_end: bool = False) -> str:
     return f"{month:02d}-{day:02d}"
 
 
-def _strip_season_qualifier(token: str) -> str:
-    """Drop a leading day-qualifier (``d-``/``e-``/``y-``/bare ``-``) from a token.
+# Rwema's unique_sites_for_toolkit.csv abbreviates the ERA Early/Mid/Late day
+# qualifiers to one letter (confirmed with the ERA team, #141):
+#   d- = Mid (15th)   e- = Late (25th)   y- = Early (5th)
+_SEASON_QUALIFIER = {"d": "Mid", "e": "Late", "y": "Early"}
 
-    Rwema's ``unique_sites_for_toolkit.csv`` writes season bounds as month names
-    with a day/relative-year qualifier prefix (``d-Mar``, ``e-May``, ``y-Feb``,
-    ``-July``). We resolve at month resolution — the exact day barely moves a
-    multi-month seasonal total measured against a long-term mean — so strip the
-    prefix and let :func:`parse_month_day` map the month to its 1st / last day.
+
+def _resolve_season_qualifier(token: str) -> str:
+    """Rewrite Rwema's abbreviated season qualifier to the ERA Early/Mid/Late form.
+
+    ``unique_sites_for_toolkit.csv`` writes season bounds as month names with a
+    one-letter day qualifier (``d-Mar``, ``e-May``, ``y-Feb``). Rewrite it to the
+    ``Early-/Mid-/Late-`` prefix that :func:`parse_month_day` already maps to the
+    5th / 15th / 25th. A bare leading ``-`` (e.g. ``-July``) or an unknown prefix
+    is dropped, leaving a plain month (1st for a start, last day for an end).
     """
-    return re.sub(r"^(?:[A-Za-z]+-|-)", "", str(token).strip()).strip()
+    tok = str(token).strip()
+    m = re.match(r"^([A-Za-z])-(.+)$", tok)
+    if m and m.group(1).lower() in _SEASON_QUALIFIER:
+        return f"{_SEASON_QUALIFIER[m.group(1).lower()]}-{m.group(2).strip()}"
+    return re.sub(r"^(?:[A-Za-z]+-|-)", "", tok).strip()
 
 
 def normalize_fixed_season(value) -> str | None:
@@ -256,7 +266,7 @@ def normalize_fixed_season(value) -> str | None:
         parts = win.split(":")
         if len(parts) != 2:
             continue
-        start, end = _strip_season_qualifier(parts[0]), _strip_season_qualifier(parts[1])
+        start, end = _resolve_season_qualifier(parts[0]), _resolve_season_qualifier(parts[1])
         if not start or not end or start.upper() == "NA" or end.upper() == "NA":
             continue
         windows.append(f"{parse_month_day(start)}:{parse_month_day(end, is_end=True)}")
@@ -463,8 +473,12 @@ def run_site(row, source: str, cache: dict | None = None) -> list[dict]:
             "fixed_season": fixed,
             **tk,
         }
-        if "reported_rain_mm" in row and not pd.isna(row.get("reported_rain_mm")):
-            reported = float(row["reported_rain_mm"])
+        # Compare each toolkit season against ERA's mean seasonal precip for the
+        # *same* season: Site.MSP.S1 for season 1, Site.MSP.S2 for season 2
+        # (confirmed with the ERA team — MSP is seasonal, Site.MAP is annual).
+        msp_field = "reported_rain_mm" if tk.get("season_number") == 1 else "reported_rain_s2_mm"
+        if msp_field in row and not pd.isna(row.get(msp_field)):
+            reported = float(row[msp_field])
             record["reported_rain_mm"] = reported
             if tk["tk_rain_total_mm"] is not None:
                 record["rain_delta_mm"] = tk["tk_rain_total_mm"] - reported

@@ -9,9 +9,10 @@ Per-site, toolkit-ready: `Site.ID, Latitude, Longitude, Study.Start, Study.End,
 fixed_season` for ~126 real ERA sites.
 
 - **`fixed_season`** is pre-built by the ERA compile, in month-name syntax:
-  `Feb:May,Jun:Sep` (colon within a window, comma between windows). Day/relative-
-  year qualifiers (`d-`, `e-`, `y-`, leading `-`) are resolved at month
-  resolution by the workflow; `NA` windows are dropped.
+  `Feb:May,Jun:Sep` (colon within a window, comma between windows). The workflow
+  maps the ERA day qualifiers (confirmed with the ERA team): `d-` = Mid (15th),
+  `e-` = Late (25th), `y-` = Early (5th); a bare month is the 1st (start) / last
+  day (end); `NA` windows are dropped.
 - Season-window rows run in **fixed-season mode** → the toolkit-vs-reported
   comparison. (This file has no yield; use the expanded table for that.)
 

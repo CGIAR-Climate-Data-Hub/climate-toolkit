@@ -39,10 +39,13 @@ class PrebuiltFixedSeasonTests(unittest.TestCase):
         self.assertEqual(normalize_fixed_season("Nov:Mar"), "11-01:03-31")  # year-crossing
         self.assertEqual(normalize_fixed_season("March:Aug"), "03-01:08-31")  # full name
 
-    def test_day_and_year_qualifiers_collapse_to_month(self):
-        # d-/e-/y-/leading-'-' qualifiers resolve at month resolution.
-        self.assertEqual(normalize_fixed_season("d-Mar:-July,Sep:d-Nov"), "03-01:07-31,09-01:11-30")
-        self.assertEqual(normalize_fixed_season("March:y-Sep,Oct:y-Feb"), "03-01:09-30,10-01:02-28")
+    def test_day_qualifiers_map_to_era_days(self):
+        # Per the ERA team (#141): d- = Mid (15th), e- = Late (25th), y- = Early (5th).
+        self.assertEqual(normalize_fixed_season("d-Mar:e-May"), "03-15:05-25")
+        self.assertEqual(normalize_fixed_season("y-Feb:d-Aug"), "02-05:08-15")
+        # Mixed with bare months and a leading '-' (-July -> plain July end).
+        self.assertEqual(normalize_fixed_season("d-Mar:-July,Sep:d-Nov"), "03-15:07-31,09-01:11-15")
+        self.assertEqual(normalize_fixed_season("March:y-Sep,Oct:y-Feb"), "03-01:09-05,10-01:02-05")
 
     def test_na_window_dropped(self):
         self.assertEqual(normalize_fixed_season("Jun:Sep,NA:NA"), "06-01:09-30")
