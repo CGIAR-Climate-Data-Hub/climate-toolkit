@@ -24,10 +24,37 @@ from examples.era_lte_workflow import (
     has_season_windows,
     load_sites,
     lte_to_fixed_season,
+    normalize_fixed_season,
     parse_month_day,
     run_site,
     select_sites,
 )
+
+
+class PrebuiltFixedSeasonTests(unittest.TestCase):
+    """Rwema's `unique_sites_for_toolkit.csv` ships a month-name fixed_season."""
+
+    def test_month_name_windows(self):
+        self.assertEqual(normalize_fixed_season("Feb:May,Jun:Sep"), "02-01:05-31,06-01:09-30")
+        self.assertEqual(normalize_fixed_season("Nov:Mar"), "11-01:03-31")  # year-crossing
+        self.assertEqual(normalize_fixed_season("March:Aug"), "03-01:08-31")  # full name
+
+    def test_day_and_year_qualifiers_collapse_to_month(self):
+        # d-/e-/y-/leading-'-' qualifiers resolve at month resolution.
+        self.assertEqual(normalize_fixed_season("d-Mar:-July,Sep:d-Nov"), "03-01:07-31,09-01:11-30")
+        self.assertEqual(normalize_fixed_season("March:y-Sep,Oct:y-Feb"), "03-01:09-30,10-01:02-28")
+
+    def test_na_window_dropped(self):
+        self.assertEqual(normalize_fixed_season("Jun:Sep,NA:NA"), "06-01:09-30")
+
+    def test_row_prebuilt_fixed_season_wins(self):
+        row = {"fixed_season": "Feb:May,Jun:Sep", "s1_start": "01-01", "s1_end": "02-01"}
+        self.assertTrue(has_season_windows(row))
+        self.assertEqual(lte_to_fixed_season(row), "02-01:05-31,06-01:09-30")
+
+    def test_unusable_fixed_season_falls_back_to_windows(self):
+        row = {"fixed_season": "NA:NA", "s1_start": "03-01", "s1_end": "05-31"}
+        self.assertEqual(lte_to_fixed_season(row), "03-01:05-31")
 
 
 class ParseMonthDayTests(unittest.TestCase):

@@ -35,8 +35,9 @@ if REPO_ROOT not in sys.path:
 
 from examples.era_lte_workflow import load_sites, run, run_site, select_sites
 
-# The real ERA registry vendored with the repo (see examples/data/README.md).
-DEFAULT_CSV = os.path.join(REPO_ROOT, "examples", "data", "unique_ltes.csv")
+# Rwema's real toolkit-ready ERA sites (season windows included). See
+# examples/data/README.md.
+DEFAULT_CSV = os.path.join(REPO_ROOT, "examples", "data", "unique_sites_for_toolkit.csv")
 
 
 def main() -> None:

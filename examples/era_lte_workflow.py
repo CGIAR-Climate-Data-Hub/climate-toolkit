@@ -19,6 +19,11 @@ One row per LTE site-period, with columns (registry aliases in parentheses):
     s1_start, s1_end            # optional season-1 window as month-day, "03-01"
     s2_start, s2_end            # optional second season
     reported_rain_mm            # optional ERA-reported seasonal rainfall
+    fixed_season                # optional pre-built season, e.g. "Feb:May,Jun:Sep"
+
+A pre-built ``fixed_season`` column (Rwema's ``unique_sites_for_toolkit.csv``)
+is used as-is when present — see :func:`normalize_fixed_season` — taking
+precedence over the ``s1_start``/``s1_end`` columns.
 
 Two modes, chosen per row:
 
@@ -60,8 +65,8 @@ All examples are credential-free with ``--source nasa_power`` (the default).
 The repo ships the real ERA registry, so these run out of the box — just swap
 in a compiled ``lte_summary`` export when you want season windows + yields::
 
-    # Run the real shipped registry (241 sites, auto season) — first 5:
-    python examples/era_lte_workflow.py examples/data/unique_ltes.csv --limit 5
+    # Run Rwema's real toolkit-ready ERA sites (season windows included):
+    python examples/era_lte_workflow.py examples/data/unique_sites_for_toolkit.csv --limit 5
 
     # Discover the Site.ID values in the CSV (to pick with --site):
     python examples/era_lte_workflow.py era_lte.csv --list-sites
@@ -226,11 +231,57 @@ def parse_month_day(value, *, is_end: bool = False) -> str:
     return f"{month:02d}-{day:02d}"
 
 
-def lte_to_fixed_season(row) -> str:
-    """Build a toolkit ``fixed_season`` string from an LTE row's season windows.
+def _strip_season_qualifier(token: str) -> str:
+    """Drop a leading day-qualifier (``d-``/``e-``/``y-``/bare ``-``) from a token.
 
-    One season -> ``"MM-DD:MM-DD"``; two seasons -> ``"MM-DD:MM-DD,MM-DD:MM-DD"``.
+    Rwema's ``unique_sites_for_toolkit.csv`` writes season bounds as month names
+    with a day/relative-year qualifier prefix (``d-Mar``, ``e-May``, ``y-Feb``,
+    ``-July``). We resolve at month resolution — the exact day barely moves a
+    multi-month seasonal total measured against a long-term mean — so strip the
+    prefix and let :func:`parse_month_day` map the month to its 1st / last day.
     """
+    return re.sub(r"^(?:[A-Za-z]+-|-)", "", str(token).strip()).strip()
+
+
+def normalize_fixed_season(value) -> str | None:
+    """Convert a pre-built ``fixed_season`` string to the toolkit's MM-DD form.
+
+    Accepts Rwema's month-name syntax (``"Feb:May,Jun:Sep"``, colon between a
+    window's start and end, comma between windows) including the day qualifiers
+    handled by :func:`_strip_season_qualifier`. ``NA`` windows are dropped.
+    Returns ``None`` if nothing usable remains (so the caller can fall back).
+    """
+    windows = []
+    for win in str(value).split(","):
+        parts = win.split(":")
+        if len(parts) != 2:
+            continue
+        start, end = _strip_season_qualifier(parts[0]), _strip_season_qualifier(parts[1])
+        if not start or not end or start.upper() == "NA" or end.upper() == "NA":
+            continue
+        windows.append(f"{parse_month_day(start)}:{parse_month_day(end, is_end=True)}")
+    return ",".join(windows) if windows else None
+
+
+def _prebuilt_fixed_season(row):
+    """Return the row's usable pre-built ``fixed_season`` (normalized), or None."""
+    fs = row.get("fixed_season")
+    if fs is None or (isinstance(fs, float) and pd.isna(fs)) or str(fs).strip() == "":
+        return None
+    return normalize_fixed_season(fs)
+
+
+def lte_to_fixed_season(row) -> str:
+    """Build a toolkit ``fixed_season`` string for an LTE row.
+
+    Prefers a pre-built ``fixed_season`` column (Rwema's month-name syntax) when
+    present; otherwise assembles one from the ``s1_start``/``s1_end`` (+ S2)
+    season-window columns. One season -> ``"MM-DD:MM-DD"``; two ->
+    ``"MM-DD:MM-DD,MM-DD:MM-DD"``.
+    """
+    prebuilt = _prebuilt_fixed_season(row)
+    if prebuilt:
+        return prebuilt
     s1 = (
         f"{parse_month_day(row['s1_start'])}"
         f":{parse_month_day(row['s1_end'], is_end=True)}"
@@ -255,6 +306,9 @@ def has_season_windows(row) -> bool:
     the workflow falls back to auto season detection for it; an enriched export
     with ``s1_start``/``s1_end`` unlocks the fixed-season + comparison path.
     """
+    if _prebuilt_fixed_season(row):
+        return True
+
     def _present(key):
         val = row.get(key)
         return not (
