@@ -351,6 +351,44 @@ class RealRegistryFormatTests(unittest.TestCase):
         self.assertTrue(df["lat"].notna().all() and df["lon"].notna().all())
 
 
+class FetchCacheTests(unittest.TestCase):
+    """A shared cache fetches once per (location, period, season, source)."""
+
+    def test_repeated_site_fetches_once(self):
+        rows = [
+            {"site_id": "S", "lat": 1.0, "lon": 2.0, "start_year": 2019, "end_year": 2020,
+             "treatment": t}
+            for t in ("Control", "Mulch", "Manure")  # same coords/period, 3 treatments
+        ]
+        fake = {"season_statistics": [
+            {"year": 2019, "season_number": 1, "length_days": 90,
+             "precipitation": {"total_mm": 300.0, "rainy_days": 40},
+             "water_balance": {"NDWS": 5, "WRSI": 0.9}},
+        ]}
+        cache: dict = {}
+        with mock.patch(
+            "examples.era_lte_workflow.analyze_climate_statistics", return_value=fake
+        ) as m:
+            for r in rows:
+                run_site(r, source="nasa_power", cache=cache)
+
+        self.assertEqual(m.call_count, 1)   # fetched once, not three times
+        self.assertEqual(len(cache), 1)
+
+    def test_no_cache_still_works(self):
+        row = {"site_id": "S", "lat": 1.0, "lon": 2.0, "start_year": 2019, "end_year": 2020}
+        fake = {"season_statistics": [
+            {"year": 2019, "season_number": 1, "length_days": 90,
+             "precipitation": {"total_mm": 300.0, "rainy_days": 40},
+             "water_balance": {"NDWS": 5, "WRSI": 0.9}},
+        ]}
+        with mock.patch(
+            "examples.era_lte_workflow.analyze_climate_statistics", return_value=fake
+        ):
+            out = run_site(row, source="nasa_power")  # cache omitted
+        self.assertEqual(len(out), 1)
+
+
 class SelectSitesTests(unittest.TestCase):
     def _frame(self):
         return pd.DataFrame(
@@ -373,6 +411,18 @@ class SelectSitesTests(unittest.TestCase):
     def test_unknown_site_raises(self):
         with self.assertRaises(SystemExit):
             select_sites(self._frame(), site_ids=["Z"])
+
+    def test_comma_in_real_site_name_is_not_split(self):
+        # Real ERA Site.IDs contain commas — an exact match must win over split.
+        frame = pd.DataFrame({
+            "site_id": ["AfricaRice, Fanaye", "Kitale", "Tamale"],
+            "lat": [1, 2, 3], "lon": [1, 2, 3],
+        })
+        out = select_sites(frame, site_ids=["AfricaRice, Fanaye"])
+        self.assertEqual(list(out["site_id"]), ["AfricaRice, Fanaye"])
+        # A non-site value still comma-splits as before.
+        out2 = select_sites(frame, site_ids=["Kitale,Tamale"])
+        self.assertEqual(sorted(out2["site_id"]), ["Kitale", "Tamale"])
 
     def test_limit_after_selection(self):
         self.assertEqual(len(select_sites(self._frame(), site_ids=["A"], limit=1)), 1)

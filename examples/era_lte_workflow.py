@@ -360,25 +360,39 @@ def seasonal_rows(result) -> list[dict]:
     return rows
 
 
-def run_site(row, source: str) -> list[dict]:
+def run_site(row, source: str, cache: dict | None = None) -> list[dict]:
     """Run the toolkit for one LTE site, return per-season metrics.
 
     Uses ERA's own season window when present (``fixed_season``), otherwise
     falls back to auto season detection so the shipped registry CSV still runs.
+    Pass a shared ``cache`` dict to reuse the climate fetch across rows that
+    resolve to the same location, period and season (see below).
     """
-    kwargs = dict(
-        location_coord=(float(row["lat"]), float(row["lon"])),
-        start_year=int(row["start_year"]),
-        end_year=int(row["end_year"]),
-        source=source,
-        verbose=False,
-    )
-    if has_season_windows(row):
-        fixed = lte_to_fixed_season(row)
-        kwargs["fixed_season"] = fixed
+    lat, lon = float(row["lat"]), float(row["lon"])
+    start_year, end_year = int(row["start_year"]), int(row["end_year"])
+    fixed = lte_to_fixed_season(row) if has_season_windows(row) else None
+
+    # The compiled table repeats a site across treatment/time rows, so the same
+    # (location, period, season, source) fetch recurs many times. Cache the
+    # toolkit result on that key and reuse it — the per-row ERA context still
+    # varies below, only the expensive climate fetch is shared.
+    cache_key = (lat, lon, start_year, end_year, fixed, source)
+    if cache is not None and cache_key in cache:
+        tk_rows = cache[cache_key]
     else:
-        fixed = None
-    result = analyze_climate_statistics(**kwargs)
+        kwargs = dict(
+            location_coord=(lat, lon),
+            start_year=start_year,
+            end_year=end_year,
+            source=source,
+            verbose=False,
+        )
+        if fixed:
+            kwargs["fixed_season"] = fixed
+        tk_rows = seasonal_rows(analyze_climate_statistics(**kwargs))
+        if cache is not None:
+            cache[cache_key] = tk_rows
+
     # Echo the input context onto every row (site_id always; the rest when
     # present), so the output table stands on its own for analysis.
     context = {"site_id": row.get("site_id")}
@@ -388,7 +402,7 @@ def run_site(row, source: str) -> list[dict]:
         if not pd.isna(row.get(field)):
             context[field] = row[field]
     out = []
-    for tk in seasonal_rows(result):
+    for tk in tk_rows:
         record = {
             **context,
             "mode": "fixed" if fixed else "auto",
@@ -413,8 +427,17 @@ def select_sites(sites, site_ids=None, limit=None):
     nothing. ``limit`` keeps the first N of whatever remains.
     """
     if site_ids:
-        wanted = [s.strip() for item in site_ids for s in str(item).split(",") if s.strip()]
         available = set(sites["site_id"].astype(str))
+        # Real ERA Site.IDs contain commas ("AfricaRice, Fanaye"), so only
+        # comma-split a value that isn't itself an exact Site.ID. For a
+        # comma-named site, pass it as its own --site (repeatable).
+        wanted = []
+        for item in site_ids:
+            item = str(item).strip()
+            if item in available:
+                wanted.append(item)
+            else:
+                wanted.extend(s.strip() for s in item.split(",") if s.strip())
         missing = [s for s in wanted if s not in available]
         if missing:
             raise SystemExit(
@@ -449,15 +472,17 @@ def run(
         return sites
 
     out_rows = []
+    cache: dict = {}  # shared across rows so repeated site coords fetch once
     for _, row in sites.iterrows():
         try:
-            out_rows.extend(run_site(row, source))
+            out_rows.extend(run_site(row, source, cache=cache))
         except Exception as exc:  # one bad site shouldn't stop the workflow
             print(f"[skip] {row.get('site_id')}: {exc}")
 
     frame = pd.DataFrame(out_rows)
     frame.to_csv(out_csv, index=False)
     print(f"wrote {out_csv} ({len(frame)} rows)")
+    print(f"climate fetches: {len(cache)} (deduplicated from {len(sites)} site-periods)")
     if "rain_delta_mm" in frame and frame["rain_delta_mm"].notna().any():
         deltas = frame["rain_delta_mm"].dropna()
         print(
@@ -477,8 +502,9 @@ def main():
         action="append",
         default=None,
         metavar="SITE_ID",
-        help="Run only this Site.ID. Repeatable and/or comma-separated "
-        "(--site A --site B, or --site A,B). Default: all sites.",
+        help="Run only this Site.ID. Repeatable (--site A --site B). A value "
+        "that isn't itself a Site.ID is comma-split (--site A,B); ERA names that "
+        "contain commas must each be their own --site. Default: all sites.",
     )
     parser.add_argument("--limit", type=int, default=None, help="Only process the first N sites")
     parser.add_argument(
