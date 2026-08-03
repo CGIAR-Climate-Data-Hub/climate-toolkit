@@ -1,15 +1,21 @@
 """Drive the ERA LTE workflow from Python — no terminal, no credentials.
 
 Companion to ``era_lte_workflow.py`` (the CLI). This shows the *same* workflow
-used as a library: import the functions, hand them a compiled ``lte_summary``
-table, and get pandas objects back. Everything here uses ``nasa_power``, which
-needs no Earth Engine setup.
+used as a library: import the functions, hand them an ERA table, and get pandas
+objects back. Everything here uses ``nasa_power``, which needs no Earth Engine
+setup.
 
-Run it as-is (it writes a tiny built-in sample and processes one site)::
+By default it runs on the **real** ERA registry shipped with the repo
+(``examples/data/unique_ltes.csv`` — the ``unique.ltes.csv`` Rwema linked in
+issue #141, 241 real LTE sites). That registry has coordinates and study years
+but no season windows, so sites run in auto-season mode.
 
-    python examples/era_lte_as_library.py
+Run it as-is (first few real sites)::
 
-Or point it at a real ERA ``lte_summary`` export::
+    python examples/era_lte_as_library.py --limit 3
+
+Point it at a compiled ``lte_summary`` export (adds season windows + yield, so
+the treatment/yield/rainfall comparison columns appear)::
 
     python examples/era_lte_as_library.py --csv lte_summary.csv --site Kitale
 """
@@ -19,7 +25,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-import tempfile
 
 # Make the workflow importable when running from a repo checkout. (`import
 # climate_toolkit` itself works from a plain install; the example *scripts*
@@ -30,38 +35,26 @@ if REPO_ROOT not in sys.path:
 
 from examples.era_lte_workflow import load_sites, run, run_site, select_sites
 
-# A minimal slice of the compiled `lte_summary` schema (two treatment rows for
-# one Kenyan LTE site) so this script runs with no external file.
-SAMPLE_CSV = (
-    "Site.ID,Latitude,Longitude,Study.Start,Study.End,"
-    "Site.Start.S1,Site.End.S1,Site.MSP.S1,P.Product,Treatment,Yield,ED.Error\n"
-    "Kitale,1.019,35.0,2018,2020,Mid-Mar,Late-Jun,520,Maize,Control,2.1,0.3\n"
-    "Kitale,1.019,35.0,2018,2020,Mid-Mar,Late-Jun,520,Maize,Manure,3.4,0.4\n"
-)
-
-
-def _sample_csv_path() -> str:
-    fd, path = tempfile.mkstemp(prefix="lte_summary_sample_", suffix=".csv")
-    with os.fdopen(fd, "w") as fh:
-        fh.write(SAMPLE_CSV)
-    return path
+# The real ERA registry vendored with the repo (see examples/data/README.md).
+DEFAULT_CSV = os.path.join(REPO_ROOT, "examples", "data", "unique_ltes.csv")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--csv", help="ERA lte_summary CSV (default: built-in sample)")
+    parser.add_argument("--csv", default=DEFAULT_CSV,
+                        help="ERA CSV (default: the shipped real registry)")
     parser.add_argument("--site", action="append", help="Site.ID(s) to run (default: all)")
+    parser.add_argument("--limit", type=int, default=None, help="Only the first N sites")
     parser.add_argument("--source", default="nasa_power", help="Climate source (default: nasa_power)")
     args = parser.parse_args()
 
-    csv_path = args.csv or _sample_csv_path()
+    # 1) Load — reads the messy real registry (semicolon/cp1252) or a clean
+    #    lte_summary export, and aliases the ERA-native column names.
+    sites = load_sites(args.csv)
+    print(f"load_sites -> {len(sites)} site-periods | {sites['site_id'].nunique()} unique sites")
 
-    # 1) Load — aliases the ERA-native column names into the workflow contract.
-    sites = load_sites(csv_path)
-    print(f"load_sites -> {len(sites)} rows | sites: {list(sites['site_id'].unique())}")
-
-    # 2) Select — single, several (list), or all (site_ids=None).
-    subset = select_sites(sites, site_ids=args.site)
+    # 2) Select — single, several (list), all (site_ids=None), then first N.
+    subset = select_sites(sites, site_ids=args.site, limit=args.limit)
     print(f"select_sites -> {len(subset)} rows")
 
     # 3a) One row at a time: run_site returns per-season records (dicts).
@@ -70,11 +63,15 @@ def main() -> None:
     print("    columns:", list(records[0].keys()))
 
     # 3b) Or the whole selection at once: run() returns (and writes) a DataFrame.
-    df = run(csv_path, source=args.source, site_ids=args.site, out_csv="era_lte_compare.csv")
+    df = run(args.csv, source=args.source, site_ids=args.site, limit=args.limit,
+             out_csv="era_lte_compare.csv")
     print(f"run(...) -> DataFrame {df.shape}")
-    context_cols = [c for c in ("site_id", "treatment", "reported_yield", "yield_error") if c in df]
-    metric_cols = [c for c in ("year", "fixed_season", "tk_rain_total_mm", "tk_WRSI", "rain_delta_mm") if c in df]
-    print(df[context_cols + metric_cols].to_string(index=False))
+    # Show whichever columns this table produced (yield/treatment only exist for
+    # a compiled lte_summary export; the registry runs in auto-season mode).
+    cols = [c for c in ("site_id", "treatment", "reported_yield", "year",
+                        "fixed_season", "tk_rain_total_mm", "tk_WRSI", "rain_delta_mm")
+            if c in df]
+    print(df[cols].head(12).to_string(index=False))
 
 
 if __name__ == "__main__":

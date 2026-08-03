@@ -28,7 +28,8 @@ Two modes, chosen per row:
   start month) are supported — the toolkit wraps them to the next year. Season
   windows come from ERA's ``Site.Start.S1`` / ``Site.End.S1`` (and S2) fields.
 * **Auto** (no season columns): falls back to auto season detection, so ERA's
-  shipped registry ``data/unique_ltes.csv`` (lat/lon/years only) runs as-is.
+  shipped real registry ``examples/data/unique_ltes.csv`` (241 sites, lat/lon/
+  years only) runs as-is.
 
 Producing the enriched export
 -----------------------------
@@ -56,6 +57,11 @@ Guides: https://github.com/ERAgriculture/LTEs (see ``lte_summary.Rmd`` and
 Usage
 -----
 All examples are credential-free with ``--source nasa_power`` (the default).
+The repo ships the real ERA registry, so these run out of the box — just swap
+in a compiled ``lte_summary`` export when you want season windows + yields::
+
+    # Run the real shipped registry (241 sites, auto season) — first 5:
+    python examples/era_lte_workflow.py examples/data/unique_ltes.csv --limit 5
 
     # Discover the Site.ID values in the CSV (to pick with --site):
     python examples/era_lte_workflow.py era_lte.csv --list-sites
@@ -289,17 +295,39 @@ def _drop_redundant_aliases(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=redundant) if redundant else df
 
 
+def _read_era_csv(csv_path) -> pd.DataFrame:
+    """Read a real ERA export robustly, whatever shape it arrives in.
+
+    The shipped registry (``unique_ltes.csv``) is semicolon-delimited and
+    cp1252-encoded with trailing spaces in the header and empty trailing
+    columns; a clean ``lte_summary`` export is comma/UTF-8. Sniff the delimiter,
+    try UTF-8 then the Windows/Latin fallbacks, then tidy the header (strip
+    whitespace, drop blank/``Unnamed`` columns) so the aliases match.
+    """
+    last_err = None
+    for encoding in ("utf-8", "cp1252", "latin-1"):
+        try:
+            # sep=None + the python engine sniffs ',' vs ';' vs tab.
+            df = pd.read_csv(csv_path, sep=None, engine="python", encoding=encoding)
+            break
+        except UnicodeDecodeError as err:
+            last_err = err
+    else:  # pragma: no cover - every ERA file decodes as one of the above
+        raise last_err
+
+    df.columns = [str(c).strip() for c in df.columns]
+    keep = [c for c in df.columns if c and not c.startswith("Unnamed")]
+    return df[keep].dropna(axis=1, how="all")
+
+
 def load_sites(csv_path) -> pd.DataFrame:
     """Load an ERA LTE export or the shipped registry, applying name aliases.
 
     Only lat/lon/years are required; season windows are optional (see
-    :func:`has_season_windows`). ERA's ``unique_ltes.csv`` is cp1252-encoded, so
-    fall back to that if UTF-8 decoding fails.
+    :func:`has_season_windows`). Handles both the messy real registry and a
+    clean ``lte_summary`` export — see :func:`_read_era_csv`.
     """
-    try:
-        df = pd.read_csv(csv_path)
-    except UnicodeDecodeError:
-        df = pd.read_csv('lte_summary.csv', encoding="cp1252")
+    df = _read_era_csv(csv_path)
     df = _drop_redundant_aliases(df).rename(columns=COLUMN_ALIASES)
     df["start_year"] = df["start_year"].map(_year)
     df["end_year"] = df["end_year"].map(_year)

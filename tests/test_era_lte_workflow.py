@@ -312,6 +312,45 @@ class CompiledTableTests(unittest.TestCase):
         self.assertIn("tk_WRSI", rec)
 
 
+class RealRegistryFormatTests(unittest.TestCase):
+    """The real ERA registry is semicolon-delimited, cp1252, with messy headers."""
+
+    def test_semicolon_cp1252_messy_header_loads(self):
+        # Mirrors unique.ltes.csv: ';' sep, trailing-space headers, empty
+        # trailing columns, and a cp1252 en-dash (0x96) in a text field.
+        # b"\x96" is a raw cp1252 byte (en-dash) — the kind that breaks a naive
+        # UTF-8 read, exactly as in the real unique.ltes.csv.
+        csv = (
+            b"LTE.ID;Site.ID;Code;Year.start ;Year.end ;Notes;Latitude;Longitude ;;\n"
+            b"LTE0003;Adigudem;DK0054;2005;2011;multi\x96season;13.23333;39.53333;;\n"
+        )
+        with tempfile.NamedTemporaryFile("wb", suffix=".csv", delete=False) as f:
+            f.write(csv)
+            path = f.name
+        try:
+            df = load_sites(path)
+        finally:
+            os.unlink(path)
+
+        row = df.iloc[0].to_dict()
+        self.assertEqual((row["lat"], row["lon"]), (13.23333, 39.53333))
+        self.assertEqual((row["start_year"], row["end_year"]), (2005, 2011))
+        self.assertEqual(row["site_id"], "Adigudem")
+        self.assertEqual(row["lte_id"], "LTE0003")
+        # No stray unnamed/empty columns survived the header tidy.
+        self.assertFalse([c for c in df.columns if str(c).startswith("Unnamed")])
+
+    def test_shipped_real_registry_loads(self):
+        registry = os.path.join(REPO_ROOT, "examples", "data", "unique_ltes.csv")
+        if not os.path.exists(registry):
+            self.skipTest("shipped registry not present")
+        df = load_sites(registry)
+        self.assertGreater(len(df), 100)
+        for col in ("site_id", "lat", "lon", "start_year", "end_year"):
+            self.assertIn(col, df.columns)
+        self.assertTrue(df["lat"].notna().all() and df["lon"].notna().all())
+
+
 class SelectSitesTests(unittest.TestCase):
     def _frame(self):
         return pd.DataFrame(
