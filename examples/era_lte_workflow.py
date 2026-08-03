@@ -338,6 +338,33 @@ def _year(value):
         return None
 
 
+# ERA's expanded table stores Yield in mixed units; the unit is encoded in
+# Out.Code.Joined (e.g. "Crop Yield..kg/ha", "Crop Yield..t/ha DM..Mean").
+_YIELD_UNIT_TO_T_HA = {"t/ha": 1.0, "mg/ha": 1.0, "kg/ha": 0.001}
+
+
+def _normalize_yield_units(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert ``reported_yield`` to t/ha using the unit in ``Out.Code.Joined``.
+
+    Rwema's ``lte_summary_expanded.csv`` reports ``Yield`` in whatever unit the
+    source outcome used (t/ha, kg/ha, Mg/ha), so a raw column mixes scales.
+    Normalize to t/ha where the unit is recognized; leave rows without a usable
+    unit column untouched.
+    """
+    if "reported_yield" not in df.columns or "Out.Code.Joined" not in df.columns:
+        return df
+
+    def _factor(code):
+        m = re.search(r"\.\.([A-Za-z/]+)", str(code))
+        return _YIELD_UNIT_TO_T_HA.get(m.group(1).lower()) if m else None
+
+    factor = df["Out.Code.Joined"].map(_factor)
+    yields = pd.to_numeric(df["reported_yield"], errors="coerce")
+    mask = factor.notna() & yields.notna()
+    df.loc[mask, "reported_yield"] = yields[mask] * factor[mask]
+    return df
+
+
 def _drop_redundant_aliases(df: pd.DataFrame) -> pd.DataFrame:
     """Drop alias columns whose canonical target is already present.
 
@@ -397,6 +424,7 @@ def load_sites(csv_path) -> pd.DataFrame:
     df["end_year"] = df["end_year"].map(_year)
     df = df.dropna(subset=["lat", "lon"])
     df = df[df["start_year"].notna() & df["end_year"].notna()]
+    df = _normalize_yield_units(df)
     return df.reset_index(drop=True)
 
 

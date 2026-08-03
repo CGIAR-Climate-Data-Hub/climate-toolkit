@@ -499,6 +499,30 @@ class SiteOutExtractTests(unittest.TestCase):
                 os.unlink(out)
 
 
+class YieldUnitNormalizationTests(unittest.TestCase):
+    """Rwema's expanded Yield is mixed-unit; the unit is in Out.Code.Joined."""
+
+    def test_yield_normalized_to_t_ha(self):
+        csv = (
+            "Site.ID,Latitude,Longitude,Study.Start,Study.End,"
+            "Site.Start.S1,Site.End.S1,P.Product,Yield,Out.Code.Joined\n"
+            "A,-1.0,35.0,2000,2005,Mar,Jun,Maize,3.5,Crop Yield..t/ha\n"
+            "B,-1.0,35.0,2000,2005,Mar,Jun,Maize,3500,Crop Yield..kg/ha\n"
+            "C,-1.0,35.0,2000,2005,Mar,Jun,Maize,4.0,Crop Yield..Mg/ha..Mean\n"
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+            f.write(csv)
+            path = f.name
+        try:
+            df = load_sites(path)
+        finally:
+            os.unlink(path)
+        y = dict(zip(df["site_id"], df["reported_yield"]))
+        self.assertAlmostEqual(y["A"], 3.5)     # t/ha unchanged
+        self.assertAlmostEqual(y["B"], 3.5)     # kg/ha -> /1000
+        self.assertAlmostEqual(y["C"], 4.0)     # Mg/ha == t/ha
+
+
 class SelectSitesTests(unittest.TestCase):
     def _frame(self):
         return pd.DataFrame(
