@@ -426,6 +426,48 @@ class SiteOutExtractTests(unittest.TestCase):
             if os.path.exists(out):
                 os.unlink(out)
 
+    def test_with_yield_filters_and_normalizes_units(self):
+        import importlib.util
+        if importlib.util.find_spec("ijson") is None:
+            self.skipTest("ijson not installed")
+        import json as _json
+
+        from examples.era_extract_site_out import extract
+
+        data = {
+            "Site.Out": [
+                {"Site.ID": "A", "Site.LatD": 1.0, "Site.LonD": 2.0,
+                 "Site.Start.S1": "Mar", "Site.End.S1": "Jun", "Site.MSP.S1": 300},
+            ],
+            "Data.Out": [
+                # Crop Yield in kg/ha -> normalized to t/ha (3000 -> 3.0).
+                {"Site.ID": "A", "T.Name": "Control", "Product.Simple": "Maize",
+                 "Out.Subind": "Crop Yield", "Out.Unit": "kg/ha", "ED.Mean.T": 3000},
+                # Same treatment, t/ha -> averaged with the above (5.0) -> 4.0.
+                {"Site.ID": "A", "T.Name": "Control", "Product.Simple": "Maize",
+                 "Out.Subind": "Crop Yield", "Out.Unit": "t/ha", "ED.Mean.T": 5.0},
+                # Biomass Yield must be ignored.
+                {"Site.ID": "A", "T.Name": "Control", "Product.Simple": "Maize",
+                 "Out.Subind": "Biomass Yield", "Out.Unit": "t/ha", "ED.Mean.T": 20.0},
+            ],
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as jf:
+            _json.dump(data, jf)
+            jpath = jf.name
+        out = jpath + ".csv"
+        try:
+            extract(jpath, out, 1991, 2020, with_yield=True)
+            df = load_sites(out)
+            row = df.iloc[0].to_dict()
+            self.assertEqual(row["treatment"], "Control")
+            self.assertEqual(row["crop_name"], "Maize")
+            # (3.0 t/ha + 5.0 t/ha) / 2 = 4.0; biomass excluded.
+            self.assertAlmostEqual(row["reported_yield"], 4.0)
+        finally:
+            os.unlink(jpath)
+            if os.path.exists(out):
+                os.unlink(out)
+
 
 class SelectSitesTests(unittest.TestCase):
     def _frame(self):
