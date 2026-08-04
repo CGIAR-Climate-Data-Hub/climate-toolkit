@@ -34,8 +34,14 @@ VARS = [
 ]
 
 
+def _short(label: str, n: int = 24) -> str:
+    """Shorten ERA's verbose treatment names for a readable legend."""
+    t = str(label).split(">>")[0].split("***")[0].strip()  # drop rotation/repeat suffixes
+    return t if len(t) <= n else t[: n - 1] + "…"
+
+
 def _panel(ax, s, var, label, treatments, put_legend):
-    years = s["year"].unique()
+    years = sorted(s["year"].unique())
     bars = s.drop_duplicates("year").set_index("year")[var]
     ax.bar(bars.index, bars.values, color=BAR, width=0.8, label=label, zorder=1)
     ax.set_ylabel(label, color="#4a6b82", fontsize=9)
@@ -45,11 +51,11 @@ def _panel(ax, s, var, label, treatments, put_legend):
     for i, t in enumerate(treatments):
         st = s[s["treatment"] == t].groupby("year")["yield_t_ha"].mean()
         ax2.plot(st.index, st.values, marker="o", ms=3, lw=1.6,
-                 color=LINES[i % len(LINES)], label=t, zorder=3)
+                 color=LINES[i % len(LINES)], label=_short(t), zorder=3)
     ax2.set_ylabel("yield (t/ha)", color="#2f7d52", fontsize=9)
     if put_legend:
-        ax2.legend(title="Treatment", fontsize=7, title_fontsize=7, ncol=min(len(treatments), 4),
-                   loc="upper center", bbox_to_anchor=(0.5, 1.28), frameon=False)
+        ax2.legend(title="Treatment", fontsize=7, title_fontsize=7, ncol=min(len(treatments), 3),
+                   loc="lower center", bbox_to_anchor=(0.5, 1.02), frameon=False)
 
 
 def main() -> None:
@@ -83,9 +89,9 @@ def main() -> None:
     for i, (var, label) in enumerate(panels):
         _panel(axes[i], s, var, label, treatments, put_legend=(i == 0))
     yr = f"{int(s['year'].min())}–{int(s['year'].max())}"
-    fig.suptitle(f"{site} — {crop}: toolkit climate vs yield ({yr})", fontsize=13, y=1.0)
-    fig.tight_layout(rect=(0, 0, 1, 0.98))
-    fig.savefig(args.out, dpi=120, bbox_inches="tight")
+    fig.suptitle(f"{site} — {crop}: toolkit climate vs yield ({yr})", fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.savefig(args.out, dpi=120)
     print(f"wrote {args.out}  (site={site}, treatments={len(treatments)}, panels={len(panels)})")
 
 
