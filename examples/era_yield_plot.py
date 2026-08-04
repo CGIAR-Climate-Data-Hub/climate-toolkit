@@ -63,6 +63,8 @@ def main() -> None:
     ap.add_argument("csv", help="Output of era_yield_analysis.py")
     ap.add_argument("--site", help="Site.ID to plot (substring; default: most-years site)")
     ap.add_argument("--variable", help="Plot only this toolkit variable (single panel)")
+    ap.add_argument("--treatments", help="Comma-separated treatment filter (substring match, "
+                    "e.g. 'NT 0N,NT 100N,NT 200N' to match Rwema's NT subset)")
     ap.add_argument("--top-treatments", type=int, default=6, help="Max treatments to draw")
     ap.add_argument("--out", default="era_yield_trends.png")
     args = ap.parse_args()
@@ -81,6 +83,14 @@ def main() -> None:
     s = df[df["site_id"] == site].copy()
     crop = s["crop"].mode().iloc[0] if not s["crop"].mode().empty else ""
 
+    if args.treatments:
+        wanted = [w.strip().lower() for w in args.treatments.split(",") if w.strip()]
+        keep = [t for t in s["treatment"].unique()
+                if any(w in str(t).lower() for w in wanted)]
+        s = s[s["treatment"].isin(keep)]
+        if s.empty:
+            raise SystemExit(f"No treatments matched {args.treatments!r}. Available: "
+                             f"{sorted(df[df['site_id'] == site]['treatment'].unique())}")
     treatments = list(s["treatment"].value_counts().head(args.top_treatments).index)
     panels = [(v, lbl) for v, lbl in VARS if v == args.variable] if args.variable else VARS
 
