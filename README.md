@@ -757,6 +757,67 @@ vpd = summarize_vpd_period(df)
 
 ---
 
+## HTTP API (optional)
+
+An optional FastAPI service in `apis/` exposes the toolkit over HTTP — a JSON
+API under `/api/v1/*` plus simple HTML pages for interactive use. It is **not**
+required for CLI/library use, so its dependencies are an optional extra.
+
+Install and run:
+
+```bash
+# install the API extra (fastapi/uvicorn/jinja2/python-multipart)
+uv sync --extra api          # or: pip install -e ".[api]"
+
+# run the dev server from the repo root
+uv run uvicorn apis.main:app --reload
+```
+
+Then open:
+
+- `http://127.0.0.1:8000/` — HTML landing page / forms
+- `http://127.0.0.1:8000/docs` — interactive OpenAPI (Swagger) docs
+- `http://127.0.0.1:8000/api/v1/data/sources` — example JSON endpoint
+
+### Deploy the API with Docker
+
+`Dockerfile.api` builds a reproducible image (base pinned by digest, `uv` and
+`uv.lock` pinned) that installs the `api` extra and serves the app with uvicorn
+in production mode — no `--reload`. Build and run:
+
+```bash
+docker build -f Dockerfile.api -t climate-toolkit-api .
+
+# Offline check — the app boots without Earth Engine:
+docker run --rm -p 8000:8000 climate-toolkit-api
+# then browse http://127.0.0.1:8000/ (and /health for the readiness probe)
+```
+
+Earth Engine credentials are **not** baked into the image (they are per-user
+OAuth). For GEE-backed requests, mount your credentials read-only and pass
+`GCP_PROJECT_ID`; mount `outputs/` so generated plots persist:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e GCP_PROJECT_ID=your-project \
+  -v "$HOME/.config/earthengine:/home/app/.config/earthengine:ro" \
+  -v "$(pwd)/outputs:/app/outputs" \
+  climate-toolkit-api
+```
+
+The image runs as a non-root user, exposes port 8000, and defines a
+`HEALTHCHECK` against `/health`. For a public deployment, put it behind a
+reverse proxy (TLS termination), restrict the wildcard CORS origins in
+`apis/main.py` to your front-end origin, and run multiple workers
+(`--workers N`) as needed.
+
+Endpoints wrap the same functions as the CLI (`data`, `statistics`, `hazards`,
+`compare`, `seasons`, `climatology`, `compare-datasets`), so the Earth Engine
+auth and `GCP_PROJECT_ID` expectations from
+[Environment variables](#environment-variables) apply to any GEE-backed request.
+
+---
+
 ## Stable vs Internal Entry Points
 
 Supported end-user CLI contracts:
