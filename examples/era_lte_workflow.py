@@ -19,6 +19,11 @@ One row per LTE site-period, with columns (registry aliases in parentheses):
     s1_start, s1_end            # optional season-1 window as month-day, "03-01"
     s2_start, s2_end            # optional second season
     reported_rain_mm            # optional ERA-reported seasonal rainfall
+    fixed_season                # optional pre-built season, e.g. "Feb:May,Jun:Sep"
+
+A pre-built ``fixed_season`` column (Rwema's ``unique_sites_for_toolkit.csv``)
+is used as-is when present — see :func:`normalize_fixed_season` — taking
+precedence over the ``s1_start``/``s1_end`` columns.
 
 Two modes, chosen per row:
 
@@ -28,7 +33,8 @@ Two modes, chosen per row:
   start month) are supported — the toolkit wraps them to the next year. Season
   windows come from ERA's ``Site.Start.S1`` / ``Site.End.S1`` (and S2) fields.
 * **Auto** (no season columns): falls back to auto season detection, so ERA's
-  shipped registry ``data/unique_ltes.csv`` (lat/lon/years only) runs as-is.
+  shipped real registry ``examples/data/unique_ltes.csv`` (241 sites, lat/lon/
+  years only) runs as-is.
 
 Producing the enriched export
 -----------------------------
@@ -56,6 +62,11 @@ Guides: https://github.com/ERAgriculture/LTEs (see ``lte_summary.Rmd`` and
 Usage
 -----
 All examples are credential-free with ``--source nasa_power`` (the default).
+The repo ships the real ERA registry, so these run out of the box — just swap
+in a compiled ``lte_summary`` export when you want season windows + yields::
+
+    # Run Rwema's real toolkit-ready ERA sites (season windows included):
+    python examples/era_lte_workflow.py examples/data/unique_sites_for_toolkit.csv --limit 5
 
     # Discover the Site.ID values in the CSV (to pick with --site):
     python examples/era_lte_workflow.py era_lte.csv --list-sites
@@ -220,11 +231,67 @@ def parse_month_day(value, *, is_end: bool = False) -> str:
     return f"{month:02d}-{day:02d}"
 
 
-def lte_to_fixed_season(row) -> str:
-    """Build a toolkit ``fixed_season`` string from an LTE row's season windows.
+# Rwema's unique_sites_for_toolkit.csv abbreviates the ERA Early/Mid/Late day
+# qualifiers to one letter (confirmed with the ERA team, #141):
+#   d- = Mid (15th)   e- = Late (25th)   y- = Early (5th)
+_SEASON_QUALIFIER = {"d": "Mid", "e": "Late", "y": "Early"}
 
-    One season -> ``"MM-DD:MM-DD"``; two seasons -> ``"MM-DD:MM-DD,MM-DD:MM-DD"``.
+
+def _resolve_season_qualifier(token: str) -> str:
+    """Rewrite Rwema's abbreviated season qualifier to the ERA Early/Mid/Late form.
+
+    ``unique_sites_for_toolkit.csv`` writes season bounds as month names with a
+    one-letter day qualifier (``d-Mar``, ``e-May``, ``y-Feb``). Rewrite it to the
+    ``Early-/Mid-/Late-`` prefix that :func:`parse_month_day` already maps to the
+    5th / 15th / 25th. A bare leading ``-`` (e.g. ``-July``) or an unknown prefix
+    is dropped, leaving a plain month (1st for a start, last day for an end).
     """
+    tok = str(token).strip()
+    m = re.match(r"^([A-Za-z])-(.+)$", tok)
+    if m and m.group(1).lower() in _SEASON_QUALIFIER:
+        return f"{_SEASON_QUALIFIER[m.group(1).lower()]}-{m.group(2).strip()}"
+    return re.sub(r"^(?:[A-Za-z]+-|-)", "", tok).strip()
+
+
+def normalize_fixed_season(value) -> str | None:
+    """Convert a pre-built ``fixed_season`` string to the toolkit's MM-DD form.
+
+    Accepts Rwema's month-name syntax (``"Feb:May,Jun:Sep"``, colon between a
+    window's start and end, comma between windows) including the day qualifiers
+    handled by :func:`_strip_season_qualifier`. ``NA`` windows are dropped.
+    Returns ``None`` if nothing usable remains (so the caller can fall back).
+    """
+    windows = []
+    for win in str(value).split(","):
+        parts = win.split(":")
+        if len(parts) != 2:
+            continue
+        start, end = _resolve_season_qualifier(parts[0]), _resolve_season_qualifier(parts[1])
+        if not start or not end or start.upper() == "NA" or end.upper() == "NA":
+            continue
+        windows.append(f"{parse_month_day(start)}:{parse_month_day(end, is_end=True)}")
+    return ",".join(windows) if windows else None
+
+
+def _prebuilt_fixed_season(row):
+    """Return the row's usable pre-built ``fixed_season`` (normalized), or None."""
+    fs = row.get("fixed_season")
+    if fs is None or (isinstance(fs, float) and pd.isna(fs)) or str(fs).strip() == "":
+        return None
+    return normalize_fixed_season(fs)
+
+
+def lte_to_fixed_season(row) -> str:
+    """Build a toolkit ``fixed_season`` string for an LTE row.
+
+    Prefers a pre-built ``fixed_season`` column (Rwema's month-name syntax) when
+    present; otherwise assembles one from the ``s1_start``/``s1_end`` (+ S2)
+    season-window columns. One season -> ``"MM-DD:MM-DD"``; two ->
+    ``"MM-DD:MM-DD,MM-DD:MM-DD"``.
+    """
+    prebuilt = _prebuilt_fixed_season(row)
+    if prebuilt:
+        return prebuilt
     s1 = (
         f"{parse_month_day(row['s1_start'])}"
         f":{parse_month_day(row['s1_end'], is_end=True)}"
@@ -249,6 +316,9 @@ def has_season_windows(row) -> bool:
     the workflow falls back to auto season detection for it; an enriched export
     with ``s1_start``/``s1_end`` unlocks the fixed-season + comparison path.
     """
+    if _prebuilt_fixed_season(row):
+        return True
+
     def _present(key):
         val = row.get(key)
         return not (
@@ -266,6 +336,33 @@ def _year(value):
         return int(float(str(value).strip()[:4]))
     except (ValueError, TypeError):
         return None
+
+
+# ERA's expanded table stores Yield in mixed units; the unit is encoded in
+# Out.Code.Joined (e.g. "Crop Yield..kg/ha", "Crop Yield..t/ha DM..Mean").
+_YIELD_UNIT_TO_T_HA = {"t/ha": 1.0, "mg/ha": 1.0, "kg/ha": 0.001}
+
+
+def _normalize_yield_units(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert ``reported_yield`` to t/ha using the unit in ``Out.Code.Joined``.
+
+    Rwema's ``lte_summary_expanded.csv`` reports ``Yield`` in whatever unit the
+    source outcome used (t/ha, kg/ha, Mg/ha), so a raw column mixes scales.
+    Normalize to t/ha where the unit is recognized; leave rows without a usable
+    unit column untouched.
+    """
+    if "reported_yield" not in df.columns or "Out.Code.Joined" not in df.columns:
+        return df
+
+    def _factor(code):
+        m = re.search(r"\.\.([A-Za-z/]+)", str(code))
+        return _YIELD_UNIT_TO_T_HA.get(m.group(1).lower()) if m else None
+
+    factor = df["Out.Code.Joined"].map(_factor)
+    yields = pd.to_numeric(df["reported_yield"], errors="coerce")
+    mask = factor.notna() & yields.notna()
+    df.loc[mask, "reported_yield"] = yields[mask] * factor[mask]
+    return df
 
 
 def _drop_redundant_aliases(df: pd.DataFrame) -> pd.DataFrame:
@@ -289,22 +386,45 @@ def _drop_redundant_aliases(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=redundant) if redundant else df
 
 
+def _read_era_csv(csv_path) -> pd.DataFrame:
+    """Read a real ERA export robustly, whatever shape it arrives in.
+
+    The shipped registry (``unique_ltes.csv``) is semicolon-delimited and
+    cp1252-encoded with trailing spaces in the header and empty trailing
+    columns; a clean ``lte_summary`` export is comma/UTF-8. Sniff the delimiter,
+    try UTF-8 then the Windows/Latin fallbacks, then tidy the header (strip
+    whitespace, drop blank/``Unnamed`` columns) so the aliases match.
+    """
+    last_err = None
+    for encoding in ("utf-8", "cp1252", "latin-1"):
+        try:
+            # sep=None + the python engine sniffs ',' vs ';' vs tab.
+            df = pd.read_csv(csv_path, sep=None, engine="python", encoding=encoding)
+            break
+        except UnicodeDecodeError as err:
+            last_err = err
+    else:  # pragma: no cover - every ERA file decodes as one of the above
+        raise last_err
+
+    df.columns = [str(c).strip() for c in df.columns]
+    keep = [c for c in df.columns if c and not c.startswith("Unnamed")]
+    return df[keep].dropna(axis=1, how="all")
+
+
 def load_sites(csv_path) -> pd.DataFrame:
     """Load an ERA LTE export or the shipped registry, applying name aliases.
 
     Only lat/lon/years are required; season windows are optional (see
-    :func:`has_season_windows`). ERA's ``unique_ltes.csv`` is cp1252-encoded, so
-    fall back to that if UTF-8 decoding fails.
+    :func:`has_season_windows`). Handles both the messy real registry and a
+    clean ``lte_summary`` export — see :func:`_read_era_csv`.
     """
-    try:
-        df = pd.read_csv(csv_path)
-    except UnicodeDecodeError:
-        df = pd.read_csv('lte_summary.csv', encoding="cp1252")
+    df = _read_era_csv(csv_path)
     df = _drop_redundant_aliases(df).rename(columns=COLUMN_ALIASES)
     df["start_year"] = df["start_year"].map(_year)
     df["end_year"] = df["end_year"].map(_year)
     df = df.dropna(subset=["lat", "lon"])
     df = df[df["start_year"].notna() & df["end_year"].notna()]
+    df = _normalize_yield_units(df)
     return df.reset_index(drop=True)
 
 
@@ -332,25 +452,39 @@ def seasonal_rows(result) -> list[dict]:
     return rows
 
 
-def run_site(row, source: str) -> list[dict]:
+def run_site(row, source: str, cache: dict | None = None) -> list[dict]:
     """Run the toolkit for one LTE site, return per-season metrics.
 
     Uses ERA's own season window when present (``fixed_season``), otherwise
     falls back to auto season detection so the shipped registry CSV still runs.
+    Pass a shared ``cache`` dict to reuse the climate fetch across rows that
+    resolve to the same location, period and season (see below).
     """
-    kwargs = dict(
-        location_coord=(float(row["lat"]), float(row["lon"])),
-        start_year=int(row["start_year"]),
-        end_year=int(row["end_year"]),
-        source=source,
-        verbose=False,
-    )
-    if has_season_windows(row):
-        fixed = lte_to_fixed_season(row)
-        kwargs["fixed_season"] = fixed
+    lat, lon = float(row["lat"]), float(row["lon"])
+    start_year, end_year = int(row["start_year"]), int(row["end_year"])
+    fixed = lte_to_fixed_season(row) if has_season_windows(row) else None
+
+    # The compiled table repeats a site across treatment/time rows, so the same
+    # (location, period, season, source) fetch recurs many times. Cache the
+    # toolkit result on that key and reuse it — the per-row ERA context still
+    # varies below, only the expensive climate fetch is shared.
+    cache_key = (lat, lon, start_year, end_year, fixed, source)
+    if cache is not None and cache_key in cache:
+        tk_rows = cache[cache_key]
     else:
-        fixed = None
-    result = analyze_climate_statistics(**kwargs)
+        kwargs = dict(
+            location_coord=(lat, lon),
+            start_year=start_year,
+            end_year=end_year,
+            source=source,
+            verbose=False,
+        )
+        if fixed:
+            kwargs["fixed_season"] = fixed
+        tk_rows = seasonal_rows(analyze_climate_statistics(**kwargs))
+        if cache is not None:
+            cache[cache_key] = tk_rows
+
     # Echo the input context onto every row (site_id always; the rest when
     # present), so the output table stands on its own for analysis.
     context = {"site_id": row.get("site_id")}
@@ -360,15 +494,19 @@ def run_site(row, source: str) -> list[dict]:
         if not pd.isna(row.get(field)):
             context[field] = row[field]
     out = []
-    for tk in seasonal_rows(result):
+    for tk in tk_rows:
         record = {
             **context,
             "mode": "fixed" if fixed else "auto",
             "fixed_season": fixed,
             **tk,
         }
-        if "reported_rain_mm" in row and not pd.isna(row.get("reported_rain_mm")):
-            reported = float(row["reported_rain_mm"])
+        # Compare each toolkit season against ERA's mean seasonal precip for the
+        # *same* season: Site.MSP.S1 for season 1, Site.MSP.S2 for season 2
+        # (confirmed with the ERA team — MSP is seasonal, Site.MAP is annual).
+        msp_field = "reported_rain_mm" if tk.get("season_number") == 1 else "reported_rain_s2_mm"
+        if msp_field in row and not pd.isna(row.get(msp_field)):
+            reported = float(row[msp_field])
             record["reported_rain_mm"] = reported
             if tk["tk_rain_total_mm"] is not None:
                 record["rain_delta_mm"] = tk["tk_rain_total_mm"] - reported
@@ -385,8 +523,17 @@ def select_sites(sites, site_ids=None, limit=None):
     nothing. ``limit`` keeps the first N of whatever remains.
     """
     if site_ids:
-        wanted = [s.strip() for item in site_ids for s in str(item).split(",") if s.strip()]
         available = set(sites["site_id"].astype(str))
+        # Real ERA Site.IDs contain commas ("AfricaRice, Fanaye"), so only
+        # comma-split a value that isn't itself an exact Site.ID. For a
+        # comma-named site, pass it as its own --site (repeatable).
+        wanted = []
+        for item in site_ids:
+            item = str(item).strip()
+            if item in available:
+                wanted.append(item)
+            else:
+                wanted.extend(s.strip() for s in item.split(",") if s.strip())
         missing = [s for s in wanted if s not in available]
         if missing:
             raise SystemExit(
@@ -421,15 +568,17 @@ def run(
         return sites
 
     out_rows = []
+    cache: dict = {}  # shared across rows so repeated site coords fetch once
     for _, row in sites.iterrows():
         try:
-            out_rows.extend(run_site(row, source))
+            out_rows.extend(run_site(row, source, cache=cache))
         except Exception as exc:  # one bad site shouldn't stop the workflow
             print(f"[skip] {row.get('site_id')}: {exc}")
 
     frame = pd.DataFrame(out_rows)
     frame.to_csv(out_csv, index=False)
     print(f"wrote {out_csv} ({len(frame)} rows)")
+    print(f"climate fetches: {len(cache)} (deduplicated from {len(sites)} site-periods)")
     if "rain_delta_mm" in frame and frame["rain_delta_mm"].notna().any():
         deltas = frame["rain_delta_mm"].dropna()
         print(
@@ -449,8 +598,9 @@ def main():
         action="append",
         default=None,
         metavar="SITE_ID",
-        help="Run only this Site.ID. Repeatable and/or comma-separated "
-        "(--site A --site B, or --site A,B). Default: all sites.",
+        help="Run only this Site.ID. Repeatable (--site A --site B). A value "
+        "that isn't itself a Site.ID is comma-split (--site A,B); ERA names that "
+        "contain commas must each be their own --site. Default: all sites.",
     )
     parser.add_argument("--limit", type=int, default=None, help="Only process the first N sites")
     parser.add_argument(
