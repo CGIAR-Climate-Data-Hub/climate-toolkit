@@ -12,10 +12,15 @@ tk_WRSI vs yield — as scatters and per-site time series (see era_yield_plot.py
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 
 import pandas as pd
 
 import climate_toolkit as ct
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from examples.era_fetch_data import maybe_fetch  # noqa: E402
 
 _YIELD_TO_T_HA = {"mg/ha": 1.0, "t/ha": 1.0, "kg/ha": 0.001}
 
@@ -80,7 +85,7 @@ def main() -> None:
     ap.add_argument("--out", default="era_yield_climate.csv")
     args = ap.parse_args()
 
-    raw = pd.read_csv(args.csv, low_memory=False)
+    raw = pd.read_csv(maybe_fetch(args.csv), low_memory=False)
     if args.site:
         raw = raw[raw["Site.ID"].astype(str).str.contains(args.site, case=False, na=False)]
     obs = matchable(raw, season_days=args.season_days)

@@ -38,10 +38,15 @@ from __future__ import annotations
 import argparse
 import csv
 
-try:
-    import ijson
-except ImportError:  # pragma: no cover - dependency hint
-    raise SystemExit("This script needs ijson: pip install ijson")
+
+def _ijson():
+    """Import ijson lazily so this module stays importable without it."""
+    try:
+        import ijson
+    except ImportError as exc:  # pragma: no cover - dependency hint
+        raise SystemExit("This script needs ijson: pip install ijson") from exc
+    return ijson
+
 
 # Site.Out fields we keep — native ERA names that era_lte_workflow aliases.
 SITE_FIELDS = [
@@ -56,6 +61,7 @@ _YIELD_TO_T_HA = {"t/ha": 1.0, "mg/ha": 1.0, "kg/ha": 0.001}
 
 def _load_site_out(json_path):
     """First representative Site.Out row per site that has season + rainfall."""
+    ijson = _ijson()
     sites = {}
     with open(json_path, "rb") as f:
         for rec in ijson.items(f, "Site.Out.item"):
@@ -74,6 +80,7 @@ def _load_yields(json_path):
     Filters to the explicit ``Out.Subind == 'Crop Yield'`` and normalizes the
     mixed t/ha, kg/ha, Mg/ha units. Averages replicate/year observations.
     """
+    ijson = _ijson()
     sums, counts = {}, {}
     with open(json_path, "rb") as f:
         for rec in ijson.items(f, "Data.Out.item"):

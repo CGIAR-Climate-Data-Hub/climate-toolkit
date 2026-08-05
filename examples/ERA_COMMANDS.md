@@ -21,8 +21,27 @@ project (for the plot scripts).
 | File | How to get it |
 |---|---|
 | `examples/data/unique_sites_for_toolkit.csv` | already in the repo (126 sites, seasons) |
-| `lte_final.csv` | `curl -sL https://raw.githubusercontent.com/ERAgriculture/LTEs/main/data/lte_final.csv -o lte_final.csv` |
-| `lte_summary_expanded.csv` | the compiled table shared by the ERA team (place in repo root) |
+| `lte_final.csv` | public — **auto-downloaded** by the §4–6 scripts if missing. To fetch it yourself: `python examples/era_fetch_data.py` (Windows/macOS/Linux), or manually (see below). |
+| `lte_summary_expanded.csv` | **not in the repo and no download URL** — it's a file the ERA team shares. You must place it in the folder you run from (or pass its full path). Only §3 needs it; everything else uses the two files above. |
+
+> **`ERA input CSV not found`?** The path you passed isn't in the current
+> folder. Either `cd` to where the file is / pass its full path, or — if it's
+> `lte_summary_expanded.csv` that you don't have — use the public `lte_final.csv`
+> with §4 (validation) and §5–6 (yield vs climate) instead. Note `era_lte_workflow.py`
+> reads the `lte_summary`/`unique_sites` schema, **not** `lte_final.csv` — for
+> `lte_final.csv` use the `era_final_*` / `era_yield_*` scripts.
+
+**Manual download of `lte_final.csv`** (if you'd rather not use the helper):
+
+```bash
+# macOS / Linux
+curl -sL https://raw.githubusercontent.com/ERAgriculture/LTEs/main/data/lte_final.csv -o lte_final.csv
+```
+```powershell
+# Windows PowerShell — `curl` is an alias for Invoke-WebRequest, so use one of:
+curl.exe -L https://raw.githubusercontent.com/ERAgriculture/LTEs/main/data/lte_final.csv -o lte_final.csv
+Invoke-WebRequest https://raw.githubusercontent.com/ERAgriculture/LTEs/main/data/lte_final.csv -OutFile lte_final.csv
+```
 
 ---
 
@@ -52,7 +71,10 @@ Add `--dry-run` (instant, shows the season mapping, no network) or `--limit 10`
 
 ## 3. Full comparison with reported rainfall + crop yield
 
-Point the same workflow at the expanded table (has yield + reported rainfall):
+Point the same workflow at the expanded table (has yield + reported rainfall).
+**Requires the `lte_summary_expanded.csv` file in your working folder** (see the
+data-files note above) — if you don't have it, skip to §4–6, which use the public
+`lte_final.csv`.
 
 ```bash
 python examples/era_lte_workflow.py lte_summary_expanded.csv --source nasa_power --out full.csv

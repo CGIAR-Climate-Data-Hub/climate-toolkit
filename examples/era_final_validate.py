@@ -13,12 +13,17 @@ source may differ from ``nasa_power``, so some spread is expected).
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 from datetime import date
 
 import pandas as pd
 
 import climate_toolkit as ct
 from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateVariable
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from examples.era_fetch_data import maybe_fetch  # noqa: E402
 
 
 def _matchable(df: pd.DataFrame) -> pd.DataFrame:
@@ -50,7 +55,7 @@ def main() -> None:
     ap.add_argument("--out", default="era_final_compare.csv")
     args = ap.parse_args()
 
-    sites = _matchable(pd.read_csv(args.csv, low_memory=False))
+    sites = _matchable(pd.read_csv(maybe_fetch(args.csv), low_memory=False))
     if args.limit:
         sites = sites.head(args.limit)
     print(f"{len(sites)} unique site-year windows with ERA rain_rain_sum")
