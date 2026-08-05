@@ -11,6 +11,16 @@ cd climate-toolkit
 uv sync                    # or: pip install -e .
 ```
 
+**Already have a clone? Make sure it's the latest `main` first** (many fixes here
+are recent). If commands behave differently than this guide, this is usually why:
+
+```bash
+git remote -v              # should point at CGIAR-Climate-Data-Hub/climate-toolkit
+git status                 # commit/stash any local edits, or they block the pull
+git checkout main
+git pull
+```
+
 Prefix commands with `uv run` (e.g. `uv run python examples/...`) if you use `uv`
 and haven't activated the venv. Two scripts need one extra package:
 `pip install ijson` (only for `era_extract_site_out.py`); matplotlib ships with the
