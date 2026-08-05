@@ -523,6 +523,23 @@ class YieldUnitNormalizationTests(unittest.TestCase):
         self.assertAlmostEqual(y["C"], 4.0)     # Mg/ha == t/ha
 
 
+class MissingInputGuardTests(unittest.TestCase):
+    """A missing input CSV gives an actionable message, not a raw traceback."""
+
+    def test_missing_file_raises_actionable_error(self):
+        from examples.era_lte_workflow import _require_input
+        with self.assertRaises(SystemExit) as cm:
+            _require_input("/tmp/definitely_missing_era_input.csv")
+        msg = str(cm.exception)
+        self.assertIn("not found", msg)
+        self.assertIn("lte_final.csv", msg)          # points to the public route
+        self.assertIn("lte_summary_expanded.csv", msg)  # names the common trip-up
+
+    def test_existing_file_passes(self):
+        from examples.era_lte_workflow import _require_input
+        _require_input(os.path.join(REPO_ROOT, "examples", "data", "unique_sites_for_toolkit.csv"))
+
+
 class SelectSitesTests(unittest.TestCase):
     def _frame(self):
         return pd.DataFrame(
