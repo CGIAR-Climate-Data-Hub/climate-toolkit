@@ -45,6 +45,34 @@ Invoke-WebRequest https://raw.githubusercontent.com/ERAgriculture/LTEs/main/data
 
 ---
 
+## Quick start — these work from a fresh clone (no extra files)
+
+Do these three first. They use only the bundled sites and the **public**
+`lte_final.csv` (auto-downloaded on first use) — nothing you have to obtain
+separately. On Windows, use backslashes (`examples\...`).
+
+```bash
+# 1) list the bundled ERA sites (instant, no network)
+python examples/era_lte_workflow.py examples/data/unique_sites_for_toolkit.csv --list-sites
+
+# 2) validation — toolkit rainfall vs ERA's own value (auto-downloads lte_final.csv)
+python examples/era_final_validate.py lte_final.csv --source nasa_power --limit 30 --out era_final_compare.csv
+python examples/era_plot.py era_final_compare.csv --out era_validation.png
+
+# 3) yield vs toolkit climate for one site (auto-downloads lte_final.csv)
+python examples/era_yield_analysis.py lte_final.csv --site "Gourton" --out era_gourton.csv
+python examples/era_yield_plot.py era_gourton.csv --site "Gourton" --out era_gourton_trends.png
+```
+
+> ⚠️ **Don't start with the `lte_summary_expanded.csv` command (§3).** That file
+> is the ERA team's compiled table — it is *not* in the repo and has no download
+> URL, so that command fails unless you already have the file on disk. Everything
+> above needs no such file.
+
+The sections below break these down and add the multi-site view.
+
+---
+
 ## 1. List the sites in a file
 
 ```bash
