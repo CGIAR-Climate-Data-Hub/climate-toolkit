@@ -108,6 +108,7 @@ from __future__ import annotations
 
 import argparse
 import calendar
+import os
 import re
 
 import pandas as pd
@@ -588,6 +589,29 @@ def run(
     return frame
 
 
+def _require_input(path: str) -> None:
+    """Fail with an actionable message when the input CSV isn't on disk.
+
+    The most common trip-up: running §3 with ``lte_summary_expanded.csv``, which
+    is the ERA team's compiled table — not bundled and with no download URL.
+    """
+    if os.path.exists(path):
+        return
+    bundled = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data",
+                           "unique_sites_for_toolkit.csv")
+    raise SystemExit(
+        f"ERA input CSV not found: {path!r}\n"
+        "  - It is not bundled with the repo. If this is 'lte_summary_expanded.csv',\n"
+        "    that's the ERA team's compiled table (no download URL) — place it in this\n"
+        "    folder or pass its full path.\n"
+        "  - To run on public data instead, use lte_final.csv (auto-downloads):\n"
+        "      python examples/era_final_validate.py lte_final.csv --source nasa_power\n"
+        '      python examples/era_yield_analysis.py lte_final.csv --site "Gourton"\n'
+        f"  - Or use the bundled sample that ships with the repo:\n"
+        f"      python examples/era_lte_workflow.py {bundled} --list-sites"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="ERA LTE workflow on the Climate Toolkit.")
     parser.add_argument("csv", help="ERA LTE export CSV (see module docstring for columns)")
@@ -610,6 +634,7 @@ def main():
     )
     parser.add_argument("--dry-run", action="store_true", help="Show season mapping without fetching")
     args = parser.parse_args()
+    _require_input(args.csv)
 
     if args.list_sites:
         for site_id in load_sites(args.csv)["site_id"].astype(str).drop_duplicates():
