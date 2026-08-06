@@ -1,22 +1,26 @@
 # Releasing to PyPI
 
 Publishing is automated via **Trusted Publishing** (`.github/workflows/publish.yml`):
-publishing a GitHub Release builds the package and uploads it to PyPI over OIDC —
-**no API tokens are stored**.
+publishing a GitHub Release builds the package and uploads it over OIDC —
+**no API tokens are stored**. The Release type routes it:
 
-## One-time setup (a maintainer, on PyPI)
+- **Pre-release** (tick *"Set as a pre-release"*) → **TestPyPI** — a safe rehearsal.
+- **Normal Release** → **PyPI** — the real thing.
 
-Register the repo as a trusted publisher — this cannot be automated:
+## One-time setup (a maintainer)
 
-> PyPI → your account → **Publishing** → **Add a pending publisher**
+Register the repo as a trusted publisher — this cannot be automated. Do it on
+**PyPI**, and also on **TestPyPI** if you want the rehearsal path:
+
+> pypi.org (and/or test.pypi.org) → your account → **Publishing** → **Add a pending publisher**
 > - **PyPI Project Name:** `climate-toolkit`
 > - **Owner:** `CGIAR-Climate-Data-Hub`
 > - **Repository name:** `climate-toolkit`
 > - **Workflow name:** `publish.yml`
-> - **Environment name:** `pypi`
+> - **Environment name:** `pypi` on PyPI · `testpypi` on TestPyPI
 
 Optionally protect the `pypi` GitHub Environment (repo → Settings → Environments)
-with required reviewers, so a human approves each publish.
+with required reviewers, so a human approves each production publish.
 
 ## Cutting a release (every new version)
 
@@ -41,6 +45,13 @@ PyPI versions are **immutable** — every upload needs a new version number.
    - Title + notes, then **Publish release**.
 
    The `publish.yml` workflow runs automatically and uploads to PyPI.
+
+   **Rehearse first (optional):** tick *"Set as a pre-release"* on the Release.
+   It goes to **TestPyPI** instead, so you can verify the whole pipeline before
+   the real thing. Install a rehearsal with:
+   ```bash
+   pip install -i https://test.pypi.org/simple/ climate-toolkit --pre
+   ```
 
 ## Verify
 
