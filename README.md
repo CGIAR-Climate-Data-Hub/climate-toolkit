@@ -119,6 +119,14 @@ If you see:
 
 ### Installation
 
+Just want to use the package? Install from PyPI:
+
+```bash
+pip install climate-toolkit
+```
+
+To develop the toolkit or run the `examples/` scripts, set up from a clone instead:
+
 1. Clone repository
 
    ```bash
