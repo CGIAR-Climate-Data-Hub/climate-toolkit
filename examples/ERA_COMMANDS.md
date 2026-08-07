@@ -178,6 +178,45 @@ python examples/era_yield_multisite.py era_many.csv --variable tk_WRSI --out era
 
 ## 7. Use it from Python (no CLI)
 
+Everything above is a thin wrapper over importable functions — you can drive it
+from a notebook or script and get pandas objects back.
+
+**The core toolkit** works from a plain install, imported anywhere:
+
+```python
+import climate_toolkit as ct
+from datetime import date
+
+# daily climate data -> pandas DataFrame
+df = ct.fetch_climate_data(source="nasa_power", location_coord=(-1.286, 36.817),
+                           date_from=date(2020, 1, 1), date_to=date(2020, 12, 31))
+
+# seasonal climatology / water balance -> dict
+stats = ct.analyze_climate_statistics(location_coord=(1.019, 35.0),
+                                      start_year=2018, end_year=2020, source="nasa_power")
+```
+
+`import climate_toolkit as ct` exposes: `fetch_climate_data`,
+`analyze_climate_statistics`, `evaluate_hazards`, `compare_climate_periods`,
+`compare_climate_sources`, `download_station_data`, `compare_station_to_grids`,
+`run_pipeline`.
+
+**The ERA workflow** functions live in `examples/` (they ship with the repo, not
+the installed wheel), so add the repo folder to the path, then import:
+
+```python
+import sys
+sys.path.insert(0, "/path/to/climate-toolkit")     # your repo folder
+
+from examples.era_lte_workflow import load_sites, select_sites, run
+sites  = load_sites("examples/data/unique_sites_for_toolkit.csv")
+subset = select_sites(sites, site_ids=["Awassa", "Samaru"])   # or None = all
+df     = run("examples/data/unique_sites_for_toolkit.csv",
+             source="nasa_power", site_ids=["Awassa"])         # -> pandas DataFrame
+```
+
+**Ready-made demo** of that pattern:
+
 ```bash
 python examples/era_lte_as_library.py --site "Awassa" --limit 5
 ```
