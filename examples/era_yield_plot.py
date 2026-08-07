@@ -62,6 +62,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("csv", help="Output of era_yield_analysis.py")
     ap.add_argument("--site", help="Site.ID to plot (substring; default: most-years site)")
+    ap.add_argument("--crop", help="Only this crop (substring), for multi-crop sites like Kouve")
     ap.add_argument("--variable", help="Plot only this toolkit variable (single panel)")
     ap.add_argument("--treatments", help="Comma-separated treatment filter (substring match, "
                     "e.g. 'NT 0N,NT 100N,NT 200N' to match Rwema's NT subset)")
@@ -77,8 +78,10 @@ def main() -> None:
 
     if args.site:
         df = df[df["site_id"].astype(str).str.contains(args.site, case=False, na=False)]
+    if args.crop:
+        df = df[df["crop"].astype(str).str.contains(args.crop, case=False, na=False)]
     if df.empty:
-        raise SystemExit("No rows for that site. Check --site or run era_yield_analysis.py first.")
+        raise SystemExit("No rows for that site/crop. Check --site/--crop or run era_yield_analysis.py first.")
     site = df["site_id"].value_counts().idxmax()
     s = df[df["site_id"] == site].copy()
     crop = s["crop"].mode().iloc[0] if not s["crop"].mode().empty else ""

@@ -523,6 +523,17 @@ class YieldUnitNormalizationTests(unittest.TestCase):
         self.assertAlmostEqual(y["C"], 4.0)     # Mg/ha == t/ha
 
 
+class YieldAnalysisIdentifierTests(unittest.TestCase):
+    """era_yield_analysis links study Code -> master LTE.ID via the registry."""
+
+    def test_code_to_lte_maps_from_registry(self):
+        from examples.era_yield_analysis import _code_to_lte
+        m = _code_to_lte()
+        self.assertIsInstance(m, dict)
+        self.assertGreater(len(m), 100)  # the shipped registry has ~300 codes
+        self.assertTrue(any(str(v).startswith("LTE") for v in list(m.values())[:30]))
+
+
 class MissingInputGuardTests(unittest.TestCase):
     """A missing input CSV gives an actionable message, not a raw traceback."""
 

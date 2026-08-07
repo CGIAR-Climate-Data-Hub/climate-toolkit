@@ -25,6 +25,25 @@ from examples.era_fetch_data import maybe_fetch  # noqa: E402
 _YIELD_TO_T_HA = {"mg/ha": 1.0, "t/ha": 1.0, "kg/ha": 0.001}
 
 
+def _code_to_lte():
+    """Map ERA study ``Code`` -> master ``LTE.ID`` from the shipped registry.
+
+    ``lte_final.csv`` carries ``Code`` but not ``LTE.ID``; the registry
+    (``examples/data/unique_ltes.csv``) links them, so the output can carry the
+    master long-term-experiment id without breaking site-season uniqueness.
+    """
+    reg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "unique_ltes.csv")
+    try:
+        reg = pd.read_csv(reg_path, sep=None, engine="python", encoding="cp1252")
+    except Exception:
+        return {}
+    reg.columns = [str(c).strip() for c in reg.columns]
+    if "Code" not in reg.columns or "LTE.ID" not in reg.columns:
+        return {}
+    reg = reg.dropna(subset=["Code", "LTE.ID"]).drop_duplicates("Code")
+    return dict(zip(reg["Code"].astype(str), reg["LTE.ID"].astype(str)))
+
+
 def matchable(df: pd.DataFrame, season_days: int = 150) -> pd.DataFrame:
     """Crop-yield rows with a usable growing-season window and yield (t/ha).
 
@@ -81,6 +100,8 @@ def main() -> None:
     ap.add_argument("--source", default="nasa_power")
     ap.add_argument("--limit", type=int, default=None, help="Only first N unique windows")
     ap.add_argument("--site", help="Only this Site.ID (substring match)")
+    ap.add_argument("--crop", help="Only this crop, e.g. 'Maize' (substring match on Product.Simple). "
+                    "Useful for sites with several crops, e.g. Kouve = cotton + maize.")
     ap.add_argument("--season-days", type=int, default=150, help="Fallback season length when no harvest date")
     ap.add_argument("--out", default="era_yield_climate.csv")
     args = ap.parse_args()
@@ -88,7 +109,10 @@ def main() -> None:
     raw = pd.read_csv(maybe_fetch(args.csv), low_memory=False)
     if args.site:
         raw = raw[raw["Site.ID"].astype(str).str.contains(args.site, case=False, na=False)]
+    if args.crop:
+        raw = raw[raw["Product.Simple"].astype(str).str.contains(args.crop, case=False, na=False)]
     obs = matchable(raw, season_days=args.season_days)
+    code2lte = _code_to_lte()
     # unique climate windows to fetch (many observations share one)
     keys = obs.drop_duplicates(["Latitude", "Longitude", "year", "ps", "he"])
     if args.limit:
@@ -109,7 +133,14 @@ def main() -> None:
         m = cache.get(key)
         if not m:
             continue
+        code = o.get("Code")
         rows.append({
+            # identifiers first, so every site-season record is uniquely keyed
+            # and linked to the master LTE registry (Code -> LTE.ID).
+            "lte_id": code2lte.get(str(code)),
+            "code": code,
+            "site_key": o.get("Site.Key"),
+            "index": o.get("Index"),
             "site_id": o["Site.ID"], "year": int(o["year"]), "crop": o["Product.Simple"],
             "treatment": o["treatment"], "yield_t_ha": round(float(o["yield_t_ha"]), 3), **m,
         })
