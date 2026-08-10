@@ -8,6 +8,8 @@ A unified toolkit for retrieving climate data from various global datasets such 
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) — try the toolkit live in your browser, no install needed.
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/era_lte_colab.ipynb) — ERA LTE workflow: validate toolkit rainfall against ERA field records and explore yield vs climate, with plots.
+
 <p>
   <a href="https://www.mcknight.org/programs/global-foods/"><img src="docs/assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="44"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
