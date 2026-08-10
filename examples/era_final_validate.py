@@ -24,6 +24,7 @@ from climate_toolkit.fetch_data.source_data.sources.utils.models import ClimateV
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from examples.era_fetch_data import maybe_fetch  # noqa: E402
+from examples.era_yield_analysis import _code_to_lte  # noqa: E402
 
 
 def _matchable(df: pd.DataFrame) -> pd.DataFrame:
@@ -58,6 +59,7 @@ def main() -> None:
     sites = _matchable(pd.read_csv(maybe_fetch(args.csv), low_memory=False))
     if args.limit:
         sites = sites.head(args.limit)
+    code2lte = _code_to_lte()  # Code -> master LTE.ID, same registry as the yield table
     print(f"{len(sites)} unique site-year windows with ERA rain_rain_sum")
 
     rows = []
@@ -70,7 +72,13 @@ def main() -> None:
             continue
         if tk is None:
             continue
+        code = r.get("Code")
         rows.append({
+            # identifiers first, keyed the same way as the yield table (Code -> LTE.ID).
+            # Note: this table is one row per (site, window), collapsed across
+            # treatments — so treatment/yield and per-observation Site.Key/Index
+            # don't apply here; only the site-stable ids do.
+            "lte_id": code2lte.get(str(code)), "code": code,
             "site_id": r["Site.ID"], "crop": r["Product.Simple"],
             "window_start": r["ps"].date(), "window_end": r["he"].date(),
             "window_days": int(r["days"]),
