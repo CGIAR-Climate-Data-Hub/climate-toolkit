@@ -17,23 +17,13 @@ from __future__ import annotations
 import argparse
 import math
 
-import matplotlib
+from climate_toolkit.visualization import (
+    BAR, LINES, VARIABLE_LABELS, label_for, save_figure, shorten_treatment, use_headless,
+)
 
-matplotlib.use("Agg")
+use_headless()
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
-
-BAR = "#bcd8ea"
-LINES = ["#2f7d52", "#d1652b", "#6a5acd", "#2f6f9f", "#b5401f", "#4a7f3a"]
-LABELS = {
-    "tk_rain_total_mm": "Seasonal rainfall (mm)", "tk_rainy_days": "Rainy days",
-    "tk_dry_days": "Dry days", "tk_NDWS": "Water-stress days", "tk_WRSI": "WRSI",
-}
-
-
-def _short(label, n=20):
-    t = str(label).split(">>")[0].split("***")[0].strip()
-    return t if len(t) <= n else t[: n - 1] + "…"
 
 
 def _panel(ax, s, var, top_treatments):
@@ -48,7 +38,7 @@ def _panel(ax, s, var, top_treatments):
     for i, t in enumerate(treatments):
         st = s[s["treatment"] == t].groupby("year")["yield_t_ha"].mean()
         ax2.plot(st.index, st.values, marker="o", ms=2.5, lw=1.4,
-                 color=LINES[i % len(LINES)], label=_short(t), zorder=3)
+                 color=LINES[i % len(LINES)], label=shorten_treatment(t, n=20), zorder=3)
     ax2.tick_params(axis="y", labelsize=7)
     ax2.legend(fontsize=6, ncol=min(len(treatments), 2), loc="upper left", frameon=False)
 
@@ -56,7 +46,7 @@ def _panel(ax, s, var, top_treatments):
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("csv", nargs="+", help="One or more era_yield_analysis.py outputs")
-    ap.add_argument("--variable", default="tk_rain_total_mm", choices=list(LABELS))
+    ap.add_argument("--variable", default="tk_rain_total_mm", choices=list(VARIABLE_LABELS))
     ap.add_argument("--sites", type=int, default=6, help="Max sites to show")
     ap.add_argument("--min-years", type=int, default=3, help="Skip sites with fewer years")
     ap.add_argument("--top-treatments", type=int, default=4)
@@ -86,10 +76,10 @@ def main() -> None:
     for j in range(n, rows * cols):
         axes[j // cols][j % cols].axis("off")
 
-    fig.suptitle(f"{LABELS[args.variable]} vs yield across ERA sites  "
+    fig.suptitle(f"{label_for(args.variable)} vs yield across ERA sites  "
                  f"(bars = {args.variable}, lines = yield t/ha)", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(args.out, dpi=120)
+    save_figure(fig, args.out, dpi=120)
     print(f"wrote {args.out} ({n} sites: {', '.join(order)})")
 
 
