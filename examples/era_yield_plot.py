@@ -16,8 +16,21 @@ from ``era_yield_analysis.py``.
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 
-from climate_toolkit.visualization import BAR, LINES, label_for, save_figure, shorten_treatment, use_headless
+# Prefer the cloned repo's climate_toolkit over any older pip-installed one, so
+# the shared `visualization` package resolves even when the installed release
+# predates it (e.g. Colab installs from PyPI, then runs these repo examples).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from climate_toolkit.visualization import (  # noqa: E402
+    BAR,
+    LINES,
+    label_for,
+    save_figure,
+    shorten_treatment,
+    use_headless,
+)
 
 use_headless()
 import matplotlib.pyplot as plt  # noqa: E402
