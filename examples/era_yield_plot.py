@@ -17,27 +17,14 @@ from __future__ import annotations
 
 import argparse
 
-import matplotlib
+from climate_toolkit.visualization import BAR, LINES, label_for, save_figure, shorten_treatment, use_headless
 
-matplotlib.use("Agg")
+use_headless()
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
-BAR = "#bcd8ea"
-LINES = ["#2f7d52", "#d1652b", "#6a5acd", "#2f6f9f", "#b5401f", "#4a7f3a", "#9c27b0", "#00838f"]
-VARS = [
-    ("tk_rain_total_mm", "Seasonal rainfall (mm)"),
-    ("tk_rainy_days", "Rainy days"),
-    ("tk_dry_days", "Dry days"),
-    ("tk_NDWS", "Water-stress days (NDWS)"),
-    ("tk_WRSI", "Water-satisfaction (WRSI)"),
-]
-
-
-def _short(label: str, n: int = 24) -> str:
-    """Shorten ERA's verbose treatment names for a readable legend."""
-    t = str(label).split(">>")[0].split("***")[0].strip()  # drop rotation/repeat suffixes
-    return t if len(t) <= n else t[: n - 1] + "…"
+VARS = [(c, label_for(c)) for c in
+        ("tk_rain_total_mm", "tk_rainy_days", "tk_dry_days", "tk_NDWS", "tk_WRSI")]
 
 
 def _panel(ax, s, var, label, treatments, put_legend):
@@ -51,7 +38,7 @@ def _panel(ax, s, var, label, treatments, put_legend):
     for i, t in enumerate(treatments):
         st = s[s["treatment"] == t].groupby("year")["yield_t_ha"].mean()
         ax2.plot(st.index, st.values, marker="o", ms=3, lw=1.6,
-                 color=LINES[i % len(LINES)], label=_short(t), zorder=3)
+                 color=LINES[i % len(LINES)], label=shorten_treatment(t), zorder=3)
     ax2.set_ylabel("yield (t/ha)", color="#2f7d52", fontsize=9)
     if put_legend:
         ax2.legend(title="Treatment", fontsize=7, title_fontsize=7, ncol=min(len(treatments), 3),
@@ -104,7 +91,7 @@ def main() -> None:
     yr = f"{int(s['year'].min())}–{int(s['year'].max())}"
     fig.suptitle(f"{site} — {crop}: toolkit climate vs yield ({yr})", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(args.out, dpi=120)
+    save_figure(fig, args.out, dpi=120)
     print(f"wrote {args.out}  (site={site}, treatments={len(treatments)}, panels={len(panels)})")
 
 
