@@ -7,8 +7,6 @@ its own palette.
 
 from __future__ import annotations
 
-import matplotlib
-
 #: Bar fill for climate-variable bars in the ERA yield / trend figures.
 BAR = "#bcd8ea"
 
@@ -25,5 +23,12 @@ def use_headless() -> None:
 
     Safe for CLI / batch / servers with no display. Call it *before* importing
     ``matplotlib.pyplot``.
+
+    matplotlib is imported here (not at module load) so importing
+    ``climate_toolkit.visualization`` stays cheap, and so the import resolves the
+    real module at call time rather than binding whatever is in ``sys.modules``
+    when this module is first imported.
     """
+    import matplotlib
+
     matplotlib.use("Agg")
