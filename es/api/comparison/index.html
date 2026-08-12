@@ -1,0 +1,2852 @@
+
+<!doctype html>
+<html lang="es" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Location-based climate, season, climatology, hazard, and projection analysis.">
+      
+      
+      
+        <link rel="canonical" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/comparison/">
+      
+      
+        <link rel="prev" href="../analysis/">
+      
+      
+      
+        
+          <link rel="alternate" href="../../../api/comparison/" hreflang="en">
+        
+          <link rel="alternate" href="../../../fr/api/comparison/" hreflang="fr">
+        
+          <link rel="alternate" href="./" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Comparison & validation - Climate Toolkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#comparison-validation" class="md-skip">
+          Saltar a contenido
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabecera">
+    <a href="../../" title="Climate Toolkit" class="md-header__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Climate Toolkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Comparison & validation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Seleccionar idioma">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../api/comparison/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../../fr/api/comparison/" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Búsqueda" placeholder="Búsqueda" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Buscar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpiar" aria-label="Limpiar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando búsqueda
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navegación" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="Climate Toolkit" class="md-nav__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Climate Toolkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acerca de
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../use-as-a-package/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use as a package
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../example_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    End-to-end example
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../weather_station_workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Weather stations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../human_heat_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Human heat stress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thi_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Livestock heat (THI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../distribution_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distribution & releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fetching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fetching data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison & validation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison & validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#compare-gridded-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare gridded sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.compare_datasets.compare_datasets.compare_sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download-station-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download station data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.weather_station.download.download_station_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download_station_data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validate-grids-against-stations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate grids against stations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.weather_station.compare.compare_station_to_grids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_station_to_grids
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#compare-gridded-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare gridded sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.compare_datasets.compare_datasets.compare_sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download-station-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download station data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.weather_station.download.download_station_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download_station_data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validate-grids-against-stations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate grids against stations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.weather_station.compare.compare_station_to_grids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_station_to_grids
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="comparison-validation">Comparison &amp; validation<a class="headerlink" href="#comparison-validation" title="Permanent link">&para;</a></h1>
+<h2 id="compare-gridded-sources">Compare gridded sources<a class="headerlink" href="#compare-gridded-sources" title="Permanent link">&para;</a></h2>
+<p>Available as <code>climate_toolkit.compare_climate_sources</code>.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="climate_toolkit.compare_datasets.compare_datasets.compare_sources" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">climate_toolkit.compare_datasets.compare_datasets.compare_sources</span>
+
+
+<a href="#climate_toolkit.compare_datasets.compare_datasets.compare_sources" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">compare_sources</span><span class="p">(</span>
+    <span class="n">sources</span><span class="p">,</span>
+    <span class="n">lat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">lon</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">input_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./outputs&quot;</span><span class="p">,</span>
+    <span class="n">nex_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">nex_scenario</span><span class="o">=</span><span class="s2">&quot;ssp245&quot;</span><span class="p">,</span>
+    <span class="n">nex_models</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">precip_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">temp_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Fetch one or more climate datasets for a location and prepare them for comparison.</p>
+<p>For each requested source, this function fetches cleaned, analysis-ready
+daily data for a single point (latitude/longitude) over a date range via
+the toolkit's preprocessing pipeline, exports each dataset to
+<code>&lt;output_dir&gt;/&lt;source&gt;.csv</code>, and returns the datasets keyed by source
+name. The returned dictionary is the input expected by <code>print_report</code>,
+which produces the comparison tables (annual time series, annual
+statistics, monthly climatologies, pairwise correlations) and PNG plots.</p>
+<p>Climate sources retrieve daily precipitation, maximum temperature, and
+minimum temperature. The <code>soil_grid</code> source instead retrieves static
+soil properties (pH, texture fractions, bulk density, organic carbon,
+CEC), broadcast as a constant daily series across the date range so it
+can sit alongside the climate sources. Sources that fail to fetch are
+skipped with a printed warning rather than aborting the run.</p>
+<p>Most sources are read from Google Earth Engine and require prior Earth
+Engine authentication plus a Google Cloud project id in the
+<code>GCP_PROJECT_ID</code> environment variable (<code>GOOGLE_CLOUD_PROJECT</code> or
+<code>EE_PROJECT_ID</code> also work). <code>nasa_power</code> uses NASA's public web
+service and needs no authentication.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>sources</code>
+            </td>
+            <td>
+                  <code>list of str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dataset keys to fetch and compare. Valid keys: <code>'agera_5'</code>,
+<code>'chirps'</code>, <code>'chirps_v2'</code>, <code>'chirps_v3_daily_rnl'</code>,
+<code>'chirts'</code>, <code>'cmip_6'</code>, <code>'era_5'</code>, <code>'imerg'</code>,
+<code>'nasa_power'</code>, <code>'nex_gddp'</code>, <code>'soil_grid'</code>, <code>'tamsat'</code>,
+<code>'terraclimate'</code>, <code>'auto'</code> (the toolkit's default historical
+precipitation + temperature pairing), and <code>'paired'</code> (a custom
+pairing; requires <code>precip_source</code> and <code>temp_source</code>).
+<code>'nex_gddp'</code> (future CMIP6 projections) must be run on its own,
+not mixed with historical sources. Ignored when <code>input_file</code> is
+given.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>lat</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Latitude of the point of interest in decimal degrees (default
+<code>None</code>). Required unless <code>input_file</code> is given.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>lon</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Longitude of the point of interest in decimal degrees (default
+<code>None</code>). Required unless <code>input_file</code> is given.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>start</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Start date as <code>'YYYY-MM-DD'</code> (default <code>None</code>, meaning the
+source's earliest available date).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>end</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>End date as <code>'YYYY-MM-DD'</code> (default <code>None</code>, meaning the
+source's latest available date).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>input_file</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a CSV of already-fetched daily data containing a <code>date</code>
+column plus one column per variable (default <code>None</code>). When given,
+no sources are fetched; the file is loaded, re-exported to
+<code>output_dir</code>, and returned under the key <code>'input_file'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>output_dir</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Directory where per-source CSV files are written; created if it
+does not exist (default <code>'./outputs'</code>). <code>print_report</code> also
+writes its PNG plots here.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;./outputs&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>nex_model</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Single NEX-GDDP-CMIP6 model name, e.g. <code>'MRI-ESM2-0'</code> (default
+<code>None</code>). Only used when <code>'nex_gddp'</code> is in <code>sources</code>. If neither
+<code>nex_model</code> nor <code>nex_models</code> is given, a default multi-model
+ensemble for the location is averaged into one series.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>nex_scenario</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>NEX-GDDP-CMIP6 emissions scenario (default <code>'ssp245'</code>). Common
+options include <code>'ssp126'</code>, <code>'ssp245'</code>, <code>'ssp370'</code> and
+<code>'ssp585'</code>; only used when <code>'nex_gddp'</code> is in <code>sources</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;ssp245&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>nex_models</code>
+            </td>
+            <td>
+                  <code>list of str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Two or more NEX-GDDP-CMIP6 model names to average into a single
+ensemble-mean series (default <code>None</code>). Overrides <code>nex_model</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>precip_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Precipitation partner for the <code>'paired'</code> source, e.g.
+<code>'chirps_v3_daily_rnl'</code>, <code>'chirps_v2'</code>, <code>'imerg'</code> (default
+<code>None</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>temp_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Temperature partner for the <code>'paired'</code> source, e.g. <code>'agera_5'</code>,
+<code>'era_5'</code>, <code>'chirts'</code> (default <code>None</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>workers</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of parallel workers for chunked Google Earth Engine fetches
+(default <code>1</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code>dict of str to pandas.DataFrame</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Mapping from result key to a daily DataFrame with a <code>date</code> column
+(<code>datetime64</code>) plus one numeric column per variable (e.g.
+<code>precipitation</code>, <code>max_temperature</code>, <code>min_temperature</code>). Keys
+are usually the source name as passed in; NEX-GDDP results use
+<code>'nex_gddp_&lt;model&gt;_&lt;scenario&gt;'</code> or
+<code>'nex_gddp_ensemble_&lt;scenario&gt;'</code>, custom pairings use
+<code>'paired_&lt;precip&gt;_plus_&lt;temp&gt;'</code>, and <code>input_file</code> runs use
+<code>'input_file'</code>. Pass this dictionary to <code>print_report</code> to
+generate the comparison report and plots.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If a source key is unknown, <code>'nex_gddp'</code> is combined with other
+sources, the NEX-GDDP scenario or model names are invalid, or the
+paired-source configuration is incomplete or inconsistent.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="RuntimeError">RuntimeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If none of the requested sources returned usable data.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <p>Compare AgERA5 and NASA POWER for Nairobi over 2020, then print the
+comparison report:</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">results</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">compare_climate_sources</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">sources</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;agera_5&quot;</span><span class="p">,</span> <span class="s2">&quot;nasa_power&quot;</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">lat</span><span class="o">=-</span><span class="mf">1.286</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">lon</span><span class="o">=</span><span class="mf">36.817</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">start</span><span class="o">=</span><span class="s2">&quot;2020-01-01&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">end</span><span class="o">=</span><span class="s2">&quot;2020-12-31&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./outputs&quot;</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+<span class="go">[&#39;agera_5&#39;, &#39;nasa_power&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">climate_toolkit.compare_datasets.compare_datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">print_report</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span> <span class="o">=</span> <span class="n">print_report</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./outputs&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+
+    </div>
+
+</div><h2 id="download-station-data">Download station data<a class="headerlink" href="#download-station-data" title="Permanent link">&para;</a></h2>
+<p>Available as <code>climate_toolkit.download_station_data</code>.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="climate_toolkit.weather_station.download.download_station_data" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">climate_toolkit.weather_station.download.download_station_data</span>
+
+
+<a href="#climate_toolkit.weather_station.download.download_station_data" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">download_station_data</span><span class="p">(</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">station_source</span><span class="p">,</span>
+    <span class="n">station_coord</span><span class="p">,</span>
+    <span class="n">date_from</span><span class="p">,</span>
+    <span class="n">date_to</span><span class="p">,</span>
+    <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">station_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;preprocessed&quot;</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">refresh_cache</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">selection_mode</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">max_distance_km</span><span class="o">=</span><span class="n">DEFAULT_MAX_DISTANCE_KM</span><span class="p">,</span>
+    <span class="n">target_elevation_m</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_elevation_diff_m</span><span class="o">=</span><span class="n">DEFAULT_MAX_ELEVATION_DIFF_M</span><span class="p">,</span>
+    <span class="n">min_completeness_ratio</span><span class="o">=</span><span class="n">DEFAULT_MIN_COMPLETENESS_RATIO</span><span class="p">,</span>
+    <span class="n">candidate_limit</span><span class="o">=</span><span class="n">DEFAULT_CANDIDATE_LIMIT</span><span class="p">,</span>
+    <span class="n">score_limit</span><span class="o">=</span><span class="n">DEFAULT_SCORE_LIMIT</span><span class="p">,</span>
+    <span class="n">auto_select</span><span class="o">=</span><span class="s2">&quot;auto-1&quot;</span><span class="p">,</span>
+    <span class="n">auto_anchor_elevation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">disable_completeness_guard</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">max_auto_stations</span><span class="o">=</span><span class="n">DEFAULT_MAX_AUTO_STATIONS</span><span class="p">,</span>
+    <span class="n">custom_station_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_station_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_temp_unit</span><span class="o">=</span><span class="s2">&quot;c&quot;</span><span class="p">,</span>
+    <span class="n">custom_precip_unit</span><span class="o">=</span><span class="s2">&quot;mm&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Download daily weather-station observations near a point of interest.</p>
+<p>Finds weather stations close to <code>station_coord</code>, ranks them by
+distance, elevation similarity, and data completeness, then downloads
+daily observations for the requested date range and variables. All
+arguments are keyword-only. The result is a pandas DataFrame (the
+Python analogue of an R <code>data.frame</code>), with one row per
+station-day, or -- when <code>selection_mode="list"</code> -- one row per
+candidate station.</p>
+<p>Station backends (GHCN-Daily and GSOD) are public NOAA archives and
+need <strong>no Google Earth Engine authentication</strong>. The only optional
+Earth Engine touchpoint is the DEM elevation lookup used when
+<code>auto_anchor_elevation=True</code>; if Earth Engine is not configured the
+lookup fails gracefully, a warning is printed, and station selection
+proceeds without the elevation guard.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>station_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Station backend to search. Valid values:</p>
+<ul>
+<li><code>"ghcn_daily"</code> : NOAA GHCN-Daily archive (default backend in
+  the CLI; supports all selection modes).</li>
+<li><code>"gsod"</code> : NOAA Global Summary of the Day. Currently supports
+  <code>selection_mode="specified"</code> only and requires <code>station_id</code>
+  (a 5-digit WMO-like ID or 11-digit GSOD ID).</li>
+<li><code>"auto"</code> : rank candidates across both NOAA backends
+  (GHCN-Daily + GSOD) together.</li>
+<li><code>"custom_csv"</code> : load a user-supplied station file; requires
+  <code>custom_station_file</code>.</li>
+</ul>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>station_coord</code>
+            </td>
+            <td>
+                  <code>tuple of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(latitude, longitude)</code> of the point of interest in decimal
+degrees (the anchor for the station search, not necessarily a
+station location).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>date_from</code>
+            </td>
+            <td>
+                  <code><span title="datetime.date">date</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>First day of the requested period (inclusive).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>date_to</code>
+            </td>
+            <td>
+                  <code><span title="datetime.date">date</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Last day of the requested period (inclusive).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>variables</code>
+            </td>
+            <td>
+                  <code>list of ClimateVariable or list of str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Variables to request, e.g.
+<code>["precipitation", "max_temperature", "min_temperature"]</code> or
+the corresponding <code>ClimateVariable</code> enum members. <code>None</code>
+(default) requests the backend's full supported set.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>station_id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit station identifier. Required when
+<code>selection_mode="specified"</code> and for <code>station_source="gsod"</code>.
+Default <code>None</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>stage</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Processing stage of the returned data: <code>"raw"</code>,
+<code>"transformed"</code>, or <code>"preprocessed"</code> (default). Use the
+default for analysis-ready, unit-harmonised values.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;preprocessed&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>verbose</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code> (default), print progress and selection warnings.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cache_dir</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Directory for cached downloads. <code>None</code> (default) uses the
+toolkit's default cache location.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>refresh_cache</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, ignore cached files and re-download. Default
+<code>False</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>selection_mode</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How stations are chosen. Valid values:</p>
+<ul>
+<li><code>"auto"</code> (default) : rank nearby candidates and download data
+  from the top station(s) per <code>auto_select</code>.</li>
+<li><code>"specified"</code> : download exactly the station given by
+  <code>station_id</code>.</li>
+<li><code>"list"</code> : do not download observations; return a ranked
+  candidate table for review.</li>
+</ul>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;auto&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_distance_km</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Search radius around <code>station_coord</code>; candidates farther than
+this are excluded. Default <code>50.0</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.weather_station.ghcn_daily.DEFAULT_MAX_DISTANCE_KM">DEFAULT_MAX_DISTANCE_KM</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target_elevation_m</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Reference elevation (m) for the elevation guard. <code>None</code>
+(default) resolves it from a DEM when
+<code>auto_anchor_elevation=True</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_elevation_diff_m</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum allowed absolute elevation difference (m) between a
+candidate station and the target elevation. Default <code>500.0</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.weather_station.ghcn_daily.DEFAULT_MAX_ELEVATION_DIFF_M">DEFAULT_MAX_ELEVATION_DIFF_M</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>min_completeness_ratio</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum fraction (0-1) of days with data required per requested
+variable for a candidate to pass the completeness guard. Default
+<code>0.7</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.weather_station.ghcn_daily.DEFAULT_MIN_COMPLETENESS_RATIO">DEFAULT_MIN_COMPLETENESS_RATIO</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>candidate_limit</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum number of candidates retained after ranking. Default
+<code>10</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.weather_station.ghcn_daily.DEFAULT_CANDIDATE_LIMIT">DEFAULT_CANDIDATE_LIMIT</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>score_limit</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum number of nearby stations scored for completeness (the
+expensive step). Default <code>25</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.weather_station.ghcn_daily.DEFAULT_SCORE_LIMIT">DEFAULT_SCORE_LIMIT</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>auto_select</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How many top-ranked stations to download in
+<code>selection_mode="auto"</code>: <code>"auto-1"</code> (default, best station
+only), <code>"auto-&lt;n&gt;"</code> (top <em>n</em>, e.g. <code>"auto-3"</code>), or
+<code>"auto-all"</code>. Always capped at <code>max_auto_stations</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;auto-1&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>auto_anchor_elevation</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code> (default) and <code>target_elevation_m</code> is <code>None</code>,
+look up the anchor elevation from a DEM (via Earth Engine, with
+graceful fallback).</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>disable_completeness_guard</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, skip the completeness threshold and return the
+nearest-ranked stations regardless of data coverage. Default
+<code>False</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_auto_stations</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Hard cap on stations downloaded via <code>auto_select</code>. Default
+<code>10</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.weather_station.download.DEFAULT_MAX_AUTO_STATIONS">DEFAULT_MAX_AUTO_STATIONS</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_station_file</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a custom station CSV/JSON file. Required when
+<code>station_source="custom_csv"</code>. Default <code>None</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_station_name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Label for the custom station. Default <code>None</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_temp_unit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Temperature unit in the custom file: <code>"c"</code> (default), <code>"f"</code>,
+or <code>"k"</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;c&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_precip_unit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Precipitation unit in the custom file: <code>"mm"</code> (default),
+<code>"inch"</code>, or <code>"tenth_mm"</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;mm&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Structure depends on <code>selection_mode</code>:</p>
+<ul>
+<li><code>"auto"</code> or <code>"specified"</code> : daily observations, one row per
+  station-day, with a <code>date</code> column, station metadata columns
+  (<code>station_id</code>, <code>station_name</code>, <code>station_lat</code>,
+  <code>station_lon</code>, <code>station_elevation_m</code>, ...), one column per
+  requested variable (e.g. <code>precipitation</code>,
+  <code>max_temperature</code>, <code>min_temperature</code>), and selection
+  metadata (<code>selection_rank</code>, <code>selection_status</code>,
+  <code>distance_km</code>, <code>fields_passing_threshold</code>, ...). With
+  <code>auto_select</code> &gt; 1 station, rows for all stations are stacked
+  and distinguished by <code>selection_rank</code>. Empty DataFrame if no
+  station returned data.</li>
+<li><code>"list"</code> : one row per candidate station with ranking
+  diagnostics (<code>distance_km</code>, <code>elevation_diff_m</code>,
+  completeness ratios, <code>threshold_status</code>,
+  <code>fields_passing_threshold</code>, <code>fields_failing_threshold</code>,
+  ...) and no daily observations. Selection warnings, if any, are
+  attached in <code>frame.attrs["selection_warnings"]</code>.</li>
+</ul>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>station_source</code> is unsupported, if required arguments for
+the chosen mode are missing (e.g. <code>station_id</code> with
+<code>selection_mode="specified"</code>), or if <code>auto_select</code> is
+malformed.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <p>Download 2020 daily records from the single best GHCN-Daily station
+within 50 km of Nairobi:</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">obs</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">download_station_data</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">station_source</span><span class="o">=</span><span class="s2">&quot;ghcn_daily&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">station_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">variables</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;precipitation&quot;</span><span class="p">,</span> <span class="s2">&quot;max_temperature&quot;</span><span class="p">,</span> <span class="s2">&quot;min_temperature&quot;</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">selection_mode</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">auto_select</span><span class="o">=</span><span class="s2">&quot;auto-1&quot;</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">obs</span><span class="p">[[</span><span class="s2">&quot;date&quot;</span><span class="p">,</span> <span class="s2">&quot;station_id&quot;</span><span class="p">,</span> <span class="s2">&quot;precipitation&quot;</span><span class="p">,</span> <span class="s2">&quot;max_temperature&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</code></pre></div>
+
+
+    </div>
+
+</div><h2 id="validate-grids-against-stations">Validate grids against stations<a class="headerlink" href="#validate-grids-against-stations" title="Permanent link">&para;</a></h2>
+<p>Available as <code>climate_toolkit.compare_station_to_grids</code>.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="climate_toolkit.weather_station.compare.compare_station_to_grids" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">climate_toolkit.weather_station.compare.compare_station_to_grids</span>
+
+
+<a href="#climate_toolkit.weather_station.compare.compare_station_to_grids" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">compare_station_to_grids</span><span class="p">(</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">station_source</span><span class="p">,</span>
+    <span class="n">station_coord</span><span class="p">,</span>
+    <span class="n">date_from</span><span class="p">,</span>
+    <span class="n">date_to</span><span class="p">,</span>
+    <span class="n">grid_sources</span><span class="p">,</span>
+    <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">station_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">selection_mode</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">selection_strategy</span><span class="o">=</span><span class="n">DEFAULT_SELECTION_STRATEGY</span><span class="p">,</span>
+    <span class="n">auto_select</span><span class="o">=</span><span class="s2">&quot;auto-1&quot;</span><span class="p">,</span>
+    <span class="n">max_distance_km</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span>
+    <span class="n">target_elevation_m</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_elevation_diff_m</span><span class="o">=</span><span class="mf">500.0</span><span class="p">,</span>
+    <span class="n">min_completeness_ratio</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+    <span class="n">candidate_limit</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">score_limit</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
+    <span class="n">auto_anchor_elevation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">disable_completeness_guard</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">max_auto_stations</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">refresh_cache</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">precip_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">temp_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">wet_day_threshold_mm</span><span class="o">=</span><span class="n">DEFAULT_WET_DAY_THRESHOLD_MM</span><span class="p">,</span>
+    <span class="n">min_overlap_days</span><span class="o">=</span><span class="n">DEFAULT_MIN_OVERLAP_DAYS</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">custom_station_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_station_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_temp_unit</span><span class="o">=</span><span class="s2">&quot;c&quot;</span><span class="p">,</span>
+    <span class="n">custom_precip_unit</span><span class="o">=</span><span class="s2">&quot;mm&quot;</span><span class="p">,</span>
+    <span class="n">candidate_report_prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Validate gridded climate products against nearby station observations.</p>
+<p>Downloads daily station records near <code>station_coord</code> (via
+:func:<code>download_station_data</code>), fetches each requested gridded
+product at the station location for the same period, matches the two
+on date, and computes agreement statistics (bias, MAE, RMSE,
+correlation) per station, grid source, and variable at daily,
+monthly, seasonal, and annual timescales. For precipitation it adds
+wet-day occurrence skill (hit rate, false-alarm ratio, critical
+success index, frequency bias), totals, upper-tail quantiles, and
+heavy-rain indices (rx1day, rx5day, R10mm, R20mm). All arguments are
+keyword-only. The result is a plain Python <code>dict</code> (the analogue of
+an R named list), ready for <code>json.dumps</code> or conversion of its list
+entries to DataFrames.</p>
+<p>Authentication note: the station side (GHCN-Daily / GSOD) downloads
+from public NOAA archives and needs no Google Earth Engine
+credentials, but most grid sources (<code>agera_5</code>, <code>era_5</code>,
+<code>chirps</code>, <code>chirts</code>, <code>imerg</code>, <code>terraclimate</code>, ...) are fetched
+through Google Earth Engine and require the <code>GCP_PROJECT_ID</code>
+environment variable (or <code>GOOGLE_CLOUD_PROJECT</code> /
+<code>EE_PROJECT_ID</code>) plus an authenticated Earth Engine account.
+<code>nasa_power</code> uses the NASA POWER web API and does not need Earth
+Engine. Failed grid fetches do not abort the run; they are recorded
+under <code>"grid_failures"</code> in the result.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>station_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Station backend: <code>"ghcn_daily"</code>, <code>"gsod"</code>, <code>"auto"</code> (rank
+across both NOAA backends), or <code>"custom_csv"</code> (requires
+<code>custom_station_file</code>). See :func:<code>download_station_data</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>station_coord</code>
+            </td>
+            <td>
+                  <code>tuple of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(latitude, longitude)</code> of the point of interest in decimal
+degrees; anchors both the station search and the grid extraction.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>date_from</code>
+            </td>
+            <td>
+                  <code><span title="datetime.date">date</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>First day of the comparison period (inclusive).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>date_to</code>
+            </td>
+            <td>
+                  <code><span title="datetime.date">date</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Last day of the comparison period (inclusive).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>grid_sources</code>
+            </td>
+            <td>
+                  <code>list of str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Historical gridded products to evaluate. Valid values:
+<code>"agera_5"</code>, <code>"era_5"</code>, <code>"chirps"</code>, <code>"chirps_v2"</code>,
+<code>"chirts"</code>, <code>"chirps_v2+chirts"</code>, <code>"chirps_v3_daily_rnl"</code>,
+<code>"imerg"</code>, <code>"nasa_power"</code>, <code>"terraclimate"</code>, <code>"auto"</code>
+(toolkit's composite selector), and <code>"paired"</code> (combine
+<code>precip_source</code> + <code>temp_source</code>). Non-historical or station
+sources (<code>"ghcn_daily"</code>, <code>"gsod"</code>, <code>"nex_gddp"</code>,
+<code>"soil_grid"</code>, <code>"tamsat"</code>) are rejected with <code>ValueError</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>variables</code>
+            </td>
+            <td>
+                  <code>list of ClimateVariable or list of str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Variables to compare. <code>None</code> (default) compares
+<code>precipitation</code>, <code>max_temperature</code>, and <code>min_temperature</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>station_id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit station identifier; used with
+<code>selection_mode="specified"</code>. Default <code>None</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>selection_mode</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Station-selection behaviour: <code>"auto"</code> (default; rank nearby
+candidates automatically), <code>"specified"</code> (use <code>station_id</code>),
+or <code>"list"</code> (return the ranked candidate table only -- <strong>no
+comparison metrics are computed</strong>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;auto&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>selection_strategy</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How stations map to variables:</p>
+<ul>
+<li><code>"all_vars_single_station"</code> (default) : one station download
+  covering all variables together.</li>
+<li><code>"best_per_variable"</code> : select the best station separately
+  for each variable (stations may differ between, say,
+  precipitation and temperature).</li>
+</ul>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.weather_station.compare.DEFAULT_SELECTION_STRATEGY">DEFAULT_SELECTION_STRATEGY</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>auto_select</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of top-ranked stations used when <code>selection_mode="auto"</code>:
+<code>"auto-1"</code> (default), <code>"auto-&lt;n&gt;"</code>, or <code>"auto-all"</code>
+(capped at <code>max_auto_stations</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;auto-1&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_distance_km</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Station search radius in km. Default <code>50.0</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>50.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target_elevation_m</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Reference elevation (m) for the elevation guard; <code>None</code>
+(default) resolves it from a DEM when
+<code>auto_anchor_elevation=True</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_elevation_diff_m</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum station-vs-anchor elevation difference (m). Default
+<code>500.0</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>500.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>min_completeness_ratio</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum per-variable data completeness (0-1) for candidate
+stations. Default <code>0.7</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.7</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>candidate_limit</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum candidates retained after ranking. Default <code>10</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>10</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>score_limit</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum nearby stations scored for completeness. Default <code>25</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>25</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>auto_anchor_elevation</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code> (default), resolve the anchor elevation from a DEM
+(Earth Engine; falls back gracefully with a warning).</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>disable_completeness_guard</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, skip the completeness threshold when selecting
+stations. Default <code>False</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_auto_stations</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Hard cap on stations used via <code>auto_select</code>. Default <code>10</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>10</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cache_dir</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Directory for cached downloads. Default <code>None</code> (toolkit
+default).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>refresh_cache</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, re-download instead of using cached files. Default
+<code>False</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>precip_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Precipitation and temperature products combined when
+<code>"paired"</code> is among <code>grid_sources</code>. Default <code>None</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>temp_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Precipitation and temperature products combined when
+<code>"paired"</code> is among <code>grid_sources</code>. Default <code>None</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>wet_day_threshold_mm</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Daily precipitation (mm) at or above which a day counts as wet
+in the occurrence-skill statistics. Default <code>1.0</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.weather_station.compare.DEFAULT_WET_DAY_THRESHOLD_MM">DEFAULT_WET_DAY_THRESHOLD_MM</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>min_overlap_days</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum station-grid overlap (days) below which a low-confidence
+warning is attached to a metric row. Default <code>30</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.weather_station.compare.DEFAULT_MIN_OVERLAP_DAYS">DEFAULT_MIN_OVERLAP_DAYS</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>verbose</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code> (default), print progress messages.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_station_file</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a custom station CSV/JSON (with
+<code>station_source="custom_csv"</code>). Default <code>None</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_station_name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Label for the custom station. Default <code>None</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_temp_unit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Temperature unit in the custom file: <code>"c"</code> (default), <code>"f"</code>,
+or <code>"k"</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;c&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_precip_unit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Precipitation unit in the custom file: <code>"mm"</code> (default),
+<code>"inch"</code>, or <code>"tenth_mm"</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;mm&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>candidate_report_prefix</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If given, write a candidate-review report to
+<code>&lt;prefix&gt;.csv</code>, <code>&lt;prefix&gt;.json</code>, and <code>&lt;prefix&gt;.html</code> (an
+interactive map plus ranking table); the paths are returned under
+<code>"candidate_review_artifacts"</code>. Default <code>None</code> (no report).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>workers</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parallel workers for grid-data fetching. Default <code>1</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A report dictionary. Main keys:</p>
+<ul>
+<li><code>"metrics"</code> : list of dict, one per station x grid source x
+  variable, with <code>overlap_days</code>, <code>confidence_class</code>,
+  <code>bias</code>, <code>mae</code>, <code>rmse</code>, <code>correlation</code>, and (for
+  precipitation) wet-day skill and heavy-rain diagnostics.</li>
+<li><code>"monthly_metrics"</code>, <code>"seasonal_metrics"</code>,
+  <code>"annual_metrics"</code> : the same comparisons on aggregated
+  series; annual rows add <code>coverage_ratio</code> and
+  <code>window_status</code>.</li>
+<li><code>"pooled_daily_metrics"</code>, <code>"pooled_monthly_metrics"</code>,
+  <code>"pooled_seasonal_metrics"</code>, <code>"pooled_annual_metrics"</code> :
+  metrics against a per-date mean across selected stations
+  (<code>station_id="POOLED_REF"</code>); <code>"overall_metrics"</code> pools raw
+  overlap rows across stations (<code>station_id="ALL"</code>).</li>
+<li><code>"use_case_rankings"</code> : grid sources ranked (0-1 scores) for
+  use cases such as <code>daily_monitoring</code>, <code>seasonal_totals</code>,
+  <code>drought_screening</code>, <code>heavy_rain_screening</code>, and
+  <code>temperature_climatology</code>.</li>
+<li><code>"station_summary"</code>, <code>"selected_stations_by_variable"</code>,
+  <code>"grid_fetch_summary"</code>, <code>"grid_failures"</code>,
+  <code>"grid_source_metadata"</code> (including whether each product is
+  station-informed, i.e. not fully independent validation),
+  <code>"warnings"</code>, <code>"confidence_summary"</code>,
+  <code>"window_status_summary"</code>, <code>"xclim_precip_indices"</code>, and
+  echo of the inputs (<code>"anchor_location"</code>, <code>"date_from"</code>,
+  <code>"grid_sources"</code>, ...).</li>
+</ul>
+<p>With <code>selection_mode="list"</code> the dict instead carries
+<code>"candidate_stations"</code> (list of candidate records) and all
+metric lists are empty.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>grid_sources</code> is empty, contains unknown or unsupported
+sources, or if <code>selection_strategy</code> is invalid.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="RuntimeError">RuntimeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If no station observations are available for comparison.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <p>Compare the best GHCN-Daily station near Nairobi against AgERA5 for
+2020 (requires <code>GCP_PROJECT_ID</code> to be set for the grid fetch):</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">report</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">compare_station_to_grids</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">station_source</span><span class="o">=</span><span class="s2">&quot;ghcn_daily&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">station_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">grid_sources</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;agera_5&quot;</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">variables</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;precipitation&quot;</span><span class="p">,</span> <span class="s2">&quot;max_temperature&quot;</span><span class="p">,</span> <span class="s2">&quot;min_temperature&quot;</span><span class="p">],</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">report</span><span class="p">[</span><span class="s2">&quot;metrics&quot;</span><span class="p">])[</span>
+<span class="gp">... </span>    <span class="p">[</span><span class="s2">&quot;grid_source&quot;</span><span class="p">,</span> <span class="s2">&quot;variable&quot;</span><span class="p">,</span> <span class="s2">&quot;overlap_days&quot;</span><span class="p">,</span> <span class="s2">&quot;bias&quot;</span><span class="p">,</span> <span class="s2">&quot;correlation&quot;</span><span class="p">]</span>
+<span class="gp">... </span><span class="p">]</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Volver al principio
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copiado al portapapeles", "clipboard.copy": "Copiar al portapapeles", "search.result.more.one": "1 m\u00e1s en esta p\u00e1gina", "search.result.more.other": "# m\u00e1s en esta p\u00e1gina", "search.result.none": "No se encontraron documentos", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Teclee para comenzar b\u00fasqueda", "search.result.term.missing": "Falta", "select.version": "Seleccionar versi\u00f3n"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

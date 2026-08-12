@@ -1,0 +1,1437 @@
+
+<!doctype html>
+<html lang="fr" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Location-based climate, season, climatology, hazard, and projection analysis.">
+      
+      
+      
+        <link rel="canonical" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/thi_workflow/">
+      
+      
+        <link rel="prev" href="../human_heat_workflow/">
+      
+      
+        <link rel="next" href="../distribution_workflow/">
+      
+      
+        
+          <link rel="alternate" href="../../thi_workflow/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="fr">
+        
+          <link rel="alternate" href="../../es/thi_workflow/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Livestock heat (THI) - Climate Toolkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#livestock-thi-workflow" class="md-skip">
+          Aller au contenu
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="En-tête">
+    <a href="../" title="Climate Toolkit" class="md-header__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Climate Toolkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Livestock heat (THI)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Sélectionner la langue">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../thi_workflow/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../es/thi_workflow/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Rechercher" placeholder="Rechercher" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Recherche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Effacer" aria-label="Effacer" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initialisation de la recherche
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="Climate Toolkit" class="md-nav__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Climate Toolkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    À propos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-as-a-package/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use as a package
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    End-to-end example
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../weather_station_workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Weather stations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../human_heat_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Human heat stress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Livestock heat (THI)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Livestock heat (THI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-toolkit-does-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What toolkit does now
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current formula
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#temperature-input-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature input rule
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#humidity-requirement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Humidity requirement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate-profile-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Climate profile logic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#livestock-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Livestock profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#breed-and-production-context-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breed and production-context limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source support
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI surface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threshold-override-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threshold override path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#still-open" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Still open
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distribution_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distribution & releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/fetching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fetching data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison & validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-toolkit-does-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What toolkit does now
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current formula
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#temperature-input-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature input rule
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#humidity-requirement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Humidity requirement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate-profile-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Climate profile logic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#livestock-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Livestock profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#breed-and-production-context-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breed and production-context limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source support
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI surface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threshold-override-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threshold override path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#still-open" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Still open
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="livestock-thi-workflow">Livestock THI Workflow<a class="headerlink" href="#livestock-thi-workflow" title="Permanent link">&para;</a></h1>
+<p>Status: current operational method<br />
+Updated: 2026-06-24</p>
+<p>This guide documents current toolkit handling for livestock heat stress through
+daily <code>THI</code> (temperature-humidity index).</p>
+<h2 id="what-toolkit-does-now">What toolkit does now<a class="headerlink" href="#what-toolkit-does-now" title="Permanent link">&para;</a></h2>
+<p>Toolkit currently supports:</p>
+<ul>
+<li>daily livestock <code>THI</code></li>
+<li>daily THI stress-band classification</li>
+<li>period summaries with:</li>
+<li>mean THI</li>
+<li>max THI</li>
+<li>day counts by stress band</li>
+<li>total stress days</li>
+<li>hazard integration through <code>calculate_hazards</code></li>
+</ul>
+<p>Toolkit does <strong>not</strong> yet treat THI as fully finished methodological work. This
+is current operational implementation for issue <code>#30</code>, with threshold review
+and broader livestock refinement still open.</p>
+<h2 id="current-formula">Current formula<a class="headerlink" href="#current-formula" title="Permanent link">&para;</a></h2>
+<p>Toolkit uses:</p>
+<p><code>THI = (1.8*T + 32) - ((0.55 - 0.0055*RH) * ((1.8*T) - 26))</code></p>
+<p>Where:</p>
+<ul>
+<li><code>T</code> = daily mean dry-bulb air temperature in Celsius</li>
+<li><code>RH</code> = daily relative humidity in percent</li>
+</ul>
+<p>Default position:</p>
+<ul>
+<li>keep mean-temperature + RH THI as toolkit default</li>
+<li>do not treat max-temperature THI as default at this stage</li>
+</ul>
+<p>Reason:</p>
+<ul>
+<li>current projection-oriented livestock literature support is strongest for daily temperature + RH THI</li>
+<li>toolkit humidity support across historical and future sources is most coherent for this path</li>
+<li>daily <code>Tmax</code> does not automatically pair with coincident humidity, so a naive <code>Tmax</code> THI path can overstate or distort stress signal</li>
+</ul>
+<h2 id="temperature-input-rule">Temperature input rule<a class="headerlink" href="#temperature-input-rule" title="Permanent link">&para;</a></h2>
+<p>Toolkit uses temperature in this order:</p>
+<ol>
+<li>explicit mean temperature column when present</li>
+<li>known mean-temperature aliases such as <code>mean_temperature</code>, <code>tavg</code>, <code>tmean</code>, <code>temperature</code>, <code>temp</code></li>
+<li>fallback derived mean daily temperature from <code>(tmax + tmin) / 2</code></li>
+</ol>
+<p>Toolkit does <strong>not</strong> currently expose separate default THI path based on daily
+maximum temperature. That remains open refinement work.</p>
+<h2 id="humidity-requirement">Humidity requirement<a class="headerlink" href="#humidity-requirement" title="Permanent link">&para;</a></h2>
+<p>THI requires daily relative humidity in percent.</p>
+<p>Current assumptions:</p>
+<ul>
+<li>valid humidity range: <code>0..100</code></li>
+<li>missing humidity blocks THI calculation</li>
+<li>projected/future workflows without stable humidity path are unsupported by design</li>
+</ul>
+<h2 id="climate-profile-logic">Climate profile logic<a class="headerlink" href="#climate-profile-logic" title="Permanent link">&para;</a></h2>
+<p>Toolkit supports:</p>
+<ul>
+<li><code>auto</code></li>
+<li><code>temperate</code></li>
+<li><code>tropical</code></li>
+</ul>
+<p><code>auto</code> logic:</p>
+<ul>
+<li>use latitude first</li>
+<li>if site lies within tropical latitude band (<code>|lat| &lt;= 23.5</code>) and elevation is
+  at or above <code>1500 m</code>, treat as temperate/highland proxy</li>
+<li>otherwise tropical lowland stays tropical</li>
+</ul>
+<p>Elevation may come from:</p>
+<ul>
+<li>explicit user override</li>
+<li>DEM lookup where workflow enables it</li>
+</ul>
+<h2 id="livestock-profiles">Livestock profiles<a class="headerlink" href="#livestock-profiles" title="Permanent link">&para;</a></h2>
+<p>Current built-in livestock profiles:</p>
+<ul>
+<li><code>cattle_dairy</code></li>
+<li><code>cattle_general</code></li>
+<li><code>cattle_beef</code></li>
+<li><code>goats</code></li>
+<li><code>sheep</code></li>
+<li><code>pigs</code></li>
+<li><code>poultry_broilers</code></li>
+<li><code>poultry_layers</code></li>
+<li><code>poultry_general</code></li>
+</ul>
+<p>Threshold basis:</p>
+<ul>
+<li>Thornton et al. (2021) Table 1 for operational base thresholds</li>
+<li>Thornton et al. (2021) Table 2 for tropical extreme-threshold adjustments where applicable</li>
+</ul>
+<p>Important:</p>
+<ul>
+<li>these are operational defaults, not final breed-resolved physiology</li>
+<li>toolkit currently uses species-group thresholds plus simple tropical/highland context logic</li>
+<li>future refinement may still revise some thresholds or interpretation text</li>
+</ul>
+<h2 id="breed-and-production-context-limits">Breed and production-context limits<a class="headerlink" href="#breed-and-production-context-limits" title="Permanent link">&para;</a></h2>
+<p>Toolkit should be read as screening tool here, not veterinary truth engine.</p>
+<p>Current limits:</p>
+<ul>
+<li>toolkit does <strong>not</strong> distinguish Bos indicus, Bos taurus, Sanga, or crossbred cattle within one livestock profile</li>
+<li>toolkit does <strong>not</strong> infer breed adaptation from genetics, coat, body size, or management system</li>
+<li><code>auto</code> climate-profile rule is only coarse location proxy using latitude plus highland elevation</li>
+<li>thresholds may not transfer cleanly across locally adapted breeds, production systems, or management conditions</li>
+</ul>
+<p>Practical interpretation:</p>
+<ul>
+<li>use package defaults as operational screening bands</li>
+<li>if project has breed-specific or veterinary guidance, prefer custom threshold override</li>
+<li>document any override explicitly in outputs or methods note</li>
+</ul>
+<p>Examples where extra caution is needed:</p>
+<ul>
+<li>tropical dairy systems using crossbred cattle</li>
+<li>locally adapted African cattle not well represented by broad dairy/beef defaults</li>
+<li>highland systems where climate exposure and genetic adaptation may diverge</li>
+</ul>
+<p>Programmatic inspection:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">climate_toolkit.climatology</span><span class="w"> </span><span class="kn">import</span> <span class="n">describe_thi_method</span>
+
+<span class="n">method</span> <span class="o">=</span> <span class="n">describe_thi_method</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">method</span><span class="p">[</span><span class="s2">&quot;profiles&quot;</span><span class="p">][</span><span class="s2">&quot;cattle_dairy&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">method</span><span class="p">[</span><span class="s2">&quot;profiles&quot;</span><span class="p">][</span><span class="s2">&quot;pigs&quot;</span><span class="p">])</span>
+</code></pre></div>
+<h2 id="source-support">Source support<a class="headerlink" href="#source-support" title="Permanent link">&para;</a></h2>
+<p>Supported now:</p>
+<ul>
+<li><code>agera_5</code></li>
+<li>humidity derived from dewpoint + air temperature in current fetch pipeline</li>
+<li><code>nasa_power</code></li>
+<li>humidity available from current POWER fetch path</li>
+<li><code>ghcn_daily</code></li>
+<li>when station humidity field exists for chosen station and window</li>
+<li><code>gsod</code></li>
+<li>when station humidity field exists for chosen station and window</li>
+<li><code>custom_station</code></li>
+<li>when uploaded file includes humidity / RH column</li>
+<li><code>nex_gddp</code></li>
+<li>conditionally, when Earth Engine <code>hurs</code> is available for selected model / scenario / period</li>
+</ul>
+<p>Uncertain / limited:</p>
+<ul>
+<li><code>era_5</code></li>
+<li>current toolkit ERA5 fetch configuration does not define a humidity band for operational THI use</li>
+<li>keep treated as uncertain until fetch/runtime path is explicitly wired and tested</li>
+</ul>
+<p>Not supported:</p>
+<ul>
+<li><code>chirps_v2</code></li>
+<li><code>chirps_v3_daily_rnl</code></li>
+<li><code>imerg</code></li>
+<li><code>tamsat</code></li>
+<li><code>chirts</code></li>
+</ul>
+<p>Programmatic inspection:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">climate_toolkit.climatology</span><span class="w"> </span><span class="kn">import</span> <span class="n">describe_thi_method</span><span class="p">,</span> <span class="n">describe_thi_source_support</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">describe_thi_source_support</span><span class="p">())</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">describe_thi_method</span><span class="p">()[</span><span class="s2">&quot;source_support&quot;</span><span class="p">][</span><span class="s2">&quot;nex_gddp&quot;</span><span class="p">])</span>
+</code></pre></div>
+<h2 id="cli-surface">CLI surface<a class="headerlink" href="#cli-surface" title="Permanent link">&para;</a></h2>
+<p>Current livestock THI controls appear in multiple workflows:</p>
+<ul>
+<li><code>climate-toolkit-seasons</code></li>
+<li><code>climate-toolkit-stats</code></li>
+<li><code>climate-toolkit-periods</code></li>
+<li><code>climate-toolkit-periods-ensemble</code></li>
+<li><code>climate-toolkit-hazards</code></li>
+<li>relevant ensemble variants</li>
+</ul>
+<p>Key arguments:</p>
+<ul>
+<li><code>--livestock-type</code></li>
+<li><code>--livestock-climate-profile</code></li>
+<li><code>--livestock-elevation-override-m</code></li>
+</ul>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><code>climate-toolkit-periods-ensemble<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="o">=</span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--baseline-start<span class="o">=</span><span class="m">1995</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--baseline-end<span class="o">=</span><span class="m">2013</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--future-start<span class="o">=</span><span class="m">2041</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--future-end<span class="o">=</span><span class="m">2060</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--scenarios<span class="o">=</span>ssp245<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--fixed-season<span class="o">=</span><span class="s2">&quot;03-01:05-31&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--livestock-type<span class="w"> </span>cattle_dairy<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--livestock-climate-profile<span class="w"> </span>auto
+</code></pre></div>
+<h2 id="threshold-override-path">Threshold override path<a class="headerlink" href="#threshold-override-path" title="Permanent link">&para;</a></h2>
+<p>Default THI bands are built from livestock profile plus climate context.</p>
+<p>Current user override path exists in hazards workflow through
+<code>--thresholds-file</code>.</p>
+<p>This means user can override THI hazard bands even if toolkit default profile
+for that livestock type is different.</p>
+<p>Example JSON fragment:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;THI&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;none&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="mi">70</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;mild&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">70</span><span class="p">,</span><span class="w"> </span><span class="mi">76</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;moderate&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">76</span><span class="p">,</span><span class="w"> </span><span class="mi">84</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;severe&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">84</span><span class="p">,</span><span class="w"> </span><span class="kc">null</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Example usage:</p>
+<div class="highlight"><pre><span></span><code>climate-toolkit-hazards<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--crop<span class="w"> </span>maize<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="o">=</span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--date-from<span class="w"> </span><span class="m">2020</span>-03-01<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--date-to<span class="w"> </span><span class="m">2020</span>-05-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="w"> </span>paired<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--temp-source<span class="w"> </span>agera_5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--livestock-type<span class="w"> </span>cattle_dairy<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--thresholds-file<span class="w"> </span>custom_thresholds.json
+</code></pre></div>
+<p>Important:</p>
+<ul>
+<li>this override changes hazard evaluation bands</li>
+<li>it does not change underlying THI formula</li>
+<li>custom override should be documented by user because it departs from package operational defaults</li>
+</ul>
+<h2 id="still-open">Still open<a class="headerlink" href="#still-open" title="Permanent link">&para;</a></h2>
+<p>Remaining <code>#30</code> refinement work:</p>
+<ol>
+<li>validate current thresholds against wider literature and decide whether defaults stay unchanged</li>
+<li>decide whether toolkit should add separate max-temperature screening variant alongside mean-temperature THI</li>
+<li>tighten projected-humidity support handling beyond current documented <code>hurs</code> limits</li>
+<li>extend user-facing interpretation guidance for species/breed context</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Retour en haut de la page
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
