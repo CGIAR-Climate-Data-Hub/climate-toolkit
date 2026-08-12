@@ -1,11 +1,17 @@
 # Releasing to PyPI
 
-Publishing is automated via **Trusted Publishing** (`.github/workflows/publish.yml`):
-publishing a GitHub Release builds the package and uploads it over OIDC —
-**no API tokens are stored**. The Release type routes it:
+Publishing uses **Trusted Publishing** (OIDC) — **no API tokens are stored**.
+There are two paths, and both build + upload the same way:
 
-- **Pre-release** (tick *"Set as a pre-release"*) → **TestPyPI** — a safe rehearsal.
-- **Normal Release** → **PyPI** — the real thing.
+- **Automated (default): `release-please`** (`.github/workflows/release-please.yml`).
+  A bot keeps a "release PR" open that bumps the version in `pyproject.toml` and
+  updates `CHANGELOG.md` from your [Conventional Commits](https://www.conventionalcommits.org/).
+  **Merging that PR** cuts the GitHub Release and publishes to PyPI. This is the
+  normal way to ship — see [Cutting a release](#cutting-a-release-every-new-version).
+- **Manual: `publish.yml`.** Cutting a GitHub Release by hand still works and
+  publishes over OIDC. Tick *"Set as a pre-release"* to route it to **TestPyPI**
+  as a rehearsal; a normal Release goes to **PyPI**. Use this for a one-off or a
+  TestPyPI dry run.
 
 ## One-time setup (a maintainer)
 
@@ -22,36 +28,40 @@ Register the repo as a trusted publisher — this cannot be automated. Do it on
 Optionally protect the `pypi` GitHub Environment (repo → Settings → Environments)
 with required reviewers, so a human approves each production publish.
 
+**Also enable release-please to open PRs** (one-time, a maintainer):
+repo → **Settings → Actions → General → Workflow permissions** → tick
+**"Allow GitHub Actions to create and approve pull requests"**. Without it the
+release PR can't be created.
+
 ## Cutting a release (every new version)
 
-PyPI versions are **immutable** — every upload needs a new version number.
+PyPI versions are **immutable** — every upload needs a new version number. With
+release-please you don't edit the version or changelog by hand; commit messages
+drive it.
 
-1. **Bump the version** in `pyproject.toml`:
-   ```toml
-   version = "0.1.0"        # was 0.1.0a0
-   ```
-   - `0.1.0a0`, `0.1.0rc1` → pre-releases (only installed with `pip install --pre`)
-   - `0.1.0`, `0.2.0`, `1.0.0` → normal releases (`pip install climate-toolkit`)
-   Follow [semantic versioning](https://semver.org): patch = fixes, minor =
-   features, major = breaking changes.
+1. **Land your changes with Conventional Commit messages.** The commit *type*
+   decides the next version (via [semver](https://semver.org)):
+   - `fix:` → patch (`0.1.0` → `0.1.1`)
+   - `feat:` → minor (`0.1.0` → `0.2.0`)
+   - `feat!:` / a `BREAKING CHANGE:` footer → major (`0.1.0` → `1.0.0`)
+   - `docs:` / `chore:` / `ci:` / `refactor:` → no release on their own
 
-2. **Update `CHANGELOG.md`** with what's in this release.
+2. **Review the release PR.** release-please opens/updates a PR titled
+   *"chore: release x.y.z"* with the bumped `pyproject.toml` and a generated
+   `CHANGELOG.md` section. Sanity-check the version and notes.
 
-3. **Merge to `main`** (via the normal PR flow).
+3. **Merge the release PR.** That creates the GitHub Release + `vX.Y.Z` tag and
+   the workflow publishes to PyPI automatically. Nothing else to do.
 
-4. **Publish a GitHub Release:**
-   - Repo → **Releases** → **Draft a new release**
-   - **Tag:** `v0.1.0` (matching the version), target `main`
-   - Title + notes, then **Publish release**.
+### Manual alternative / TestPyPI rehearsal
 
-   The `publish.yml` workflow runs automatically and uploads to PyPI.
-
-   **Rehearse first (optional):** tick *"Set as a pre-release"* on the Release.
-   It goes to **TestPyPI** instead, so you can verify the whole pipeline before
-   the real thing. Install a rehearsal with:
-   ```bash
-   pip install -i https://test.pypi.org/simple/ climate-toolkit --pre
-   ```
+To ship without release-please (or to rehearse on TestPyPI), cut a Release by
+hand: bump `version` in `pyproject.toml`, merge, then repo → **Releases** →
+**Draft a new release**, tag `vX.Y.Z` targeting `main`, **Publish**. `publish.yml`
+uploads to PyPI. Tick *"Set as a pre-release"* to send it to **TestPyPI** instead:
+```bash
+pip install -i https://test.pypi.org/simple/ climate-toolkit --pre
+```
 
 ## Verify
 
@@ -65,8 +75,9 @@ PyPI versions are **immutable** — every upload needs a new version number.
 
 ## Notes
 
-- The workflow only fires on a **published Release**, never on ordinary pushes —
-  so day-to-day commits never touch PyPI.
+- Ordinary pushes to `main` only make release-please **open/update the release
+  PR** — they never publish. PyPI is touched only when a Release is created
+  (by merging the release PR, or a manual Release).
 - A release re-using an existing version number will **fail** at upload (PyPI
   rejects duplicates). Always bump first.
 - CI already builds and `twine check`s the dist on every push, so a release
