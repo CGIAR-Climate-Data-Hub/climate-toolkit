@@ -15,7 +15,7 @@ point location.
 ## Install
 
 ```bash
-pip install "git+https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git"
+pip install climate-toolkit
 ```
 
 ## Quick start
