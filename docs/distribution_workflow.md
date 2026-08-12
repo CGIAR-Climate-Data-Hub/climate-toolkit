@@ -13,19 +13,14 @@ distribution smoke coverage for:
 
 ## Current Release Decision
 
-Current release strategy is intentionally conservative:
+The toolkit is **published on PyPI** as
+[`climate-toolkit`](https://pypi.org/project/climate-toolkit/) —
+`pip install climate-toolkit`.
 
-- use GitHub releases first
-- do not publish directly to PyPI yet
-- consider TestPyPI only after install docs, wheel smoke checks, and
-  auth-heavy runtime expectations remain stable across contributor machines
-
-Reason:
-
-- toolkit has non-trivial runtime expectations around Earth Engine auth,
-  optional Earthdata-backed paths, caches, and large-data workflows
-- package install shape is now stronger, but public-distribution support burden
-  should not outrun runtime/documentation maturity
+Releases are automated via **Trusted Publishing** (OIDC, no stored tokens):
+publishing a GitHub Release builds the package and uploads it to PyPI; marking
+the Release as a pre-release routes it to TestPyPI as a rehearsal instead. The
+full process is in [`RELEASING.md`](../RELEASING.md).
 
 ## Local Verification
 
@@ -46,12 +41,13 @@ python -m pip install -e .
 python -m pip install .
 ```
 
-## Future Promotion Gates
+## Per-release checklist
 
-Before TestPyPI / PyPI:
+These gates were met for the first public release (0.1.0) and remain the
+checklist for each subsequent version:
 
 1. keep wheel and sdist smoke checks green in CI
 2. keep README install paths current
 3. avoid placeholder auth/setup values in user-facing docs
 4. document expected runtime/auth requirements clearly for packaged users
-5. decide version bump / tag process for first public release
+5. bump the version (PyPI versions are immutable) and tag the release

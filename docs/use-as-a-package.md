@@ -5,8 +5,7 @@ library from your own Python code. Every credential-free example here was run
 against the real package and API.
 
 > **Status note.** The package is `climate_toolkit` (import name), distributed
-> as `climate-toolkit`. Version `0.1.0a0` (alpha). It is **not on PyPI yet**, so
-> you install from source.
+> as `climate-toolkit` on PyPI. Current version `0.1.0`.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
 Prefer to try it live? The companion notebook
@@ -81,7 +80,10 @@ setup — are in [Getting started → Install](getting_started.md#1-install). In
 short:
 
 ```bash
-# into your own project or notebook (not on PyPI yet, so install from Git):
+# into your own project or notebook:
+pip install climate-toolkit
+
+# ...or the latest unreleased code straight from Git:
 pip install "git+https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git"
 
 # ...or, for development from a clone:
@@ -97,7 +99,7 @@ the repo's environment with `uv run python my_script.py`.
 
 ```bash
 uv run python -c "import climate_toolkit as ct; print(ct.__version__)"
-# -> 0.1.0a0
+# -> 0.1.0
 ```
 
 Confirm the public surface:

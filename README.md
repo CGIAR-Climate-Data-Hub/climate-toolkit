@@ -6,6 +6,8 @@ A unified toolkit for retrieving climate data from various global datasets such 
 
 [![Documentation](https://img.shields.io/badge/docs-climate--toolkit-2ea44f)](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/) — full documentation: getting started, workflows, and API reference.
 
+[![PyPI](https://img.shields.io/pypi/v/climate-toolkit)](https://pypi.org/project/climate-toolkit/) — published on PyPI: `pip install climate-toolkit`.
+
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) — try the toolkit live in your browser, no install needed.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/era_lte_colab.ipynb) — ERA LTE workflow: validate toolkit rainfall against ERA field records and explore yield vs climate, with plots.
@@ -118,6 +120,14 @@ If you see:
 - auth refresh / DNS errors -> refresh Earth Engine auth and check internet/DNS
 
 ### Installation
+
+Just want to use the package? Install from PyPI:
+
+```bash
+pip install climate-toolkit
+```
+
+To develop the toolkit or run the `examples/` scripts, set up from a clone instead:
 
 1. Clone repository
 
@@ -356,12 +366,14 @@ docker compose down --remove-orphans
 
 ### Release strategy
 
-Current decision:
-
-- GitHub releases only for now
-- no direct PyPI publish yet
-- TestPyPI can come later once auth-heavy runtime expectations, install docs,
-  and wheel smoke behavior stay stable across contributor machines
+- Published on **PyPI** as [`climate-toolkit`](https://pypi.org/project/climate-toolkit/) —
+  `pip install climate-toolkit`.
+- Releases are automated via **Trusted Publishing** (OIDC, no stored tokens):
+  publishing a GitHub Release builds the package and uploads it to PyPI. Mark a
+  Release as a pre-release to route it to TestPyPI as a rehearsal instead. See
+  [`RELEASING.md`](RELEASING.md).
+- Versions follow [semantic versioning](https://semver.org); PyPI versions are
+  immutable, so each publish needs a new version number.
 
 Reference note:
 
