@@ -40,13 +40,40 @@ VARS = [(c, label_for(c)) for c in
         ("tk_rain_total_mm", "tk_rainy_days", "tk_dry_days", "tk_NDWS", "tk_WRSI")]
 
 
-def _panel(ax, s, var, label, treatments, put_legend):
+def _variety_transitions(s):
+    """Years at which the dominant crop variety changes (with the new variety name).
+
+    Varieties are swapped over the life of a long-term experiment, so marking the
+    switch points helps read a yield trend. Returns ``[(year, variety), ...]`` for
+    the first year and each subsequent change.
+    """
+    if "variety" not in s.columns:
+        return []
+    v = s.dropna(subset=["variety"]).copy()
+    if v.empty:
+        return []
+    per = (v.assign(variety=v["variety"].astype(str))
+           .groupby("year")["variety"].agg(lambda x: x.mode().iloc[0]).sort_index())
+    changes, prev = [], None
+    for yr, name in per.items():
+        if name != prev:
+            changes.append((int(yr), name))
+            prev = name
+    return changes
+
+
+def _panel(ax, s, var, label, treatments, put_legend, variety_changes=()):
     years = sorted(s["year"].unique())
     bars = s.drop_duplicates("year").set_index("year")[var]
     ax.bar(bars.index, bars.values, color=BAR, width=0.8, label=label, zorder=1)
     ax.set_ylabel(label, color="#4a6b82", fontsize=9)
     ax.set_xticks(years)
     ax.set_xticklabels([str(int(y)) for y in years], rotation=45, fontsize=8)
+    for yr, vname in variety_changes:  # dashed guide where the crop variety changes
+        ax.axvline(yr, color="#8a8f98", ls="--", lw=0.8, zorder=0)
+        if put_legend:
+            ax.text(yr, ax.get_ylim()[1] * 0.98, f" {vname}", rotation=90,
+                    va="top", ha="left", fontsize=6.5, color="#5a5f68", zorder=4)
     ax2 = ax.twinx()
     for i, t in enumerate(treatments):
         st = s[s["treatment"] == t].groupby("year")["yield_t_ha"].mean()
@@ -67,6 +94,8 @@ def main() -> None:
     ap.add_argument("--treatments", help="Comma-separated treatment filter (substring match, "
                     "e.g. 'NT 0N,NT 100N,NT 200N' to match Rwema's NT subset)")
     ap.add_argument("--top-treatments", type=int, default=6, help="Max treatments to draw")
+    ap.add_argument("--no-variety", action="store_true",
+                    help="Don't mark where the crop variety changes over time")
     ap.add_argument("--out", default="era_yield_trends.png")
     args = ap.parse_args()
 
@@ -96,11 +125,13 @@ def main() -> None:
                              f"{sorted(df[df['site_id'] == site]['treatment'].unique())}")
     treatments = list(s["treatment"].value_counts().head(args.top_treatments).index)
     panels = [(v, lbl) for v, lbl in VARS if v == args.variable] if args.variable else VARS
+    variety_changes = [] if args.no_variety else _variety_transitions(s)
 
     fig, axes = plt.subplots(len(panels), 1, figsize=(11, 3.1 * len(panels)))
     axes = [axes] if len(panels) == 1 else list(axes)
     for i, (var, label) in enumerate(panels):
-        _panel(axes[i], s, var, label, treatments, put_legend=(i == 0))
+        _panel(axes[i], s, var, label, treatments, put_legend=(i == 0),
+               variety_changes=variety_changes)
     yr = f"{int(s['year'].min())}–{int(s['year'].max())}"
     fig.suptitle(f"{site} — {crop}: toolkit climate vs yield ({yr})", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
