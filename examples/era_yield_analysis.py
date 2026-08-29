@@ -142,6 +142,7 @@ def main() -> None:
             "site_key": o.get("Site.Key"),
             "index": o.get("Index"),
             "site_id": o["Site.ID"], "year": int(o["year"]), "crop": o["Product.Simple"],
+            "variety": o.get("Variety"),  # cultivar; often changes over the LTE's life
             "treatment": o["treatment"], "yield_t_ha": round(float(o["yield_t_ha"]), 3), **m,
         })
 
