@@ -44,14 +44,20 @@ def _code_to_lte():
     return dict(zip(reg["Code"].astype(str), reg["LTE.ID"].astype(str)))
 
 
-def matchable(df: pd.DataFrame, season_days: int = 150) -> pd.DataFrame:
+def matchable(df: pd.DataFrame, season_days: int = 150, min_year: int | None = None) -> pd.DataFrame:
     """Crop-yield rows with a usable growing-season window and yield (t/ha).
 
     Window = ``Plant.Start`` -> harvest. Where the harvest date is missing
     (EcoCrop-dated sites like Gourton), fall back to ``Plant.Start`` +
     ``season_days`` so those sites still get a consistent season window.
+
+    Yields whose ``M.Year`` is aggregated over several years or seasons (the
+    ``..`` delimiter, e.g. ``1990..1997`` or ``2003 SR..2003 LR``) are dropped —
+    they can't be pinned to a single growing-season window. ``min_year`` filters
+    out years too early to have reliable data (e.g. pre-1981 for NASA POWER).
     """
     c = df[(df["Out.SubInd"] == "Crop Yield") & df["MeanT"].notna()].copy()
+    c = c[~c["M.Year"].astype(str).str.contains(r"\.\.", na=False)]  # drop multi-year/season aggregates
     c["ps"] = pd.to_datetime(c["Plant.Start"], errors="coerce")
     he = pd.to_datetime(c["rain_Harvest.End"].fillna(c["Harvest.End"]), errors="coerce")
     fallback = c["ps"] + pd.to_timedelta(season_days, unit="D")
@@ -61,6 +67,8 @@ def matchable(df: pd.DataFrame, season_days: int = 150) -> pd.DataFrame:
     c = c[c["Latitude"].notna() & c["Longitude"].notna()]
     c["year"] = pd.to_numeric(c["M.Year"].astype(str).str.extract(r"^(\d{4})")[0], errors="coerce")
     c = c[c["year"].notna()]
+    if min_year is not None:
+        c = c[c["year"] >= min_year]
     fac = c["Units"].astype(str).str.lower().map(_YIELD_TO_T_HA)
     c["yield_t_ha"] = pd.to_numeric(c["MeanT"], errors="coerce") * fac
     c["treatment"] = c["T.Descrip"].fillna(c["TID"]).astype(str)
@@ -103,6 +111,8 @@ def main() -> None:
     ap.add_argument("--crop", help="Only this crop, e.g. 'Maize' (substring match on Product.Simple). "
                     "Useful for sites with several crops, e.g. Kouve = cotton + maize.")
     ap.add_argument("--season-days", type=int, default=150, help="Fallback season length when no harvest date")
+    ap.add_argument("--min-year", type=int, default=None,
+                    help="Drop yields before this year (too early for reliable data, e.g. 1981 for NASA POWER)")
     ap.add_argument("--out", default="era_yield_climate.csv")
     args = ap.parse_args()
 
@@ -111,7 +121,7 @@ def main() -> None:
         raw = raw[raw["Site.ID"].astype(str).str.contains(args.site, case=False, na=False)]
     if args.crop:
         raw = raw[raw["Product.Simple"].astype(str).str.contains(args.crop, case=False, na=False)]
-    obs = matchable(raw, season_days=args.season_days)
+    obs = matchable(raw, season_days=args.season_days, min_year=args.min_year)
     code2lte = _code_to_lte()
     # unique climate windows to fetch (many observations share one)
     keys = obs.drop_duplicates(["Latitude", "Longitude", "year", "ps", "he"])
