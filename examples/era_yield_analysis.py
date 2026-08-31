@@ -59,7 +59,8 @@ def matchable(df: pd.DataFrame, season_days: int = 150, min_year: int | None = N
     c = df[(df["Out.SubInd"] == "Crop Yield") & df["MeanT"].notna()].copy()
     c = c[~c["M.Year"].astype(str).str.contains(r"\.\.", na=False)]  # drop multi-year/season aggregates
     c["ps"] = pd.to_datetime(c["Plant.Start"], errors="coerce")
-    he = pd.to_datetime(c["rain_Harvest.End"].fillna(c["Harvest.End"]), errors="coerce")
+    he = pd.to_datetime(c["rain_Harvest.End"], errors="coerce").fillna(
+        pd.to_datetime(c["Harvest.End"], errors="coerce"))
     fallback = c["ps"] + pd.to_timedelta(season_days, unit="D")
     c["he"] = he.fillna(fallback)
     c["days"] = (c["he"] - c["ps"]).dt.days
