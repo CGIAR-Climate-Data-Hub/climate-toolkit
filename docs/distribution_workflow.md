@@ -20,7 +20,7 @@ The toolkit is **published on PyPI** as
 Releases are automated via **Trusted Publishing** (OIDC, no stored tokens):
 publishing a GitHub Release builds the package and uploads it to PyPI; marking
 the Release as a pre-release routes it to TestPyPI as a rehearsal instead. The
-full process is in [`RELEASING.md`](../RELEASING.md).
+full process is in [`RELEASING.md`](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/RELEASING.md).
 
 ## Local Verification
 
