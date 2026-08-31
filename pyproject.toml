@@ -113,6 +113,12 @@ climate_toolkit = [
   "fetch_data/transform_data/*.yaml",
 ]
 
+[tool.pytest.ini_options]
+# Collect only the project's own suite. Keeps a bare `pytest` from wandering into
+# local, git-ignored example clones (e.g. examples/climate-toolkit/) whose
+# duplicate test filenames otherwise collide during collection.
+testpaths = ["tests"]
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
