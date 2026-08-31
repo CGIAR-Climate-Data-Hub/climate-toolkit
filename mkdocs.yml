@@ -79,6 +79,7 @@ nav:
   - Getting started: getting_started.md
   - Use as a package: use-as-a-package.md
   - Datasets: datasets.md
+  - Outputs by module: outputs_by_module.md
   - Workflows:
       - End-to-end example: example_workflow.md
       - Weather stations: weather_station_workflows.md
