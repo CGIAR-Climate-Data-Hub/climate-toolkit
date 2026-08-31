@@ -65,7 +65,17 @@ def main() -> None:
     ap.add_argument("--out", default="era_multisite.png")
     args = ap.parse_args()
 
-    df = pd.concat([pd.read_csv(p, low_memory=False) for p in args.csv], ignore_index=True)
+    frames = []
+    for p in args.csv:  # skip inputs that are missing or empty (e.g. a site with no matched data)
+        try:
+            d = pd.read_csv(p, low_memory=False)
+        except (FileNotFoundError, pd.errors.EmptyDataError):
+            continue
+        if not d.empty:
+            frames.append(d)
+    if not frames:
+        raise SystemExit("No non-empty yield tables to plot — run era_yield_analysis.py first.")
+    df = pd.concat(frames, ignore_index=True)
     df[args.variable] = pd.to_numeric(df[args.variable], errors="coerce")
     df["yield_t_ha"] = pd.to_numeric(df["yield_t_ha"], errors="coerce")
 

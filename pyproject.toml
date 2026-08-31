@@ -55,6 +55,8 @@ api = [
 [dependency-groups]
 dev = [
   "build",
+  "ipykernel",
+  "nbconvert",
   "pytest",
   "ruff",
   "setuptools>=68",
