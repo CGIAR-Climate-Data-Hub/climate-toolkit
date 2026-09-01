@@ -11,17 +11,19 @@ consumers; more modules will follow.
 
 from __future__ import annotations
 
-from climate_toolkit.visualization import io, labels, styles, text
+from climate_toolkit.visualization import io, labels, styles, text, timelines
 from climate_toolkit.visualization.io import save_figure
 from climate_toolkit.visualization.labels import VARIABLE_LABELS, label_for
 from climate_toolkit.visualization.styles import BAR, LINES, use_headless
 from climate_toolkit.visualization.text import shorten_treatment
+from climate_toolkit.visualization.timelines import variety_transitions
 
 __all__ = [
     "io",
     "labels",
     "styles",
     "text",
+    "timelines",
     "save_figure",
     "VARIABLE_LABELS",
     "label_for",
@@ -29,4 +31,5 @@ __all__ = [
     "LINES",
     "use_headless",
     "shorten_treatment",
+    "variety_transitions",
 ]
