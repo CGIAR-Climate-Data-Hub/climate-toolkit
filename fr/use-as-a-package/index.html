@@ -1,0 +1,2181 @@
+
+<!doctype html>
+<html lang="fr" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Location-based climate, season, climatology, hazard, and projection analysis.">
+      
+      
+      
+        <link rel="canonical" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/use-as-a-package/">
+      
+      
+        <link rel="prev" href="../getting_started/">
+      
+      
+        <link rel="next" href="../datasets/">
+      
+      
+        
+          <link rel="alternate" href="../../use-as-a-package/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="fr">
+        
+          <link rel="alternate" href="../../es/use-as-a-package/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Use as a package - Climate Toolkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#using-climate-toolkit-as-a-python-package" class="md-skip">
+          Aller au contenu
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="En-tête">
+    <a href="../" title="Climate Toolkit" class="md-header__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Climate Toolkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Use as a package
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Sélectionner la langue">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../use-as-a-package/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../es/use-as-a-package/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Rechercher" placeholder="Rechercher" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Recherche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Effacer" aria-label="Effacer" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initialisation de la recherche
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="Climate Toolkit" class="md-nav__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Climate Toolkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    À propos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use as a package
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use as a package
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-you-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. What you get
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-verify-the-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Verify the install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-credentials-nasa-power-vs-earth-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Credentials: NASA POWER vs Earth Engine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-quick-start-no-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Quick start (no credentials)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Quick start (no credentials)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fetch-daily-data-dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fetch daily data → DataFrame
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#seasonal-statistics-dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seasonal statistics → dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-earth-engine-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Earth Engine setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-the-public-api-all-seven-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. The public API — all seven functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. The public API — all seven functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fetch_climate_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_climate_data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analyze_climate_statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        analyze_climate_statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evaluate_hazards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        evaluate_hazards
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare_climate_periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_climate_periods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare_climate_sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_climate_sources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download_station_data-keyword-only-args" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download_station_data (keyword-only args)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare_station_to_grids-keyword-only-args" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_station_to_grids (keyword-only args)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-data-sources-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Data sources reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-variables-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Variables reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-caching-and-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Caching and outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-recipes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Recipes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Recipes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#one-call-for-the-whole-workflow-run_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One call for the whole workflow: run_pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare-two-sources-at-one-site" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare two sources at one site
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hazard-screen-for-a-maize-season" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hazard screen for a maize season
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#focal-year-vs-baseline-climatology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Focal year vs baseline climatology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validate-a-grid-product-against-a-nearby-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate a grid product against a nearby station
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-using-it-in-jupyter-your-own-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Using it in Jupyter / your own project
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-getting-more-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Getting more help
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../outputs_by_module/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs by module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    End-to-end example
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../weather_station_workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Weather stations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../human_heat_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Human heat stress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../thi_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Livestock heat (THI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distribution_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distribution & releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/fetching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fetching data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison & validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-you-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. What you get
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-verify-the-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Verify the install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-credentials-nasa-power-vs-earth-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Credentials: NASA POWER vs Earth Engine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-quick-start-no-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Quick start (no credentials)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Quick start (no credentials)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fetch-daily-data-dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fetch daily data → DataFrame
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#seasonal-statistics-dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seasonal statistics → dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-earth-engine-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Earth Engine setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-the-public-api-all-seven-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. The public API — all seven functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. The public API — all seven functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fetch_climate_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch_climate_data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analyze_climate_statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        analyze_climate_statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evaluate_hazards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        evaluate_hazards
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare_climate_periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_climate_periods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare_climate_sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_climate_sources
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download_station_data-keyword-only-args" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        download_station_data (keyword-only args)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare_station_to_grids-keyword-only-args" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare_station_to_grids (keyword-only args)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-data-sources-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Data sources reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-variables-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Variables reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-caching-and-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Caching and outputs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-recipes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Recipes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Recipes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#one-call-for-the-whole-workflow-run_pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One call for the whole workflow: run_pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare-two-sources-at-one-site" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare two sources at one site
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hazard-screen-for-a-maize-season" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hazard screen for a maize season
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#focal-year-vs-baseline-climatology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Focal year vs baseline climatology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validate-a-grid-product-against-a-nearby-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate a grid product against a nearby station
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-using-it-in-jupyter-your-own-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Using it in Jupyter / your own project
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-getting-more-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Getting more help
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="using-climate-toolkit-as-a-python-package">Using climate-toolkit as a Python package<a class="headerlink" href="#using-climate-toolkit-as-a-python-package" title="Permanent link">&para;</a></h1>
+<p>A practical, end-to-end guide to installing and using <code>climate_toolkit</code> as a
+library from your own Python code. Every credential-free example here was run
+against the real package and API.</p>
+<blockquote>
+<p><strong>Status note.</strong> The package is <code>climate_toolkit</code> (import name), distributed
+as <code>climate-toolkit</code> on PyPI. Current version <code>0.1.0</code>.</p>
+</blockquote>
+<p><a href="https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a>
+Prefer to try it live? The companion notebook
+<a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb"><code>examples/climate_toolkit_colab.ipynb</code></a>
+runs this guide's credential-free examples end-to-end in Google Colab — no
+install or setup on your machine.</p>
+<hr />
+<h2 id="table-of-contents">Table of contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#1-what-you-get">What you get</a></li>
+<li><a href="#2-requirements">Requirements</a></li>
+<li><a href="#3-installation">Installation</a></li>
+<li><a href="#4-verify-the-install">Verify the install</a></li>
+<li><a href="#5-credentials-nasa-power-vs-earth-engine">Credentials: NASA POWER vs Earth Engine</a></li>
+<li><a href="#6-quick-start-no-credentials">Quick start (no credentials)</a></li>
+<li><a href="#7-earth-engine-setup">Earth Engine setup (for gridded / projection sources)</a></li>
+<li><a href="#8-the-public-api-all-seven-functions">The public API — all seven functions</a></li>
+<li><a href="#9-data-sources-reference">Data sources reference</a></li>
+<li><a href="#10-variables-reference">Variables reference</a></li>
+<li><a href="#11-caching-and-outputs">Caching and outputs</a></li>
+<li><a href="#12-recipes">Recipes</a></li>
+<li><a href="#13-using-it-in-jupyter-your-own-project">Using it in Jupyter / your own project</a></li>
+<li><a href="#14-troubleshooting">Troubleshooting</a></li>
+<li><a href="#15-getting-more-help">Getting more help</a></li>
+</ol>
+<hr />
+<h2 id="1-what-you-get">1. What you get<a class="headerlink" href="#1-what-you-get" title="Permanent link">&para;</a></h2>
+<div class="admonition tip">
+<p class="admonition-title">New here?</p>
+<p>For a 5-minute install and first run, start with
+<a href="../getting_started/">Getting started</a>. This page is the fuller reference —
+every public function, the sources and variables, caching, recipes, and
+troubleshooting.</p>
+</div>
+<p><code>climate_toolkit</code> is a location-based climate analysis library. From a single
+<code>import climate_toolkit as ct</code> you get <strong>seven public functions</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fetch_climate_data</code></td>
+<td>Download daily climate data for a point as a pandas DataFrame</td>
+</tr>
+<tr>
+<td><code>analyze_climate_statistics</code></td>
+<td>Seasonal climatology, water balance, SPI/SPEI over a multi-year window</td>
+</tr>
+<tr>
+<td><code>evaluate_hazards</code></td>
+<td>Crop/livestock hazard assessment for a growing season</td>
+</tr>
+<tr>
+<td><code>compare_climate_periods</code></td>
+<td>Diff a focal year against a baseline climatology</td>
+</tr>
+<tr>
+<td><code>compare_climate_sources</code></td>
+<td>Side-by-side comparison of gridded datasets for one site</td>
+</tr>
+<tr>
+<td><code>download_station_data</code></td>
+<td>Fetch daily observations from nearby weather stations</td>
+</tr>
+<tr>
+<td><code>compare_station_to_grids</code></td>
+<td>Validate gridded datasets against station observations</td>
+</tr>
+</tbody>
+</table>
+<p>Data comes from CHIRPS, AgERA5, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5,
+NEX-GDDP, NASA POWER, CMIP6, SoilGrids, plus GHCN-Daily / GSOD stations.</p>
+<hr />
+<h2 id="2-requirements">2. Requirements<a class="headerlink" href="#2-requirements" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Python ≥ 3.10.</strong> A system Python 3.9 will not work — use a 3.10+ virtual
+  environment. The easiest way to get one is <a href="https://docs.astral.sh/uv/"><code>uv</code></a>,
+  which can provision Python 3.11 for you automatically.</li>
+<li>OS packages: none beyond what the Python wheels provide (no compiler needed).</li>
+<li>For Earth Engine-backed sources: a Google Cloud project and a one-time Earth
+  Engine authentication (see §7). <strong>NASA POWER and weather stations need
+  neither.</strong></li>
+</ul>
+<hr />
+<h2 id="3-installation">3. Installation<a class="headerlink" href="#3-installation" title="Permanent link">&para;</a></h2>
+<p>The full steps — GitHub install, Jupyter <code>%pip</code>, and the <code>uv</code> development
+setup — are in <a href="../getting_started/#1-install">Getting started → Install</a>. In
+short:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># into your own project or notebook:</span>
+pip<span class="w"> </span>install<span class="w"> </span>climate-toolkit
+
+<span class="c1"># ...or the latest unreleased code straight from Git:</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;git+https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git&quot;</span>
+
+<span class="c1"># ...or, for development from a clone:</span>
+<span class="nb">cd</span><span class="w"> </span>climate-toolkit<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
+</code></pre></div>
+<p>After either, <code>import climate_toolkit</code> works from any directory. Run scripts in
+the repo's environment with <code>uv run python my_script.py</code>.</p>
+<hr />
+<h2 id="4-verify-the-install">4. Verify the install<a class="headerlink" href="#4-verify-the-install" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import climate_toolkit as ct; print(ct.__version__)&quot;</span>
+<span class="c1"># -&gt; 0.1.0</span>
+</code></pre></div>
+<p>Confirm the public surface:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+<span class="nb">print</span><span class="p">([</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">ct</span><span class="o">.</span><span class="n">__all__</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">n</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">)])</span>
+<span class="c1"># [&#39;analyze_climate_statistics&#39;, &#39;compare_climate_periods&#39;,</span>
+<span class="c1">#  &#39;compare_climate_sources&#39;, &#39;compare_station_to_grids&#39;,</span>
+<span class="c1">#  &#39;download_station_data&#39;, &#39;evaluate_hazards&#39;, &#39;fetch_climate_data&#39;]</span>
+</code></pre></div>
+<hr />
+<h2 id="5-credentials-nasa-power-vs-earth-engine">5. Credentials: NASA POWER vs Earth Engine<a class="headerlink" href="#5-credentials-nasa-power-vs-earth-engine" title="Permanent link">&para;</a></h2>
+<p>This is the single most important thing to understand before your first call.</p>
+<ul>
+<li><strong><code>nasa_power</code></strong> (and weather stations <code>ghcn_daily</code> / <code>gsod</code>) use plain HTTPS
+  and need <strong>no credentials</strong>. Start here.</li>
+<li><strong>Most gridded / projection sources</strong> — <code>agera_5</code>, <code>era_5</code>, <code>chirps_*</code>,
+  <code>chirts</code>, <code>imerg</code>, <code>terraclimate</code>, <code>cmip_6</code>, <code>nex_gddp</code>, <code>soil_grid</code>, <code>hwsd</code>
+  — route through <strong>Google Earth Engine</strong> and require a one-time auth plus a
+  project ID (see §7).</li>
+</ul>
+<hr />
+<h2 id="6-quick-start-no-credentials">6. Quick start (no credentials)<a class="headerlink" href="#6-quick-start-no-credentials" title="Permanent link">&para;</a></h2>
+<h3 id="fetch-daily-data-dataframe">Fetch daily data → DataFrame<a class="headerlink" href="#fetch-daily-data-dataframe" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">climate_toolkit.fetch_data.source_data.sources.utils.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateVariable</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">fetch_climate_data</span><span class="p">(</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;nasa_power&quot;</span><span class="p">,</span>
+    <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>      <span class="c1"># (lat, lon), Nairobi</span>
+    <span class="n">variables</span><span class="o">=</span><span class="p">[</span><span class="n">ClimateVariable</span><span class="o">.</span><span class="n">precipitation</span><span class="p">,</span>
+               <span class="n">ClimateVariable</span><span class="o">.</span><span class="n">max_temperature</span><span class="p">,</span>
+               <span class="n">ClimateVariable</span><span class="o">.</span><span class="n">min_temperature</span><span class="p">],</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+    <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+<span class="c1">#         date  precipitation  max_temperature  min_temperature</span>
+<span class="c1"># 0 2020-01-01           0.04            27.17            14.07</span>
+<span class="c1"># ...</span>
+</code></pre></div>
+<p><code>fetch_climate_data</code> returns a <strong>pandas DataFrame</strong>.</p>
+<h3 id="seasonal-statistics-dict">Seasonal statistics → dict<a class="headerlink" href="#seasonal-statistics-dict" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">stats</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">analyze_climate_statistics</span><span class="p">(</span>
+    <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">start_year</span><span class="o">=</span><span class="mi">2015</span><span class="p">,</span> <span class="n">end_year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;nasa_power&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">stats</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="c1"># location, period, source, ..., season_statistics, ltm_season_summary, ...</span>
+</code></pre></div>
+<p><code>analyze_climate_statistics</code> returns a nested <strong>dict</strong> of results. (Use ≥ ~20
+years for a real long-term climatology; short windows just print a warning.)</p>
+<hr />
+<h2 id="7-earth-engine-setup">7. Earth Engine setup<a class="headerlink" href="#7-earth-engine-setup" title="Permanent link">&para;</a></h2>
+<p>The gridded and projection sources need a one-time Earth Engine setup. The full
+walkthrough — including the <strong>free</strong> noncommercial registration path — is in
+<a href="../getting_started/#2-google-earth-engine-credentials">Getting started → Google Earth Engine credentials</a>.
+In brief: run <code>earthengine authenticate</code>, set <code>GCP_PROJECT_ID</code>, then verify with
+<code>climate-toolkit gee-check</code> (exits 0 on success).</p>
+<p>Once that's done, any function works with EE sources:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># ClimateVariable was imported in the quick-start snippet above.</span>
+<span class="n">vars3</span> <span class="o">=</span> <span class="p">[</span><span class="n">ClimateVariable</span><span class="o">.</span><span class="n">precipitation</span><span class="p">,</span>
+         <span class="n">ClimateVariable</span><span class="o">.</span><span class="n">max_temperature</span><span class="p">,</span>
+         <span class="n">ClimateVariable</span><span class="o">.</span><span class="n">min_temperature</span><span class="p">]</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">fetch_climate_data</span><span class="p">(</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;agera_5&quot;</span><span class="p">,</span>                       <span class="c1"># Earth Engine</span>
+    <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">variables</span><span class="o">=</span><span class="n">vars3</span><span class="p">,</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="c1"># NEX-GDDP projections need a model + scenario:</span>
+<span class="n">proj</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">fetch_climate_data</span><span class="p">(</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;nex_gddp&quot;</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;GFDL-ESM4&quot;</span><span class="p">,</span> <span class="n">scenario</span><span class="o">=</span><span class="s2">&quot;ssp245&quot;</span><span class="p">,</span>
+    <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">variables</span><span class="o">=</span><span class="n">vars3</span><span class="p">,</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2050</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2050</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="8-the-public-api-all-seven-functions">8. The public API — all seven functions<a class="headerlink" href="#8-the-public-api-all-seven-functions" title="Permanent link">&para;</a></h2>
+<p>Every function has a full NumPy-style docstring: <code>help(ct.&lt;function&gt;)</code>.</p>
+<h3 id="fetch_climate_data"><code>fetch_climate_data</code><a class="headerlink" href="#fetch_climate_data" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">fetch_climate_data</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">,</span> <span class="n">location_coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">date_to</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scenario</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;preprocessed&quot;</span><span class="p">,</span> <span class="n">cache_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">refresh_cache</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">sites</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sites_csv</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">station_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+Returns a DataFrame. <code>stage</code> controls how far the pipeline runs: <code>"raw"</code> →
+<code>"transformed"</code> → <code>"preprocessed"</code> (default). Pass <code>sites=</code>/<code>sites_csv=</code> for
+multi-site batch fetches (GEE sources and NEX-GDDP).</p>
+<h3 id="analyze_climate_statistics"><code>analyze_climate_statistics</code><a class="headerlink" href="#analyze_climate_statistics" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">analyze_climate_statistics</span><span class="p">(</span>
+    <span class="n">location_coord</span><span class="p">,</span> <span class="n">start_year</span><span class="p">,</span> <span class="n">end_year</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span>
+    <span class="n">fixed_season</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crop_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spei_scale_months</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">spi_scale_months</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+Returns a dict with per-season statistics, water balance (ET0, NDWS, WRSI),
+optional SPI/SPEI blocks, and long-term-mean summaries.</p>
+<h3 id="evaluate_hazards"><code>evaluate_hazards</code><a class="headerlink" href="#evaluate_hazards" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">evaluate_hazards</span><span class="p">(</span>
+    <span class="n">crop_name</span><span class="p">,</span> <span class="n">location_coord</span><span class="p">,</span> <span class="n">date_from</span><span class="p">,</span> <span class="n">date_to</span><span class="p">,</span>   <span class="c1"># dates are ISO strings</span>
+    <span class="n">season_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">season_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_season</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="n">custom_thresholds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">soilcp</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span> <span class="n">soilsat</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+Crop/livestock hazard assessment (heat, drought, waterlogging, ...) over a
+growing season. <code>date_from</code>/<code>date_to</code> are ISO date strings (e.g. <code>"2020-03-01"</code>).</p>
+<h3 id="compare_climate_periods"><code>compare_climate_periods</code><a class="headerlink" href="#compare_climate_periods" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">compare_climate_periods</span><span class="p">(</span>
+    <span class="n">location</span><span class="p">,</span> <span class="n">baseline_start</span><span class="p">,</span> <span class="n">baseline_end</span><span class="p">,</span> <span class="n">focal_year</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span>
+    <span class="n">fixed_season</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crop_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+Diffs a focal year against a baseline climatology; returns a dict.</p>
+<h3 id="compare_climate_sources"><code>compare_climate_sources</code><a class="headerlink" href="#compare_climate_sources" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">compare_climate_sources</span><span class="p">(</span>
+    <span class="n">sources</span><span class="p">,</span> <span class="n">lat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">lon</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./outputs&quot;</span><span class="p">,</span> <span class="n">nex_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nex_scenario</span><span class="o">=</span><span class="s2">&quot;ssp245&quot;</span><span class="p">,</span>
+    <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+Side-by-side comparison of multiple gridded datasets for one site. <code>sources</code> is
+a list, e.g. <code>["nasa_power", "agera_5"]</code>.</p>
+<h3 id="download_station_data-keyword-only-args"><code>download_station_data</code> (keyword-only args)<a class="headerlink" href="#download_station_data-keyword-only-args" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">download_station_data</span><span class="p">(</span>
+    <span class="n">station_source</span><span class="o">=</span><span class="s2">&quot;ghcn_daily&quot;</span><span class="p">,</span>            <span class="c1"># or &quot;gsod&quot;</span>
+    <span class="n">station_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+    <span class="n">max_distance_km</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">auto_select</span><span class="o">=</span><span class="s2">&quot;auto-1&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+Finds and downloads nearby weather-station observations. No Earth Engine needed.</p>
+<h3 id="compare_station_to_grids-keyword-only-args"><code>compare_station_to_grids</code> (keyword-only args)<a class="headerlink" href="#compare_station_to_grids-keyword-only-args" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">compare_station_to_grids</span><span class="p">(</span>
+    <span class="n">station_source</span><span class="o">=</span><span class="s2">&quot;ghcn_daily&quot;</span><span class="p">,</span>
+    <span class="n">station_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+    <span class="n">grid_sources</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;nasa_power&quot;</span><span class="p">,</span> <span class="s2">&quot;agera_5&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+Validates gridded datasets against station observations; returns a dict.</p>
+<hr />
+<h2 id="9-data-sources-reference">9. Data sources reference<a class="headerlink" href="#9-data-sources-reference" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th><code>source</code> key</th>
+<th>Data</th>
+<th style="text-align: center;">Earth Engine?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nasa_power</code></td>
+<td>Daily point climate, 1984–</td>
+<td style="text-align: center;">No</td>
+</tr>
+<tr>
+<td><code>tamsat</code></td>
+<td>African rainfall + soil moisture (fragile; optional)</td>
+<td style="text-align: center;">No (direct download)</td>
+</tr>
+<tr>
+<td><code>ghcn_daily</code>, <code>gsod</code></td>
+<td>Weather-station observations</td>
+<td style="text-align: center;">No</td>
+</tr>
+<tr>
+<td><code>agera_5</code></td>
+<td>ERA5-Land daily aggregates (broad variable set; recommended default)</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>era_5</code></td>
+<td>ERA5 daily reanalysis</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>chirps_v2</code> / <code>chirps_v3_daily_rnl</code></td>
+<td>CHIRPS precipitation</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>chirts</code></td>
+<td>CHIRTS temperature</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>imerg</code></td>
+<td>GPM IMERG precipitation</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>terraclimate</code></td>
+<td>Monthly water balance</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>cmip_6</code></td>
+<td>GDDP-CMIP6 projections</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>nex_gddp</code></td>
+<td>NEX-GDDP-CMIP6 projections (needs <code>model</code> + <code>scenario</code>)</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>soil_grid</code>, <code>hwsd</code></td>
+<td>Static soil properties</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+</tbody>
+</table>
+<p>Legacy aliases (<code>era5</code>, <code>agera5</code>, <code>nasapower</code>, <code>nexgddp</code>, <code>ghcn</code>, ...) are
+normalized automatically.</p>
+<hr />
+<h2 id="10-variables-reference">10. Variables reference<a class="headerlink" href="#10-variables-reference" title="Permanent link">&para;</a></h2>
+<p><code>variables</code> accepts a <strong>list of enum members</strong> — the robust form that works on
+every version:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">climate_toolkit.fetch_data.source_data.sources.utils.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateVariable</span>
+
+<span class="n">variables</span><span class="o">=</span><span class="p">[</span><span class="n">ClimateVariable</span><span class="o">.</span><span class="n">precipitation</span><span class="p">,</span>
+           <span class="n">ClimateVariable</span><span class="o">.</span><span class="n">max_temperature</span><span class="p">,</span>
+           <span class="n">ClimateVariable</span><span class="o">.</span><span class="n">min_temperature</span><span class="p">]</span>
+</code></pre></div>
+<p>Recent builds also accept plain strings (e.g. <code>["precipitation",
+"max_temperature"]</code> or the comma string <code>"precipitation,max_temperature"</code>),
+matching the CLI. If you hit <code>AttributeError: 'str' object has no attribute
+'name'</code>, you are on an older build — use the enum form above.</p>
+<p><code>ClimateVariable</code> names: <code>rainfall</code>, <code>precipitation</code>, <code>max_temperature</code>,
+<code>min_temperature</code>, <code>mean_temperature</code>, <code>wind_speed</code>, <code>solar_radiation</code>,
+<code>humidity</code>, <code>soil_moisture</code>. Soil properties live in <code>SoilVariable</code>.</p>
+<p>If you omit <code>variables</code>, each source uses a sensible default set (and drops
+variables it doesn't carry — e.g. NASA POWER has no soil moisture).</p>
+<hr />
+<h2 id="11-caching-and-outputs">11. Caching and outputs<a class="headerlink" href="#11-caching-and-outputs" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Fetches cache under <strong><code>outputs/cache/&lt;source&gt;/...</code></strong>, keyed by location, date
+  range, and variables. Repeat runs reuse cached frames.</li>
+<li>Force a cold fetch: <code>refresh_cache=True</code>.</li>
+<li>Relocate the cache: <code>cache_dir="/some/stable/path"</code>.</li>
+<li>Report outputs (from the analysis/compare functions) default to <code>./outputs</code>.</li>
+</ul>
+<p>Both <code>outputs/</code> and <code>.tmp/</code> are git-ignored.</p>
+<hr />
+<h2 id="12-recipes">12. Recipes<a class="headerlink" href="#12-recipes" title="Permanent link">&para;</a></h2>
+<h3 id="one-call-for-the-whole-workflow-run_pipeline">One call for the whole workflow: <code>run_pipeline</code><a class="headerlink" href="#one-call-for-the-whole-workflow-run_pipeline" title="Permanent link">&para;</a></h3>
+<p><code>run_pipeline</code> chains fetch → long-term climatology → (optional source
+comparison) → seasonal statistics → crop hazards → (optional period comparison)
+for one site or many, returning a headline <code>summary</code> table plus every
+intermediate result. One failing site never aborts a batch.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+
+<span class="c1"># Single site</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">run_pipeline</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Nairobi&quot;</span><span class="p">,</span> <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">start_year</span><span class="o">=</span><span class="mi">2019</span><span class="p">,</span> <span class="n">end_year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;nasa_power&quot;</span><span class="p">,</span>
+    <span class="n">fixed_season</span><span class="o">=</span><span class="s2">&quot;03-01:05-31&quot;</span><span class="p">,</span> <span class="n">crop_name</span><span class="o">=</span><span class="s2">&quot;maize&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">result</span><span class="o">.</span><span class="n">summary</span>                      <span class="c1"># one headline row per site (DataFrame)</span>
+<span class="n">result</span><span class="o">.</span><span class="n">site_results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">climate_statistics</span>   <span class="c1"># full nested result, per site</span>
+
+<span class="c1"># Many sites (list of dicts, or sites_csv=&quot;...&quot;, or site_table=DataFrame)</span>
+<span class="n">batch</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">run_pipeline</span><span class="p">(</span>
+    <span class="n">sites</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;lat&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;lon&quot;</span><span class="p">:</span> <span class="mf">36.0</span><span class="p">},</span>
+           <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;lat&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">2.0</span><span class="p">,</span> <span class="s2">&quot;lon&quot;</span><span class="p">:</span> <span class="mf">37.0</span><span class="p">}],</span>
+    <span class="n">start_year</span><span class="o">=</span><span class="mi">2019</span><span class="p">,</span> <span class="n">end_year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;nasa_power&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">batch</span><span class="o">.</span><span class="n">summary</span>            <span class="c1"># one row per site</span>
+<span class="n">batch</span><span class="o">.</span><span class="n">errors</span>             <span class="c1"># per-site failures captured, batch still completes</span>
+</code></pre></div>
+<p>The long-term climatology defaults to the WMO 1991–2020 baseline
+(<code>climatology_baseline=(1991, 2020)</code>). Turn optional steps on with
+<code>run_compare_sources=True</code> (+ <code>compare_sources_list=[...]</code>) or
+<code>run_compare_periods=True</code> (+ <code>baseline_start/baseline_end/focal_year</code>).</p>
+<h3 id="compare-two-sources-at-one-site">Compare two sources at one site<a class="headerlink" href="#compare-two-sources-at-one-site" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">compare_climate_sources</span><span class="p">(</span>
+    <span class="n">sources</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;nasa_power&quot;</span><span class="p">,</span> <span class="s2">&quot;agera_5&quot;</span><span class="p">],</span>       <span class="c1"># agera_5 needs Earth Engine</span>
+    <span class="n">lat</span><span class="o">=-</span><span class="mf">1.286</span><span class="p">,</span> <span class="n">lon</span><span class="o">=</span><span class="mf">36.817</span><span class="p">,</span>
+    <span class="n">start</span><span class="o">=</span><span class="s2">&quot;2020-01-01&quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;2020-12-31&quot;</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;./outputs&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="hazard-screen-for-a-maize-season">Hazard screen for a maize season<a class="headerlink" href="#hazard-screen-for-a-maize-season" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">evaluate_hazards</span><span class="p">(</span>
+    <span class="n">crop_name</span><span class="o">=</span><span class="s2">&quot;Maize&quot;</span><span class="p">,</span>
+    <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="s2">&quot;2020-03-01&quot;</span><span class="p">,</span> <span class="n">date_to</span><span class="o">=</span><span class="s2">&quot;2020-08-31&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="focal-year-vs-baseline-climatology">Focal year vs baseline climatology<a class="headerlink" href="#focal-year-vs-baseline-climatology" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">ct</span><span class="o">.</span><span class="n">compare_climate_periods</span><span class="p">(</span>
+    <span class="n">location</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">baseline_start</span><span class="o">=</span><span class="mi">1991</span><span class="p">,</span> <span class="n">baseline_end</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
+    <span class="n">focal_year</span><span class="o">=</span><span class="mi">2023</span><span class="p">,</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;agera_5&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="validate-a-grid-product-against-a-nearby-station">Validate a grid product against a nearby station<a class="headerlink" href="#validate-a-grid-product-against-a-nearby-station" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+<span class="n">ct</span><span class="o">.</span><span class="n">compare_station_to_grids</span><span class="p">(</span>
+    <span class="n">station_source</span><span class="o">=</span><span class="s2">&quot;ghcn_daily&quot;</span><span class="p">,</span>
+    <span class="n">station_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2019</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+    <span class="n">grid_sources</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;nasa_power&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="13-using-it-in-jupyter-your-own-project">13. Using it in Jupyter / your own project<a class="headerlink" href="#13-using-it-in-jupyter-your-own-project" title="Permanent link">&para;</a></h2>
+<p>Once installed into your environment (Track B), it's a normal import:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">climate_toolkit.fetch_data.source_data.sources.utils.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClimateVariable</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">fetch_climate_data</span><span class="p">(</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;nasa_power&quot;</span><span class="p">,</span> <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">variables</span><span class="o">=</span><span class="p">[</span><span class="n">ClimateVariable</span><span class="o">.</span><span class="n">precipitation</span><span class="p">],</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;date&quot;</span><span class="p">)[</span><span class="s2">&quot;precipitation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>   <span class="c1"># returns a normal DataFrame</span>
+</code></pre></div>
+<p>The import is lightweight (heavy deps load lazily), so notebooks start fast.</p>
+<hr />
+<h2 id="14-troubleshooting">14. Troubleshooting<a class="headerlink" href="#14-troubleshooting" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause / fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SyntaxError</code> / package won't import on <code>python3</code></td>
+<td>You're on Python 3.9. Use a 3.10+ env (<code>uv sync</code>).</td>
+</tr>
+<tr>
+<td><code>Earth Engine project ID missing</code></td>
+<td>Set <code>GCP_PROJECT_ID</code> (see §7).</td>
+</tr>
+<tr>
+<td><code>Project 'projects/YOUR_PROJECT_ID' not found</code></td>
+<td>You left the placeholder in — use your real project id.</td>
+</tr>
+<tr>
+<td>auth refresh / DNS errors on EE sources</td>
+<td>Re-run <code>ee.Authenticate()</code>; check network.</td>
+</tr>
+<tr>
+<td><code>command not recognized: climate-toolkit-*</code></td>
+<td>Console scripts exist only after <code>uv sync</code> / <code>pip install</code>; or run <code>python -m climate_toolkit.&lt;module&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>OSError: File name too long</code> on a NASA POWER fetch</td>
+<td>Pass an explicit <code>variables=[...]</code> list instead of relying on the full default set.</td>
+</tr>
+<tr>
+<td><code>AttributeError: 'str' object has no attribute 'name'</code> on <code>variables=</code></td>
+<td>Pass enum members (<code>ClimateVariable.*</code>) rather than strings.</td>
+</tr>
+</tbody>
+</table>
+<p>Preflight your Earth Engine setup anytime with:</p>
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>climate-toolkit<span class="w"> </span>gee-check
+</code></pre></div>
+<hr />
+<h2 id="15-getting-more-help">15. Getting more help<a class="headerlink" href="#15-getting-more-help" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>help(ct.fetch_climate_data)</code> (or any of the seven functions) for full
+  parameter docs.</li>
+<li>The generated API reference and dataset pages on the documentation site
+  linked from the project's <code>pyproject.toml</code> / README.</li>
+<li><code>uv run climate-toolkit --help</code> to see the equivalent CLI subcommands.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Retour en haut de la page
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

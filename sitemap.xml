@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/about/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/about/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/about/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/about/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/datasets/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/datasets/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/datasets/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/datasets/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/distribution_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/distribution_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/distribution_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/distribution_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/example_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/example_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/example_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/example_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/getting_started/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/getting_started/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/getting_started/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/getting_started/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/human_heat_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/human_heat_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/human_heat_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/human_heat_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/outputs_by_module/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/outputs_by_module/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/outputs_by_module/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/outputs_by_module/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/thi_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/thi_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/thi_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/thi_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/use-as-a-package/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/use-as-a-package/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/use-as-a-package/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/use-as-a-package/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/weather_station_workflows/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/weather_station_workflows/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/weather_station_workflows/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/weather_station_workflows/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/analysis/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/analysis/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/analysis/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/analysis/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/comparison/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/comparison/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/fetching/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/fetching/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/fetching/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/fetching/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/about/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/about/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/about/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/about/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/datasets/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/datasets/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/datasets/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/datasets/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/distribution_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/distribution_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/distribution_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/distribution_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/example_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/example_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/example_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/example_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/getting_started/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/getting_started/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/getting_started/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/getting_started/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/human_heat_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/human_heat_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/human_heat_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/human_heat_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/outputs_by_module/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/outputs_by_module/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/outputs_by_module/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/outputs_by_module/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/thi_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/thi_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/thi_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/thi_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/use-as-a-package/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/use-as-a-package/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/use-as-a-package/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/use-as-a-package/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/weather_station_workflows/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/weather_station_workflows/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/weather_station_workflows/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/weather_station_workflows/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/analysis/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/analysis/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/analysis/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/analysis/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/comparison/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/comparison/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/fetching/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/fetching/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/fetching/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/fetching/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/about/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/about/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/about/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/about/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/datasets/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/datasets/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/datasets/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/datasets/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/distribution_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/distribution_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/distribution_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/distribution_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/example_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/example_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/example_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/example_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/getting_started/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/getting_started/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/getting_started/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/getting_started/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/human_heat_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/human_heat_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/human_heat_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/human_heat_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/outputs_by_module/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/outputs_by_module/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/outputs_by_module/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/outputs_by_module/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/thi_workflow/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/thi_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/thi_workflow/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/thi_workflow/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/use-as-a-package/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/use-as-a-package/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/use-as-a-package/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/use-as-a-package/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/weather_station_workflows/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/weather_station_workflows/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/weather_station_workflows/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/weather_station_workflows/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/analysis/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/analysis/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/analysis/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/analysis/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/comparison/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/comparison/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/comparison/"/>
+    </url>
+    <url>
+        <loc>https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/fetching/</loc>
+        <lastmod>2026-09-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/api/fetching/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/fetching/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/api/fetching/"/>
+    </url>
+</urlset>

@@ -1,0 +1,3130 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Location-based climate, season, climatology, hazard, and projection analysis.">
+      
+      
+      
+        <link rel="canonical" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/api/analysis/">
+      
+      
+        <link rel="prev" href="../fetching/">
+      
+      
+        <link rel="next" href="../comparison/">
+      
+      
+        
+          <link rel="alternate" href="./" hreflang="en">
+        
+          <link rel="alternate" href="../../fr/api/analysis/" hreflang="fr">
+        
+          <link rel="alternate" href="../../es/api/analysis/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Analysis - Climate Toolkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#analysis" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Climate Toolkit" class="md-header__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Climate Toolkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Analysis
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../fr/api/analysis/" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../es/api/analysis/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Climate Toolkit" class="md-nav__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Climate Toolkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../use-as-a-package/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use as a package
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../outputs_by_module/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs by module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../example_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    End-to-end example
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../weather_station_workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Weather stations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../human_heat_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Human heat stress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../thi_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Livestock heat (THI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../distribution_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distribution & releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fetching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fetching data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#climate-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Climate statistics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.climate_statistics.statistics.analyze_climate_statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        analyze_climate_statistics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hazards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hazards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.calculate_hazards.hazards.calculate_hazards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_hazards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#period-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Period comparison
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.compare_periods.periods.compare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison & validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#climate-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Climate statistics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.climate_statistics.statistics.analyze_climate_statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        analyze_climate_statistics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hazards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hazards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.calculate_hazards.hazards.calculate_hazards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_hazards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#period-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Period comparison
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#climate_toolkit.compare_periods.periods.compare" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compare
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="analysis">Analysis<a class="headerlink" href="#analysis" title="Permanent link">&para;</a></h1>
+<h2 id="climate-statistics">Climate statistics<a class="headerlink" href="#climate-statistics" title="Permanent link">&para;</a></h2>
+<p>Available as <code>climate_toolkit.analyze_climate_statistics</code>.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="climate_toolkit.climate_statistics.statistics.analyze_climate_statistics" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">climate_toolkit.climate_statistics.statistics.analyze_climate_statistics</span>
+
+
+<a href="#climate_toolkit.climate_statistics.statistics.analyze_climate_statistics" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">analyze_climate_statistics</span><span class="p">(</span>
+    <span class="n">location_coord</span><span class="p">,</span>
+    <span class="n">start_year</span><span class="p">,</span>
+    <span class="n">end_year</span><span class="p">,</span>
+    <span class="n">source</span><span class="p">,</span>
+    <span class="n">fixed_season</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">scenario</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">extra_months</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+    <span class="n">precip_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">temp_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">crop_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">calendar_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">calendar_system</span><span class="o">=</span><span class="s2">&quot;rf&quot;</span><span class="p">,</span>
+    <span class="n">spei_scale_months</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spei_fit</span><span class="o">=</span><span class="s2">&quot;ub-pwm&quot;</span><span class="p">,</span>
+    <span class="n">spei_ref_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spei_ref_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spi_scale_months</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spi_fit</span><span class="o">=</span><span class="s2">&quot;ub-pwm&quot;</span><span class="p">,</span>
+    <span class="n">spi_ref_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spi_ref_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_station_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_station_variables</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_station_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_temp_unit</span><span class="o">=</span><span class="s2">&quot;c&quot;</span><span class="p">,</span>
+    <span class="n">custom_precip_unit</span><span class="o">=</span><span class="s2">&quot;mm&quot;</span><span class="p">,</span>
+    <span class="n">livestock_type</span><span class="o">=</span><span class="n">DEFAULT_LIVESTOCK_TYPE</span><span class="p">,</span>
+    <span class="n">livestock_climate_profile</span><span class="o">=</span><span class="n">DEFAULT_LIVESTOCK_CLIMATE_PROFILE</span><span class="p">,</span>
+    <span class="n">livestock_elevation_override_m</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">include_period_raw_summary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_season_raw_summary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_season_overall_statistics</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">include_ltm_season_summary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">ee_project_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Run the full seasonal climate-statistics pipeline for one location.</p>
+<p>Single entrypoint that fetches daily climate data for a point,
+derives reference evapotranspiration (ET0, Hargreaves) and a daily
+water balance, detects growing seasons (automatically from rainfall,
+or from a fixed/crop-calendar window), and reduces everything to
+per-season, per-period, and long-term-mean (LTM) statistics,
+optionally adding monthly SPEI/SPI drought indices.</p>
+<p>Pipeline steps
+    1. Validate source/period/calendar options; resolve the
+       livestock THI profile and human-heat (humidex) source bundle.
+    2. Fetch all daily climate variables for <code>start_year-01-01</code>
+       through <code>end_year-12-31</code> plus a tail (up to
+       <code>extra_months</code> in auto mode, or a full extra year for
+       year-crossing fixed seasons) so late/cross-year seasons are
+       captured.
+    3. Add ET0 (Hargreaves) and daily water balance columns.
+    4. Detect seasons: automatic onset/cessation detection from
+       rainfall, or fixed windows from <code>fixed_season</code> /
+       <code>crop_name</code> + <code>calendar_source</code> (GGCMI crop-calendar
+       preset). If auto detection is unreliable and a calendar
+       preset was requested, the preset is applied as a fallback.
+    5. Compute per-season statistics (rainfall, temperature, dry
+       spells, water balance, livestock THI, humidex, ET0
+       sub-seasons), period-wide summaries, LTM season summaries,
+       and optional SPEI/SPI monthly series.</p>
+<p>Progress and warnings are printed to stdout as the pipeline runs.
+Recoverable input/validation problems are returned as
+<code>{"error": "..."}</code> rather than raised.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>location_coord</code>
+            </td>
+            <td>
+                  <code>tuple of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(lat, lon)</code> in decimal degrees (WGS84), e.g.
+<code>(-1.286, 36.817)</code> for Nairobi.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>start_year</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>First calendar year of the analysis period (inclusive).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>end_year</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Last calendar year of the analysis period (inclusive). A
+baseline of at least 20 years is recommended for LTM output; a
+shorter span triggers <code>coverage_warning</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Daily climate data source. Common choices:</p>
+<ul>
+<li><code>'agera_5'</code> : AgERA5 (recommended single-source historical).</li>
+<li><code>'era_5'</code> : ERA5.</li>
+<li><code>'nasa_power'</code> : NASA POWER (no credentials required).</li>
+<li><code>'nex_gddp'</code> : NEX-GDDP-CMIP6 projections; use with
+  <code>model</code> and <code>scenario</code>.</li>
+<li><code>'chirps_v2'</code>, <code>'chirps_v3_daily_rnl'</code> : CHIRPS
+  precipitation (precipitation-only; temperature is filled or
+  must come from a paired source).</li>
+<li><code>'chirps_v2+chirts'</code> : merged CHIRPS precip + CHIRTS temp.</li>
+<li><code>'auto'</code> : tries chirps_v3_daily_rnl + agera_5, then
+  agera_5, then era_5, then chirps_v2+chirts.</li>
+<li><code>'paired'</code> : combine explicit <code>precip_source</code> +
+  <code>temp_source</code>.</li>
+</ul>
+<p>Earth Engine-backed sources (<code>agera_5</code>, <code>era_5</code>,
+<code>chirps_v2</code>, <code>chirps_v3_daily_rnl</code>, <code>nex_gddp</code>, ...)
+require prior <code>earthengine authenticate</code> and a
+<code>GCP_PROJECT_ID</code> environment variable (or <code>ee_project_id</code>);
+<code>nasa_power</code> needs no credentials.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>fixed_season</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Fixed season window(s) as <code>"MM-DD:MM-DD"</code> (onset:cessation),
+e.g. <code>"03-01:08-31"</code>. Up to two comma-separated windows are
+allowed (e.g. <code>"03-01:05-31,10-01:12-31"</code>). A cessation
+earlier than the onset means the season crosses the year
+boundary. Default None (automatic season detection).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>model</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Climate model name for <code>source='nex_gddp'</code> (e.g.
+<code>'ACCESS-ESM1-5'</code>). Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>scenario</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Scenario for <code>source='nex_gddp'</code>: <code>'historical'</code> or an SSP
+such as <code>'ssp245'</code>/<code>'ssp585'</code>. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>extra_months</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>In automatic season-detection mode, how many months of tail
+data past <code>end_year-12-31</code> to fetch so seasons that end after
+the final year are captured. Set 0 to disable the tail.</p>
+              </div>
+            </td>
+            <td>
+                  <code>6</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>precip_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Precipitation source for paired mode (e.g.
+<code>'chirps_v3_daily_rnl'</code>, <code>'chirps_v2'</code>, <code>'imerg'</code>,
+<code>'tamsat'</code>). Must be provided together with <code>temp_source</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>temp_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Temperature source for paired mode (e.g. <code>'agera_5'</code>,
+<code>'era_5'</code>). Must be provided together with <code>precip_source</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>crop_name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Crop name used to look up a crop-calendar season preset (e.g.
+<code>'maize'</code>). Requires <code>calendar_source</code>. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>calendar_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Crop-calendar dataset used with <code>crop_name</code>. Only
+<code>'ggcmi'</code> is supported. When given without <code>fixed_season</code>,
+the preset window is applied directly; it is also used as a
+fallback when auto detection is unreliable. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>calendar_system</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>GGCMI calendar system: <code>'rf'</code> (rainfed), <code>'ir'</code>
+(irrigated), or <code>'both'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;rf&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spei_scale_months</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Accumulation scale in months for monthly SPEI (e.g. 3 for
+SPEI-3). Default None (SPEI is not computed).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spei_fit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPEI distribution-fitting method. <code>'ub-pwm'</code> fits the
+log-logistic distribution per calendar month using unbiased
+probability-weighted moments (canonical SPEI practice);
+<code>'empirical'</code> uses an empirical-quantile fallback.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;ub-pwm&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spei_ref_start</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Reference (calibration) period bounds for SPEI fitting, e.g.
+<code>'1991-01-01'</code> / <code>'2020-12-31'</code>. Default None (fit on the
+full analysis period).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spei_ref_end</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Reference (calibration) period bounds for SPEI fitting, e.g.
+<code>'1991-01-01'</code> / <code>'2020-12-31'</code>. Default None (fit on the
+full analysis period).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spi_scale_months</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Accumulation scale in months for monthly SPI. Default None
+(SPI is not computed).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spi_fit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPI fitting method: <code>'ub-pwm'</code> or <code>'empirical'</code> (see
+<code>spei_fit</code>).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;ub-pwm&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spi_ref_start</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Reference period bounds for SPI fitting. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spi_ref_end</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Reference period bounds for SPI fitting. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_station_file</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a station CSV/JSON whose observations override the
+gridded values on matching dates (gridded data fills gaps).
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_station_variables</code>
+            </td>
+            <td>
+                  <code>list of str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Variables to take from the station file, e.g.
+<code>['precipitation', 'max_temperature', 'min_temperature']</code>.
+Default None (all supported variables present in the file).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_station_name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Label for the custom station in logs/metadata. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_temp_unit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Temperature unit in the station file: <code>'c'</code>, <code>'f'</code>, or
+<code>'k'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;c&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_precip_unit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Precipitation unit in the station file: <code>'mm'</code>, <code>'inch'</code>,
+or <code>'tenth_mm'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;mm&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>livestock_type</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Livestock profile for temperature-humidity-index (THI) heat
+stress statistics. One of <code>'cattle_dairy'</code>,
+<code>'cattle_general'</code>, <code>'cattle_beef'</code>, <code>'goats'</code>,
+<code>'sheep'</code>, <code>'pigs'</code>, <code>'poultry_broilers'</code>,
+<code>'poultry_layers'</code>, <code>'poultry_general'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;cattle_dairy&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>livestock_climate_profile</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>THI threshold climate adjustment: <code>'auto'</code> (inferred from
+latitude/elevation), <code>'temperate'</code>, or <code>'tropical'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;auto&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>livestock_elevation_override_m</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Site elevation in metres used when inferring the livestock
+climate profile; overrides automatic elevation lookup.
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_period_raw_summary</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Include the period-wide raw climate summary
+(<code>'raw_climate_summary'</code> key) in the result.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_season_raw_summary</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Include a raw climate summary inside each season entry.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_season_overall_statistics</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Include full overall statistics inside each season entry.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>include_ltm_season_summary</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Include the long-term-mean summary across years per season
+window (<code>'ltm_season_summary'</code> key).</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ee_project_id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Google Cloud project ID for Earth Engine, overriding the
+<code>GCP_PROJECT_ID</code> environment variable. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>workers</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of parallel workers for data fetching.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>verbose</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Print extra diagnostic detail during fetching and season
+detection.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>On validation or fetch failure, <code>{'error': '&lt;message&gt;'}</code>.
+Otherwise a dictionary with these top-level keys:</p>
+<ul>
+<li><code>'location'</code> : dict with <code>'lat'</code> and <code>'lon'</code>.</li>
+<li><code>'period'</code> : dict with <code>'start_year'</code> and <code>'end_year'</code>.</li>
+<li><code>'source'</code>, <code>'model'</code>, <code>'scenario'</code>,
+  <code>'precip_source'</code>, <code>'temp_source'</code> : echo of the data
+  request (source names normalized).</li>
+<li><code>'mode'</code> : <code>'auto'</code> or <code>'fixed'</code> season detection as
+  actually applied.</li>
+<li><code>'fixed_season'</code> : the applied fixed-season string, or None
+  in auto mode.</li>
+<li><code>'human_heat_bundle'</code> : provenance of variables feeding the
+  humidex (human heat) metrics.</li>
+<li><code>'thi_profile'</code> : resolved livestock THI profile and
+  thresholds.</li>
+<li><code>'crop_name'</code>, <code>'calendar_source'</code>, <code>'calendar_system'</code>,
+  <code>'calendar_preset_requested'</code>, <code>'calendar_preset_used'</code>,
+  <code>'calendar_preset_fallback'</code>, <code>'calendar_preset'</code> :
+  crop-calendar request and what was actually applied.</li>
+<li><code>'raw_climate_summary'</code> : list of per-variable summary rows
+  for the whole period (empty if disabled).</li>
+<li><code>'overall_statistics'</code> : dict of period-wide statistics
+  (temperature, rainfall, water balance, THI, humidex, ...).</li>
+<li><code>'xclim_references'</code> : xclim-based reference indicators for
+  the period.</li>
+<li><code>'season_statistics'</code> : list of dicts, one per detected
+  season per year, each with <code>'year'</code>, <code>'season_number'</code>,
+  <code>'onset'</code>, <code>'cessation'</code>, <code>'regime'</code>,
+  <code>'season_identity'</code>, rainfall/dry-spell metrics, and
+  (when enabled) nested <code>'raw_climate_summary'</code>,
+  <code>'overall_statistics'</code>, and <code>'eto_sub_seasons'</code>.</li>
+<li><code>'ltm_season_summary'</code> : long-term means across years per
+  season window (dict with <code>'mode'</code> and <code>'windows'</code>).</li>
+<li><code>'spei'</code>, <code>'spi'</code> : None, or dicts with <code>'config'</code>,
+  <code>'summary'</code>, <code>'metadata'</code>, and <code>'monthly_series'</code>
+  (list of monthly records including the index values).</li>
+<li><code>'season_slot_warning'</code>, <code>'coverage_warning'</code> : warning
+  strings or None.</li>
+<li><code>'annual_summary'</code> : per-year detection summary rows.</li>
+<li><code>'season_detection_status'</code>, <code>'season_detection_reasons'</code>,
+  <code>'human_review_recommended'</code>,
+  <code>'calendar_override_recommended'</code>,
+  <code>'season_detection_guidance'</code>, <code>'season_detection'</code> :
+  season-detection reliability diagnostics.</li>
+<li><code>'timing'</code> : dict of elapsed seconds per pipeline stage.</li>
+<li><code>'analysis_date'</code> : ISO timestamp of the run.</li>
+<li><code>'methodology'</code> : short methodology note.</li>
+</ul>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <p>Seasonal climatology for maize in Nairobi, Kenya from AgERA5
+(requires <code>earthengine authenticate</code> and <code>GCP_PROJECT_ID</code>;
+use <code>source='nasa_power'</code> for a credential-free run):</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">analyze_climate_statistics</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">start_year</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">end_year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;agera_5&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">crop_name</span><span class="o">=</span><span class="s2">&quot;maize&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">calendar_source</span><span class="o">=</span><span class="s2">&quot;ggcmi&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">spei_scale_months</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;ltm_season_summary&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="go">[&#39;mode&#39;, &#39;windows&#39;]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;season_statistics&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;year&quot;</span><span class="p">]</span>
+<span class="go">2000</span>
+</code></pre></div>
+
+
+    </div>
+
+</div><h2 id="hazards">Hazards<a class="headerlink" href="#hazards" title="Permanent link">&para;</a></h2>
+<p>Available as <code>climate_toolkit.evaluate_hazards</code>.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="climate_toolkit.calculate_hazards.hazards.calculate_hazards" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">climate_toolkit.calculate_hazards.hazards.calculate_hazards</span>
+
+
+<a href="#climate_toolkit.calculate_hazards.hazards.calculate_hazards" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">calculate_hazards</span><span class="p">(</span>
+    <span class="n">crop_name</span><span class="p">,</span>
+    <span class="n">location_coord</span><span class="p">,</span>
+    <span class="n">date_from</span><span class="p">,</span>
+    <span class="n">date_to</span><span class="p">,</span>
+    <span class="n">season_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">season_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">fixed_season</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">precip_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">temp_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_thresholds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">gap_days</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+    <span class="n">min_season_days</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+    <span class="n">soilcp</span><span class="o">=</span><span class="n">DEFAULT_SOILCP</span><span class="p">,</span>
+    <span class="n">soilsat</span><span class="o">=</span><span class="n">DEFAULT_SOILSAT</span><span class="p">,</span>
+    <span class="n">spinup_days</span><span class="o">=</span><span class="n">DEFAULT_SPINUP_DAYS</span><span class="p">,</span>
+    <span class="n">water_balance_window</span><span class="o">=</span><span class="n">FULL_WINDOW_WATER_BALANCE</span><span class="p">,</span>
+    <span class="n">calendar_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">calendar_system</span><span class="o">=</span><span class="s2">&quot;rf&quot;</span><span class="p">,</span>
+    <span class="n">livestock_type</span><span class="o">=</span><span class="n">DEFAULT_LIVESTOCK_TYPE</span><span class="p">,</span>
+    <span class="n">livestock_climate_profile</span><span class="o">=</span><span class="n">DEFAULT_LIVESTOCK_CLIMATE_PROFILE</span><span class="p">,</span>
+    <span class="n">livestock_elevation_override_m</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">ee_project_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Assess growing-season climate hazards for a crop at a point location.</p>
+<p>Fetches daily climate data (precipitation, temperature, humidity) for one
+or more growing seasons, runs a daily soil water-balance model, and scores
+each season against crop-specific hazard thresholds. Hazards assessed:</p>
+<ul>
+<li>Seasonal precipitation total versus crop rainfall requirements</li>
+<li>Mean season temperature versus crop temperature tolerance</li>
+<li>Extreme heat: NTx35 / NTx40 (days with Tmax above 35 / 40 deg C)</li>
+<li>Drought: NDD (dry days, &lt; 1 mm), dry-spell statistics (&gt;= 7 consecutive
+  dry days), NDWS (water-stress days from the soil water-balance model),
+  and WRSI (water requirement satisfaction index)</li>
+<li>Waterlogging: NDWL0 (days with soil water above field capacity)</li>
+<li>Livestock heat stress: THI (temperature-humidity index) for the chosen
+  livestock type and climate profile</li>
+<li>Human heat stress: Humidex screening (mean/max, high and extreme days)</li>
+</ul>
+<p>The growing-season window is resolved in one of three ways:</p>
+<ol>
+<li>Explicit window -- pass <code>season_start</code> and <code>season_end</code> together.</li>
+<li>Fixed calendar window(s) -- pass <code>fixed_season</code>
+   (e.g. <code>'03-01:06-30'</code>), applied to every year between <code>date_from</code>
+   and <code>date_to</code>.</li>
+<li>Auto-detection (default) -- rainfall-based onset/cessation detection
+   per year; if detection is unreliable and <code>calendar_source='ggcmi'</code>
+   was given, falls back to the GGCMI crop-calendar preset window.</li>
+</ol>
+<p>This function is exported as <code>climate_toolkit.evaluate_hazards</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>crop_name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Crop to assess (case-insensitive). Crops with built-in hazard
+thresholds: 'beans', 'maize', 'millet', 'groundnuts', 'sorghum',
+'cassava', 'rice'. Other crops require <code>custom_thresholds</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>location_coord</code>
+            </td>
+            <td>
+                  <code>tuple of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(latitude, longitude)</code> in decimal degrees,
+e.g. <code>(-1.286, 36.817)</code> for Nairobi.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>date_from</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Analysis window as ISO dates <code>'YYYY-MM-DD'</code>. In fixed-season and
+auto-detect modes, every calendar year in this range is analysed.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>date_to</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Analysis window as ISO dates <code>'YYYY-MM-DD'</code>. In fixed-season and
+auto-detect modes, every calendar year in this range is analysed.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>season_start</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit season window (ISO dates <code>'YYYY-MM-DD'</code>). Must be supplied
+together; takes precedence over <code>fixed_season</code> and auto-detection.
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>season_end</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Explicit season window (ISO dates <code>'YYYY-MM-DD'</code>). Must be supplied
+together; takes precedence over <code>fixed_season</code> and auto-detection.
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>fixed_season</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Fixed calendar window(s) as <code>'MM-DD:MM-DD'</code>, comma-separated for
+two seasons per year (e.g. <code>'03-01:05-31,10-01:12-15'</code>).
+Year-crossing windows such as <code>'11-01:02-28'</code> are supported.
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Climate dataset: 'auto', 'agera_5', 'era_5', 'chirps_v2+chirts'
+(alias 'chirps+chirts'), 'nasa_power', or 'paired'. <code>'auto'</code> tries
+chirps_v3_daily_rnl + agera_5, then agera_5, then era_5, then
+chirps_v2+chirts. Precipitation-only sources ('chirps_v3_daily_rnl',
+'imerg', 'tamsat') are rejected here -- use them through
+<code>source='paired'</code>. 'chirps_v2+chirts' only covers years up to 2016.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;auto&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>precip_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Required together when <code>source='paired'</code>: explicit precipitation
+and temperature datasets, e.g. <code>precip_source='chirps_v3_daily_rnl'</code>
+with <code>temp_source='agera_5'</code>. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>temp_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Required together when <code>source='paired'</code>: explicit precipitation
+and temperature datasets, e.g. <code>precip_source='chirps_v3_daily_rnl'</code>
+with <code>temp_source='agera_5'</code>. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>custom_thresholds</code>
+            </td>
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Per-metric threshold overrides merged over the built-in crop and
+hazard-index thresholds. Shape <code>{metric: {band: (low, high)}}</code>,
+where metric is one of 'Total Precip', 'TAVG', 'NDD', 'NTx35',
+'NTx40', 'NDWS', 'NDWL0', 'THI', 'HUMIDEX'. Band names are e.g.
+'no_stress', 'moderate_stress', 'severe_stress', 'extreme_stress'
+(crop 'Total Precip' / 'TAVG' use 'moderate_stress_low' /
+'moderate_stress_up' / 'severe_stress_low' / 'severe_stress_up');
+<code>None</code> in a <code>(low, high)</code> tuple means open-ended. Metrics omitted
+keep package defaults. Supplying this also allows assessing crops
+without built-in thresholds. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>gap_days</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Intended dry-gap (days) that ends an auto-detected season. Currently
+accepted for CLI parity but not forwarded to the season detector,
+which uses its own default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>30</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>min_season_days</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Intended minimum auto-detected season length (days). Same caveat as
+<code>gap_days</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>30</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>soilcp</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Plant-available soil water capacity (mm) between wilting point and
+field capacity, used by the water-balance model (NDWS/NDWL0/WRSI).
+When both <code>soilcp</code> and <code>soilsat</code> are left at their defaults,
+site-specific values are derived from gridded soil data
+(SoilGrids/HWSD) where available; pass explicit values to override.</p>
+              </div>
+            </td>
+            <td>
+                  <code>100.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>soilsat</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Additional soil water storage (mm) between field capacity and
+saturation; governs waterlogging (NDWL0). See <code>soilcp</code> for the
+automatic site-specific derivation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>100.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spinup_days</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Days of climate data fetched before season onset so the soil water
+balance starts from a realistic moisture state.</p>
+              </div>
+            </td>
+            <td>
+                  <code>60</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>water_balance_window</code>
+            </td>
+            <td>
+                  <code>(<span title="full_window">full_window</span>, <span title="crop_active">crop_active</span>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How NDWS/NDWL0 are counted within fixed-season runs: 'full_window'
+uses the whole fixed window; 'crop_active' restricts counting to
+detected ETO sub-season(s) inside the window when available.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;full_window&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>calendar_source</code>
+            </td>
+            <td>
+                  <code><span title="ggcmi">ggcmi</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Crop-calendar preset source used as a fallback when auto season
+detection is unreliable. Default None (no fallback).</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;ggcmi&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>calendar_system</code>
+            </td>
+            <td>
+                  <code>(<span title="rf">rf</span>, <span title="ir">ir</span>, <span title="both">both</span>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>GGCMI crop-calendar system when <code>calendar_source</code> is used:
+rainfed ('rf'), irrigated ('ir'), or both.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;rf&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>livestock_type</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Livestock THI profile, e.g. 'cattle_dairy', 'cattle_general',
+'cattle_beef', 'goats', 'sheep'. See
+<code>climate_toolkit.climatology.heat_stress.list_thi_livestock_profiles</code>
+for the full list.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;cattle_dairy&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>livestock_climate_profile</code>
+            </td>
+            <td>
+                  <code>(<span title="auto">auto</span>, <span title="temperate">temperate</span>, <span title="tropical">tropical</span>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>THI climate context. 'auto' selects from latitude plus highland
+elevation when available.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;auto&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>livestock_elevation_override_m</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Site elevation (metres above sea level) used by the 'auto' THI
+climate-context selection instead of an automatic elevation lookup.
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ee_project_id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Google Cloud project ID for Earth Engine-backed climate sources.
+Overrides the <code>GCP_PROJECT_ID</code> environment variable. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>workers</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bounded worker count for chunked historical Earth Engine fetches.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>On failure: <code>{'error': &lt;message&gt;}</code>, optionally with
+<code>'available_crops'</code> (unknown crop) or <code>'season_detection'</code>
+(season-detection diagnostics).</p>
+<p>When exactly one season is resolved, a flat assessment dict with keys
+<code>'crop'</code>, <code>'location'</code> (<code>{'latitude', 'longitude'}</code>),
+<code>'season_info'</code> (onset/cessation dates, length, detection method,
+data source), <code>'thi_profile'</code>, <code>'soil_parameters'</code>,
+<code>'water_balance_parameters'</code>, <code>'water_balance_methodology'</code>,
+<code>'season_statistics'</code> (precipitation and temperature summaries,
+dry-spell statistics, NDD, NTx35, NTx40, NDWS, NDWL0, WRSI, Humidex
+and THI metrics), <code>'hazard_evaluation'</code> (per-hazard value and
+status such as 'no_stress' / 'moderate_stress' / 'severe_stress'),
+plus <code>'season_detection'</code>, <code>'calendar_source'</code>,
+<code>'calendar_system'</code>, <code>'calendar_preset_requested'</code>,
+<code>'calendar_preset_used'</code>, and <code>'calendar_preset'</code>.</p>
+<p>When multiple seasons are resolved (multi-year range and/or two
+seasons per year), a wrapper dict with <code>'assessments'</code> (list of
+per-season dicts shaped as above), <code>'thi_profile'</code>,
+<code>'soil_parameters'</code>, <code>'water_balance_parameters'</code>,
+<code>'water_balance_methodology'</code>, <code>'season_detection'</code>, the calendar
+keys above, <code>'baseline_ltm'</code> (long-term mean baseline across
+seasons, or None), and <code>'baseline_ltm_comparisons'</code> (per-year
+deltas versus that baseline). A <code>'warning'</code> key is included when
+the baseline is suppressed (e.g. inconsistent auto-detected season
+counts across years).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>Earth Engine-backed sources ('agera_5', 'era_5', 'chirps_v2+chirts',
+'chirps_v3_daily_rnl', and the default 'auto' chain) require a one-time
+<code>earthengine authenticate</code> and a Google Cloud project ID, supplied via
+the <code>GCP_PROJECT_ID</code> environment variable or the <code>ee_project_id</code>
+argument. The 'nasa_power' source needs no credentials.</p>
+<p>Progress messages are printed to stdout during data fetching. Use
+<code>climate_toolkit.calculate_hazards.hazards.print_hazard_results</code> to
+pretty-print the returned dict.</p>
+</details>
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <p>Maize near Nairobi for the 2020 long-rains season, explicit window:</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">evaluate_hazards</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">crop_name</span><span class="o">=</span><span class="s1">&#39;maize&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">date_from</span><span class="o">=</span><span class="s1">&#39;2020-01-01&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">date_to</span><span class="o">=</span><span class="s1">&#39;2020-12-31&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">season_start</span><span class="o">=</span><span class="s1">&#39;2020-03-01&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">season_end</span><span class="o">=</span><span class="s1">&#39;2020-06-30&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">source</span><span class="o">=</span><span class="s1">&#39;agera_5&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;hazard_evaluation&#39;</span><span class="p">][</span><span class="s1">&#39;NTx35&#39;</span><span class="p">][</span><span class="s1">&#39;status&#39;</span><span class="p">]</span>
+<span class="go">&#39;no_stress&#39;</span>
+</code></pre></div>
+
+
+    </div>
+
+</div><h2 id="period-comparison">Period comparison<a class="headerlink" href="#period-comparison" title="Permanent link">&para;</a></h2>
+<p>Available as <code>climate_toolkit.compare_climate_periods</code>.</p>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="climate_toolkit.compare_periods.periods.compare" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">climate_toolkit.compare_periods.periods.compare</span>
+
+
+<a href="#climate_toolkit.compare_periods.periods.compare" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">compare</span><span class="p">(</span>
+    <span class="n">location</span><span class="p">,</span>
+    <span class="n">baseline_start</span><span class="p">,</span>
+    <span class="n">baseline_end</span><span class="p">,</span>
+    <span class="n">focal_year</span><span class="p">,</span>
+    <span class="n">source</span><span class="p">,</span>
+    <span class="n">fixed_season</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">precip_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">temp_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">crop_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">livestock_type</span><span class="o">=</span><span class="n">DEFAULT_LIVESTOCK_TYPE</span><span class="p">,</span>
+    <span class="n">livestock_climate_profile</span><span class="o">=</span><span class="n">DEFAULT_LIVESTOCK_CLIMATE_PROFILE</span><span class="p">,</span>
+    <span class="n">livestock_elevation_override_m</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">calendar_source</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">calendar_system</span><span class="o">=</span><span class="s2">&quot;rf&quot;</span><span class="p">,</span>
+    <span class="n">spei_scale_months</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spei_fit</span><span class="o">=</span><span class="s2">&quot;ub-pwm&quot;</span><span class="p">,</span>
+    <span class="n">spei_ref_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spei_ref_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spi_scale_months</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spi_fit</span><span class="o">=</span><span class="s2">&quot;ub-pwm&quot;</span><span class="p">,</span>
+    <span class="n">spi_ref_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">spi_ref_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Compare a focal year's climate against a multi-year baseline climatology.</p>
+<p>Runs the full climate-statistics workflow twice for a single point
+location -- once for the baseline period (<code>baseline_start</code> to
+<code>baseline_end</code>) and once for the focal year -- then differences the
+four main report sections between the two runs:</p>
+<ol>
+<li><code>raw_climate_summary</code> : per-variable daily statistics
+   (Mean/Min/Max/Std for rainfall, temperature, etc.).</li>
+<li><code>overall_statistics</code> : period totals and derived metrics,
+   with baseline values annualised (divided by the number of
+   baseline years) so they are comparable to a single year.</li>
+<li><code>season_statistics</code> : growing-season metrics, aggregated across
+   baseline seasons (per fixed-season window when <code>fixed_season</code>
+   is given, otherwise across auto-detected seasons).</li>
+<li><code>annual_summary</code> : annual rainfall and humid-year status
+   (focal year vs the baseline average / humid-year frequency).</li>
+</ol>
+<p>Each diffed metric reports the focal value, the baseline value (or
+baseline average), the absolute difference <code>diff</code> and, where
+meaningful, the percent change <code>pct</code>. Supplementary comparison
+blocks for xclim reference indices and (when requested) SPEI/SPI are
+also included.</p>
+<p>Most sources are fetched via Google Earth Engine and require prior
+Earth Engine authentication plus a Google Cloud project id in the
+<code>GCP_PROJECT_ID</code> environment variable (<code>GOOGLE_CLOUD_PROJECT</code> or
+<code>EE_PROJECT_ID</code> also work). The <code>nasa_power</code> source needs no
+authentication.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>location</code>
+            </td>
+            <td>
+                  <code>tuple of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>(latitude, longitude)</code> in decimal degrees, e.g.
+<code>(-1.286, 36.817)</code> for Nairobi.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>baseline_start</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>First year of the baseline period (inclusive).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>baseline_end</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Last year of the baseline period (inclusive). Must be greater
+than or equal to <code>baseline_start</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>focal_year</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Single year to compare against the baseline climatology.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Climate data source. One of <code>'agera_5'</code>, <code>'era_5'</code>,
+<code>'nasa_power'</code>, <code>'chirps'</code>, <code>'chirps_v2'</code>,
+<code>'chirps_v3_daily_rnl'</code>, <code>'chirts'</code>, <code>'chirps+chirts'</code>,
+<code>'chirps_v2+chirts'</code>, <code>'terraclimate'</code>, <code>'imerg'</code>,
+<code>'tamsat'</code>, <code>'auto'</code>, or <code>'paired'</code>. Precipitation-only
+sources (chirps variants, imerg, tamsat) skip temperature-based
+metrics. <code>'paired'</code> combines separate precipitation and
+temperature sources and requires <code>precip_source</code> and
+<code>temp_source</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>fixed_season</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Season window(s) as <code>'MM-DD:MM-DD'</code>, comma-separated for
+multiple windows, e.g. <code>'03-01:05-31'</code> (single),
+<code>'03-01:05-31,10-01:12-15'</code> (two seasons), or
+<code>'11-01:02-28'</code> (year-crossing). Default None (automatic
+rainfall-based season detection).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>precip_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Precipitation source when <code>source='paired'</code>, e.g.
+<code>'chirps_v2'</code>, <code>'chirps_v3_daily_rnl'</code>, <code>'imerg'</code>, or
+<code>'tamsat'</code>. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>temp_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Temperature source when <code>source='paired'</code>, e.g. <code>'agera_5'</code>,
+<code>'era_5'</code>, or <code>'nasa_power'</code>. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>crop_name</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Crop name used when requesting external crop-calendar presets
+(e.g. GGCMI) via <code>calendar_source</code>, e.g. <code>'maize'</code>.
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>livestock_type</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Livestock THI (temperature-humidity index) heat-stress profile,
+e.g. <code>'cattle_dairy'</code> (default), <code>'cattle_beef'</code>,
+<code>'cattle_general'</code>. See
+:func:<code>climate_toolkit.climatology.heat_stress.list_thi_livestock_profiles</code>
+for the full list.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.climatology.DEFAULT_LIVESTOCK_TYPE">DEFAULT_LIVESTOCK_TYPE</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>livestock_climate_profile</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>THI climate context: <code>'auto'</code> (default; uses latitude plus
+highland elevation when available), <code>'temperate'</code>, or
+<code>'tropical'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="climate_toolkit.climatology.DEFAULT_LIVESTOCK_CLIMATE_PROFILE">DEFAULT_LIVESTOCK_CLIMATE_PROFILE</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>livestock_elevation_override_m</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Site elevation in metres above sea level, overriding the
+automatically fetched elevation used for THI climate-context
+selection. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>calendar_source</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Crop-calendar preset source to use when automatic season
+detection is not reliable. Currently only <code>'ggcmi'</code>.
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>calendar_system</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Crop-calendar system when <code>calendar_source</code> is used:
+<code>'rf'</code> (rainfed, default), <code>'ir'</code> (irrigated), or
+<code>'both'</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;rf&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spei_scale_months</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPEI accumulation scale in months (e.g. 3, 6, 12). When given,
+SPEI is computed and compared alongside the other statistics.
+Default None (SPEI skipped).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spei_fit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPEI distribution-fitting method: <code>'ub-pwm'</code> (unbiased
+probability-weighted moments, default) or <code>'empirical'</code>.
+Ignored unless <code>spei_scale_months</code> is set.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;ub-pwm&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spei_ref_start</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPEI reference-period start date as <code>'YYYY-MM-DD'</code>, e.g.
+<code>'1991-01-01'</code>. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spei_ref_end</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPEI reference-period end date as <code>'YYYY-MM-DD'</code>, e.g.
+<code>'2020-12-31'</code>. Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spi_scale_months</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPI accumulation scale in months. When given, SPI is computed
+and compared alongside the other statistics. Default None
+(SPI skipped).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spi_fit</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPI distribution-fitting method: <code>'ub-pwm'</code> (default) or
+<code>'empirical'</code>. Ignored unless <code>spi_scale_months</code> is set.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;ub-pwm&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spi_ref_start</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPI reference-period start date as <code>'YYYY-MM-DD'</code>.
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>spi_ref_end</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>SPI reference-period end date as <code>'YYYY-MM-DD'</code>.
+Default None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>workers</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of parallel workers for chunked Earth Engine data
+fetches. Default 1.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="dict">dict</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>On success, a dictionary with:</p>
+<ul>
+<li>Run metadata echoing the request: <code>'focal_year'</code>,
+  <code>'baseline_period'</code> (<code>'YYYY-YYYY'</code> string),
+  <code>'baseline_years'</code>, <code>'source'</code>, <code>'fixed_season'</code>,
+  <code>'precip_source'</code>, <code>'temp_source'</code>, <code>'crop_name'</code>,
+  livestock settings (<code>'livestock_type'</code>,
+  <code>'livestock_label'</code>, <code>'livestock_climate_profile'</code>,
+  <code>'livestock_climate_profile_applied'</code>), calendar settings
+  (<code>'calendar_source'</code>, <code>'calendar_system'</code> and preset-usage
+  flags), SPEI/SPI settings, and <code>'temperature_excluded'</code>
+  (True for precipitation-only sources).</li>
+<li><code>'season_detection'</code> : diagnostics on season detection for
+  both periods.</li>
+<li><code>'raw_climate_summary'</code> : <code>{variable: {stat: {'focal',
+  'baseline', 'diff', 'pct'}}}</code>.</li>
+<li><code>'overall_statistics'</code> : <code>{category: {metric:
+  {'focal_year', 'baseline_avg', 'diff', 'pct'}}}</code> with
+  annualised baseline values.</li>
+<li><code>'season_statistics'</code> : seasonal comparison; with
+  <code>fixed_season</code> a <code>{'windows': [...]}</code> list with one entry
+  per window, otherwise a single block with season counts,
+  water-balance methodology notes, and a metric <code>'diff'</code>
+  block.</li>
+<li><code>'annual_summary'</code> : <code>'annual_rain_mm'</code> (focal vs baseline
+  average) and <code>'humid_status'</code> (humid-year classification).</li>
+<li><code>'xclim_references'</code> : comparison of xclim reference
+  indices.</li>
+<li><code>'spei'</code>, <code>'spi'</code> : drought-index comparisons (None-like
+  when the corresponding scale was not requested).</li>
+</ul>
+<p>On failure, a dictionary with an <code>'error'</code> key describing the
+problem (invalid arguments, fetch failure, or unreliable season
+detection), possibly alongside <code>'season_detection'</code>
+diagnostics. Check for <code>'error'</code> before using the result.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <p>Compare 2023 against a 1991-2020 baseline for Nairobi, Kenya, using
+AgERA-5 with a GGCMI maize calendar (requires Earth Engine
+authentication and <code>GCP_PROJECT_ID</code> set):</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">compare_climate_periods</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">location</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+<span class="gp">... </span>    <span class="n">baseline_start</span><span class="o">=</span><span class="mi">1991</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">baseline_end</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">focal_year</span><span class="o">=</span><span class="mi">2023</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;agera_5&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">crop_name</span><span class="o">=</span><span class="s2">&quot;maize&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">calendar_source</span><span class="o">=</span><span class="s2">&quot;ggcmi&quot;</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="s2">&quot;error&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">rain</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;annual_summary&quot;</span><span class="p">][</span><span class="s2">&quot;annual_rain_mm&quot;</span><span class="p">]</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="n">rain</span><span class="p">[</span><span class="s2">&quot;focal&quot;</span><span class="p">],</span> <span class="n">rain</span><span class="p">[</span><span class="s2">&quot;baseline_avg&quot;</span><span class="p">],</span> <span class="n">rain</span><span class="p">[</span><span class="s2">&quot;pct&quot;</span><span class="p">])</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
