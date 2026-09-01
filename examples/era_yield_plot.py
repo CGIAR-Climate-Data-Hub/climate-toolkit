@@ -30,6 +30,7 @@ from climate_toolkit.visualization import (  # noqa: E402
     save_figure,
     shorten_treatment,
     use_headless,
+    variety_transitions,
 )
 
 use_headless()
@@ -38,28 +39,6 @@ import pandas as pd  # noqa: E402
 
 VARS = [(c, label_for(c)) for c in
         ("tk_rain_total_mm", "tk_rainy_days", "tk_dry_days", "tk_NDWS", "tk_WRSI")]
-
-
-def _variety_transitions(s):
-    """Years at which the dominant crop variety changes (with the new variety name).
-
-    Varieties are swapped over the life of a long-term experiment, so marking the
-    switch points helps read a yield trend. Returns ``[(year, variety), ...]`` for
-    the first year and each subsequent change.
-    """
-    if "variety" not in s.columns:
-        return []
-    v = s.dropna(subset=["variety"]).copy()
-    if v.empty:
-        return []
-    per = (v.assign(variety=v["variety"].astype(str))
-           .groupby("year")["variety"].agg(lambda x: x.mode().iloc[0]).sort_index())
-    changes, prev = [], None
-    for yr, name in per.items():
-        if name != prev:
-            changes.append((int(yr), name))
-            prev = name
-    return changes
 
 
 def _panel(ax, s, var, label, treatments, put_legend, variety_changes=()):
@@ -125,7 +104,7 @@ def main() -> None:
                              f"{sorted(df[df['site_id'] == site]['treatment'].unique())}")
     treatments = list(s["treatment"].value_counts().head(args.top_treatments).index)
     panels = [(v, lbl) for v, lbl in VARS if v == args.variable] if args.variable else VARS
-    variety_changes = [] if args.no_variety else _variety_transitions(s)
+    variety_changes = [] if args.no_variety else variety_transitions(s)
 
     fig, axes = plt.subplots(len(panels), 1, figsize=(11, 3.1 * len(panels)))
     axes = [axes] if len(panels) == 1 else list(axes)

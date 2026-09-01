@@ -10,6 +10,8 @@ import sys
 import tempfile
 import unittest
 
+import pandas as pd
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
@@ -22,6 +24,7 @@ from climate_toolkit.visualization import (
     save_figure,
     shorten_treatment,
     use_headless,
+    variety_transitions,
 )
 
 
@@ -63,6 +66,28 @@ class PaletteTests(unittest.TestCase):
         self.assertGreater(len(LINES), 0)
         for c in LINES:
             self.assertTrue(c.startswith("#") and len(c) == 7)
+
+
+class VarietyTransitionsTests(unittest.TestCase):
+    def test_single_variety_marks_only_the_first_year(self):
+        # a site that never changed variety still gets one marker, at year 1
+        df = pd.DataFrame({"year": [2005, 2006, 2007], "variety": ["RT 624"] * 3})
+        self.assertEqual(variety_transitions(df), [(2005, "RT 624")])
+
+    def test_changes_mark_the_first_year_and_each_switch(self):
+        df = pd.DataFrame({"year": [2005, 2006, 2007, 2008],
+                           "variety": ["A", "A", "B", "B"]})
+        self.assertEqual(variety_transitions(df), [(2005, "A"), (2007, "B")])
+
+    def test_missing_or_empty_variety_column_yields_no_markers(self):
+        self.assertEqual(variety_transitions(pd.DataFrame({"year": [2005]})), [])
+        df = pd.DataFrame({"year": [2005, 2006], "variety": [None, None]})
+        self.assertEqual(variety_transitions(df), [])
+
+    def test_dominant_variety_per_year_wins_ties_aside(self):
+        # two rows say "A", one says "B" in 2005 -> the year's marker is "A"
+        df = pd.DataFrame({"year": [2005, 2005, 2005], "variety": ["A", "A", "B"]})
+        self.assertEqual(variety_transitions(df), [(2005, "A")])
 
 
 class SaveFigureTests(unittest.TestCase):
