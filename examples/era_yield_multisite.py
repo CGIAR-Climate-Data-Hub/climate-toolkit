@@ -31,6 +31,7 @@ from climate_toolkit.visualization import (  # noqa: E402
     save_figure,
     shorten_treatment,
     use_headless,
+    variety_transitions,
 )
 
 use_headless()
@@ -38,13 +39,18 @@ import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
 
-def _panel(ax, s, var, top_treatments):
+def _panel(ax, s, var, top_treatments, variety_changes=()):
     years = sorted(s["year"].unique())
     bars = s.drop_duplicates("year").set_index("year")[var]
     ax.bar(bars.index, bars.values, color=BAR, width=0.8, zorder=1)
     ax.set_xticks(years)
     ax.set_xticklabels([str(int(y)) for y in years], rotation=45, fontsize=7)
     ax.tick_params(axis="y", labelsize=7)
+    for yr, vname in variety_changes:  # dashed guide where the crop variety changes
+        short = vname if len(vname) <= 12 else vname[:11] + "…"
+        ax.axvline(yr, color="#8a8f98", ls="--", lw=0.7, zorder=0)
+        ax.text(yr, ax.get_ylim()[1] * 0.98, f" {short}", rotation=90,
+                va="top", ha="left", fontsize=5.5, color="#5a5f68", zorder=4)
     ax2 = ax.twinx()
     treatments = list(s["treatment"].value_counts().head(top_treatments).index)
     for i, t in enumerate(treatments):
@@ -52,7 +58,8 @@ def _panel(ax, s, var, top_treatments):
         ax2.plot(st.index, st.values, marker="o", ms=2.5, lw=1.4,
                  color=LINES[i % len(LINES)], label=shorten_treatment(t, n=20), zorder=3)
     ax2.tick_params(axis="y", labelsize=7)
-    ax2.legend(fontsize=6, ncol=min(len(treatments), 2), loc="upper left", frameon=False)
+    # legend upper-right: the first-year variety label always sits at the left edge
+    ax2.legend(fontsize=6, ncol=min(len(treatments), 2), loc="upper right", frameon=False)
 
 
 def main() -> None:
@@ -62,6 +69,8 @@ def main() -> None:
     ap.add_argument("--sites", type=int, default=6, help="Max sites to show")
     ap.add_argument("--min-years", type=int, default=3, help="Skip sites with fewer years")
     ap.add_argument("--top-treatments", type=int, default=4)
+    ap.add_argument("--no-variety", action="store_true",
+                    help="Don't mark where the crop variety changes over time")
     ap.add_argument("--out", default="era_multisite.png")
     args = ap.parse_args()
 
@@ -93,7 +102,8 @@ def main() -> None:
         ax = axes[idx // cols][idx % cols]
         s = df[df["site_id"] == site]
         crop = s["crop"].mode().iloc[0] if not s["crop"].mode().empty else ""
-        _panel(ax, s, args.variable, args.top_treatments)
+        variety_changes = [] if args.no_variety else variety_transitions(s)
+        _panel(ax, s, args.variable, args.top_treatments, variety_changes=variety_changes)
         ax.set_title(f"{site} — {crop}", fontsize=10)
     for j in range(n, rows * cols):
         axes[j // cols][j % cols].axis("off")
