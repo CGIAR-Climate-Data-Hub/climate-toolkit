@@ -40,6 +40,37 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+      # release-please bumps pyproject.toml but not uv.lock, so `uv sync --locked`
+      # in CI rejects the release PR. Regenerate uv.lock on that PR branch here.
+      # Non-fatal — this must never block the release/publish path.
+      - name: Sync uv.lock on the release PR
+        if: ${{ steps.release.outputs.pr }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PR: ${{ steps.release.outputs.pr }}
+        run: |
+          set -euo pipefail
+          branch="$(printf '%s' "$RELEASE_PR" | jq -r '.headBranchName')"
+          if [ -z "$branch" ] || [ "$branch" = "null" ]; then
+            echo "No release PR branch; nothing to sync."
+            exit 0
+          fi
+          git clone --depth 1 --branch "$branch" \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" relpr
+          cd relpr
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          uv lock
+          if git diff --quiet -- uv.lock; then
+            echo "uv.lock already in sync."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: sync uv.lock for release" -- uv.lock
+          git push origin "HEAD:${branch}"
+
   publish:
     name: Publish to PyPI
     needs: release-please
