@@ -1,0 +1,117 @@
+{
+  "measured_utc": "2026-11-02T18:32:43.636556+00:00",
+  "cold_seconds": 6.824943749699742,
+  "warm_seconds": 0.012828624807298183,
+  "rows": 5,
+  "extraction_calls": 1,
+  "annual_cache_files": 2,
+  "warm_provider_calls": 0,
+  "values_equal": true,
+  "values": [
+    {
+      "date": "2019-12-30",
+      "Tmax": 26.200000000000003,
+      "Tmin": 17.900000000000002
+    },
+    {
+      "date": "2019-12-31",
+      "Tmax": 26.200000000000003,
+      "Tmin": 16.7
+    },
+    {
+      "date": "2020-01-01",
+      "Tmax": 27.3,
+      "Tmin": 15.200000000000001
+    },
+    {
+      "date": "2020-01-02",
+      "Tmax": 26.5,
+      "Tmin": 16.2
+    },
+    {
+      "date": "2020-01-03",
+      "Tmax": 26.0,
+      "Tmin": 17.5
+    }
+  ],
+  "provenance": [
+    {
+      "source": "chirts_era5",
+      "backend": "huggingface",
+      "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "store": "https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/35669afbbd1c6ab84dcc496f2f95b7cbbf75867f/chirts-era5-daily.zarr",
+      "retrieved_at": "2026-11-02T18:32:39.658899+00:00",
+      "cache_schema_version": 2,
+      "estimated_source_chunk_bytes": 46080000,
+      "coverage": [
+        "1981-01-01T00:00:00",
+        "2026-10-21T00:00:00"
+      ],
+      "source_units": {
+        "Tmax": "degC",
+        "Tmin": "degC"
+      },
+      "output_units": {
+        "Tmax": "degC",
+        "Tmin": "degC"
+      },
+      "selected_cells": [
+        {
+          "site": "point",
+          "lat": -1.275,
+          "lon": 36.825
+        }
+      ],
+      "conversion": "CF scale/offset and fill decoded by xarray",
+      "window": [
+        "2019-12-30",
+        "2019-12-31"
+      ],
+      "backend_attempts": [
+        {
+          "backend": "huggingface",
+          "status": "success"
+        }
+      ]
+    },
+    {
+      "source": "chirts_era5",
+      "backend": "huggingface",
+      "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "store": "https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/35669afbbd1c6ab84dcc496f2f95b7cbbf75867f/chirts-era5-daily.zarr",
+      "retrieved_at": "2026-11-02T18:32:39.658899+00:00",
+      "cache_schema_version": 2,
+      "estimated_source_chunk_bytes": 46080000,
+      "coverage": [
+        "1981-01-01T00:00:00",
+        "2026-10-21T00:00:00"
+      ],
+      "source_units": {
+        "Tmax": "degC",
+        "Tmin": "degC"
+      },
+      "output_units": {
+        "Tmax": "degC",
+        "Tmin": "degC"
+      },
+      "selected_cells": [
+        {
+          "site": "point",
+          "lat": -1.275,
+          "lon": 36.825
+        }
+      ],
+      "conversion": "CF scale/offset and fill decoded by xarray",
+      "window": [
+        "2020-01-01",
+        "2020-01-03"
+      ],
+      "backend_attempts": [
+        {
+          "backend": "huggingface",
+          "status": "success"
+        }
+      ]
+    }
+  ]
+}

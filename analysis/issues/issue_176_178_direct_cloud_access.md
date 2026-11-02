@@ -7,6 +7,11 @@ Issues: [#176](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/
 [#177](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/177),
 [#178](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/178).
 
+Follow-up: [issue 179 investigation](issue_179_chc_backup_investigation.md) records
+CHC archive/subset-service limitations and bounded cross-year read batching.
+Missing years now load in batches of at most five years while keeping annual
+cache records, revision isolation and resumability after later-batch outages.
+
 ## Decisions
 
 - CHIRPS v3 final/RNL defaults to Dynamical, then Hugging Face, then permitted GEE.

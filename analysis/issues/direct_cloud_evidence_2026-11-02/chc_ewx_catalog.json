@@ -1,0 +1,395 @@
+{
+  "retrieved_on": "2026-11-02",
+  "url": "https://chc-ewx3.chc.ucsb.edu/api/rest/version/5.0/config",
+  "periods": [
+    "3month",
+    "month",
+    "pentad"
+  ],
+  "entries": {
+    "chirts-era5tmax_global_1_monthly_anom": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-31"
+      },
+      "end": {
+        "granule_start": "2026-09-01",
+        "granule_end": "2026-09-30"
+      }
+    },
+    "chirts-era5tmax_global_1_monthly_data": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-31"
+      },
+      "end": {
+        "granule_start": "2026-09-01",
+        "granule_end": "2026-09-30"
+      }
+    },
+    "chirts-era5tmax_global_1_monthly_mean": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "2025-10-31"
+      },
+      "end": {
+        "granule_start": "1980-12-01",
+        "granule_end": "2026-09-30"
+      }
+    },
+    "chirts-era5tmax_global_1_monthly_zscore": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-31"
+      },
+      "end": {
+        "granule_start": "2026-09-01",
+        "granule_end": "2026-09-30"
+      }
+    },
+    "chirts-era5tmax_global_3_monthly_anom": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "c",
+      "region": "global",
+      "period": "3month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-03-31"
+      },
+      "end": {
+        "granule_start": "2025-06-01",
+        "granule_end": "2025-08-31"
+      }
+    },
+    "chirts-era5tmax_global_3_monthly_data": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "3month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-03-31"
+      },
+      "end": {
+        "granule_start": "2025-06-01",
+        "granule_end": "2025-08-31"
+      }
+    },
+    "chirts-era5tmax_global_3_monthly_mean": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "c",
+      "region": "global",
+      "period": "3month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "2024-02-29"
+      },
+      "end": {
+        "granule_start": "1980-12-01",
+        "granule_end": "2025-08-31"
+      }
+    },
+    "chirts-era5tmax_global_3_monthly_zscore": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "c",
+      "region": "global",
+      "period": "3month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-03-31"
+      },
+      "end": {
+        "granule_start": "2025-06-01",
+        "granule_end": "2025-08-31"
+      }
+    },
+    "chirts-era5tmax_global_pentad_anom": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "pentad",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-05"
+      },
+      "end": {
+        "granule_start": "2026-10-21",
+        "granule_end": "2026-10-25"
+      }
+    },
+    "chirts-era5tmax_global_pentad_data": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "pentad",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-05"
+      },
+      "end": {
+        "granule_start": "2026-10-21",
+        "granule_end": "2026-10-25"
+      }
+    },
+    "chirts-era5tmax_global_pentad_mean": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "pentad",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "2025-01-20"
+      },
+      "end": {
+        "granule_start": "1980-12-26",
+        "granule_end": "2026-10-25"
+      }
+    },
+    "chirts-era5tmax_global_pentad_zscore": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "pentad",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-05"
+      },
+      "end": {
+        "granule_start": "2026-10-21",
+        "granule_end": "2026-10-25"
+      }
+    },
+    "chirts-era5tmin_global_1_monthly_anom": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-31"
+      },
+      "end": {
+        "granule_start": "2026-09-01",
+        "granule_end": "2026-09-30"
+      }
+    },
+    "chirts-era5tmin_global_1_monthly_data": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-31"
+      },
+      "end": {
+        "granule_start": "2026-09-01",
+        "granule_end": "2026-09-30"
+      }
+    },
+    "chirts-era5tmin_global_1_monthly_mean": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "mm",
+      "region": "global",
+      "period": "month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "2025-10-31"
+      },
+      "end": {
+        "granule_start": "1980-12-01",
+        "granule_end": "2026-09-30"
+      }
+    },
+    "chirts-era5tmin_global_1_monthly_zscore": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-31"
+      },
+      "end": {
+        "granule_start": "2026-09-01",
+        "granule_end": "2026-09-30"
+      }
+    },
+    "chirts-era5tmin_global_3_monthly_anom": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "c",
+      "region": "global",
+      "period": "3month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-03-31"
+      },
+      "end": {
+        "granule_start": "2025-06-01",
+        "granule_end": "2025-08-31"
+      }
+    },
+    "chirts-era5tmin_global_3_monthly_data": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "c",
+      "region": "global",
+      "period": "3month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-03-31"
+      },
+      "end": {
+        "granule_start": "2025-06-01",
+        "granule_end": "2025-08-31"
+      }
+    },
+    "chirts-era5tmin_global_3_monthly_mean": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "c",
+      "region": "global",
+      "period": "3month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "2024-02-29"
+      },
+      "end": {
+        "granule_start": "1980-12-01",
+        "granule_end": "2025-08-31"
+      }
+    },
+    "chirts-era5tmin_global_3_monthly_zscore": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "c",
+      "region": "global",
+      "period": "3month",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-03-31"
+      },
+      "end": {
+        "granule_start": "2025-06-01",
+        "granule_end": "2025-08-31"
+      }
+    },
+    "chirts-era5tmin_global_pentad_anom": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "pentad",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-05"
+      },
+      "end": {
+        "granule_start": "2026-10-21",
+        "granule_end": "2026-10-25"
+      }
+    },
+    "chirts-era5tmin_global_pentad_data": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "pentad",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-05"
+      },
+      "end": {
+        "granule_start": "2026-10-21",
+        "granule_end": "2026-10-25"
+      }
+    },
+    "chirts-era5tmin_global_pentad_mean": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "pentad",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "2025-01-20"
+      },
+      "end": {
+        "granule_start": "1980-12-26",
+        "granule_end": "2026-10-25"
+      }
+    },
+    "chirts-era5tmin_global_pentad_zscore": {
+      "dataType": "RASTER",
+      "published": true,
+      "units": "C",
+      "region": "global",
+      "period": "pentad",
+      "continuous": false,
+      "start": {
+        "granule_start": "1980-01-01",
+        "granule_end": "1980-01-05"
+      },
+      "end": {
+        "granule_start": "2026-10-21",
+        "granule_end": "2026-10-25"
+      }
+    }
+  }
+}

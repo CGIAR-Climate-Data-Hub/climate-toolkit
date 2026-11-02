@@ -404,3 +404,97 @@ def test_unconfigured_gee_fallback_preserves_all_attempts(tmp_path, fake_provide
     message = str(caught.value)
     assert all(provider in message for provider in ["dynamical:", "huggingface:", "gee:"])
     assert "Earth Engine project ID is required" in message
+
+
+def test_cross_year_load_reuses_source_chunks(tmp_path, monkeypatch):
+    """A chunk spanning New Year must be decoded once, not once per cache year."""
+    da = pytest.importorskip("dask.array")
+    dask = pytest.importorskip("dask")
+    pytest.importorskip("zarr")
+    reads = []
+    times = pd.date_range("2019-12-30", "2020-01-03")
+
+    @dask.delayed
+    def read_chunk():
+        reads.append(True)
+        return np.full((5, 2, 2), 8.0)
+
+    @contextmanager
+    def opened(source, backend, workers=1):
+        array = da.from_delayed(read_chunk(), shape=(5, 2, 2), dtype=float)
+        ds = xr.Dataset(
+            {"precip": (("time", "latitude", "longitude"), array, {"units": "mm"})},
+            coords={"time": times, "latitude": [-1.275, -1.225], "longitude": [36.825, 36.875]},
+        )
+        ds.precip.encoding["chunks"] = (5, 2, 2)
+        yield (
+            ds,
+            {"precipitation": "precip"},
+            {"revision": "v1", "source": source, "backend": backend},
+        )
+
+    monkeypatch.setattr(cloud, "open_provider", opened)
+    kwargs = dict(backend="huggingface", date_from=date(2019, 12, 30), date_to=date(2020, 1, 3))
+    cold = run(tmp_path, **kwargs)
+    assert len(reads) == 1
+    assert len(list(tmp_path.rglob("*.json"))) == 2
+    assert cold.precipitation.tolist() == [8.0] * 5
+    warm = run(tmp_path, **kwargs)
+    pd.testing.assert_frame_equal(cold, warm, check_exact=True)
+    assert len(reads) == 1
+
+
+def test_missing_year_groups_preserve_cached_year(tmp_path, fake_provider, monkeypatch):
+    kwargs = dict(backend="huggingface", date_from=date(2019, 12, 30), date_to=date(2021, 1, 3))
+    cold = run(tmp_path, **kwargs)
+    cached_2020 = None
+    for path in tmp_path.rglob("*.json"):
+        data = json.loads(json.loads(path.read_text())["payload"])
+        if data["request"]["start"] == "2020-01-01":
+            cached_2020 = (path, path.read_bytes())
+        else:
+            path.unlink()
+    original = cloud._extract
+    windows = []
+
+    def extract(*args):
+        windows.append((args[5], args[6]))
+        return original(*args)
+
+    monkeypatch.setattr(cloud, "_extract", extract)
+    resumed = run(tmp_path, **kwargs)
+    assert windows == [
+        (date(2019, 12, 30), date(2019, 12, 31)),
+        (date(2021, 1, 1), date(2021, 1, 3)),
+    ]
+    assert cached_2020[0].read_bytes() == cached_2020[1]
+    pd.testing.assert_frame_equal(cold, resumed, check_exact=True)
+
+
+def test_bounded_loads_save_progress_before_later_outage(tmp_path, fake_provider, monkeypatch):
+    monkeypatch.setattr(cloud, "MAX_LOAD_YEARS", 2)
+    original = cloud._extract
+    windows = []
+    fail = [True]
+
+    def extract(*args):
+        windows.append((args[5], args[6]))
+        if args[5].year == 2021 and fail[0]:
+            raise cloud.BackendUnavailable("later batch outage")
+        return original(*args)
+
+    monkeypatch.setattr(cloud, "_extract", extract)
+    kwargs = dict(backend="huggingface", date_from=date(2019, 12, 30), date_to=date(2021, 1, 3))
+    with pytest.raises(cloud.BackendUnavailable, match="later batch outage"):
+        run(tmp_path, **kwargs)
+    assert windows == [
+        (date(2019, 12, 30), date(2020, 12, 31)),
+        (date(2021, 1, 1), date(2021, 1, 3)),
+    ]
+    assert len(list(tmp_path.rglob("*.json"))) == 2
+    fail[0] = False
+    windows.clear()
+    frame = run(tmp_path, **kwargs)
+    assert windows == [(date(2021, 1, 1), date(2021, 1, 3))]
+    assert len(frame) == 371
+    assert len(list(tmp_path.rglob("*.json"))) == 3

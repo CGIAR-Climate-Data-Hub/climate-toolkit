@@ -27,6 +27,7 @@ from .multi_site import Site, load_sites, site_date_integrity_summary
 
 
 CACHE_VERSION = 2
+MAX_LOAD_YEARS = 5
 CAPABILITIES = {
     "chirps_v3_daily_rnl": {"precipitation": "precipitation"},
     "chirts_era5": {"max_temperature": "Tmax", "min_temperature": "Tmin"},
@@ -400,26 +401,42 @@ def _provider_fetch(
                     "use another backend, fewer dispersed sites, or explicitly raise CLIMATE_TOOLKIT_MAX_DECODED_BYTES"
                 )
             provenance["estimated_source_chunk_bytes"] = work
-            for i, (req, path) in enumerate(zip(requests_, paths)):
-                if (
-                    frames[i] is not None
-                    and frames[i].attrs["data_provenance"][0]["revision"] == provenance["revision"]
-                ):
-                    continue
+            # Load consecutive missing years together. HF source chunks span
+            # calendar boundaries; separate annual loads repeatedly transfer and
+            # decode those chunks. Bound batches to preserve progress on long
+            # jobs and limit selected-point memory, while retaining annual caches.
+            missing = [
+                i
+                for i, frame in enumerate(frames)
+                if frame is None
+                or frame.attrs["data_provenance"][0]["revision"] != provenance["revision"]
+            ]
+            runs = []
+            for i in missing:
+                if runs and i == runs[-1][-1] + 1 and len(runs[-1]) < MAX_LOAD_YEARS:
+                    runs[-1].append(i)
+                else:
+                    runs.append([i])
+            for run in runs:
                 frame, details = _extract(
                     ds,
                     names,
                     source,
                     sites,
                     variables,
-                    date.fromisoformat(req["start"]),
-                    date.fromisoformat(req["end"]),
+                    date.fromisoformat(requests_[run[0]]["start"]),
+                    date.fromisoformat(requests_[run[-1]]["end"]),
                     workers,
                 )
-                info = {**provenance, **details, "window": [req["start"], req["end"]]}
-                frame.attrs["data_provenance"] = [info]
-                _write_cache(path, req, frame, info)
-                frames[i] = frame
+                for i in run:
+                    req, path = requests_[i], paths[i]
+                    annual = frame.loc[frame.date.between(req["start"], req["end"])].reset_index(
+                        drop=True
+                    )
+                    info = {**provenance, **details, "window": [req["start"], req["end"]]}
+                    annual.attrs["data_provenance"] = [info]
+                    _write_cache(path, req, annual, info)
+                    frames[i] = annual
     infos = [f.attrs["data_provenance"][0] for f in frames]
     combined = pd.concat(frames, ignore_index=True)
     if not site_date_integrity_summary(combined, start, end, sites)["complete"]:

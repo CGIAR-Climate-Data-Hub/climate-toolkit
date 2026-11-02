@@ -343,6 +343,10 @@ Immutable upstream revision lives in the envelope: a fully cached request works
 offline; incomplete requests reuse chunks only when revision matches current
 provider metadata. Refresh replaces records explicitly. Old GEE caches remain
 separate. No provider/day stitching or implicit revision mixing is allowed.
+Missing consecutive years are extracted together in batches of at most five years
+to share source chunks across year boundaries. Each completed batch persists
+separate annual records; later failures retain that progress. Cached intervening
+years are not reread, and upstream revision changes still invalidate reuse.
 
 Direct frames carry `data_provenance`, `backend_attempts` and `quality_control`
 attrs. Provenance records revision, retrieval time, actual coverage, selected grid

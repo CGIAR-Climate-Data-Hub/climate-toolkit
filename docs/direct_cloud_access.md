@@ -182,6 +182,9 @@ climate-toolkit climatology --no-gee --source paired \
   was a fallback. An interrupted read can reuse matching-revision chunks; a new
   revision causes replacement rather than mixing revisions. `refresh_cache=True`
   opts into current upstream data. Existing GEE caches are separate and untouched.
+  Consecutive missing years load in batches of at most five years, sharing source
+  chunks across calendar boundaries. Each completed batch saves separate annual
+  records, so a later outage can resume from those records at the same revision.
 - Fetch and dataset-comparison CSV/JSON exports write a `.metadata.json` sidecar.
   Statistics, period comparisons, hazard assessments and station diagnostics carry
   additive `data_provenance` fields. Cache inventory includes `direct_cloud`.
@@ -198,6 +201,12 @@ Ordinary tests use offline fixtures; live benchmarking is opt-in.
 CHIRTS-ERA5 currently has **one integrated direct provider**. CHC GeoTIFF/NetCDF
 archives are independent originals, but daily files and observed partial-read
 failures need further work before they qualify as efficient automatic backups.
+The 2026-11-02 probe found a rejected current-year Tmax NetCDF and a Tmin file
+ending in September; the EWX catalogue exposed only pentadal/monthly aggregates.
+Historical NetCDF point reads also exceeded the short-query performance target.
+Reproduce bounded range probes with `scripts/probe_chc_backup.py` (requires the
+investigation-only `h5py` dependency). See the
+[backup investigation](../analysis/issues/issue_179_chc_backup_investigation.md).
 Tracked in [#179](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/179);
 credential-free ERA5-Land companion variables are tracked in
 [#180](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/180).
