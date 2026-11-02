@@ -818,7 +818,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertIn("tmin", frame.columns)
         self.assertIn("humidity", frame.columns)
 
-    def test_get_climate_data_auto_reports_chirts_limit_after_2016(self):
+    def test_get_climate_data_auto_reports_upstream_failure_after_2016(self):
         def fake_call_preprocess(*args, **kwargs):
             raise RuntimeError("upstream unavailable")
 
@@ -836,8 +836,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         finally:
             stats._call_preprocess = orig_call
 
-        self.assertIn("CHIRTS daily coverage ends", str(ctx.exception))
-        self.assertIn("2016", str(ctx.exception))
+        self.assertIn("upstream unavailable", str(ctx.exception))
 
     def test_analyze_climate_statistics_rejects_terraclimate(self):
         result = stats.analyze_climate_statistics(

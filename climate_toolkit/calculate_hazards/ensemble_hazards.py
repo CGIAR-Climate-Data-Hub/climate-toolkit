@@ -728,7 +728,9 @@ def calculate_ensemble(crop: str, lat: float, lon: float,
             future_map = {}
             with ProcessPoolExecutor(max_workers=effective_model_workers) as executor:
                 for task in tasks:
-                    future = executor.submit(_run_hazard_projection_task, task)
+                    from climate_toolkit.fetch_data.backend_policy import run_with_backend_policy, resolve_policy
+                    from functools import partial
+                    future = executor.submit(partial(run_with_backend_policy, _run_hazard_projection_task, policy=resolve_policy()), task)
                     future_map[future] = (task["scenario"], task["model"])
                 for done, future in enumerate(as_completed(future_map), 1):
                     scenario, model = future_map[future]

@@ -267,7 +267,10 @@ uv run climate-toolkit-hazards-ensemble Maize --location "-1.286,36.817" \
 - **"auto"/"paired" source** resolves to `chirps_v3_daily_rnl` (precip) +
   `agera_5` (temperature) for the historical daily path.
 - **CHIRPS naming**: v3 is `chirps_v3_daily_rnl` (recommended); the older
-  `chirps_v2` ended in 2016. Prefer v3 or AgERA5 for reliability.
+  `chirps_v2` remains a separate product. The 2016 end date belongs to legacy
+  CHIRTS-daily temperature. Prefer `chirts_era5` for new temperature work.
+- **No-GEE access**: install the cloud extra and use `--no-gee`; historical
+  `auto` then pairs CHIRPS v3 with CHIRTS-ERA5. See [direct access](direct_cloud_access.md).
 - **First GEE call** in a session is slow (auth handshake); repeat runs reuse
   the cache.
 - **Flag conventions differ per tool** — run any command with `--help` to

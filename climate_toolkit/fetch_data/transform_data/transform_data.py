@@ -159,6 +159,9 @@ def default_variables():
 
 
 def default_variables_for_source(source_name: str):
+    from ..direct_cloud import CAPABILITIES
+    if source_name in CAPABILITIES:
+        return [ClimateVariable[name] for name in CAPABILITIES[source_name]]
     if normalize_climate_dataset_name(source_name) in {"ghcn_daily", "gsod"}:
         return [
             ClimateVariable.precipitation,
@@ -242,6 +245,13 @@ def transform_data(
     )
 
     raw_df = src.download()
+
+    if raw_df.attrs.get("quality_control", {}).get("flagged_rows", 0):
+        from ..direct_cloud import DataQualityError
+        raise DataQualityError(
+            f"{source_name}: invalid/missing source values; inspect stage='raw'. "
+            f"QC: {raw_df.attrs['quality_control']}"
+        )
 
     mappings = load_variable_mappings().get(dataset.name, {})
     if not mappings:

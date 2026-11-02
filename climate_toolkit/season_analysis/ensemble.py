@@ -588,7 +588,9 @@ def run_ensemble(lat, lon, start_year, end_year, scenarios, models, fixed_arg=No
                 future_map = {}
                 with ProcessPoolExecutor(max_workers=effective_model_workers) as executor:
                     for task in tasks:
-                        future = executor.submit(_run_season_model_task, task)
+                        from climate_toolkit.fetch_data.backend_policy import run_with_backend_policy, resolve_policy
+                        from functools import partial
+                        future = executor.submit(partial(run_with_backend_policy, _run_season_model_task, policy=resolve_policy()), task)
                         future_map[future] = task["model"]
                     for done, future in enumerate(as_completed(future_map), 1):
                         model = future_map[future]

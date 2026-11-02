@@ -87,6 +87,8 @@ def initialize_earth_engine(
     project_id: str | None = None,
     ee_opt_url: str = DEFAULT_EE_OPT_URL,
 ) -> str:
+    from ...backend_policy import require_gee_allowed
+    require_gee_allowed()
     resolved_project_id = infer_ee_project_id(project_id)
     ee_module.Initialize(project=resolved_project_id, opt_url=ee_opt_url)
     return resolved_project_id

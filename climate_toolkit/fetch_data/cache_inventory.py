@@ -17,7 +17,7 @@ from .multi_site import CACHE_COORD_DECIMALS, normalize_cache_coord
 
 
 DEFAULT_CACHE_ROOT = Path("outputs/cache")
-SUPPORTED_DATASETS = ("nex_gddp_xee", "nex_gddp_batch", "soil_grid", "hwsd")
+SUPPORTED_DATASETS = ("nex_gddp_xee", "nex_gddp_batch", "soil_grid", "hwsd", "direct_cloud")
 
 
 def _normalize_dataset_filter(dataset: str | None) -> tuple[str, ...]:
@@ -179,6 +179,10 @@ def iter_cache_inventory(
         dataset_root = root / dataset_name
         if not dataset_root.exists():
             continue
+        if dataset_name == "direct_cloud":
+            for path, manifest in _direct_manifests(dataset_root):
+                yield from _site_rows_from_manifest(dataset=dataset_name, manifest_path=path, manifest=manifest, data_path=path)
+            continue
         for manifest_path in sorted(dataset_root.rglob("*.manifest.json")):
             manifest = _safe_read_manifest(manifest_path)
             if manifest is None:
@@ -203,6 +207,10 @@ def iter_manifest_inventory(
         dataset_root = root / dataset_name
         if not dataset_root.exists():
             continue
+        if dataset_name == "direct_cloud":
+            for path, manifest in _direct_manifests(dataset_root):
+                yield _manifest_record_from_manifest(dataset=dataset_name, manifest_path=path, manifest=manifest, data_path=path)
+            continue
         for manifest_path in sorted(dataset_root.rglob("*.manifest.json")):
             manifest = _safe_read_manifest(manifest_path)
             if manifest is None:
@@ -214,6 +222,31 @@ def iter_manifest_inventory(
                 manifest=manifest,
                 data_path=data_path,
             )
+
+
+def _direct_manifests(root):
+    from .direct_cloud import _read_cache
+    from .multi_site import Site, site_date_integrity_summary
+    from datetime import date
+    for path in sorted(root.rglob("*.json")):
+        try:
+            payload = json.loads(json.loads(path.read_text())["payload"])
+            request = payload["request"]
+            frame = _read_cache(path, request)
+            if frame is None:
+                continue
+            info = payload["provenance"]
+            sites = [Site(*s) for s in request["sites"]]
+            integrity = site_date_integrity_summary(frame, date.fromisoformat(request["start"]), date.fromisoformat(request["end"]), sites)
+            yield path, {
+                "selected_version": f"{request['source']}/{request['backend']}@{info['revision']}",
+                "start_date": request["start"], "end_date": request["end"],
+                "bands": request["variables"], "cache_schema_version": request["schema"],
+                "integrity": integrity, "site_count": len(sites),
+                "sites": [{"name": s.name, "lat": s.lat, "lon": s.lon} for s in sites],
+            }
+        except (KeyError, ValueError, OSError, TypeError):
+            continue
 
 
 def cache_inventory(

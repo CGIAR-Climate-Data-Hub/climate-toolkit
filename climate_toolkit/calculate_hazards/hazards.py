@@ -2451,7 +2451,7 @@ def calculate_hazards(
         detection_source = source
         print(f"Detecting growing season for {crop_name} at ({lat}, {lon})")
         if detection_source == 'auto':
-            print("Climate data source: auto (chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts)")
+            print("Climate data source: auto (chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5)")
         else:
             print(f"Climate data source: {detection_source}")
         start_year = datetime.fromisoformat(date_from).year
@@ -2662,6 +2662,7 @@ def calculate_hazards(
             'crop':              crop_name,
             'location':          {'latitude': lat, 'longitude': lon},
             'season_info':       entry['season_info'],
+            'data_provenance':   entry['df'].attrs.get('data_provenance', []),
             'thi_profile':       thi_profile,
             'soil_parameters':   soil_parameters,
             'water_balance_parameters': crop_water_balance,
@@ -3109,7 +3110,7 @@ def main() -> int:
             "  imerg         -- precipitation-only; use via paired\n"
             "  tamsat        -- precipitation-only; use via paired\n"
             "  paired        -- explicit precip+temp pairing via --precip-source and --temp-source\n"
-            "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts\n"
+            "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5\n"
             "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
             "Recommended direct single-source fallback: agera_5.\n"
             "Note: auto-detection (no --season-* flag) now honors this source\n"

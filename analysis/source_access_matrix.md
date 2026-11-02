@@ -1,84 +1,51 @@
-# Source Access Matrix
+# Source access matrix
 
-Audit date: 2026-06-10
+Audit: 2026-11-02. Narrow routing audit; architecture authority remains
+[package_architecture_summary.md](package_architecture_summary.md).
+This replaces stale June statements about synthetic NEX and interactive GEE auth.
 
-This matrix describes current package behavior from actual `SourceData`
-dispatch and source implementation status, not aspirational module docstrings.
+| Source | Actual dispatched backend | GEE required for uncached fetch? | Backup/status |
+| --- | --- | --- | --- |
+| `chirps_v3_daily_rnl` | Dynamical final/RNL Icechunk → Hugging Face Zarr → permitted GEE/Xee | No with Python 3.12+ cloud extra | Two direct providers; explicit selection supported; complete cache preferred |
+| `chirts_era5` | Hugging Face Zarr | No with Python 3.12+ cloud extra | One provider; original CHC backup investigation remains open |
+| `chirts` | GEE/Xee CHIRTS-daily | Yes | Deprecated compatibility only; use `chirts_era5` for new temperature workflows |
+| `chirps_v2` / `chirps` | GEE/Xee | Yes | No integrated direct backup; v3 is a different scientific source |
+| `agera_5` | Thin adapter over GEE/Xee `ECMWF/ERA5_LAND/DAILY_AGGR` | Yes | Product is ERA5-Land, despite source key; no integrated direct backup |
+| `era_5` | Thin adapter over GEE/Xee `ECMWF/ERA5/DAILY` | Yes | Normal dispatch does not use CDS |
+| `nex_gddp` | Real NEX-GDDP GEE/Xee single/batch paths | Yes | Not synthetic; version/source investigation #1 |
+| `cmip_6` | GEE/Xee | Yes | Keep distinct from the richer NEX workflow; no new backup |
+| `terraclimate`, `imerg` | GEE/Xee | Yes | Standalone source modules do not establish alternate runtime routes |
+| `soil_grid`, `hwsd` | Static shared GEE downloader | Yes | No integrated independent backup |
+| `nasa_power` | NASA POWER HTTP API | No | Existing direct path; Zarr investigation #54 |
+| `tamsat` | JASMIN daily NetCDF | No | Existing optional path; earlier failures/slow access not resolved in this change |
+| `ghcn_daily`, `gsod` | NOAA direct downloads | No | Station-specific products; not substitutes for gridded datasets |
 
-## Current Routing Basis
+## Policy and remaining gaps
 
-Primary dispatch:
+Single-site and multi-site CHIRPS/CHIRTS requests share direct dispatch. Historical
+`auto` with GEE disabled chooses CHIRPS v3 + CHIRTS-ERA5. Other products keep their
+existing routes and fail clearly when GEE is prohibited. GEE initialization is
+non-interactive; users must configure credentials/project separately.
 
-- `climate_toolkit/fetch_data/source_data/source_data.py`
+Do not confuse CHIRTS-ERA5 with AgERA5 or ERA5-Land. New access hosts do not make
+scientific products interchangeable. No universal redundancy is claimed.
 
-Shared Earth Engine path:
+Priority next investigations:
 
-- `climate_toolkit/fetch_data/source_data/sources/gee.py`
+1. Independent CHIRTS-ERA5 original archive access ([#179](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/179)): sample Tmax ranged reads work,
+   but CHIRPS/Tmin raster reads failed in this environment. Establish robust sparse
+   reads or a supported subset service before automatic fallback.
+2. Credential-free **ERA5-Land** companion variables ([#180](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/180)), preserving daily aggregation,
+   units and grid identity. CDS is a possible authenticated route, not a proven
+   anonymous backup; cloud archives need identity and efficiency validation.
+3. Reuse #54 for NASA POWER Zarr and #1 for NEX version sourcing. Do not substitute
+   a reanalysis or projection product merely because its host is accessible.
 
-Key observation:
+## Code evidence and validation
 
-- many advertised datasets route through shared Earth Engine downloader
-- shared Earth Engine downloader calls `ee.Authenticate()` and
-  `ee.Initialize(project=os.getenv("GCP_PROJECT_ID"))`
-- therefore many "normal" local package uses currently require Earth Engine
-  setup plus Google Cloud project ID
-
-## Matrix
-
-| Source | Current backend actually used | Real data today? | Needs GEE auth + `GCP_PROJECT_ID`? | Local-open friendly? | Status / note | Recommendation |
-|---|---|---:|---:|---:|---|---|
-| `nasa_power` | direct NASA POWER HTTP API | Yes | No | Yes | Best current local-open source | Keep as baseline local source |
-| `tamsat` | direct JASMIN daily NetCDF download | Partly | No | Maybe technically, but not product-ready | Kept for completeness and Africa-focused precipitation comparison, but live runs showed slow access plus intermittent JASMIN SSL/download failures | Keep as optional fragile comparison source, not default user path |
-| `nex_gddp` | synthetic placeholder module | No | No | Not meaningful | Current tests earlier in session hit this path, not live NEX | Do not present as real data source |
-| `nex_gddp_xee` | Xee + Earth Engine PoC | Intended yes, not live-validated here | Yes | No | R&D only | Keep backend/operator R&D only |
-| `chirps_v2` | shared Earth Engine downloader | Yes if EE works | Yes | No | Advertised as standard source, but local setup burden hidden | Either document burden or build direct non-GEE backend |
-| `chirts` | shared Earth Engine downloader | Yes if EE works | Yes | No | Same issue as CHIRPS | Same |
-| `agera_5` | shared Earth Engine downloader | Yes if EE works | Yes | No | Same issue | Same |
-| `era_5` | shared Earth Engine downloader | Yes if EE works | Yes | No | Despite separate `era_5.py`, normal dispatch does not use CDS client | Decide: explicit `era_5_gee` vs real CDS-backed local path |
-| `imerg` | shared Earth Engine downloader | Yes if EE works | Yes | No | Despite separate `imerg.py`, normal dispatch uses GEE path | Same split needed |
-| `terraclimate` | shared Earth Engine downloader | Yes if EE works | Yes | No | Despite separate direct-download module, dispatch uses GEE | Same split needed |
-| `soil_grid` | shared Earth Engine downloader | Yes if EE works | Yes | No | Static GEE path | Keep only if advanced mode accepted |
-| `cmip_6` | shared Earth Engine downloader | Probably yes if EE works | Yes | No | Not common user-friendly local source as currently wired | Treat as advanced/operator mode |
-
-## Immediate Conclusions
-
-1. Current local-open source set is almost only `nasa_power`.
-2. Current package README overstates frictionless local accessibility across
-   many sources.
-3. Real `nex_gddp` access does not create this problem from zero; it exposes a
-   problem already present across much of source layer.
-4. If package remains local-first, source access needs explicit product tiers:
-   - local-open
-   - local-advanced-with-auth
-   - deprecated / unsupported
-
-## Suggested Product Framing
-
-### Local-open
-
-- `nasa_power`
-- maybe future direct-access sources once implemented and tested
-
-### Local-advanced
-
-- Earth Engine-backed sources requiring auth + project ID
-- `chirps_v2`, `chirts`, `agera_5`, `era_5`, `imerg`, `terraclimate`,
-  `soil_grid`, `cmip_6`
-- future real `nex_gddp` if kept local
-
-### Unsupported / R&D
-
-- current synthetic `nex_gddp`
-- `nex_gddp_xee` PoC
-- `tamsat` as optional fragile comparison source, not recommended default
-
-## Code Evidence
-
-- Dispatch to shared GEE path:
-  - `climate_toolkit/fetch_data/source_data/source_data.py`
-- Shared GEE initialization:
-  - `climate_toolkit/fetch_data/source_data/sources/gee.py`
-- Current synthetic NEX placeholder:
-  - `climate_toolkit/fetch_data/source_data/sources/nex_gddp.py`
-- Current Xee PoC:
-  - `climate_toolkit/fetch_data/source_data/sources/nex_gddp_xee.py`
+- Dispatch: `fetch_data/fetch_data.py`, `fetch_data/source_data/source_data.py`.
+- Direct adapters/policy: `fetch_data/direct_cloud.py`, `fetch_data/backend_policy.py`.
+- Product IDs: `fetch_data/source_data/sources/utils/config.yaml`.
+- GEE wrappers: `agera_5.py`, `era_5.py`, `gee_xee.py`, `nex_gddp_xee.py`.
+- [Direct access guide](../docs/direct_cloud_access.md).
+- [Implementation/benchmark evidence](issues/issue_176_178_direct_cloud_access.md).

@@ -111,7 +111,7 @@ BASELINE_DEFAULT_PERIOD: Tuple[int, int] = (1991, 2020)
 MIN_LTM_YEARS:           int            = 20
 CHIRTS_LAST_YEAR:        int            = 2016
 PRECIP_ONLY_SOURCES = {'chirps', 'chirps_v2', 'chirps_v3_daily_rnl', 'imerg', 'tamsat'}
-TEMP_ONLY_SOURCES = {'chirts'}
+TEMP_ONLY_SOURCES = {'chirts', 'chirts_era5'}
 PAIRED_SOURCE_SENTINEL = 'paired'
 DEFAULT_AUTO_PRECIP_SOURCE = 'chirps_v3_daily_rnl'
 DEFAULT_AUTO_TEMP_SOURCE = 'agera_5'
@@ -165,9 +165,9 @@ def _validate_source_compatibility(
             "terraclimate is monthly-cadence, but climate_statistics.statistics "
             "requires daily data for ET0, water balance, and season windows."
         )
-    if source_lc == 'chirts':
+    if source_lc in TEMP_ONLY_SOURCES:
         return (
-            "chirts provides temperature only and is not supported in the current "
+            f"{source_lc} provides temperature only and is not supported in the current "
             "single-source interface for precipitation-driven season statistics. "
             "Use a paired precip+temp workflow or another full daily source."
         )
@@ -237,10 +237,12 @@ def _call_preprocess(
     workers: int = 1,
 ):
     """Single preprocess_data call -- isolates the kwargs handling."""
+    from climate_toolkit.fetch_data.direct_cloud import CAPABILITIES
+    selected_variables = [ClimateVariable[v] for v in CAPABILITIES[source]] if source in CAPABILITIES else CLIMATE_VARS
     kwargs = dict(
         source=source,
         location_coord=(lat, lon),
-        variables=CLIMATE_VARS,
+        variables=selected_variables,
         date_from=date_from,
         date_to=date_to,
         model=model,
@@ -331,6 +333,8 @@ def _fetch_paired_sources(
             f"No overlapping daily records between precip_source='{precip_source}' "
             f"and temp_source='{temp_source}'."
         )
+    from climate_toolkit.fetch_data.backend_policy import merge_provenance
+    merged.attrs["data_provenance"] = merge_provenance(precip_df, temp_df)
     return merged
 
 
@@ -338,8 +342,15 @@ def _fetch_auto(lat, lon, date_from, date_to, ee_project_id=None, workers: int =
     """
     Default historical path:
     try CHIRPS v3 Daily RNL precipitation + AgERA5 companion variables first,
-    then AgERA5 alone, then ERA5, then legacy CHIRPS v2 + CHIRTS fallback.
+    then AgERA5 alone, then ERA5, then CHIRPS v3 + CHIRTS-ERA5. With GEE disabled, use the direct pair.
     """
+    from climate_toolkit.fetch_data.backend_policy import resolve_policy
+    from climate_toolkit.fetch_data.direct_cloud import DataQualityError
+    if not resolve_policy().allow_gee:
+        return _fetch_paired_sources(
+            lat, lon, date_from, date_to, DEFAULT_AUTO_PRECIP_SOURCE, "chirts_era5",
+            ee_project_id=ee_project_id, workers=workers,
+        )
     try:
         pair_kwargs = {"workers": workers} if workers != 1 else {}
         return _fetch_paired_sources(
@@ -352,6 +363,8 @@ def _fetch_auto(lat, lon, date_from, date_to, ee_project_id=None, workers: int =
             ee_project_id=ee_project_id,
             **pair_kwargs,
         )
+    except DataQualityError:
+        raise
     except Exception:
         pass
 
@@ -369,22 +382,14 @@ def _fetch_auto(lat, lon, date_from, date_to, ee_project_id=None, workers: int =
                     ee_project_id,
                     **preprocess_kwargs,
                 )
+        except DataQualityError:
+            raise
         except Exception:
             continue
 
-    if date_to.year > CHIRTS_LAST_YEAR:
-        raise RuntimeError(
-            "auto fallback exhausted default CHIRPS v3 Daily RNL + AgERA5 pair, "
-            "AgERA5, and ERA5, and legacy chirps_v2+chirts is unavailable after "
-            f"{CHIRTS_LAST_YEAR} because CHIRTS daily coverage ends there."
-        )
-    return _fetch_chirps_chirts(
-        lat,
-        lon,
-        date_from,
-        date_to,
-        ee_project_id,
-        workers,
+    return _fetch_paired_sources(
+        lat, lon, date_from, date_to, DEFAULT_AUTO_PRECIP_SOURCE, "chirts_era5",
+        ee_project_id=ee_project_id, workers=workers,
     )
 
 
@@ -439,7 +444,7 @@ def get_climate_data(
     Fetch all variables for [start_date, end_date] from the given source.
     Source handling
     ---------------
-      - 'auto'              : tries chirps_v3_daily_rnl + agera_5, then agera_5, then era_5, then chirps_v2+chirts fallback
+      - 'auto'              : tries chirps_v3_daily_rnl + agera_5, then agera_5, then era_5, then chirps_v3_daily_rnl+chirts_era5 fallback
       - 'paired'            : merges explicit precip_source + temp_source
       - 'chirps_v2+chirts'  : merges CHIRPS v2 precip + CHIRTS temperature
       - any other string    : passed straight to preprocess_data (agera_5, era_5, nasa_power, nex_gddp, chirps_v2, chirts, …)
@@ -473,7 +478,7 @@ def get_climate_data(
         )
     elif source_lc == 'auto':
         if verbose:
-            print("  [source] auto -> chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts")
+            print("  [source] auto -> chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5")
         auto_kwargs = {"workers": workers} if workers != 1 else {}
         df = _fetch_auto(lat, lon, date_from, date_to, ee_project_id, **auto_kwargs)
     elif source_lc in {'chirps+chirts', 'chirps_v2+chirts'}:
@@ -2134,12 +2139,6 @@ def analyze_climate_statistics(
         )
     except ValueError as exc:
         return {"error": str(exc)}
-    human_heat_bundle = build_human_heat_source_bundle(
-        source=source,
-        precip_source=precip_source,
-        temp_source=temp_source,
-        custom_station_file=custom_station_file,
-    )
     calendar_system = str(calendar_system).lower()
     if calendar_system not in CALENDAR_SYSTEM_CHOICES:
         return {
@@ -2314,6 +2313,10 @@ def analyze_climate_statistics(
                 f"period={fetch_start}..{fetch_end}: {type(exc).__name__}: {exc}"
             )
         }
+    human_heat_bundle = build_human_heat_source_bundle(
+        source=source, precip_source=precip_source, temp_source=temp_source,
+        custom_station_file=custom_station_file, frame=df,
+    )
     fetch_elapsed = perf_counter() - fetch_started
     print(f"  Retrieved {len(df)} days in {_format_elapsed(fetch_elapsed)}, "
           f"columns={list(df.columns)}")
@@ -2560,6 +2563,7 @@ def analyze_climate_statistics(
         'precip_source':       normalize_climate_dataset_name(precip_source),
         'temp_source':         normalize_climate_dataset_name(temp_source),
         'human_heat_bundle':   human_heat_bundle,
+        'data_provenance':     df.attrs.get('data_provenance', []),
         'crop_name':           crop_name,
         'thi_profile':         thi_profile,
         'calendar_source':     calendar_source,

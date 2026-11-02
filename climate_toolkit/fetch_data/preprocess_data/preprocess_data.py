@@ -180,6 +180,13 @@ def preprocess_transformed_data(
     group_columns=None,
     verbose: bool = True,
 ) -> pd.DataFrame:
+    if transformed_df.attrs.get("data_provenance") and source in {"chirts_era5", "chirps_v3_daily_rnl"}:
+        # Direct adapters decode units and validate before this stage. Preserve
+        # source precision and nodata instead of interpolating or converting twice.
+        if transformed_df.attrs.get("quality_control", {}).get("flagged_rows", 0):
+            from ..direct_cloud import DataQualityError
+            raise DataQualityError(f"{source}: invalid source values; inspect raw data")
+        return transformed_df.copy()
     if transformed_df.empty:
         if verbose:
             print("No data retrieved from source")

@@ -42,6 +42,14 @@ dependencies = [
   "xee>=0.1,<0.2",
 ]
 
+[project.optional-dependencies]
+cloud = [
+  "zarr>=3,<4; python_version >= '3.12'",
+  "icechunk>=2.3,<3; python_version >= '3.12'",
+  "fsspec[http]>=2025.3; python_version >= '3.12'",
+  "dask[array]>=2025.3; python_version >= '3.12'",
+]
+
 [dependency-groups]
 dev = [
   "build",

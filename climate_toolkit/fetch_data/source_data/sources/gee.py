@@ -44,6 +44,8 @@ def _ensure_gee_initialized() -> None:
     Engine setup); this matches how the Xee path already initializes. If Earth
     Engine is not set up, raise a clear, actionable error instead.
     """
+    from ...backend_policy import require_gee_allowed
+    require_gee_allowed()
     global _GEE_READY
     if _GEE_READY:
         return

@@ -60,6 +60,7 @@ class ClimateDataset(Enum):
     nasa_power = auto()
     tamsat = auto()
     chirts = auto()
+    chirts_era5 = auto()
     soil_grid = auto()
     hwsd = auto()
     ghcn_daily = auto()

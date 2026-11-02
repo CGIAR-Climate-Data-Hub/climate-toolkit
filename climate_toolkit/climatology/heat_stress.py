@@ -119,6 +119,7 @@ _THI_SOURCE_SUPPORT = {
     "imerg": "not supported: precipitation-only source",
     "tamsat": "not supported: no humidity data",
     "chirts": "not supported: temperature-only source",
+    "chirts_era5": "not supported: temperature-only source",
 }
 
 
