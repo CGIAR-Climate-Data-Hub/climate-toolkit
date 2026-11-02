@@ -10,7 +10,7 @@ Detection: delegates to seasons.py building blocks (add_et0, detect_onset_cessat
 parse_fixed_seasons, check_humid) so behaviour is identical to seasons.py:
     Per reference year, a 1.5-year window is sliced from the master DataFrame so seasons crossing the year boundary are captured. After detection,
     seasons are reassigned to onset year, filtered to MAM/OND windows for equatorial climates, and de-duplicated.
-Data sources accepted: agera_5, era_5, nasa_power, nex_gddp, auto, paired, and legacy chirps_v2+chirts / chirps_v2 paths. Legacy alias `chirps` still works. Precipitation-only sources such as chirps_v3_daily_rnl, imerg, and tamsat should be used through paired mode with a temperature partner. NEX-GDDP requires --model and --scenario. Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus AgERA5 companion variables.
+Data sources accepted: agera_5, era_5, nasa_power, nex_gddp, auto, paired, and legacy chirps_v2+chirts / chirps_v2 paths. Legacy alias `chirps` still works. Precipitation-only sources such as chirps_v3_daily_rnl, imerg, and tamsat should be used through paired mode with a temperature partner. NEX-GDDP requires --model and --scenario. Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus ERA5-Land companion variables.
 
 Dependencies: pandas, numpy, climate_toolkit (preprocess_data, seasons.py)
 """
@@ -189,7 +189,7 @@ def _validate_source_compatibility(
         return (
             "chirps_v3_daily_rnl provides precipitation only and is not supported "
             "in the current single-source interface. Use --source auto for the "
-            "default CHIRPS v3 Daily RNL + AgERA5 path, or use paired sources "
+            "default CHIRPS v3 Daily RNL + ERA5-Land path, or use paired sources "
             "explicitly."
         )
     if source_lc in {'chirps+chirts', 'chirps_v2+chirts'} and end_year > CHIRTS_LAST_YEAR:
@@ -341,8 +341,8 @@ def _fetch_paired_sources(
 def _fetch_auto(lat, lon, date_from, date_to, ee_project_id=None, workers: int = 1):
     """
     Default historical path:
-    try CHIRPS v3 Daily RNL precipitation + AgERA5 companion variables first,
-    then AgERA5 alone, then ERA5, then CHIRPS v3 + CHIRTS-ERA5. With GEE disabled, use the direct pair.
+    try CHIRPS v3 Daily RNL precipitation + ERA5-Land companion variables first,
+    then ERA5-Land alone, then ERA5, then CHIRPS v3 + CHIRTS-ERA5. With GEE disabled, use the direct pair.
     """
     from climate_toolkit.fetch_data.backend_policy import resolve_policy
     from climate_toolkit.fetch_data.direct_cloud import DataQualityError
@@ -1932,7 +1932,7 @@ def analyze_climate_statistics(
     source : str
         Daily climate data source. Common choices:
 
-        - ``'agera_5'`` : AgERA5 (recommended single-source historical).
+        - ``'agera_5'`` : ERA5-Land (recommended single-source historical).
         - ``'era_5'`` : ERA5.
         - ``'nasa_power'`` : NASA POWER (no credentials required).
         - ``'nex_gddp'`` : NEX-GDDP-CMIP6 projections; use with
@@ -2107,7 +2107,7 @@ def analyze_climate_statistics(
 
     Examples
     --------
-    Seasonal climatology for maize in Nairobi, Kenya from AgERA5
+    Seasonal climatology for maize in Nairobi, Kenya from ERA5-Land
     (requires ``earthengine authenticate`` and ``GCP_PROJECT_ID``;
     use ``source='nasa_power'`` for a credential-free run):
 

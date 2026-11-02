@@ -5,10 +5,10 @@ Applies the Hargreaves ET0 method to identify planting season onset and cessatio
 based on whether precipitation meets or exceeds 50% of reference evapotranspiration.
 
 Data source priority:
-    Historical : CHIRPS v3 Daily RNL + AgERA5 -> AgERA5 -> ERA5 -> CHIRPS v3 + CHIRTS-ERA5
+    Historical : CHIRPS v3 Daily RNL + ERA5-Land -> ERA5-Land -> ERA5 -> CHIRPS v3 + CHIRTS-ERA5
 User guidance:
-    Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus AgERA5 temperature.
-    Prefer AgERA5 for direct single-source historical daily runs. Keep ERA5 as secondary option.
+    Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus ERA5-Land temperature.
+    Prefer ERA5-Land for direct single-source historical daily runs. Keep ERA5 as secondary option.
 Detection strategy:
     Per reference year: fetches a 1.5-year window (Jan-Dec + 6 extra months)
     to capture seasons that cross the year boundary.
@@ -1587,7 +1587,7 @@ def main() -> int:
                         default='auto',
                         help=(
                             "Data source — used in both automatic and fixed-season modes.\n"
-                            "  agera_5       -- AgERA5 / ERA5-Land\n"
+                            "  agera_5       -- ERA5-Land (legacy agera_5 key)\n"
                             "  era_5         -- ERA5 reanalysis\n"
                             "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
                             "  paired        -- explicit precip+temp pairing via --precip-source and --temp-source\n"

@@ -305,6 +305,12 @@ Actual routing and source policy:
 - Other historical gridded products and `nex_gddp` retain GEE/Xee routes.
   NASA POWER and station products have direct HTTP paths; TAMSAT remains optional.
 
+ERA5-Land direct access remains an investigation, not runtime routing. The
+[issue 180 memo](issues/issue_180_era5_land_access.md) records CDS authentication
+failures, candidate coverage and the required daily aggregation contract.
+`scripts/probe_era5_land_access.py` checks metadata access only and registers no
+source/backend. Public descriptions use ERA5-Land; the legacy `agera_5` key remains.
+
 `backend_policy` owns selection controls, independent of scientific source
 selection. `fetch_climate_data(..., backend=..., allow_gee=...)` can override the
 context; higher-level workflows use the context or environment settings. Unified

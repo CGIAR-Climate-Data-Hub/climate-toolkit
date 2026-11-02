@@ -97,7 +97,7 @@ def apply_unit_conversions(
 
     if 'precipitation' in converted_df.columns:
         if source_lc in ['agera_5', 'era_5']:
-            # ERA5 and AgERA5 precipitation bands are depth in meters.
+            # ERA5 and ERA5-Land precipitation bands are depth in meters.
             converted_df['precipitation'] = converted_df['precipitation'] * 1000.0
         elif source_lc == 'imerg':
             # IMERG GEE fetch currently sums half-hourly precipitation rates

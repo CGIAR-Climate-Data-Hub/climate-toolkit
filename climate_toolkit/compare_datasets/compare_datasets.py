@@ -650,7 +650,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
 
     Examples
     --------
-    Compare AgERA5 and NASA POWER for Nairobi over 2020, then print the
+    Compare ERA5-Land and NASA POWER for Nairobi over 2020, then print the
     comparison report:
 
     >>> import climate_toolkit as ct

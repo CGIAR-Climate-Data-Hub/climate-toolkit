@@ -9,7 +9,7 @@ one-time free [setup](getting_started.md#2-google-earth-engine-credentials).
 
 | `source` | Dataset | Type | Native resolution | Coverage | Variables | Auth |
 |----------|---------|------|-------------------|----------|-----------|------|
-| `agera_5` | ERA5-Land daily aggregates | Reanalysis | 0.1° (~11 km) | 1979–present | precip, tmax/tmin/tmean, humidity, wind, solar | EE |
+| `agera_5` | ERA5-Land daily aggregates | Reanalysis | 0.1° (~11 km) | 1950-01-02–near present | precip, tmax/tmin/tmean, humidity, wind, solar | EE |
 | `era_5` | ERA5 daily | Reanalysis | 0.25° (~28 km) | 1979-01-02 – 2020-07-09 (static asset; live coverage checked at runtime) | precip, tmax/tmin, wind | EE |
 | `terraclimate` | TerraClimate | Monthly climate & water balance | 1/24° (~4 km) | 1958–present, monthly | precip, tmax/tmin, wind, solar, soil moisture | EE |
 | `imerg` | GPM IMERG v07 | Satellite precipitation | 0.1° (~11 km) | 2000–present | precip | EE |
@@ -31,6 +31,11 @@ one-time free [setup](getting_started.md#2-google-earth-engine-credentials).
     `ECMWF/ERA5_LAND/DAILY_AGGR` (ERA5-Land daily aggregates), which shares
     ERA5-Land's 0.1° grid. It is the recommended default for recent daily
     data because of its variable breadth and continuously updated coverage.
+    This is distinct from Copernicus AgERA5. The listed start date follows the
+    [upstream GEE catalogue](https://developers.google.com/earth-engine/datasets/catalog/ECMWF_ERA5_LAND_DAILY_AGGR);
+    individual request coverage must still be verified. Official CDS ARCO access
+    requires a CDS key and is [under investigation](../analysis/issues/issue_180_era5_land_access.md),
+    with no integrated alternative backend yet.
 
 Cloud dependencies, provider controls and CHIRTS migration: [direct cloud access](direct_cloud_access.md).
 

@@ -36,8 +36,10 @@ Priority next investigations:
    but CHIRPS/Tmin raster reads failed in this environment. Establish robust sparse
    reads or a supported subset service before automatic fallback.
 2. Credential-free **ERA5-Land** companion variables ([#180](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/180)), preserving daily aggregation,
-   units and grid identity. CDS is a possible authenticated route, not a proven
-   anonymous backup; cloud archives need identity and efficiency validation.
+   units and grid identity. Official CDS ARCO and EDH metadata rejected anonymous
+   access; the configured CDS key was also rejected. EDH daily means omit Tmax/Tmin.
+   [Investigation and repeatable probes](issues/issue_180_era5_land_access.md) record
+   required aggregation semantics and outstanding value/performance validation.
 3. Reuse #54 for NASA POWER Zarr and #1 for NEX version sourcing. Do not substitute
    a reanalysis or projection product merely because its host is accessible.
 

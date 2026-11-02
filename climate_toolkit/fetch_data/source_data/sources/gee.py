@@ -554,7 +554,7 @@ class DownloadData(models.DataDownloadBase):
         "NASA/GPM_L3/IMERG_V06": "sum",
         "ECMWF/ERA5_LAND/HOURLY": "mean",    
     }
-    # All other GEE collections are daily-cadence (ERA5, CHIRPS, CHIRTS, AgERA5, TerraClimate). 1 image/day, so a 12-year chunk = ~4380 elements,
+    # All other GEE collections are daily-cadence (ERA5, CHIRPS, CHIRTS, ERA5-Land, TerraClimate). 1 image/day, so a 12-year chunk = ~4380 elements,
     # comfortably under GEE's 5000 ceiling. 26 years -> 3 chunks.
     _GEE_DEFAULT_CHUNK_DAYS = 4380
     _GEE_MIN_CHUNK_DAYS = 7                  # don't bisect smaller than this

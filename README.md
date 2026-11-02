@@ -43,7 +43,7 @@ The Climate Toolkit offers a unified, programmatic interface to:
 - Compare climate trends over historical and seasonal periods
 
 For user-facing historical daily climate work, the default module policy is
-`chirps_v3_daily_rnl + agera_5`: CHIRPS v3 Daily RNL supplies precipitation and
+`chirps_v3_daily_rnl + agera_5`: CHIRPS v3 Daily RNL supplies precipitation.
 The `agera_5` key reads ERA5-Land and supplies temperature plus companion variables such as humidity, wind,
 and solar radiation. If a direct single-source historical fallback is needed,
 prefer `agera_5`. Keep `era_5` available for compatibility, diagnostics, and
@@ -59,6 +59,9 @@ cache provenance, QC and limits: [direct cloud access](docs/direct_cloud_access.
 Direct reads share source chunks across up to five missing years per batch and
 save annual progress for retries. CHIRTS-ERA5's independent CHC backup remains
 under [validation](analysis/issues/issue_179_chc_backup_investigation.md).
+ERA5-Land's official CDS cloud stores require a separate CDS key; they are under
+[validation](analysis/issues/issue_180_era5_land_access.md) and are not yet used by
+the toolkit. The current no-GEE auto pair supplies rainfall and Tmax/Tmin.
 
 For the complete fetch → climatology → statistics → hazards → comparison workflow,
 `run_pipeline` accepts `precip_source`, `temp_source` and `allow_gee=False`, and

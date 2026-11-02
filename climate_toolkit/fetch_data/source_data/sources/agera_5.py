@@ -1,15 +1,14 @@
-"""AgERA5 adapter.
+"""ERA5-Land adapter under the legacy ``agera_5`` source key.
 
-AgERA5 runtime in this package is Earth Engine-backed. This module exists as
-authoritative AgERA5 entry point so runtime dispatch and source surface stay
-aligned.
+Dispatches to Earth Engine's ECMWF/ERA5_LAND/DAILY_AGGR collection.
+The distinct Copernicus AgERA5 product is not served by this adapter.
 """
 
 from .gee_xee import DownloadData as _GeeDownloadData
 
 
 class DownloadData(_GeeDownloadData):
-    """AgERA5 Earth Engine-backed adapter."""
+    """ERA5-Land Earth Engine-backed adapter."""
 
 
 __all__ = ["DownloadData"]

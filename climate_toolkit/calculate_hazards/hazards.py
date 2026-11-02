@@ -829,7 +829,7 @@ def _validate_source_window(source: str, end_year: int) -> None:
         raise ValueError(
             "chirps_v2+chirts is unavailable for this window because CHIRTS daily "
             "temperature currently ends in 2016. Use agera_5, era_5, or "
-            "--source auto (default CHIRPS v3 Daily RNL + AgERA5) for newer periods."
+            "--source auto (default CHIRPS v3 Daily RNL + ERA5-Land) for newer periods."
         )
 
 
@@ -3103,7 +3103,7 @@ def main() -> int:
         default='auto',
         help=(
             "Climate data source (default: auto).\n"
-            "  agera_5       -- AgERA5 / ERA5-Land\n"
+            "  agera_5       -- ERA5-Land (legacy agera_5 key)\n"
             "  era_5         -- ERA5 reanalysis\n"
             "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
             "  chirps_v3_daily_rnl -- precipitation-only; use via paired or auto\n"

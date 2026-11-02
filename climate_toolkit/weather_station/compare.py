@@ -2433,7 +2433,7 @@ def compare_station_to_grids(
 
     Examples
     --------
-    Compare the best GHCN-Daily station near Nairobi against AgERA5 for
+    Compare the best GHCN-Daily station near Nairobi against ERA5-Land for
     2020 (requires ``GCP_PROJECT_ID`` to be set for the grid fetch):
 
     >>> from datetime import date
