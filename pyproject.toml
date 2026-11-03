@@ -75,6 +75,9 @@ docs = [
   "mkdocs-static-i18n",
   "mkdocstrings[python]",
 ]
+notebook = [
+    "seaborn>=0.13",
+]
 
 [project.urls]
 Homepage = "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit"
