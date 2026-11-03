@@ -2035,6 +2035,8 @@ def calculate_hazards(
     source:            str            = 'auto',
     precip_source:     Optional[str]  = None,
     temp_source:       Optional[str]  = None,
+    model:             Optional[str]  = None,
+    scenario:          Optional[str]  = None,
     custom_thresholds: Optional[Dict] = None,
     gap_days:          int            = 30,
     min_season_days:   int            = 30,
@@ -2111,6 +2113,14 @@ def calculate_hazards(
         Required together when ``source='paired'``: explicit precipitation
         and temperature datasets, e.g. ``precip_source='chirps_v3_daily_rnl'``
         with ``temp_source='agera_5'``. Default None.
+    model, scenario : str, optional
+        GCM and scenario for ``source='nex_gddp'`` (e.g. ``model='GFDL-ESM4'``,
+        ``scenario='historical'``). ``model`` defaults to the source default
+        when omitted. ``scenario`` defaults to ``'historical'`` when the
+        requested window ends before 2015 (so pre-2015 NEX-GDDP hazard windows
+        work) and otherwise to the source default (``'ssp245'``). A window that
+        crosses 2015 needs an explicit scenario, since no single NEX-GDDP
+        scenario spans the historical/SSP boundary. Default None.
     custom_thresholds : dict, optional
         Per-metric threshold overrides merged over the built-in crop and
         hazard-index thresholds. Shape ``{metric: {band: (low, high)}}``,
@@ -2231,6 +2241,19 @@ def calculate_hazards(
     'no_stress'
     """
     lat, lon = location_coord
+    # NEX-GDDP splits at 2015: the 'historical' experiment covers through
+    # 2014-12-31 and the SSP scenarios start 2015-01-01. When nex_gddp is asked
+    # for a window that ends before 2015 and no scenario is named, default to
+    # 'historical' so pre-2015 hazard windows work instead of failing against
+    # the ssp245 source default. Windows that cross 2015 still need an explicit
+    # scenario (no single NEX-GDDP scenario spans the boundary).
+    if source == "nex_gddp" and scenario is None:
+        try:
+            _window_end = datetime.fromisoformat(str(date_to)).date()
+        except ValueError:
+            _window_end = None
+        if _window_end is not None and _window_end < date(2015, 1, 1):
+            scenario = "historical"
     calendar_system = str(calendar_system).lower()
     if calendar_system not in CALENDAR_SYSTEM_CHOICES:
         return {
@@ -2322,6 +2345,8 @@ def calculate_hazards(
                 source=source,
                 precip_source=precip_source,
                 temp_source=temp_source,
+                model=model,
+                scenario=scenario,
                 ee_project_id=ee_project_id,
                 workers=workers,
             )
@@ -2378,6 +2403,8 @@ def calculate_hazards(
             source=source,
             precip_source=precip_source,
             temp_source=temp_source,
+            model=model,
+            scenario=scenario,
             prefetch_pad_days=spinup_days,
             ee_project_id=ee_project_id,
             emit_fetch_errors=False,
@@ -2421,7 +2448,7 @@ def calculate_hazards(
                     }
                 if df is None:
                     try:
-                        season_fetch_kwargs = {"workers": workers} if workers != 1 else {}
+                        season_fetch_kwargs = {"model": model, "scenario": scenario, **({"workers": workers} if workers != 1 else {})}
                         df = get_climate_data_for_season(
                             lat,
                             lon,
@@ -2491,6 +2518,7 @@ def calculate_hazards(
             seasons_dict, annual_dict = fetch_and_analyze_years(
                 lat, lon, start_year=start_year, end_year=end_year, source=detection_source,
                 precip_source=precip_source, temp_source=temp_source,
+                model=model, scenario=scenario,
                 ee_project_id=ee_project_id,
                 **auto_kwargs,
             )
@@ -2574,7 +2602,7 @@ def calculate_hazards(
                         df = _slice_prefetched_window(s.get('window_df'), fetch_start, s_end)
                     if df is None:
                         try:
-                            season_fetch_kwargs = {"workers": workers} if workers != 1 else {}
+                            season_fetch_kwargs = {"model": model, "scenario": scenario, **({"workers": workers} if workers != 1 else {})}
                             df = get_climate_data_for_season(
                                 lat,
                                 lon,
@@ -2595,7 +2623,7 @@ def calculate_hazards(
                             }
                 else:
                     try:
-                        season_fetch_kwargs = {"workers": workers} if workers != 1 else {}
+                        season_fetch_kwargs = {"model": model, "scenario": scenario, **({"workers": workers} if workers != 1 else {})}
                         df = get_climate_data_for_season(
                             lat,
                             lon,
@@ -3099,7 +3127,7 @@ def main() -> int:
                         help='Explicit season end (YYYY-MM-DD). Pair with --season-start.')
     parser.add_argument(
         '--source',
-        choices=['era_5', 'agera_5', 'chirps+chirts', 'chirps_v2+chirts', 'chirps_v3_daily_rnl', 'imerg', 'tamsat', 'paired', 'auto'],
+        choices=['era_5', 'agera_5', 'chirps+chirts', 'chirps_v2+chirts', 'chirps_v3_daily_rnl', 'imerg', 'tamsat', 'nex_gddp', 'paired', 'auto'],
         default='auto',
         help=(
             "Climate data source (default: auto).\n"
@@ -3109,6 +3137,7 @@ def main() -> int:
             "  chirps_v3_daily_rnl -- precipitation-only; use via paired or auto\n"
             "  imerg         -- precipitation-only; use via paired\n"
             "  tamsat        -- precipitation-only; use via paired\n"
+            "  nex_gddp      -- NEX-GDDP-CMIP6; pair with --model and --scenario\n"
             "  paired        -- explicit precip+temp pairing via --precip-source and --temp-source\n"
             "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5\n"
             "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
@@ -3126,6 +3155,18 @@ def main() -> int:
         '--temp-source',
         default=None,
         help='Required with --source paired. Example: agera_5 or era_5.',
+    )
+    parser.add_argument(
+        '--model',
+        default=None,
+        help='GCM for --source nex_gddp (e.g. GFDL-ESM4, ACCESS-CM2). '
+             'Defaults to the source default when omitted.',
+    )
+    parser.add_argument(
+        '--scenario',
+        default=None,
+        help='Scenario for --source nex_gddp (historical, ssp245, ssp370, ssp585). '
+             'Defaults to historical for windows ending before 2015, else ssp245.',
     )
     parser.add_argument(
         '--project-id',
@@ -3216,6 +3257,8 @@ def main() -> int:
         'source': args.source,
         'precip_source': args.precip_source,
         'temp_source': args.temp_source,
+        'model': args.model,
+        'scenario': args.scenario,
         'ee_project_id': args.project_id,
         'custom_thresholds': custom_thresholds,
         'gap_days': args.gap_days,

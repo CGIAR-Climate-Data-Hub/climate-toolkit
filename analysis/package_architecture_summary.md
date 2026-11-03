@@ -266,6 +266,16 @@ parameters, and soil/water-balance assumptions.
 Current implementation includes NDWS/WRSI-related work and hazard thresholds,
 with ongoing alignment to Atlas / xclim follow-up tracked in issue docs.
 
+`calculate_hazards` / `evaluate_hazards` accept `model` / `scenario` and thread
+them to every climate fetch (season detection, prefetch, and per-season
+windows), so `source="nex_gddp"` can run a chosen GCM/scenario. `scenario`
+defaults to `historical` when the requested window ends before 2015 so pre-2015
+NEX-GDDP hazard windows work against the historical experiment instead of the
+ssp245 source default; the hazards CLI exposes `--model` / `--scenario` and
+lists `nex_gddp` among its `--source` choices (issue #175, part 1). A
+`fixed_season` window that crosses 31 December is still resolved by the
+season-generation layer (issue #175, part 2 — open).
+
 ### `weather_station`
 
 Weather-station support is parallel track, not replacement for gridded path.

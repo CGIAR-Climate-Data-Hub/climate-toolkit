@@ -452,6 +452,8 @@ def run_pipeline(
                         date_from=d_from,
                         date_to=d_to,
                         source=source,
+                        model=model,
+                        scenario=scenario,
                         fixed_season=fixed_season,
                         workers=workers,
                         **pair_kwargs,
