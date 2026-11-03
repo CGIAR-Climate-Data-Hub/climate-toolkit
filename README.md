@@ -661,6 +661,23 @@ such as `total_seconds` and `mean_model_seconds`.
 - `climate-toolkit-hazards`
 - `climate-toolkit-hazards-ensemble`
 
+NEX-GDDP hazards (`--source nex_gddp`, also `evaluate_hazards(..., source="nex_gddp")`)
+accept `--model` / `--scenario`. `--scenario` defaults to `historical` when the
+requested window ends before 2015, so pre-2015 windows work without extra flags
+(a window that crosses 2015 needs an explicit scenario — no single NEX-GDDP
+scenario spans the historical/SSP boundary):
+
+```bash
+env GCP_PROJECT_ID=YOUR_PROJECT_ID climate-toolkit-hazards \
+  maize \
+  --location=-0.776,37.66 \
+  --date-from 1995-01-01 \
+  --date-to 2013-12-31 \
+  --source nex_gddp \
+  --model GFDL-ESM4 \
+  --fixed-season '10-17:01-09'
+```
+
 ### Weather stations
 
 - `climate-toolkit-weather-station-download`
