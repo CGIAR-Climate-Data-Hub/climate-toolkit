@@ -19,5 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      # Pin Python: hosted runners now default to 3.14, where pydantic-core
+      # (a transitive dep pulled in when mkdocstrings imports the package) has
+      # no wheel and its PyO3 build fails. 3.12 has wheels and matches CI.
       - name: Build and deploy to GitHub Pages
-        run: uv run --group docs mkdocs gh-deploy --force
+        run: uv run --python 3.12 --group docs mkdocs gh-deploy --force
