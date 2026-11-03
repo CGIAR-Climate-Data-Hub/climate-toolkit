@@ -232,7 +232,7 @@ PRECIP_ONLY_CLIMATOLOGY_SOURCES = {
     "imerg",
     "tamsat",
 }
-TEMP_ONLY_CLIMATOLOGY_SOURCES = {"chirts"}
+TEMP_ONLY_CLIMATOLOGY_SOURCES = {"chirts", "chirts_era5"}
 
 
 def _normalize_source_name(source: str) -> str:
@@ -262,7 +262,10 @@ def _default_climatology_variables_for_source(source: str, climate_variable_enum
 def _source_usage_notes(source: str) -> List[str]:
     source_name = _normalize_source_name(source)
     notes: List[str] = []
-    if source_name in GEE_CLIMATOLOGY_SOURCES:
+    from climate_toolkit.fetch_data.backend_policy import should_route_direct
+    if should_route_direct(source_name):
+        notes.append("Direct public cloud access requires Python 3.12+ and climate-toolkit[cloud].")
+    elif source_name in GEE_CLIMATOLOGY_SOURCES:
         notes.append(
             "This source is Earth Engine-backed. Authenticate Earth Engine and set "
             "GCP_PROJECT_ID before running climatology."
@@ -394,6 +397,9 @@ def calculate_annual_statistics(
     workers: int = 1,
     verbose: bool = True,
     return_error: bool = False,
+    precip_source: Optional[str] = None,
+    temp_source: Optional[str] = None,
+    ee_project_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Calculate annual statistics for a single year.
@@ -413,18 +419,25 @@ def calculate_annual_statistics(
             fetch_kwargs['model'] = model
         if scenario is not None:
             fetch_kwargs['scenario'] = scenario
-        df = preprocess_data(
-            source=source,
-            location_coord=(lat, lon),
-            variables=variables,
-            date_from=date_from,
-            date_to=date_to,
-            **(
-                {"workers": workers} if workers != 1 else {}
-            ),
-            **fetch_kwargs
-        )
-        
+        if precip_source or temp_source or source in {"auto", "paired"}:
+            from climate_toolkit.season_analysis.seasons import get_climate_data
+            df = get_climate_data(
+                lat, lon, date_from.isoformat(), date_to.isoformat(),
+                force_source=None if source == "auto" else source,
+                precip_source=precip_source, temp_source=temp_source,
+                ee_project_id=ee_project_id, workers=workers,
+                model=model, scenario=scenario,
+            )
+        else:
+            if ee_project_id is not None:
+                fetch_kwargs["ee_project_id"] = ee_project_id
+            df = preprocess_data(
+                source=source, location_coord=(lat, lon), variables=variables,
+                date_from=date_from, date_to=date_to,
+                **({"workers": workers} if workers != 1 else {}),
+                **fetch_kwargs,
+            )
+
         observed_days = _observed_unique_days(df)
         expected_days = _expected_days_in_year(year)
 
@@ -479,6 +492,7 @@ def calculate_annual_statistics(
                 print(f"  ✗ {year}: {failure_reason}")
             return (None, failure_reason) if return_error else None
 
+        stats['data_provenance'] = df.attrs.get('data_provenance', [])
         stats['year'] = year
         stats['observed_days'] = observed_days
         stats['expected_days'] = expected_days
@@ -489,6 +503,9 @@ def calculate_annual_statistics(
         return (stats, None) if return_error else stats
         
     except Exception as e:
+        from climate_toolkit.fetch_data.direct_cloud import DataQualityError
+        if isinstance(e, DataQualityError):
+            raise
         failure_reason = str(e)
         if verbose:
             print(f"  ✗ {year}: {failure_reason}")
@@ -697,7 +714,10 @@ def calculate_climatology(
     model: Optional[str] = None,
     scenario: Optional[str] = None,
     workers: int = 1,
-    verbose: bool = True
+    verbose: bool = True,
+    precip_source: Optional[str] = None,
+    temp_source: Optional[str] = None,
+    ee_project_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Calculate long-term climatology (multi-year normals).
@@ -735,6 +755,9 @@ def calculate_climatology(
             workers=workers,
             verbose=verbose,
             return_error=True,
+            **({"precip_source": precip_source, "temp_source": temp_source}
+               if precip_source or temp_source or source == "paired" else {}),
+            **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
         )
         if stats:
             annual_stats.append(stats)
@@ -746,7 +769,11 @@ def calculate_climatology(
     if verbose:
         print(f"\n  Complete: {len(annual_stats)}/{n_years} years with valid data\n")
     
-    if len(annual_stats) < n_years * 0.8:
+    from climate_toolkit.fetch_data.backend_policy import DIRECT_SOURCES, resolve_policy
+    strict_coverage = bool({source, precip_source, temp_source} & DIRECT_SOURCES) or (
+        source == "auto" and not resolve_policy().allow_gee
+    )
+    if len(annual_stats) < n_years * 0.8 or (strict_coverage and year_failures):
         result = {
             'error': f'Insufficient data: only {len(annual_stats)}/{n_years} years available',
             'location': {'latitude': lat, 'longitude': lon},
@@ -869,6 +896,8 @@ def calculate_climatology(
             if plot_monthly_climatology(monthly_climatology, source, period_label, monthly_plot_path):
                 plots_written.append(monthly_plot_path)
 
+    from climate_toolkit.fetch_data.backend_policy import merge_provenance
+    provenance = merge_provenance(*daily_frames)
     # Strip the private daily-data attachments before returning a serializable result
     for s in annual_stats:
         s.pop('_daily_df', None)
@@ -883,6 +912,9 @@ def calculate_climatology(
             'years_with_data': len(annual_stats)
         },
         'source': source,
+        'precip_source': precip_source,
+        'temp_source': temp_source,
+        'data_provenance': provenance,
         'available_variables': available_vars,
         'climatology': climatology,
         'monthly_climatology': monthly_climatology if monthly_climatology else None,
@@ -1239,7 +1271,9 @@ def calculate_climatology_ensemble(
             future_map = {}
             with ProcessPoolExecutor(max_workers=effective_model_workers) as executor:
                 for task in tasks:
-                    future = executor.submit(_run_climatology_model_task, task)
+                    from climate_toolkit.fetch_data.backend_policy import run_with_backend_policy, resolve_policy
+                    from functools import partial
+                    future = executor.submit(partial(run_with_backend_policy, _run_climatology_model_task, policy=resolve_policy()), task)
                     future_map[future] = task["model"]
                 for done, future in enumerate(as_completed(future_map), 1):
                     model = future_map[future]
@@ -1566,6 +1600,8 @@ def _run_climatology_cli(
     output_dir: str,
     workers: int,
     model_workers: int,
+    precip_source: Optional[str] = None,
+    temp_source: Optional[str] = None,
 ) -> int:
     try:
         lat, lon = map(float, location.split(","))
@@ -1716,6 +1752,7 @@ def _run_climatology_cli(
         source=source,
         output_dir=plot_dir,
         workers=workers,
+        precip_source=precip_source, temp_source=temp_source,
     )
     if output_format == "json":
         rendered = json.dumps(_json_sanitize(result), indent=2, default=str)
@@ -1733,7 +1770,7 @@ def _run_climatology_cli(
             with open(output_path, "w") as handle:
                 json.dump(_json_sanitize(result), handle, indent=2, default=str)
             print(f"✓ JSON data saved to {output_path}")
-    return 0
+    return 1 if "error" in result else 0
 
 
 if typer is not None:
@@ -1761,6 +1798,8 @@ if typer is not None:
                 "Most non-NASA historical sources are Earth Engine-backed."
             ),
         ),
+        precip_source: Optional[str] = typer.Option(None, "--precip-source", help="Rainfall partner for source=paired."),
+        temp_source: Optional[str] = typer.Option(None, "--temp-source", help="Temperature partner for source=paired."),
         scenarios_text: str = typer.Option(
             "ssp245",
             "--scenarios",
@@ -1837,6 +1876,7 @@ if typer is not None:
             output_dir=output_dir,
             workers=workers,
             model_workers=model_workers,
+            precip_source=precip_source, temp_source=temp_source,
         )
         if rc:
             raise typer.Exit(code=rc)
@@ -1853,6 +1893,8 @@ def _build_argparse_climatology_parser() -> argparse.ArgumentParser:
     parser.add_argument("--start-year", required=True, type=int, help="Start year of climatology period")
     parser.add_argument("--end-year", required=True, type=int, help="End year of climatology period (inclusive)")
     parser.add_argument("--source", required=True, help="Climate source")
+    parser.add_argument("--precip-source", default=None)
+    parser.add_argument("--temp-source", default=None)
     parser.add_argument("--scenarios", default="ssp245", help="NEX-GDDP only. Comma-separated SSP scenarios.")
     parser.add_argument("--models", default=None, help="NEX-GDDP only. Comma-separated model subset.")
     parser.add_argument("--exclude-models", default=None, help="NEX-GDDP only. Comma-separated model exclusions.")
@@ -1890,13 +1932,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         command = typer.main.get_command(app)
         prog_name = os.path.basename(sys.argv[0]) if sys.argv else "climate-toolkit-climatology"
         try:
-            command.main(args=args, prog_name=prog_name, standalone_mode=False)
+            exit_code = command.main(args=args, prog_name=prog_name, standalone_mode=False)
         except Exception as exc:
             if hasattr(exc, "show") and hasattr(exc, "exit_code"):
                 exc.show()
                 return int(exc.exit_code)
             raise
-        return 0
+        return int(exit_code) if isinstance(exit_code, int) else 0
 
     parser = _build_argparse_climatology_parser()
     namespace = parser.parse_args(args)
@@ -1922,6 +1964,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         output_dir=namespace.output_dir,
         workers=namespace.workers,
         model_workers=namespace.model_workers,
+        precip_source=namespace.precip_source, temp_source=namespace.temp_source,
     )
 
 

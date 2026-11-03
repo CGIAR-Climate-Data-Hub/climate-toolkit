@@ -57,9 +57,14 @@ class RunPipelineTests(unittest.TestCase):
             m["evaluate_hazards"].side_effect = _fake_hazards
 
             result = ct.run_pipeline(
-                name="Nairobi", location_coord=(-1.286, 36.817),
-                start_year=2019, end_year=2020, source="nasa_power",
-                fixed_season="03-01:05-31", crop_name="maize", verbose=False,
+                name="Nairobi",
+                location_coord=(-1.286, 36.817),
+                start_year=2019,
+                end_year=2020,
+                source="nasa_power",
+                fixed_season="03-01:05-31",
+                crop_name="maize",
+                verbose=False,
             )
 
         self.assertEqual(len(result.site_results), 1)
@@ -74,8 +79,11 @@ class RunPipelineTests(unittest.TestCase):
         with _patch_blocks() as m:
             m["analyze_climate_statistics"].side_effect = _fake_stats
             ct.run_pipeline(
-                location_coord=(-1.286, 36.817), start_year=2019, end_year=2020,
-                source="nasa_power", verbose=False,
+                location_coord=(-1.286, 36.817),
+                start_year=2019,
+                end_year=2020,
+                source="nasa_power",
+                verbose=False,
             )
             _, kwargs = m["calculate_climatology"].call_args
         self.assertEqual((kwargs["start_year"], kwargs["end_year"]), (1991, 2020))
@@ -88,8 +96,11 @@ class RunPipelineTests(unittest.TestCase):
                     {"name": "A", "lat": -1.0, "lon": 36.0},
                     {"name": "B", "lat": -2.0, "lon": 37.0},
                 ],
-                start_year=2019, end_year=2020, source="nasa_power",
-                run_climatology=False, verbose=False,
+                start_year=2019,
+                end_year=2020,
+                source="nasa_power",
+                run_climatology=False,
+                verbose=False,
             )
         self.assertEqual(len(result.site_results), 2)
         self.assertEqual(list(result.summary["name"]), ["A", "B"])
@@ -99,9 +110,13 @@ class RunPipelineTests(unittest.TestCase):
             m["analyze_climate_statistics"].side_effect = _fake_stats
             m["compare_climate_sources"].return_value = {"ok": True}
             result = ct.run_pipeline(
-                location_coord=(-1.0, 36.0), start_year=2019, end_year=2020,
-                source="nasa_power", run_climatology=False,
-                run_compare_sources=True, compare_sources_list=["nasa_power", "agera_5"],
+                location_coord=(-1.0, 36.0),
+                start_year=2019,
+                end_year=2020,
+                source="nasa_power",
+                run_climatology=False,
+                run_compare_sources=True,
+                compare_sources_list=["nasa_power", "agera_5"],
                 verbose=False,
             )
         self.assertTrue(m["compare_climate_sources"].called)
@@ -121,8 +136,11 @@ class RunPipelineTests(unittest.TestCase):
                     {"name": "good", "lat": -1.0, "lon": 36.0},
                     {"name": "bad", "lat": -2.0, "lon": 37.0},
                 ],
-                start_year=2019, end_year=2020, source="nasa_power",
-                run_climatology=False, verbose=False,
+                start_year=2019,
+                end_year=2020,
+                source="nasa_power",
+                run_climatology=False,
+                verbose=False,
             )
         statuses = {s.name: s.status for s in result.site_results}
         self.assertEqual(statuses, {"good": "completed", "bad": "failed"})
@@ -134,9 +152,13 @@ class RunPipelineTests(unittest.TestCase):
             m["analyze_climate_statistics"].side_effect = RuntimeError("boom")
             with self.assertRaises(RuntimeError):
                 ct.run_pipeline(
-                    location_coord=(-1.0, 36.0), start_year=2019, end_year=2020,
-                    source="nasa_power", run_climatology=False,
-                    raise_on_error=True, verbose=False,
+                    location_coord=(-1.0, 36.0),
+                    start_year=2019,
+                    end_year=2020,
+                    source="nasa_power",
+                    run_climatology=False,
+                    raise_on_error=True,
+                    verbose=False,
                 )
 
     def test_requires_a_site_input(self):
@@ -146,3 +168,53 @@ class RunPipelineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PipelineFailureContracts(unittest.TestCase):
+    def test_returned_error_is_failure_not_completed_step(self):
+        with _patch_blocks() as blocks:
+            blocks["analyze_climate_statistics"].return_value = {"error": "invalid temperature"}
+            result = ct.run_pipeline(
+                location_coord=(-1, 36),
+                start_year=2020,
+                end_year=2020,
+                run_climatology=False,
+                crop_name="maize",
+                verbose=False,
+            )
+            blocks["evaluate_hazards"].assert_not_called()
+        self.assertEqual(result.site_results[0].status, "failed")
+        self.assertNotIn("statistics", result.site_results[0].completed_steps)
+        self.assertIn("invalid temperature", result.errors[0]["error"])
+
+    def test_date_only_input_also_runs_statistics(self):
+        with _patch_blocks() as blocks:
+            blocks["analyze_climate_statistics"].side_effect = _fake_stats
+            result = ct.run_pipeline(
+                location_coord=(-1, 36),
+                date_from="2020-01-01",
+                date_to="2020-12-31",
+                run_climatology=False,
+                verbose=False,
+            )
+            self.assertEqual(
+                blocks["analyze_climate_statistics"].call_args.kwargs["start_year"], 2020
+            )
+        self.assertIn("statistics", result.site_results[0].completed_steps)
+
+    def test_partial_source_comparison_is_not_success(self):
+        with _patch_blocks() as blocks:
+            blocks["compare_climate_sources"].return_value = {
+                "chirps_v3_daily_rnl": pd.DataFrame({"date": [1], "precipitation": [1.0]})
+            }
+            result = ct.run_pipeline(
+                location_coord=(-1, 36),
+                start_year=2020,
+                end_year=2020,
+                run_climatology=False,
+                run_compare_sources=True,
+                compare_sources_list=["chirps_v3_daily_rnl", "chirts_era5"],
+                verbose=False,
+            )
+        self.assertEqual(result.site_results[0].status, "failed")
+        self.assertNotIn("source_comparison", result.site_results[0].completed_steps)

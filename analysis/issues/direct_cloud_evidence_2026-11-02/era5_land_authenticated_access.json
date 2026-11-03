@@ -1,0 +1,63 @@
+{
+  "measured_utc": "2026-11-02T18:55:21.769236+00:00",
+  "cds_auth_requested": true,
+  "cds_key_configured": true,
+  "scope": "Metadata access only; no climate values, live coverage or throughput verified.",
+  "cases": [
+    {
+      "provider": "cds_arco",
+      "group": "temperature",
+      "url": "https://arco.datastores.ecmwf.int/cadl-arco-geo-007/arco/reanalysis_era5_land/sfc-2m-temperature/geoChunked.zarr/.zmetadata",
+      "credential_used": true,
+      "attempts": 1,
+      "response_body_bytes": 0,
+      "http_status": 401,
+      "status": "authentication_rejected",
+      "seconds": 0.969
+    },
+    {
+      "provider": "cds_arco",
+      "group": "wind",
+      "url": "https://arco.datastores.ecmwf.int/cadl-arco-geo-008/arco/reanalysis_era5_land/sfc-wind/geoChunked.zarr/.zmetadata",
+      "credential_used": true,
+      "attempts": 1,
+      "response_body_bytes": 0,
+      "http_status": 401,
+      "status": "authentication_rejected",
+      "seconds": 1.017
+    },
+    {
+      "provider": "cds_arco",
+      "group": "precipitation",
+      "url": "https://arco.datastores.ecmwf.int/cadl-arco-geo-009/arco/reanalysis_era5_land/sfc-pressure-precipitation/geoChunked.zarr/.zmetadata",
+      "credential_used": true,
+      "attempts": 1,
+      "response_body_bytes": 0,
+      "http_status": 401,
+      "status": "authentication_rejected",
+      "seconds": 1.014
+    },
+    {
+      "provider": "cds_arco",
+      "group": "radiation",
+      "url": "https://arco.datastores.ecmwf.int/cadl-arco-geo-010/arco/reanalysis_era5_land/sfc-radiation-heat/geoChunked.zarr/.zmetadata",
+      "credential_used": true,
+      "attempts": 1,
+      "response_body_bytes": 0,
+      "http_status": 401,
+      "status": "authentication_rejected",
+      "seconds": 1.01
+    },
+    {
+      "provider": "earth_data_hub",
+      "group": "daily",
+      "url": "https://data.earthdatahub.destine.eu/era5/era5-land-daily-utc-v1.zarr/zarr.json",
+      "credential_used": false,
+      "attempts": 1,
+      "response_body_bytes": 0,
+      "http_status": 401,
+      "status": "authentication_required",
+      "seconds": 0.547
+    }
+  ]
+}

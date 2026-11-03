@@ -1,0 +1,102 @@
+{
+  "rows": 1098,
+  "max_abs_daily_difference_mm": 0.08151855468750213,
+  "mean_abs_difference_mm": 0.016619374964365864,
+  "wet_day_disagreements_gt1mm": 3,
+  "annual_totals": {
+    "precipitation_d": {
+      "Cusco": 720.7989858929068,
+      "Nairobi": 1344.9899210594594,
+      "Ouagadougou": 933.7630930356681
+    },
+    "precipitation_h": {
+      "Cusco": 720.3000000000001,
+      "Nairobi": 1345.4,
+      "Ouagadougou": 933.6
+    }
+  },
+  "provenance": [
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "revision": "YPS4QK3KM752R5XT8740",
+      "store": "https://dynamical-ucsb-chc-chirps.s3.us-west-2.amazonaws.com/ucsb-chc-chirps-analysis-final/v0.1.0.icechunk",
+      "retrieved_at": "2026-11-02T09:30:54.714715+00:00",
+      "cache_schema_version": 2,
+      "estimated_source_chunk_bytes": 31536000,
+      "coverage": [
+        "1981-01-01T00:00:00",
+        "2026-09-30T00:00:00"
+      ],
+      "selected_cells": [
+        {
+          "site": "Nairobi",
+          "lat": -1.2749999999999986,
+          "lon": 36.82499999999999
+        },
+        {
+          "site": "Ouagadougou",
+          "lat": 12.375,
+          "lon": -1.5250000000000057
+        },
+        {
+          "site": "Cusco",
+          "lat": -13.524999999999999,
+          "lon": -71.97500000000001
+        }
+      ],
+      "conversion": "daily mean kg m-2 s-1 * 86400 -> mm/day",
+      "window": [
+        "2020-01-01",
+        "2020-12-31"
+      ],
+      "backend_attempts": [
+        {
+          "backend": "dynamical",
+          "status": "success"
+        }
+      ]
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "store": "https://huggingface.co/datasets/aaguilar90/chirps-v3-daily-rnl/resolve/e9466d3109c6d087c6cf60c19ca6ae20873d358a/chirps-v3-daily-rnl.zarr",
+      "retrieved_at": "2026-11-02T09:31:05.590947+00:00",
+      "cache_schema_version": 2,
+      "estimated_source_chunk_bytes": 276480000,
+      "coverage": [
+        "1981-01-01T00:00:00",
+        "2026-08-31T00:00:00"
+      ],
+      "selected_cells": [
+        {
+          "site": "Nairobi",
+          "lat": -1.2750000000000057,
+          "lon": 36.82500000000002
+        },
+        {
+          "site": "Ouagadougou",
+          "lat": 12.375,
+          "lon": -1.5249999999999773
+        },
+        {
+          "site": "Cusco",
+          "lat": -13.525000000000006,
+          "lon": -71.975
+        }
+      ],
+      "conversion": "CF scale/offset and fill decoded by xarray",
+      "window": [
+        "2020-01-01",
+        "2020-12-31"
+      ],
+      "backend_attempts": [
+        {
+          "backend": "huggingface",
+          "status": "success"
+        }
+      ]
+    }
+  ]
+}

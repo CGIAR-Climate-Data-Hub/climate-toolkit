@@ -43,6 +43,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cloud = [
+  "zarr>=3,<4; python_version >= '3.12'",
+  "icechunk>=2.3,<3; python_version >= '3.12'",
+  "fsspec[http]>=2025.3; python_version >= '3.12'",
+  "dask[array]>=2025.3; python_version >= '3.12'",
+]
+
 # HTTP service layer (apis/). Optional so the base CLI/library stays lean:
 #   uv sync --extra api    /    pip install -e ".[api]"
 api = [

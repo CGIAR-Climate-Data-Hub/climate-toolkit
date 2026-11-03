@@ -52,6 +52,9 @@ def _emit_coverage_warning(message: str | None) -> None:
 
 
 def _default_variables_for_source(source_name: str):
+    from .direct_cloud import CAPABILITIES
+    if source_name in CAPABILITIES:
+        return [ClimateVariable[name] for name in CAPABILITIES[source_name]]
     if source_name in {"ghcn_daily", "gsod"}:
         return [
             ClimateVariable.precipitation,
@@ -77,6 +80,9 @@ def fetch_data(
     sites_csv=None,
     station_id=None,
     workers=1,
+    backend=None,
+    allow_gee=None,
+    ee_project_id=None,
 ):
     """Fetch climate data through the pipeline (source -> transform -> preprocess).
 
@@ -105,8 +111,10 @@ def fetch_data(
           satellite-gauge precipitation, 0.05 deg (~5.5 km), 1981-present.
           Precipitation only. Earth Engine.
         - ``'chirps_v3_daily_rnl'`` : CHIRPS v3 daily precipitation,
-          0.05 deg, 1981-present. Precipitation only. Earth Engine.
-        - ``'chirts'`` : CHIRTS daily satellite-station temperature,
+          0.05 deg, 1981-present. Direct cloud preferred; optional Earth Engine.
+        - ``'chirts_era5'`` : CHIRTS-ERA5 daily Tmax/Tmin, 0.05 degrees,
+          hosted from 1981 to recent dates; direct public cloud access.
+        - ``'chirts'`` : Deprecated CHIRTS daily satellite-station temperature,
           0.05 deg, 1983-2016. Max/min temperature. Earth Engine.
         - ``'cmip_6'`` : NASA GDDP-CMIP6 downscaled projections, 0.25 deg.
           Precipitation, max/min temperature. Earth Engine.
@@ -191,6 +199,14 @@ def fetch_data(
         Bounded worker count for historical GEE/Xee fetch tasks. Mainly
         useful for multi-site or long-period historical runs.
 
+    backend : {'auto', 'dynamical', 'huggingface', 'gee'}, optional
+        Provider for datasets with direct adapters. Auto prefers direct access
+        for CHIRPS v3 RNL and CHIRTS-ERA5. Other sources keep existing routes.
+        Requires Python >=3.12 and the cloud extra for direct reads.
+    allow_gee : bool, optional
+        False prohibits all GEE access. None inherits backend_policy or
+        CLIMATE_TOOLKIT_ALLOW_GEE. Higher workflows can use ct.backend_policy.
+
     Returns
     -------
     pandas.DataFrame
@@ -235,6 +251,16 @@ def fetch_data(
     ...     scenario="ssp245",
     ... )
     """
+    from .backend_policy import backend_policy, GEE_SOURCES, require_gee_allowed, should_route_direct
+    if backend is not None or allow_gee is not None:
+        with backend_policy(backend=backend, allow_gee=allow_gee):
+            return fetch_data(
+                source, location_coord=location_coord, variables=variables,
+                date_from=date_from, date_to=date_to, settings=settings,
+                model=model, scenario=scenario, stage=stage, verbose=verbose,
+                cache_dir=cache_dir, refresh_cache=refresh_cache, sites=sites,
+                sites_csv=sites_csv, station_id=station_id, workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
+            )
     if stage not in VALID_STAGES:
         raise ValueError(
             f"Invalid stage '{stage}'. Must be one of: {', '.join(VALID_STAGES)}"
@@ -245,6 +271,24 @@ def fetch_data(
     variables = _coerce_variable_list(variables)
     date_from = date_from or date.today()
     date_to = date_to or date.today()
+    if should_route_direct(source_name):
+        from .direct_cloud import fetch_direct
+        def gee_fetch():
+            return fetch_data(
+                source_name, location_coord=location_coord, variables=variables,
+                date_from=date_from, date_to=date_to, settings=settings,
+                stage=stage, verbose=verbose, cache_dir=cache_dir,
+                refresh_cache=refresh_cache, sites=sites, sites_csv=sites_csv,
+                workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}), backend="gee",
+            )
+        return fetch_direct(
+            source_name, location_coord=location_coord, sites=sites, sites_csv=sites_csv,
+            variables=variables, date_from=date_from, date_to=date_to, stage=stage,
+            cache_dir=cache_dir, refresh_cache=refresh_cache, workers=workers,
+            verbose=verbose, gee_fetch=gee_fetch if source_name == "chirps_v3_daily_rnl" else None,
+        )
+    if source_name in GEE_SOURCES:
+        require_gee_allowed()
     date_from, date_to, coverage_warning = clip_source_date_range(
         source_name,
         date_from,
@@ -255,6 +299,9 @@ def fetch_data(
 
     batch_requested = bool(sites or sites_csv)
     if batch_requested:
+        if source_name == "chirts":
+            import warnings
+            warnings.warn("chirts (1983–2016) is deprecated; use chirts_era5 for new temperature workflows.", FutureWarning, stacklevel=2)
         if source_name == "nex_gddp":
             data_df, _, _ = fetch_nex_gddp_batch_data(
                 sites=sites,
@@ -263,6 +310,7 @@ def fetch_data(
                 date_from=date_from,
                 date_to=date_to,
                 settings=settings,
+                **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
                 model=model,
                 scenario=scenario,
                 stage=stage,
@@ -296,7 +344,7 @@ def fetch_data(
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
             verbose=verbose,
-            workers=workers,
+            workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
         )
         return data_df
 
@@ -322,7 +370,7 @@ def fetch_data(
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
             station_id=station_id,
-            workers=workers,
+            workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
         )
         return client.download()
 
@@ -340,7 +388,7 @@ def fetch_data(
             cache_dir=cache_dir,
             refresh_cache=refresh_cache,
             station_id=station_id,
-            workers=workers,
+            workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
         )
     # preprocessed (default)
     return preprocess_data(
@@ -356,7 +404,7 @@ def fetch_data(
         cache_dir=cache_dir,
         refresh_cache=refresh_cache,
         station_id=station_id,
-        workers=workers,
+        workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
     )
 def save_output(data, output_path, fmt):
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -366,6 +414,8 @@ def save_output(data, output_path, fmt):
         data.to_json(output_path, orient="records", date_format="iso", indent=2)
     else:
         raise ValueError(fmt)
+    from .backend_policy import save_frame_metadata
+    save_frame_metadata(data, output_path)
 
 def parse_variables(raw):
     """Parse a comma-separated --variables string into enum members."""
@@ -528,6 +578,8 @@ def main() -> int:
         default="print",
     )
 
+    parser.add_argument("--backend", choices=["auto", "dynamical", "huggingface", "gee"], default=None)
+    parser.add_argument("--no-gee", action="store_true", help="Prohibit Earth Engine access, including fallback.")
     args = parser.parse_args()
 
     date_from = date.fromisoformat(args.start)
@@ -555,12 +607,14 @@ def main() -> int:
             return 1
 
         for model in model_list:
-            errors = validate_inputs(
-                args.source, args.lat, args.lon, date_from, date_to,
-                model, args.scenario,
-                allow_coverage_clip=True,
-                settings=settings,
-            )
+            from .backend_policy import backend_policy
+            with backend_policy(backend=args.backend, allow_gee=False if args.no_gee else None):
+                errors = validate_inputs(
+                    args.source, args.lat, args.lon, date_from, date_to,
+                    model, args.scenario,
+                    allow_coverage_clip=True,
+                    settings=settings,
+                )
             if errors:
                 print("\nInput validation failed:\n")
                 for err in errors:
@@ -610,6 +664,8 @@ def main() -> int:
                 station_id=args.station_id,
                 workers=args.workers,
                 settings=settings,
+                backend=args.backend,
+                allow_gee=False if args.no_gee else None,
             )
         except Exception as exc:
             print(f"Error: {format_ee_setup_error(exc)}")

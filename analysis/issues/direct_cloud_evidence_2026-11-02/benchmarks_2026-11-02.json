@@ -1,0 +1,540 @@
+{
+  "measured_utc": "2026-11-02T09:39:40Z",
+  "python": "3.12.10 | packaged by conda-forge | (main, Apr 10 2025, 22:19:24) [Clang 18.1.8 ]",
+  "deadline_seconds": 60,
+  "results": [
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 1,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 9.01,
+      "warm_seconds": 0.011,
+      "rows": 366,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "YPS4QK3KM752R5XT8740",
+      "estimated_source_chunk_bytes": 10512000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 298467328
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 10,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 8.333,
+      "warm_seconds": 0.018,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "YPS4QK3KM752R5XT8740",
+      "estimated_source_chunk_bytes": 10512000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 309411840
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 10,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 10.236,
+      "warm_seconds": 0.018,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "YPS4QK3KM752R5XT8740",
+      "estimated_source_chunk_bytes": 31536000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 341016576
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 100,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 8.952,
+      "warm_seconds": 0.079,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "YPS4QK3KM752R5XT8740",
+      "estimated_source_chunk_bytes": 10512000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 317915136
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 100,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 15.342,
+      "warm_seconds": 0.081,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "YPS4QK3KM752R5XT8740",
+      "estimated_source_chunk_bytes": 94608000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 402358272
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 1,
+      "layout": "clustered",
+      "years": 30,
+      "cold_seconds": 36.009,
+      "warm_seconds": 0.065,
+      "rows": 10958,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "YPS4QK3KM752R5XT8740",
+      "estimated_source_chunk_bytes": 162936000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 563347456
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 10,
+      "layout": "clustered",
+      "years": 30,
+      "cold_seconds": 36.325,
+      "warm_seconds": 0.28,
+      "rows": 109580,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "YPS4QK3KM752R5XT8740",
+      "estimated_source_chunk_bytes": 162936000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 581025792
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        10,
+        "dispersed",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "deadline_seconds": 60
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 100,
+      "layout": "clustered",
+      "years": 30,
+      "cold_seconds": 40.921,
+      "warm_seconds": 2.621,
+      "rows": 1095800,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "YPS4QK3KM752R5XT8740",
+      "estimated_source_chunk_bytes": 162936000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 1173962752
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        100,
+        "dispersed",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "deadline_seconds": 60
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 1,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 7.432,
+      "warm_seconds": 0.011,
+      "rows": 366,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 92160000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 552566784
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 10,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 7.157,
+      "warm_seconds": 0.018,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 92160000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 545980416
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 10,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 12.365,
+      "warm_seconds": 0.045,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 276480000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 609779712
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 100,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 6.86,
+      "warm_seconds": 0.101,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 92160000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 572162048
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 100,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 17.929,
+      "warm_seconds": 0.111,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 552960000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 648593408
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        1,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "deadline_seconds": 60
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        10,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "deadline_seconds": 60
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 10,
+      "layout": "dispersed",
+      "years": 30,
+      "status": "failed",
+      "error": "BackendUnavailable: All eligible backends failed for chirps_v3_daily_rnl: huggingface: BackendUnavailable: Estimated chunk read work 5.60 GiB exceeds 4.00 GiB budget; use another backend, fewer dispersed sites, or explicitly raise CLIMATE_TOOLKIT_MAX_DECODED_BYTES",
+      "cold_seconds": 2.537,
+      "peak_rss_bytes": 215089152
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        100,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "deadline_seconds": 60
+    },
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 100,
+      "layout": "dispersed",
+      "years": 30,
+      "status": "failed",
+      "error": "BackendUnavailable: All eligible backends failed for chirps_v3_daily_rnl: huggingface: BackendUnavailable: Estimated chunk read work 11.20 GiB exceeds 4.00 GiB budget; use another backend, fewer dispersed sites, or explicitly raise CLIMATE_TOOLKIT_MAX_DECODED_BYTES",
+      "cold_seconds": 3.121,
+      "peak_rss_bytes": 215580672
+    },
+    {
+      "source": "chirts_era5",
+      "backend": "huggingface",
+      "sites": 1,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 10.254,
+      "warm_seconds": 0.01,
+      "rows": 366,
+      "qc": {
+        "invalid_or_missing": {
+          "Tmax": 0,
+          "Tmin": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "estimated_source_chunk_bytes": 184320000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 777846784
+    },
+    {
+      "source": "chirts_era5",
+      "backend": "huggingface",
+      "sites": 10,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 9.941,
+      "warm_seconds": 0.018,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "Tmax": 0,
+          "Tmin": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "estimated_source_chunk_bytes": 184320000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 605044736
+    },
+    {
+      "source": "chirts_era5",
+      "backend": "huggingface",
+      "sites": 10,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 21.774,
+      "warm_seconds": 0.018,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "Tmax": 0,
+          "Tmin": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "estimated_source_chunk_bytes": 552960000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 791347200
+    },
+    {
+      "source": "chirts_era5",
+      "backend": "huggingface",
+      "sites": 100,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 10.164,
+      "warm_seconds": 0.105,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "Tmax": 0,
+          "Tmin": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "estimated_source_chunk_bytes": 184320000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 608960512
+    },
+    {
+      "source": "chirts_era5",
+      "backend": "huggingface",
+      "sites": 100,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 25.353,
+      "warm_seconds": 0.108,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "Tmax": 0,
+          "Tmin": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "estimated_source_chunk_bytes": 737280000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 862568448
+    },
+    {
+      "case": [
+        "chirts_era5",
+        "huggingface",
+        1,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "deadline_seconds": 60
+    },
+    {
+      "case": [
+        "chirts_era5",
+        "huggingface",
+        10,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "deadline_seconds": 60
+    },
+    {
+      "source": "chirts_era5",
+      "backend": "huggingface",
+      "sites": 10,
+      "layout": "dispersed",
+      "years": 30,
+      "status": "failed",
+      "error": "BackendUnavailable: All eligible backends failed for chirts_era5: huggingface: BackendUnavailable: Estimated chunk read work 11.20 GiB exceeds 4.00 GiB budget; use another backend, fewer dispersed sites, or explicitly raise CLIMATE_TOOLKIT_MAX_DECODED_BYTES",
+      "cold_seconds": 3.008,
+      "peak_rss_bytes": 217890816
+    },
+    {
+      "case": [
+        "chirts_era5",
+        "huggingface",
+        100,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "deadline_seconds": 60
+    },
+    {
+      "source": "chirts_era5",
+      "backend": "huggingface",
+      "sites": 100,
+      "layout": "dispersed",
+      "years": 30,
+      "status": "failed",
+      "error": "BackendUnavailable: All eligible backends failed for chirts_era5: huggingface: BackendUnavailable: Estimated chunk read work 14.93 GiB exceeds 4.00 GiB budget; use another backend, fewer dispersed sites, or explicitly raise CLIMATE_TOOLKIT_MAX_DECODED_BYTES",
+      "cold_seconds": 2.617,
+      "peak_rss_bytes": 219414528
+    }
+  ]
+}

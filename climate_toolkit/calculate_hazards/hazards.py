@@ -829,7 +829,7 @@ def _validate_source_window(source: str, end_year: int) -> None:
         raise ValueError(
             "chirps_v2+chirts is unavailable for this window because CHIRTS daily "
             "temperature currently ends in 2016. Use agera_5, era_5, or "
-            "--source auto (default CHIRPS v3 Daily RNL + AgERA5) for newer periods."
+            "--source auto (default CHIRPS v3 Daily RNL + ERA5-Land) for newer periods."
         )
 
 
@@ -2451,7 +2451,7 @@ def calculate_hazards(
         detection_source = source
         print(f"Detecting growing season for {crop_name} at ({lat}, {lon})")
         if detection_source == 'auto':
-            print("Climate data source: auto (chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts)")
+            print("Climate data source: auto (chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5)")
         else:
             print(f"Climate data source: {detection_source}")
         start_year = datetime.fromisoformat(date_from).year
@@ -2662,6 +2662,7 @@ def calculate_hazards(
             'crop':              crop_name,
             'location':          {'latitude': lat, 'longitude': lon},
             'season_info':       entry['season_info'],
+            'data_provenance':   entry['df'].attrs.get('data_provenance', []),
             'thi_profile':       thi_profile,
             'soil_parameters':   soil_parameters,
             'water_balance_parameters': crop_water_balance,
@@ -3102,14 +3103,14 @@ def main() -> int:
         default='auto',
         help=(
             "Climate data source (default: auto).\n"
-            "  agera_5       -- AgERA5 / ERA5-Land\n"
+            "  agera_5       -- ERA5-Land (legacy agera_5 key)\n"
             "  era_5         -- ERA5 reanalysis\n"
             "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
             "  chirps_v3_daily_rnl -- precipitation-only; use via paired or auto\n"
             "  imerg         -- precipitation-only; use via paired\n"
             "  tamsat        -- precipitation-only; use via paired\n"
             "  paired        -- explicit precip+temp pairing via --precip-source and --temp-source\n"
-            "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts\n"
+            "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5\n"
             "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
             "Recommended direct single-source fallback: agera_5.\n"
             "Note: auto-detection (no --season-* flag) now honors this source\n"

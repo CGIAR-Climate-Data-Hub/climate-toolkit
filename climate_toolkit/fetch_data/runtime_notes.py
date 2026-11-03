@@ -51,6 +51,14 @@ def build_historical_cache_note(
     cache_dir: str | None = None,
 ) -> Optional[str]:
     """Return a brief note for GEE/Xee historical requests, else None."""
+    from .backend_policy import DIRECT_SOURCES, resolve_policy
+    names = {normalize_climate_dataset_name(s) for s in (source, precip_source, temp_source)}
+    if names & DIRECT_SOURCES or (source == "auto" and not resolve_policy().allow_gee):
+        return (
+            "Historical cloud fetch note: direct providers use a separate revision-aware cache; "
+            "first reads may take seconds to minutes. --refresh-cache bypasses saved data. "
+            f"Cache root: {Path(cache_dir or 'outputs/cache')}. Backend selection controls GEE fallback."
+        )
     if not _uses_historical_gee_cache_path(
         source,
         precip_source=precip_source,

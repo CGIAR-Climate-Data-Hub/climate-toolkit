@@ -7,6 +7,7 @@ scripts, but it is not stable public CLI surface. End users should prefer
 
 import argparse
 import sys
+import warnings
 from datetime import datetime, date
 from pathlib import Path
 import pandas as pd
@@ -81,6 +82,35 @@ class SourceData:
         self.workers = workers
 
         client = None
+
+        from ..backend_policy import GEE_SOURCES, require_gee_allowed, should_route_direct
+        if should_route_direct(source.name):
+            from ..direct_cloud import DirectDownload
+            def gee_fetch():
+                require_gee_allowed()
+                return DownloadGEEXee(
+                    variables=variables, location_coord=location_coord,
+                    date_from_utc=date_from_utc, date_to_utc=date_to_utc,
+                    settings=settings, source=source, verbose=verbose,
+                    cache_dir=cache_dir, refresh_cache=refresh_cache,
+                    ee_project_id=ee_project_id, workers=workers,
+                ).download_variables()
+            self.client = DirectDownload(
+                source.name, location_coord=location_coord, variables=variables,
+                date_from=date_from_utc, date_to=date_to_utc,
+                cache_dir=cache_dir, refresh_cache=refresh_cache,
+                workers=workers, verbose=verbose,
+                gee_fetch=gee_fetch if source.name == "chirps_v3_daily_rnl" else None,
+            )
+            return
+        if source.name in GEE_SOURCES:
+            require_gee_allowed()
+        if source.name == "chirts":
+            warnings.warn(
+                "chirts (CHIRTS-daily, 1983–2016) is deprecated. Use chirts_era5 "
+                "for extended coverage. Products and cached records remain distinct.",
+                FutureWarning, stacklevel=2,
+            )
 
         if source == ClimateDataset.nex_gddp:
             client = DownloadNEXGDDP(

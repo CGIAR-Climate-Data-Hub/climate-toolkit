@@ -44,6 +44,8 @@ def _ensure_gee_initialized() -> None:
     Engine setup); this matches how the Xee path already initializes. If Earth
     Engine is not set up, raise a clear, actionable error instead.
     """
+    from ...backend_policy import require_gee_allowed
+    require_gee_allowed()
     global _GEE_READY
     if _GEE_READY:
         return
@@ -552,7 +554,7 @@ class DownloadData(models.DataDownloadBase):
         "NASA/GPM_L3/IMERG_V06": "sum",
         "ECMWF/ERA5_LAND/HOURLY": "mean",    
     }
-    # All other GEE collections are daily-cadence (ERA5, CHIRPS, CHIRTS, AgERA5, TerraClimate). 1 image/day, so a 12-year chunk = ~4380 elements,
+    # All other GEE collections are daily-cadence (ERA5, CHIRPS, CHIRTS, ERA5-Land, TerraClimate). 1 image/day, so a 12-year chunk = ~4380 elements,
     # comfortably under GEE's 5000 ceiling. 26 years -> 3 chunks.
     _GEE_DEFAULT_CHUNK_DAYS = 4380
     _GEE_MIN_CHUNK_DAYS = 7                  # don't bisect smaller than this

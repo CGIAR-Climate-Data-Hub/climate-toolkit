@@ -9,13 +9,14 @@ one-time free [setup](getting_started.md#2-google-earth-engine-credentials).
 
 | `source` | Dataset | Type | Native resolution | Coverage | Variables | Auth |
 |----------|---------|------|-------------------|----------|-----------|------|
-| `agera_5` | ERA5-Land daily aggregates | Reanalysis | 0.1° (~11 km) | 1979–present | precip, tmax/tmin/tmean, humidity, wind, solar | EE |
+| `agera_5` | ERA5-Land daily aggregates | Reanalysis | 0.1° (~11 km) | 1950-01-02–near present | precip, tmax/tmin/tmean, humidity, wind, solar | EE |
 | `era_5` | ERA5 daily | Reanalysis | 0.25° (~28 km) | 1979-01-02 – 2020-07-09 (static asset; live coverage checked at runtime) | precip, tmax/tmin, wind | EE |
 | `terraclimate` | TerraClimate | Monthly climate & water balance | 1/24° (~4 km) | 1958–present, monthly | precip, tmax/tmin, wind, solar, soil moisture | EE |
 | `imerg` | GPM IMERG v07 | Satellite precipitation | 0.1° (~11 km) | 2000–present | precip | EE |
 | `chirps_v2` (alias `chirps`) | CHIRPS v2 daily | Blended satellite–gauge precipitation | 0.05° (~5.5 km) | 1981–present | precip | EE |
-| `chirps_v3_daily_rnl` | CHIRPS v3 daily (RNL) | Blended satellite–gauge precipitation | 0.05° (~5.5 km) | 1981–present | precip | EE |
-| `chirts` | CHIRTS daily | Satellite–station temperature | 0.05° (~5.5 km) | 1983–2016 | tmax/tmin | EE |
+| `chirps_v3_daily_rnl` | CHIRPS v3 daily final/RNL | Blended satellite–gauge precipitation | 0.05° (~5.5 km) | 1981–provider latest | precip | None with cloud extra; optional EE fallback |
+| `chirts_era5` | CHIRTS-ERA5 daily | CHIRTS-calibrated ERA5 temperature | 0.05° (~5.5 km) | Hosted 1981–provider latest | tmax/tmin | None with cloud extra |
+| `chirts` (deprecated) | CHIRTS daily | Satellite–station temperature | 0.05° (~5.5 km) | 1983–2016 | tmax/tmin | EE |
 | `cmip_6` | NASA GDDP-CMIP6 | Downscaled projections | 0.25° (~27 km) | historical + scenarios | precip, tmax/tmin | EE |
 | `nex_gddp` | NEX-GDDP-CMIP6 | Downscaled projections (per GCM × SSP) | 0.25° (~27 km) | historical to 2014-12-31; scenarios from 2015-01-01 | precip, tmax/tmin, humidity | EE |
 | `nasa_power` | NASA POWER daily | Reanalysis-derived point API | ~0.5° | 1984–present | precip, tmax/tmin/tmean, humidity | None |
@@ -30,6 +31,13 @@ one-time free [setup](getting_started.md#2-google-earth-engine-credentials).
     `ECMWF/ERA5_LAND/DAILY_AGGR` (ERA5-Land daily aggregates), which shares
     ERA5-Land's 0.1° grid. It is the recommended default for recent daily
     data because of its variable breadth and continuously updated coverage.
+    This is distinct from Copernicus AgERA5. The listed start date follows the
+    [upstream GEE catalogue](https://developers.google.com/earth-engine/datasets/catalog/ECMWF_ERA5_LAND_DAILY_AGGR);
+    individual request coverage must still be verified. Official CDS ARCO access
+    requires a CDS key and is [under investigation](../analysis/issues/issue_180_era5_land_access.md),
+    with no integrated alternative backend yet.
+
+Cloud dependencies, provider controls and CHIRTS migration: [direct cloud access](direct_cloud_access.md).
 
 ## Choosing a source
 
@@ -66,5 +74,5 @@ from climate_toolkit.fetch_data.source_data.sources.utils.models import (
 `cation_exchange_capacity`, `soil_moisture`.
 
 Not every source provides every variable (see the table above). Requests
-outside a source's coverage window are clipped with a warning, or raise
-`ValueError` when there is no overlap.
+outside legacy source coverage windows may be clipped with a warning. Direct cloud
+requests require the full window and fail over or raise an error when it is incomplete.
