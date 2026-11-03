@@ -212,7 +212,8 @@ credential-free ERA5-Land companion variables are tracked in
 [#180](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/180).
 The [ERA5-Land access audit](../analysis/issues/issue_180_era5_land_access.md) found
 authenticated CDS ARCO stores as a candidate, but live metadata access rejected
-the configured key. No ERA5-Land cloud backend is enabled. CDS hourly flow fields
+the configured key. CDS work is shelved because credentials are required;
+no ERA5-Land cloud backend is enabled. CDS hourly flow fields
 also need explicit day-boundary aggregation to match existing GEE results.
 
 ## References

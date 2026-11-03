@@ -63,8 +63,8 @@ cache provenance, QC and limits: [direct cloud access](docs/direct_cloud_access.
 Direct reads share source chunks across up to five missing years per batch and
 save annual progress for retries. CHIRTS-ERA5's independent CHC backup remains
 under [validation](analysis/issues/issue_179_chc_backup_investigation.md).
-ERA5-Land's official CDS cloud stores require a separate CDS key; they are under
-[validation](analysis/issues/issue_180_era5_land_access.md) and are not yet used by
+ERA5-Land's official CDS cloud stores require a separate CDS key; that work is
+[shelved](analysis/issues/issue_180_era5_land_access.md) and they are not used by
 the toolkit. The current no-GEE auto pair supplies rainfall and Tmax/Tmin.
 
 For the complete fetch → climatology → statistics → hazards → comparison workflow,
@@ -193,6 +193,17 @@ To develop the toolkit or run the `examples/` scripts, set up from a clone inste
    uv run ruff check .
    uv run pytest -q
    ```
+
+   CI tests the base package on Python 3.10 and the `cloud` and `api` extras on
+   Python 3.12. To run the cloud-provider and pipeline tests locally:
+
+   ```bash
+   uv sync --locked --group dev --extra cloud --extra api --python 3.12
+   uv run pytest -q
+   ```
+
+   Distribution checks install the base wheel and source archive in fresh
+   environments; Python 3.12+ also checks a fresh `cloud` wheel installation.
 
 3. Fallback setup with `venv + pip`
 

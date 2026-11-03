@@ -29,7 +29,8 @@ cache records, revision isolation and resumability after later-batch outages.
 - Direct backends require Python 3.12+ plus the cloud extra (Zarr 3, Icechunk 2.3,
   HTTP fsspec and Dask). Base Python support remains 3.10+. This environment tested
   Python 3.12.10, xarray 2025.6.1, Zarr 3.4.2, Icechunk 2.3.1 on macOS ARM64.
-  Python 3.10/3.11 were not executed; dependency markers exclude cloud packages.
+  Python 3.10 base-package validation was subsequently completed below;
+  Python 3.11 remains untested. Dependency markers exclude cloud packages below 3.12.
 
 ## Product identity and coverage
 
@@ -211,3 +212,34 @@ Final confirmation on the completed code: **677 tests passed, 104 subtests passe
 (18 warnings, 159.00 seconds). Final live report metadata and cached replay passed;
 source/wheel builds and static/dependency checks passed. No GEE/provider credentials
 were needed for the direct integration or its live end-to-end verification.
+
+## Integration with current main and distribution checks — 2026-11-03
+
+Merged main through `e2900e3`, preserving both the optional API and cloud extras
+and the released base version. CI now exercises Python 3.10 base and Python 3.12
+cloud/API environments, with an explicit cloud dependency import gate to prevent
+silently skipped provider tests. Distribution tests install base wheel/source
+archives and a cloud wheel in separate fresh environments, outside the checkout.
+
+Local macOS ARM64 results after the merge:
+
+- Python 3.12.10 with cloud/API: **730 passed, 2 skipped, 104 subtests passed**
+  (20 warnings, 267.17 seconds).
+- Python 3.10.20 base: **692 passed, 40 skipped, 104 subtests passed**
+  (15 warnings, 271.43 seconds). Optional cloud/API tests skip without their extras.
+- Ruff, lock verification, whitespace checks, wheel/source builds and Twine
+  artifact checks passed. Fresh cloud installation verifies its dependencies,
+  public backend policy, pipeline import and installed fetch CLI.
+- Repeated all six pipeline stages for Nairobi 2020 after the merge: 366 daily
+  rows; GEE calls zero. First run 4.20 seconds using existing cache where available;
+  replay 0.67 seconds with provider opens blocked and exactly matching daily values.
+  [Verification record](direct_cloud_evidence_2026-11-02/pipeline_verification_merged.json).
+
+Commands: `uv sync --locked --group dev --extra cloud --extra api --python 3.12`,
+`uv run pytest -q`; a separate Python 3.10 environment ran the same suite with
+base dependencies. Live workflow reproduction remains
+`uv run python scripts/verify_direct_pipeline.py`.
+
+These are package integration checks, not broader scientific validation. Existing
+independent CHIRTS-provider and long-window efficiency gaps remain open. CDS work
+is shelved because credentials are required; no NASA POWER changes were added.

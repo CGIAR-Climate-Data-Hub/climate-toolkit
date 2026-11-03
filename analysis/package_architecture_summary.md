@@ -1,7 +1,7 @@
 # Package Architecture Summary
 
 Status: current working summary  
-Updated: 2026-11-02
+Updated: 2026-11-03
 
 This file is intended to be current-state architecture reference for
 developers, reviewers, and coding agents. It should describe actual runtime
@@ -88,6 +88,9 @@ Human-facing entry points:
 
 - top-level package exports in `climate_toolkit/__init__.py`
 - CLI modules with `main()` functions
+- optional source-tree FastAPI service in `apis/`, installed with the `api`
+  extra and run as `uvicorn apis.main:app`; it delegates to package workflows
+  and is not included in the installed `climate_toolkit*` distribution
 
 This layer should remain thin. It should parse args, call library functions,
 print/save output, and avoid owning core science logic.
@@ -148,6 +151,10 @@ Important shared helpers:
 - `weather_station/overrides.py`
 
 These modules support multiple higher-level workflows.
+
+`visualization/` supplies shared matplotlib styles, variable labels, text helpers,
+timeline helpers and figure IO. ERA example plots consume it; it does not own
+source routing or scientific reductions and adds no stable top-level export.
 
 ### 5. Resource and packaged-data layer
 
@@ -305,7 +312,8 @@ Actual routing and source policy:
 - Other historical gridded products and `nex_gddp` retain GEE/Xee routes.
   NASA POWER and station products have direct HTTP paths; TAMSAT remains optional.
 
-ERA5-Land direct access remains an investigation, not runtime routing. The
+ERA5-Land direct access is shelved because CDS requires credentials; it is not
+runtime routing. The
 [issue 180 memo](issues/issue_180_era5_land_access.md) records CDS authentication
 failures, candidate coverage and the required daily aggregation contract.
 `scripts/probe_era5_land_access.py` checks metadata access only and registers no

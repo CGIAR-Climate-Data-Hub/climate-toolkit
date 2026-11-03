@@ -1,6 +1,7 @@
 # Issue 180: ERA5-Land companion access without GEE
 
-Date: 2026-11-02. Status: access investigation; no new runtime backend enabled.
+Date: 2026-11-02. Status: shelved at user request because CDS requires credentials;
+no new runtime backend enabled. Existing investigation is retained for reference.
 Architecture authority: [package architecture summary](../package_architecture_summary.md).
 Issue: [#180](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/180).
 
