@@ -105,6 +105,20 @@ class SaveFigureTests(unittest.TestCase):
             self.assertGreater(os.path.getsize(target), 0)
         plt.close(fig)
 
+    def test_save_forwards_extra_savefig_kwargs(self):
+        use_headless()
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        ax.plot([0, 1], [0, 1])
+        with tempfile.TemporaryDirectory() as d:
+            target = os.path.join(d, "fig.png")
+            # bbox_inches / facecolor are forwarded to fig.savefig without error
+            returned = save_figure(fig, target, dpi=150, bbox_inches="tight", facecolor="white")
+            self.assertEqual(returned, target)
+            self.assertGreater(os.path.getsize(target), 0)
+        plt.close(fig)
+
 
 if __name__ == "__main__":
     unittest.main()
