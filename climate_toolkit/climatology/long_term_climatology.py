@@ -45,6 +45,7 @@ except ModuleNotFoundError:
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import redirect_stdout
 from statistics import mean, stdev, median
+from climate_toolkit.visualization import save_figure
 from climate_toolkit.fetch_data.source_data.sources.nex_gddp import (
     AVAILABLE_MODELS as NEX_GDDP_MODELS,
     POLICY_PROFILE_CHOICES,
@@ -641,7 +642,7 @@ def plot_annual_timeseries(
                   xlabel="Year", ylabel="Annual mean (°C)")
 
     fig.tight_layout()
-    fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
+    save_figure(fig, output_path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"  📊  Saved → {output_path}")
     return True
@@ -699,7 +700,7 @@ def plot_monthly_climatology(
                   xlabel="Month", ylabel="°C")
 
     fig.tight_layout()
-    fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
+    save_figure(fig, output_path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"  📊  Saved → {output_path}")
     return True
