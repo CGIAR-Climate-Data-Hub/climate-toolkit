@@ -1,0 +1,24 @@
+{# Shared, schema-agnostic rendering of a NEX-GDDP ensemble result.
+   Ensemble outputs vary by module, so surface a few common top-level fields
+   when present (all guarded) and keep the full payload in a collapsible view. #}
+{% set d = result.data %}
+<p class="text-sm text-gray-600 mb-3">NEX-GDDP CMIP6 ensemble result (aggregated across the selected models for the chosen scenario).</p>
+
+<div class="grid grid-cols-3 gap-4 mb-4">
+    {% if d.scenario %}
+    <div class="bg-purple-50 p-3 rounded"><p class="text-xs text-gray-500">Scenario</p><p class="font-semibold">{{ d.scenario }}</p></div>
+    {% endif %}
+    {% if d.models_used %}
+    <div class="bg-blue-50 p-3 rounded"><p class="text-xs text-gray-500">Models used</p><p class="font-semibold">{{ d.models_used | length }}</p></div>
+    {% elif d.models %}
+    <div class="bg-blue-50 p-3 rounded"><p class="text-xs text-gray-500">Models</p><p class="font-semibold">{{ d.models | length }}</p></div>
+    {% endif %}
+    {% if d.failed_models %}
+    <div class="bg-red-50 p-3 rounded"><p class="text-xs text-gray-500">Failed models</p><p class="font-semibold">{{ d.failed_models | length }}</p></div>
+    {% endif %}
+</div>
+
+<details class="mt-2">
+    <summary class="cursor-pointer text-sm text-gray-600 mb-2">Full ensemble result (JSON)</summary>
+    <pre class="bg-gray-900 text-green-200 text-xs p-4 rounded-lg overflow-auto" style="max-height:32rem">{{ d | tojson(indent=2) }}</pre>
+</details>

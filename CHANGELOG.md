@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-07
+
 ### Changed
 
 - **BREAKING:** renamed the package from `climate_tookit` to

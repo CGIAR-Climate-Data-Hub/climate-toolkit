@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "climate-toolkit"
-version = "0.1.0a0"
+version = "0.1.0"
 description = "Climate toolkit for location-based climate, season, climatology, hazard, and projection analysis."
 readme = "README.md"
 license = "MIT"
@@ -50,9 +50,20 @@ cloud = [
   "dask[array]>=2025.3; python_version >= '3.12'",
 ]
 
+# HTTP service layer (apis/). Optional so the base CLI/library stays lean:
+#   uv sync --extra api    /    pip install -e ".[api]"
+api = [
+  "fastapi>=0.110.0",
+  "uvicorn>=0.29.0",
+  "jinja2>=3.1.0",
+  "python-multipart>=0.0.9",
+]
+
 [dependency-groups]
 dev = [
   "build",
+  "ipykernel",
+  "nbconvert",
   "pytest",
   "ruff",
   "setuptools>=68",
@@ -108,6 +119,12 @@ climate_toolkit = [
   "fetch_data/source_data/sources/utils/*.yaml",
   "fetch_data/transform_data/*.yaml",
 ]
+
+[tool.pytest.ini_options]
+# Collect only the project's own suite. Keeps a bare `pytest` from wandering into
+# local, git-ignored example clones (e.g. examples/climate-toolkit/) whose
+# duplicate test filenames otherwise collide during collection.
+testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py310"

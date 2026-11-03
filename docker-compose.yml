@@ -1,0 +1,33 @@
+# Convenience wrapper around the reproducible image.
+#
+#   docker compose build
+#   docker compose run --rm toolkit --help
+#   GCP_PROJECT_ID=your-project docker compose run --rm toolkit \
+#       fetch --source nasa_power --lat -1.286 --lon 36.817 \
+#       --from 2020-01-01 --to 2020-12-31
+#
+# Always pass --rm so each run removes its own container on exit. To sweep any
+# stale containers left by earlier runs, run:
+#   docker compose down --remove-orphans
+#
+# Earth Engine-backed sources also need the mounted credentials below plus a
+# real GCP_PROJECT_ID. NASA POWER needs neither.
+#
+# Create ./outputs before the first run (`mkdir -p outputs`) so it is owned by
+# you — Docker would otherwise create the missing bind-mount source as root, and
+# the non-root container could not write cache into it on Linux. The
+# docker-run.sh wrapper does this for you.
+
+services:
+  toolkit:
+    build:
+      context: .
+    image: climate-toolkit
+    environment:
+      # Passed through from your shell; empty is fine for NASA POWER / offline use.
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-}
+    volumes:
+      # Earth Engine OAuth credentials (created by `earthengine authenticate`).
+      - ${HOME}/.config/earthengine:/home/app/.config/earthengine:ro
+      # Persist cache/outputs across runs so repeat fetches reuse cached frames.
+      - ./outputs:/app/outputs

@@ -1,0 +1,66 @@
+name: Release Please
+
+# Automated releasing driven by Conventional Commits.
+#
+# release-please watches `main` and keeps a "release PR" open that bumps the
+# version in pyproject.toml and updates CHANGELOG.md from the commit history.
+# Merging that PR creates the GitHub Release + tag, and the `publish` job below
+# then builds and uploads to PyPI via Trusted Publishing (OIDC, no API tokens).
+#
+# Why publish here and not in publish.yml: releases created by the built-in
+# GITHUB_TOKEN do not re-trigger other workflows, so `publish.yml`'s
+# `release: published` trigger never fires for a release-please release. The
+# publish therefore runs inside this same workflow, gated on `release_created`.
+# publish.yml remains for MANUAL releases (human-cut) and the TestPyPI rehearsal.
+#
+# ONE-TIME SETUP (a maintainer — cannot be automated here):
+#   repo → Settings → Actions → General → Workflow permissions →
+#   tick "Allow GitHub Actions to create and approve pull requests"
+# Without it, release-please cannot open its release PR.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Maintain release PR
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    name: Publish to PyPI
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/climate-toolkit/
+    permissions:
+      id-token: write        # required for Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Verify metadata renders
+        run: uvx twine check dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

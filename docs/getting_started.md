@@ -8,17 +8,20 @@
 
 ## 1. Install
 
-Straight from GitHub, no clone needed:
+From PyPI, no clone needed:
 
 ```bash
-pip install "git+https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git"
+pip install climate-toolkit
 ```
 
 From a Jupyter notebook, prefix with `%`:
 
 ```
-%pip install "git+https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git"
+%pip install climate-toolkit
 ```
+
+For the latest unreleased code, install from GitHub instead:
+`pip install "git+https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit.git"`
 
 For development, clone and use [uv](https://docs.astral.sh/uv/):
 

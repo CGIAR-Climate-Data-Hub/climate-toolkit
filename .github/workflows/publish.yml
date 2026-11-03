@@ -1,0 +1,89 @@
+name: Publish to PyPI
+
+# Publishes on a GitHub Release, via Trusted Publishing (OIDC) — no API tokens.
+#
+#   * Release marked "pre-release"  -> uploads to TestPyPI  (a safe rehearsal)
+#   * Normal (full) Release         -> uploads to PyPI
+#
+# Flow for each new version:
+#   1. bump `version` in pyproject.toml (PyPI versions are immutable — a new
+#      upload always needs a new version number),
+#   2. merge to main,
+#   3. draft & publish a GitHub Release (tag e.g. `v0.1.0`). Tick "Set as a
+#      pre-release" to rehearse on TestPyPI first; publish normally for PyPI.
+#
+# ONE-TIME SETUP (by a maintainer — cannot be automated here). Add a pending
+# publisher on BOTH pypi.org and test.pypi.org (account → Publishing):
+#     PyPI Project Name : climate-toolkit
+#     Owner             : CGIAR-Climate-Data-Hub
+#     Repository name    : climate-toolkit
+#     Workflow name      : publish.yml
+#     Environment name   : pypi        (on PyPI)   /   testpypi (on TestPyPI)
+# TestPyPI is optional — skip it if you don't want the rehearsal path.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Verify metadata renders
+        run: uvx twine check dist/*
+
+      - name: Upload built distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-testpypi:
+    name: Publish to TestPyPI (rehearsal)
+    needs: build
+    if: github.event.release.prerelease
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/climate-toolkit/
+    permissions:
+      id-token: write        # required for Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: build
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/climate-toolkit/
+    permissions:
+      id-token: write        # required for Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

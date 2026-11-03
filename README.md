@@ -6,7 +6,11 @@ A unified toolkit for retrieving climate data from various global datasets such 
 
 [![Documentation](https://img.shields.io/badge/docs-climate--toolkit-2ea44f)](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/) — full documentation: getting started, workflows, and API reference.
 
+[![PyPI](https://img.shields.io/pypi/v/climate-toolkit)](https://pypi.org/project/climate-toolkit/) — published on PyPI: `pip install climate-toolkit`.
+
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) — try the toolkit live in your browser, no install needed.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/era_lte_colab.ipynb) — ERA LTE workflow: validate toolkit rainfall against ERA field records and explore yield vs climate, with plots.
 
 <p>
   <a href="https://www.mcknight.org/programs/global-foods/"><img src="docs/assets/logos/mcknight.jpg" alt="The McKnight Foundation" height="44"></a>
@@ -140,6 +144,14 @@ If you see:
 - auth refresh / DNS errors -> refresh Earth Engine auth and check internet/DNS
 
 ### Installation
+
+Just want to use the package? Install from PyPI:
+
+```bash
+pip install climate-toolkit
+```
+
+To develop the toolkit or run the `examples/` scripts, set up from a clone instead:
 
 1. Clone repository
 
@@ -309,14 +321,83 @@ python -m pip install .tmp/dist-release/climate_toolkit-*.whl
 If you only want artifact verification without mutating current environment,
 rely on automated smoke tests and CI build checks.
 
+### Reproducible environment with Docker
+
+For a reproducible runtime that does not depend on your local
+Python version, use the provided `Dockerfile`. Reproducibility comes from three
+pins: the base image (pinned by digest to CPython 3.10, matching CI), `uv`
+(pinned to an exact release), and `uv.lock` (every dependency fixed to an exact
+version + hash).
+
+Build the image:
+
+```bash
+docker build -t climate-toolkit .
+```
+
+**Recommended: use the `docker-run.sh` wrapper.** It deletes stale containers
+from previous runs on every start, then launches a fresh one with `--rm` so it
+also cleans up on exit — you never accumulate leftover containers. It builds the
+image automatically on first use and forwards all arguments to the CLI:
+
+```bash
+./docker-run.sh --help
+GCP_PROJECT_ID=your-project ./docker-run.sh fetch --source nasa_power \
+  --lat -1.286 --lon 36.817 --from 2020-01-01 --to 2020-12-31
+```
+
+The wrapper mounts your Earth Engine credentials and `outputs/` for you. Under
+the hood it runs the plain commands below.
+
+Offline smoke test — proves the environment reproduces, needs neither Earth
+Engine nor network:
+
+```bash
+docker run --rm climate-toolkit --help
+docker run --rm --entrypoint python climate-toolkit \
+  -c "import climate_toolkit as ct; print(ct.__version__)"
+```
+
+Earth Engine credentials are **not** baked into the image (they are per-user
+OAuth). For Earth Engine-backed sources, mount your credentials read-only and
+pass `GCP_PROJECT_ID` at runtime. Mount `outputs/` so cached frames persist
+across runs:
+
+```bash
+docker run --rm \
+  -e GCP_PROJECT_ID=your-project \
+  -v "$HOME/.config/earthengine:/home/app/.config/earthengine:ro" \
+  -v "$(pwd)/outputs:/app/outputs" \
+  climate-toolkit fetch --source nasa_power \
+    --lat -1.286 --lon 36.817 --from 2020-01-01 --to 2020-12-31
+```
+
+A `docker-compose.yml` wraps those mounts so you can run
+`docker compose run --rm toolkit <command>` instead. NASA POWER needs no
+credentials; the offline unit suite and CLI surface work without Earth Engine.
+
+**Container cleanup.** Every documented command uses `--rm`, so a successful run
+never leaves a container behind. Stale containers can only appear if a run
+crashes or is started without `--rm`; the `docker-run.sh` wrapper sweeps those
+before each start. To clean up manually at any time:
+
+```bash
+# Remove stopped containers built from the image
+docker ps -aq --filter ancestor=climate-toolkit --filter status=exited | xargs -r docker rm
+# Or, when using compose
+docker compose down --remove-orphans
+```
+
 ### Release strategy
 
-Current decision:
-
-- GitHub releases only for now
-- no direct PyPI publish yet
-- TestPyPI can come later once auth-heavy runtime expectations, install docs,
-  and wheel smoke behavior stay stable across contributor machines
+- Published on **PyPI** as [`climate-toolkit`](https://pypi.org/project/climate-toolkit/) —
+  `pip install climate-toolkit`.
+- Releases are automated via **Trusted Publishing** (OIDC, no stored tokens):
+  publishing a GitHub Release builds the package and uploads it to PyPI. Mark a
+  Release as a pre-release to route it to TestPyPI as a rehearsal instead. See
+  [`RELEASING.md`](RELEASING.md).
+- Versions follow [semantic versioning](https://semver.org); PyPI versions are
+  immutable, so each publish needs a new version number.
 
 Reference note:
 
@@ -712,6 +793,67 @@ spei_12 = compute_monthly_spei(monthly_balance, scale=12)
 xclim_precip = compute_xclim_precip_indices(df)
 vpd = summarize_vpd_period(df)
 ```
+
+---
+
+## HTTP API (optional)
+
+An optional FastAPI service in `apis/` exposes the toolkit over HTTP — a JSON
+API under `/api/v1/*` plus simple HTML pages for interactive use. It is **not**
+required for CLI/library use, so its dependencies are an optional extra.
+
+Install and run:
+
+```bash
+# install the API extra (fastapi/uvicorn/jinja2/python-multipart)
+uv sync --extra api          # or: pip install -e ".[api]"
+
+# run the dev server from the repo root
+uv run uvicorn apis.main:app --reload
+```
+
+Then open:
+
+- `http://127.0.0.1:8000/` — HTML landing page / forms
+- `http://127.0.0.1:8000/docs` — interactive OpenAPI (Swagger) docs
+- `http://127.0.0.1:8000/api/v1/data/sources` — example JSON endpoint
+
+### Deploy the API with Docker
+
+`Dockerfile.api` builds a reproducible image (base pinned by digest, `uv` and
+`uv.lock` pinned) that installs the `api` extra and serves the app with uvicorn
+in production mode — no `--reload`. Build and run:
+
+```bash
+docker build -f Dockerfile.api -t climate-toolkit-api .
+
+# Offline check — the app boots without Earth Engine:
+docker run --rm -p 8000:8000 climate-toolkit-api
+# then browse http://127.0.0.1:8000/ (and /health for the readiness probe)
+```
+
+Earth Engine credentials are **not** baked into the image (they are per-user
+OAuth). For GEE-backed requests, mount your credentials read-only and pass
+`GCP_PROJECT_ID`; mount `outputs/` so generated plots persist:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e GCP_PROJECT_ID=your-project \
+  -v "$HOME/.config/earthengine:/home/app/.config/earthengine:ro" \
+  -v "$(pwd)/outputs:/app/outputs" \
+  climate-toolkit-api
+```
+
+The image runs as a non-root user, exposes port 8000, and defines a
+`HEALTHCHECK` against `/health`. For a public deployment, put it behind a
+reverse proxy (TLS termination), restrict the wildcard CORS origins in
+`apis/main.py` to your front-end origin, and run multiple workers
+(`--workers N`) as needed.
+
+Endpoints wrap the same functions as the CLI (`data`, `statistics`, `hazards`,
+`compare`, `seasons`, `climatology`, `compare-datasets`), so the Earth Engine
+auth and `GCP_PROJECT_ID` expectations from
+[Environment variables](#environment-variables) apply to any GEE-backed request.
 
 ---
 

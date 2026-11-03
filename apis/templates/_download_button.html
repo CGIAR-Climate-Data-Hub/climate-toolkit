@@ -1,0 +1,99 @@
+{# Client-side "download result" buttons (JSON + CSV). Serializes the already-
+   computed result (no server round-trip / no recompute). Include inside a
+   success block; optionally set `download_name` before including for a
+   module-specific filename. #}
+{% if result and result.status_code == 200 and result.data %}
+<div class="mb-4 flex justify-end gap-2">
+    <button type="button" onclick="downloadResultJSON()"
+        class="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors">
+        ⬇ Download (JSON)
+    </button>
+    <button type="button" onclick="downloadResultCSV()"
+        class="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors">
+        ⬇ Download (CSV)
+    </button>
+</div>
+<script type="application/json" id="result-json">{{ result.data | tojson }}</script>
+<script>
+(function () {
+    const NAME = '{{ download_name | default("climate-toolkit-result") }}';
+
+    function readResult() {
+        const el = document.getElementById('result-json');
+        return el ? JSON.parse(el.textContent) : null;
+    }
+
+    function save(text, mime, ext) {
+        const blob = new Blob([text], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = NAME + '.' + ext;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    // Flatten a nested object into dot-path -> scalar rows (arrays -> .0, .1 ...).
+    function flatten(obj, prefix, rows) {
+        for (const k in obj) {
+            const key = prefix ? prefix + '.' + k : k;
+            const v = obj[k];
+            if (v !== null && typeof v === 'object') {
+                flatten(v, key, rows);
+            } else {
+                rows.push([key, v]);
+            }
+        }
+    }
+
+    function csvCell(v) {
+        const s = (v === null || v === undefined) ? '' : String(v);
+        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }
+
+    // If the result has a list of records (e.g. season_statistics), export it as
+    // a proper table; otherwise fall back to a flat field,value CSV.
+    function tableFromRecords(records) {
+        const cols = [];
+        records.forEach(function (r) {
+            const flat = [];
+            flatten(r, '', flat);
+            flat.forEach(function (kv) { if (cols.indexOf(kv[0]) === -1) cols.push(kv[0]); });
+        });
+        const lines = [cols.map(csvCell).join(',')];
+        records.forEach(function (r) {
+            const flat = {};
+            const pairs = [];
+            flatten(r, '', pairs);
+            pairs.forEach(function (kv) { flat[kv[0]] = kv[1]; });
+            lines.push(cols.map(function (c) { return csvCell(flat[c]); }).join(','));
+        });
+        return lines.join('\n');
+    }
+
+    window.downloadResultJSON = function () {
+        const el = document.getElementById('result-json');
+        if (el) save(el.textContent, 'application/json', 'json');
+    };
+
+    window.downloadResultCSV = function () {
+        const data = readResult();
+        if (!data) return;
+        // Prefer the main per-season table when present.
+        const records = data.season_statistics;
+        if (Array.isArray(records) && records.length && typeof records[0] === 'object') {
+            save(tableFromRecords(records), 'text/csv', 'csv');
+            return;
+        }
+        const rows = [];
+        flatten(data, '', rows);
+        const csv = 'field,value\n' + rows.map(function (r) {
+            return csvCell(r[0]) + ',' + csvCell(r[1]);
+        }).join('\n');
+        save(csv, 'text/csv', 'csv');
+    };
+})();
+</script>
+{% endif %}

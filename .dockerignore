@@ -1,0 +1,26 @@
+# Keep the build context small and deterministic. The image installs from
+# pyproject.toml + uv.lock, so only the package source is needed.
+.git
+.github
+.venv
+venv
+env
+outputs
+.tmp
+site
+docs
+analysis
+examples
+tests
+demo_issue_69.sh
+**/__pycache__
+**/*.pyc
+*.egg-info
+.env
+*.env
+.ruff_cache
+.pytest_cache
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-run.sh
