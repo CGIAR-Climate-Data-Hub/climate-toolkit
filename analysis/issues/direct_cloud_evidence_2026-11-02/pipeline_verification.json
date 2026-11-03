@@ -1,0 +1,88 @@
+{
+  "warm_seconds": 0.7223667078651488,
+  "status": "completed",
+  "steps": [
+    "fetch",
+    "climatology",
+    "source_comparison",
+    "statistics",
+    "hazards",
+    "period_comparison"
+  ],
+  "rows": 366,
+  "climatology_years": 2,
+  "sources": [
+    "chirps_v3_daily_rnl",
+    "chirts_era5"
+  ],
+  "provenance": [
+    {
+      "backend": "dynamical",
+      "cache_schema_version": 2,
+      "conversion": "daily mean kg m-2 s-1 * 86400 -> mm/day",
+      "coverage": [
+        "1981-01-01T00:00:00",
+        "2026-09-30T00:00:00"
+      ],
+      "estimated_source_chunk_bytes": 10512000,
+      "retrieved_at": "2026-11-02T09:31:20.720898+00:00",
+      "revision": "YPS4QK3KM752R5XT8740",
+      "selected_cells": [
+        {
+          "lat": -1.2749999999999986,
+          "lon": 36.82499999999999,
+          "site": "point"
+        }
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "store": "https://dynamical-ucsb-chc-chirps.s3.us-west-2.amazonaws.com/ucsb-chc-chirps-analysis-final/v0.1.0.icechunk",
+      "window": [
+        "2020-01-01",
+        "2020-12-31"
+      ],
+      "backend_attempts": [
+        {
+          "backend": "dynamical",
+          "status": "success"
+        }
+      ]
+    },
+    {
+      "backend": "huggingface",
+      "cache_schema_version": 2,
+      "conversion": "CF scale/offset and fill decoded by xarray",
+      "coverage": [
+        "1981-01-01T00:00:00",
+        "2026-10-21T00:00:00"
+      ],
+      "estimated_source_chunk_bytes": 184320000,
+      "retrieved_at": "2026-11-02T09:31:27.582626+00:00",
+      "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "selected_cells": [
+        {
+          "lat": -1.275,
+          "lon": 36.825,
+          "site": "point"
+        }
+      ],
+      "source": "chirts_era5",
+      "store": "https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/35669afbbd1c6ab84dcc496f2f95b7cbbf75867f/chirts-era5-daily.zarr",
+      "window": [
+        "2020-01-01",
+        "2020-12-31"
+      ],
+      "backend_attempts": [
+        {
+          "backend": "huggingface",
+          "status": "success"
+        }
+      ]
+    }
+  ],
+  "gee_calls": 0,
+  "warm_provider_calls": 0,
+  "cached_values_equal": true,
+  "report_directory": "outputs/direct_pipeline_validation_2026-11-02",
+  "first_run_seconds": 26.289037625305355,
+  "cache_note": "Existing toolkit cache was available; first run is not a clean cold-cache benchmark."
+}

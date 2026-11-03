@@ -33,6 +33,10 @@ source_mappings:
     maximum_temperature: max_temperature
     minimum_temperature: min_temperature
     relative_humidity: humidity
+
+  chirts_era5:
+    Tmax: max_temperature
+    Tmin: min_temperature
   
   chirps_v2:
     precipitation: precipitation

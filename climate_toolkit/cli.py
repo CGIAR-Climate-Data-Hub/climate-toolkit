@@ -19,6 +19,7 @@ available as aliases for backward compatibility.
 from __future__ import annotations
 
 import importlib
+import argparse
 import sys
 from typing import List, Optional
 
@@ -47,7 +48,7 @@ COMMANDS = {
 def _usage() -> str:
     width = max(len(name) for name in COMMANDS)
     lines = [
-        "usage: climate-toolkit <command> [options]",
+        "usage: climate-toolkit <command> [--backend auto|dynamical|huggingface|gee] [--no-gee] [options]",
         "",
         "Available commands:",
     ]
@@ -74,14 +75,20 @@ def main(argv: Optional[List[str]] = None) -> int:
         sys.stderr.write(_usage() + "\n")
         return 2
 
+    from .fetch_data.backend_policy import backend_policy
+    policy_parser = argparse.ArgumentParser(add_help=False)
+    policy_parser.add_argument("--backend", choices=["auto", "dynamical", "huggingface", "gee"], default=None)
+    policy_parser.add_argument("--no-gee", action="store_true")
+    policy_args, remaining = policy_parser.parse_known_args(argv[1:])
     module_path, func_name = COMMANDS[command].split(":")
-    func = getattr(importlib.import_module(module_path), func_name)
 
     # Hand the remaining arguments to the tool's own parser via sys.argv so
     # that the command behaves exactly like its standalone script, including
     # its native --help output.
-    sys.argv = [f"climate-toolkit {command}", *argv[1:]]
-    result = func()
+    with backend_policy(backend=policy_args.backend, allow_gee=False if policy_args.no_gee else None):
+        func = getattr(importlib.import_module(module_path), func_name)
+        sys.argv = [f"climate-toolkit {command}", *remaining]
+        result = func()
     return int(result) if result is not None else 0
 
 

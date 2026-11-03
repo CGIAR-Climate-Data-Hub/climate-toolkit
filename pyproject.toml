@@ -43,6 +43,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cloud = [
+  "zarr>=3,<4; python_version >= '3.12'",
+  "icechunk>=2.3,<3; python_version >= '3.12'",
+  "fsspec[http]>=2025.3; python_version >= '3.12'",
+  "dask[array]>=2025.3; python_version >= '3.12'",
+]
+
 # HTTP service layer (apis/). Optional so the base CLI/library stays lean:
 #   uv sync --extra api    /    pip install -e ".[api]"
 api = [
@@ -67,6 +74,9 @@ docs = [
   "mkdocs-material",
   "mkdocs-static-i18n",
   "mkdocstrings[python]",
+]
+notebook = [
+    "seaborn>=0.13",
 ]
 
 [project.urls]
@@ -129,6 +139,11 @@ extend-exclude = [
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]
 ignore = ["E402", "E701", "E702", "F401", "F541"]
+
+[tool.ruff.lint.per-file-ignores]
+# Notebook cells are often self-contained (re-import and re-define helpers so
+# each cell runs independently), which reads as redefinition to the linter.
+"*.ipynb" = ["F811"]
 
 [tool.ruff.format]
 quote-style = "double"

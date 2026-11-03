@@ -76,6 +76,7 @@ HISTORICAL_GRID_SOURCES = {
     "agera_5",
     "auto",
     "chirts",
+    "chirts_era5",
     "chirps",
     "chirps_v2",
     "chirps_v2+chirts",
@@ -103,6 +104,11 @@ GRID_SOURCE_METADATA = {
         "product_class": "composite_selector",
         "station_informed": True,
         "validation_independence": "mixed; depends on selected underlying products",
+    },
+    "chirts_era5": {
+        "product_class": "bias_corrected_temperature",
+        "station_informed": True,
+        "validation_independence": "CHIRTS climatology informed by stations; not fully independent",
     },
     "chirts": {
         "product_class": "station_informed_temperature",
@@ -934,6 +940,11 @@ def _fetch_grid_source(
     elif source_name in {"chirps+chirts", "chirps_v2+chirts"}:
         frame = _fetch_chirps_chirts(lat, lon, date_from, date_to, workers=workers)
     else:
+        from climate_toolkit.fetch_data.direct_cloud import CAPABILITIES
+        if source_name in CAPABILITIES:
+            variables = [v for v in variables if getattr(v, "name", str(v)) in CAPABILITIES[source_name]]
+            if not variables:
+                raise ValueError(f"No requested variables supported by {source_name}")
         fetch_kwargs = dict(
             source=source_name,
             location_coord=(lat, lon),
@@ -2422,7 +2433,7 @@ def compare_station_to_grids(
 
     Examples
     --------
-    Compare the best GHCN-Daily station near Nairobi against AgERA5 for
+    Compare the best GHCN-Daily station near Nairobi against ERA5-Land for
     2020 (requires ``GCP_PROJECT_ID`` to be set for the grid fetch):
 
     >>> from datetime import date
@@ -2750,6 +2761,7 @@ def compare_station_to_grids(
                     "grid_lat": station_lat,
                     "grid_lon": station_lon,
                     "rows": int(len(grid_frame)),
+                    "data_provenance": grid_frame.attrs.get("data_provenance", []),
                     "date_start": pd.to_datetime(grid_frame["date"]).min().date().isoformat(),
                     "date_end": pd.to_datetime(grid_frame["date"]).max().date().isoformat(),
                 }

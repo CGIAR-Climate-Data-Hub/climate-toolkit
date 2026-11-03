@@ -40,9 +40,11 @@ parameter documentation.
 Data sources
 ------------
 ``nasa_power`` works with no setup. Earth Engine-backed sources
-(``agera_5``, ``era_5``, ``chirps_v3_daily_rnl``, ``nex_gddp``) require
+(``agera_5``, ``era_5``, ``nex_gddp``) require
 ``earthengine authenticate`` and a ``GCP_PROJECT_ID`` environment
-variable (free for noncommercial use). See ``examples/basic_usage.py``
+variable (free for noncommercial use). CHIRPS v3 RNL and CHIRTS-ERA5 offer
+credential-free cloud access with Python 3.12+ and climate-toolkit[cloud].
+Use backend_policy(allow_gee=False) to prohibit GEE in a workflow. See ``examples/basic_usage.py``
 in the repository for a full walkthrough.
 """
 
@@ -52,6 +54,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 __all__ = [
     "__version__",
+    "backend_policy",
     "analyze_climate_statistics",
     "compare_climate_periods",
     "compare_climate_sources",
@@ -70,6 +73,9 @@ except PackageNotFoundError:  # pragma: no cover - local source tree before inst
 
 
 def __getattr__(name: str):
+    if name == "backend_policy":
+        from .fetch_data.backend_policy import backend_policy
+        return backend_policy
     if name == "fetch_climate_data":
         from .fetch_data.fetch_data import fetch_data as _fetch_data
 

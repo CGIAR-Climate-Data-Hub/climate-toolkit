@@ -1069,6 +1069,7 @@ def compare(
     spi_ref_start: Optional[str] = None,
     spi_ref_end: Optional[str] = None,
     workers: int = 1,
+    ee_project_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Compare a focal year's climate against a multi-year baseline climatology.
 
@@ -1322,7 +1323,8 @@ def compare(
         base = analyze_climate_statistics(
             location_coord=location,
             start_year=baseline_start, end_year=baseline_end,
-            source=source, workers=workers, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw)
+            source=source, workers=workers, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw,
+            **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}))
     except Exception as exc:
         return {
             "error": (
@@ -1343,7 +1345,8 @@ def compare(
         focal = analyze_climate_statistics(
             location_coord=location,
             start_year=focal_year, end_year=focal_year,
-            source=source, workers=workers, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw)
+            source=source, workers=workers, **fs_kw, **paired_kw, **calendar_kw, **spei_kw, **spi_kw,
+            **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}))
     except Exception as exc:
         return {
             "error": (
@@ -1497,6 +1500,10 @@ def compare(
         "spi_scale_months":     spi_scale_months,
         "spi_fit":              spi_fit if spi_scale_months is not None else None,
         "temperature_excluded": drop_temp,
+        "data_provenance": {
+            "baseline": base.get("data_provenance", []),
+            "focal": focal.get("data_provenance", []),
+        },
         "season_detection":     season_detection,
         "raw_climate_summary":  raw_diff,
         "overall_statistics":   overall_diff,

@@ -73,6 +73,7 @@ _HUMAN_HEAT_SOURCE_SUPPORT = {
     "imerg": "not supported: precipitation-only source",
     "tamsat": "not supported: precipitation-only source",
     "chirts": "not supported: temperature-only source",
+    "chirts_era5": "not supported: temperature-only source",
 }
 
 
@@ -282,11 +283,30 @@ def build_human_heat_source_bundle(
     precip_source: str | None = None,
     temp_source: str | None = None,
     custom_station_file: str | None = None,
+    frame: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     normalized_source = str(source or "").strip().lower() or None
     normalized_precip = str(precip_source or "").strip().lower() or None
     normalized_temp = str(temp_source or "").strip().lower() or None
     station_override = bool(custom_station_file)
+    if normalized_source == "auto" and frame is not None:
+        products = {p.get("source") for p in frame.attrs.get("data_provenance", [])}
+        if {"chirts_era5", "chirps_v3_daily_rnl"}.issubset(products):
+            normalized_source = "paired"
+            normalized_temp = "chirts_era5"
+            normalized_precip = "chirps_v3_daily_rnl"
+
+    def retain_available_inputs(bundle):
+        if frame is not None:
+            for key, candidates in {
+                "humidity_source": _HUMIDITY_COLS,
+                "dewpoint_source": _DEWPOINT_COLS,
+                "wind_source": ("wind_speed",),
+                "solar_source": ("solar_radiation",),
+            }.items():
+                if not any(column in frame and frame[column].notna().any() for column in candidates):
+                    bundle[key] = None
+        return bundle
 
     if normalized_source == "paired":
         bundle = {
@@ -304,7 +324,7 @@ def build_human_heat_source_bundle(
                 "Custom station override may replace some historical variables by date; "
                 "check runtime output for final variable provenance."
             )
-        return bundle
+        return retain_available_inputs(bundle)
 
     bundle = {
         "workflow": "single_source",
@@ -321,7 +341,7 @@ def build_human_heat_source_bundle(
             "Custom station override may replace some historical variables by date; "
             "check runtime output for final variable provenance."
         )
-    return bundle
+    return retain_available_inputs(bundle)
 
 
 def describe_human_heat_source_support() -> dict[str, str]:

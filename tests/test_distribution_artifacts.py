@@ -63,8 +63,11 @@ class DistributionArtifactSmokeTests(unittest.TestCase):
         ).create(target_dir)
         return _venv_python(target_dir)
 
-    def _install_artifact(self, python_path: Path, artifact_path: Path) -> None:
-        install_cmd = [str(python_path), "-m", "pip", "install", str(artifact_path)]
+    def _install_artifact(
+        self, python_path: Path, artifact_path: Path, extras: str = ""
+    ) -> None:
+        requirement = str(artifact_path) + (f"[{extras}]" if extras else "")
+        install_cmd = [str(python_path), "-m", "pip", "install", requirement]
 
         subprocess.run(
             install_cmd,
@@ -149,6 +152,33 @@ print(climate_toolkit.__version__)
             python_path = self._create_temp_venv(venv_dir)
             self._install_artifact(python_path, sdist_path)
             self._assert_installed_contract(venv_dir)
+
+    @unittest.skipIf(sys.version_info < (3, 12), "cloud extra requires Python 3.12+")
+    def test_cloud_wheel_installs_and_exposes_backend_policy(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            dist_dir = tmp_path / "dist"
+            dist_dir.mkdir()
+            wheel_path, _ = self._build_artifacts(dist_dir)
+            venv_dir = tmp_path / "cloud-venv"
+            python_path = self._create_temp_venv(venv_dir)
+            self._install_artifact(python_path, wheel_path, extras="cloud")
+            self._assert_installed_contract(venv_dir)
+            subprocess.run(
+                [str(python_path), "-c", """
+import zarr, icechunk, fsspec, dask.array
+import climate_toolkit as ct
+from climate_toolkit.fetch_data import direct_cloud
+assert callable(direct_cloud.fetch_direct)
+with ct.backend_policy(allow_gee=False):
+    assert callable(ct.run_pipeline)
+"""],
+                cwd=venv_dir,
+                env=_base_env(),
+                text=True,
+                capture_output=True,
+                check=True,
+            )
 
 
 if __name__ == "__main__":

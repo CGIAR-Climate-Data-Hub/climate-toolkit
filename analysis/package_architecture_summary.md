@@ -1,7 +1,7 @@
 # Package Architecture Summary
 
 Status: current working summary  
-Updated: 2026-06-21
+Updated: 2026-11-03
 
 This file is intended to be current-state architecture reference for
 developers, reviewers, and coding agents. It should describe actual runtime
@@ -27,6 +27,7 @@ Package supports both:
 Top-level stable Python API:
 
 - `climate_toolkit.fetch_climate_data`
+- `climate_toolkit.backend_policy` (task-local backend selection and GEE prohibition)
 - `climate_toolkit.analyze_climate_statistics`
 - `climate_toolkit.compare_climate_periods`
 - `climate_toolkit.compare_climate_sources`
@@ -40,9 +41,28 @@ wrapper. It chains `fetch_climate_data` → `climatology.long_term_climatology`
 (WMO 1991-2020 baseline) → `compare_climate_sources` (optional) →
 `analyze_climate_statistics` → `evaluate_hazards` → `compare_climate_periods`
 (optional), per site, with per-site status/error capture and a headline summary.
-It composes the building blocks; it owns no analytics of its own.
+It composes the building blocks; it owns no analytics of its own. It accepts
+`precip_source`/`temp_source` for a consistent pair and `backend`/`allow_gee`
+controls for the whole run. Paired/auto initial fetches reuse the season workflow's
+source resolution; exact sources use the public fetch API. Climatology reuses
+that same season ingestion path for paired/auto sources. Worker and explicit
+project controls are forwarded to supported stages.
+
+A returned `{"error": ...}` fails the current pipeline stage just like an
+exception. Failed stages are not listed as completed. Date-only requests derive
+years for seasonal statistics; those statistics cover calendar years, while the
+initial daily fetch and hazard request retain the supplied dates. A bad site is
+isolated from the rest unless `raise_on_error=True`.
+
+With `output_dir`, the pipeline writes `summary.csv`, run `metadata.json` and
+`<index>_<safe-site-name>/` directories containing daily CSV/metadata, JSON stage
+reports and `status.json`. Source-comparison CSVs use a per-site child directory.
+Reusing an output directory removes old pipeline report files for stages that
+produced no current result. Duplicate site names remain separate by index.
 
 Stable CLI entry points from `pyproject.toml`:
+
+- `climate-toolkit <command>` (unified dispatcher; supports `--backend` and `--no-gee`)
 
 - `climate-toolkit-fetch`
 - `climate-toolkit-seasons`
@@ -68,6 +88,9 @@ Human-facing entry points:
 
 - top-level package exports in `climate_toolkit/__init__.py`
 - CLI modules with `main()` functions
+- optional source-tree FastAPI service in `apis/`, installed with the `api`
+  extra and run as `uvicorn apis.main:app`; it delegates to package workflows
+  and is not included in the installed `climate_toolkit*` distribution
 
 This layer should remain thin. It should parse args, call library functions,
 print/save output, and avoid owning core science logic.
@@ -110,6 +133,8 @@ Key responsibilities:
 
 Important shared helpers:
 
+- `fetch_data/backend_policy.py`: task-local policy, GEE guards, process-worker propagation and provenance sidecars
+- `fetch_data/direct_cloud.py`: anonymous CHIRPS/CHIRTS providers, grid/coverage checks, QC and revision-aware caches
 - `fetch_data/gee_xee_batch.py`
 - `fetch_data/nex_gddp_batch.py`
 - `fetch_data/multi_site.py`
@@ -127,6 +152,10 @@ Important shared helpers:
 
 These modules support multiple higher-level workflows.
 
+`visualization/` supplies shared matplotlib styles, variable labels, text helpers,
+timeline helpers and figure IO. ERA example plots consume it; it does not own
+source routing or scientific reductions and adds no stable top-level export.
+
 ### 5. Resource and packaged-data layer
 
 Static packaged resources:
@@ -142,7 +171,12 @@ Resource loading should remain package-safe and install-safe.
 ```mermaid
 flowchart TD
     A["User CLI / Python API"] --> B["fetch_data"]
+    A --> P["backend_policy"]
+    P -.-> B
+    B --> DC["direct_cloud: HF / Dynamical"]
     B --> B1["source_data"]
+    B1 --> DC
+    DC --> B3
     B1 --> B2["transform_data"]
     B2 --> B3["preprocess_data"]
 
@@ -183,6 +217,8 @@ It handles:
 - cache-directory routing
 - Earth Engine/Xee batch routing for many historical sources
 - NEX-GDDP-specific routing
+- direct cloud single/multi-site routing before GEE batch dispatch
+- exact coverage and QC requirements for direct products
 
 This module is foundation layer for most package.
 
@@ -230,6 +266,16 @@ parameters, and soil/water-balance assumptions.
 Current implementation includes NDWS/WRSI-related work and hazard thresholds,
 with ongoing alignment to Atlas / xclim follow-up tracked in issue docs.
 
+`calculate_hazards` / `evaluate_hazards` accept `model` / `scenario` and thread
+them to every climate fetch (season detection, prefetch, and per-season
+windows), so `source="nex_gddp"` can run a chosen GCM/scenario. `scenario`
+defaults to `historical` when the requested window ends before 2015 so pre-2015
+NEX-GDDP hazard windows work against the historical experiment instead of the
+ssp245 source default; the hazards CLI exposes `--model` / `--scenario` and
+lists `nex_gddp` among its `--source` choices (issue #175, part 1). A
+`fixed_season` window that crosses 31 December is still resolved by the
+season-generation layer (issue #175, part 2 — open).
+
 ### `weather_station`
 
 Weather-station support is parallel track, not replacement for gridded path.
@@ -257,12 +303,45 @@ Current reality documented in more detail here:
 
 - `analysis/source_access_matrix.md`
 
-Most important runtime note:
+Actual routing and source policy:
 
-- many historical gridded products route through shared Earth Engine/Xee path
-- `nex_gddp` also uses Earth Engine/Xee
-- `nasa_power` remains clean direct HTTP source
-- `tamsat` exists but should be treated as fragile optional source
+- `chirps_v3_daily_rnl`: complete compatible direct cache first, then Dynamical
+  final/RNL, Hugging Face final/RNL, then permitted GEE. `chirps` still aliases
+  `chirps_v2`. Preliminary/SAT and v2 are never mirror fallbacks.
+- `chirts_era5`: Hugging Face CHIRTS-ERA5 Tmax/Tmin, currently the only integrated
+  provider. Actual time coordinates determine coverage; no clipping to a stale
+  documented end date. This is a distinct scientific product.
+- `chirts`: deprecated CHIRTS-daily compatibility adapter (1983–2016). Explicit
+  requests retain their meaning; automatic historical fallback uses CHIRTS-ERA5.
+- Normal historical `auto` first pairs CHIRPS v3 with `agera_5`, which currently
+  means **ERA5-Land**, not the separate AgERA5 product. It retains ERA5-Land/ERA5
+  alternatives before its final CHIRPS v3 + CHIRTS-ERA5 fallback.
+- With GEE prohibited, historical `auto` selects CHIRPS v3 + CHIRTS-ERA5 directly.
+  This pair supplies rainfall and Tmax/Tmin only. Humidity/wind/radiation-dependent
+  calculations retain their input requirements.
+- Other historical gridded products and `nex_gddp` retain GEE/Xee routes.
+  NASA POWER and station products have direct HTTP paths; TAMSAT remains optional.
+
+ERA5-Land direct access is shelved because CDS requires credentials; it is not
+runtime routing. The
+[issue 180 memo](issues/issue_180_era5_land_access.md) records CDS authentication
+failures, candidate coverage and the required daily aggregation contract.
+`scripts/probe_era5_land_access.py` checks metadata access only and registers no
+source/backend. Public descriptions use ERA5-Land; the legacy `agera_5` key remains.
+
+`backend_policy` owns selection controls, independent of scientific source
+selection. `fetch_climate_data(..., backend=..., allow_gee=...)` can override the
+context; higher-level workflows use the context or environment settings. Unified
+CLI commands expose policy flags; standalone fetch also exposes them. Library
+model-worker submissions explicitly propagate policy into spawned processes.
+Low-level GEE initialization guards enforce prohibition even on legacy routes.
+Explicit backend selection never silently changes a cloud-enabled provider.
+
+Direct adapters require Python 3.12+ and the optional `cloud` extra; base package
+support remains Python 3.10+. Providers decode units once and subset before load.
+Direct preprocessing skips legacy filling/heuristic conversions. Scientific QC
+failures abort analysis; transport, schema and incomplete-coverage failures may
+try another eligible mirror. All returned years use one provider revision.
 
 ## Cache and persistence model
 
@@ -278,7 +357,29 @@ Major cache families:
 - historical GEE/Xee chunk caches
 - NEX-GDDP caches
 - weather-station source caches
-- inventory/manifest views for audit
+- direct cloud annual request caches: `direct_cloud/v2/<source>/<backend>/<request-hash>.json`
+- inventory/manifest views for audit (including `direct_cloud`)
+
+Direct cache envelopes contain checksummed JSON data, dtypes/column order,
+request identity and provider provenance. Writes are atomic. Cache keys include
+source, provider, variables, exact requested coordinates and annual date window.
+Immutable upstream revision lives in the envelope: a fully cached request works
+offline; incomplete requests reuse chunks only when revision matches current
+provider metadata. Refresh replaces records explicitly. Old GEE caches remain
+separate. No provider/day stitching or implicit revision mixing is allowed.
+Missing consecutive years are extracted together in batches of at most five years
+to share source chunks across year boundaries. Each completed batch persists
+separate annual records; later failures retain that progress. Cached intervening
+years are not reread, and upstream revision changes still invalidate reuse.
+
+Direct frames carry `data_provenance`, `backend_attempts` and `quality_control`
+attrs. Provenance records revision, retrieval time, actual coverage, selected grid
+cells and conversion; estimates of decoded source-chunk work are not network bytes.
+Fetch and dataset-comparison exports preserve attrs in `.metadata.json` sidecars.
+Reopening an exported CSV through dataset comparison restores supported provenance
+fields. Overwriting a file with unattributed data removes its stale sidecar.
+A default 4 GiB estimated chunk-work budget bounds amplification; transport timeouts
+are per request, not a whole-workflow deadline.
 
 When changing cache layout, update this file and user docs.
 
@@ -299,6 +400,18 @@ They should stay harmonized where possible, but do not need identical backends.
 from `climate_statistics`. Any schema change here is architectural and should
 be documented.
 
+Additive provenance contracts: climate-statistics results expose a top-level
+`data_provenance` list; period comparisons expose baseline/focal provenance;
+climatology top-level and annual results, hazard assessment entries and station fetch diagnostics
+also carry provenance. Paired source merges preserve both product histories.
+Human-heat source metadata is reconciled against fetched columns/provenance: missing
+humidity, dewpoint, wind or radiation sources are null, including CHIRTS-ERA5 auto
+pairs. Existing scientific metric fields are unchanged. Direct-source climatology requires
+every requested year; it cannot apply the legacy 80% year-availability tolerance.
+Scientific QC errors propagate instead of silently dropping a year or a compared
+source. Climatology CLI accepts paired source flags and returns nonzero on an
+error payload. Existing non-direct climatology completeness policy is retained.
+
 ### Reporting still mixed with library logic in some modules
 
 Refactor work improved package shape, but some large modules still mix:
@@ -314,6 +427,9 @@ This remains known technical-debt area.
 
 Use these docs together with this summary:
 
+- direct provider usage and limitations:
+  - `docs/direct_cloud_access.md`
+  - `analysis/issues/issue_176_178_direct_cloud_access.md`
 - source/backend reality:
   - `analysis/source_access_matrix.md`
 - package-shape / import-contract history:

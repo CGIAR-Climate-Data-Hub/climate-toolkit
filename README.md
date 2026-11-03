@@ -1,6 +1,6 @@
 # Climate Data Toolkit
 
-A unified toolkit for retrieving climate data from various global datasets such as CHIRPS, AGERA5, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids.
+A unified toolkit for retrieving climate data from various global datasets such as CHIRPS, ERA5-Land, TerraClimate, IMERG, TAMSAT, CHIRTS-ERA5, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids.
 
 [![About](https://img.shields.io/badge/about-the%20project-blue)](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/about/) — what the toolkit is, who it's for, and how to get involved (also in [français](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/about/) / [español](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/about/)).
 
@@ -25,11 +25,11 @@ Funded by the [McKnight Foundation CRFS programme](https://www.mcknight.org/prog
 ## API Dataset Badges
 
 [![CHIRPS](https://img.shields.io/badge/CHIRPS-Precipitation_4.8-blue)](https://data.chc.ucsb.edu/products/CHIRPS-2.0/)
-[![AgERA5](https://img.shields.io/badge/AgERA5-Agriculture_Climate_4.8-brightgreen)](https://data.mcc.tu-berlin.de/agera5/)
+[![ERA5-Land](https://img.shields.io/badge/ERA5--Land-Reanalysis-brightgreen)](https://developers.google.com/earth-engine/datasets/catalog/ECMWF_ERA5_LAND_DAILY_AGGR)
 [![TerraClimate](https://img.shields.io/badge/TerraClimate-Water_Balance_4.7-lightgrey)](http://www.climatologylab.org/terraclimate.html)
 [![IMERG](https://img.shields.io/badge/IMERG-Global_Precipitation_4.7-green)](https://gpm.nasa.gov/data/imerg)
 [![TAMSAT](https://img.shields.io/badge/TAMSAT-Africa_Precipitation_4.7-yellowgreen)](https://www.tamsat.org.uk/)
-[![CHIRTS](https://img.shields.io/badge/CHIRTS-Temperature_4.7-blueviolet)](https://data.chc.ucsb.edu/products/CHIRTSdaily/)
+[![CHIRTS-ERA5](https://img.shields.io/badge/CHIRTS--ERA5-Temperature-blueviolet)](https://www.chc.ucsb.edu/data/chirts-era5)
 [![ERA5](https://img.shields.io/badge/ERA5-Reanalysis_Climate_4.2-orange)](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels)
 [![NEX-GDDP](https://img.shields.io/badge/NEX--GDDP-Climate_Projections_4.1-blue)](https://www.nccs.nasa.gov/services/data-collections/land-based-products/nex-gddp)
 [![NASA POWER](https://img.shields.io/badge/NASA_POWER-Solar_Temp_Global_4.0-lightblue)](https://power.larc.nasa.gov/)
@@ -42,16 +42,40 @@ Funded by the [McKnight Foundation CRFS programme](https://www.mcknight.org/prog
 
 The Climate Toolkit offers a unified, programmatic interface to:
 
-- Retrieve climate data from CHIRPS, AGERA5, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids
+- Retrieve climate data from CHIRPS, ERA5-Land, TerraClimate, IMERG, TAMSAT, CHIRTS-ERA5, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids
 - Compute rainfall statistics, anomalies, and hazard indicators
 - Compare climate trends over historical and seasonal periods
 
 For user-facing historical daily climate work, the default module policy is
-`chirps_v3_daily_rnl + agera_5`: CHIRPS v3 Daily RNL supplies precipitation and
-AgERA5 supplies temperature plus companion variables such as humidity, wind,
+`chirps_v3_daily_rnl + agera_5`: CHIRPS v3 Daily RNL supplies precipitation.
+The `agera_5` key reads ERA5-Land and supplies temperature plus companion variables such as humidity, wind,
 and solar radiation. If a direct single-source historical fallback is needed,
 prefer `agera_5`. Keep `era_5` available for compatibility, diagnostics, and
 comparison work, but do not treat it as the primary recommended source.
+
+For **no-GEE access**, install the cloud extra on Python 3.12+ (`pip install
+'climate-toolkit[cloud]'` or `uv sync --extra cloud`). CHIRPS v3 RNL can use
+Dynamical and Hugging Face, with provider failover. Pair it with `chirts_era5`
+for daily temperature through recent dates. Use `--no-gee` on the unified CLI
+or `with climate_toolkit.backend_policy(allow_gee=False):` around Python
+workflows; historical `auto` then uses this direct pair. Explicit providers,
+cache provenance, QC and limits: [direct cloud access](docs/direct_cloud_access.md).
+Direct reads share source chunks across up to five missing years per batch and
+save annual progress for retries. CHIRTS-ERA5's independent CHC backup remains
+under [validation](analysis/issues/issue_179_chc_backup_investigation.md).
+ERA5-Land's official CDS cloud stores require a separate CDS key; that work is
+[shelved](analysis/issues/issue_180_era5_land_access.md) and they are not used by
+the toolkit. The current no-GEE auto pair supplies rainfall and Tmax/Tmin.
+
+For the complete fetch → climatology → statistics → hazards → comparison workflow,
+`run_pipeline` accepts `precip_source`, `temp_source` and `allow_gee=False`, and
+exports per-site reports with provenance. See the
+[full pipeline example](docs/direct_cloud_access.md#full-pipeline).
+
+`chirts` (1983–2016) is deprecated in favor of `chirts_era5` for new work.
+Legacy requests retain their original scientific meaning and caches; the old
+product is no longer an automatic fallback. The direct pair supplies Tmax/Tmin
+and rainfall, not humidity, wind or radiation.
 
 TAMSAT remains available for completeness and Africa-focused precipitation
 comparison work, but it is currently fragile and should not be treated as a
@@ -170,6 +194,17 @@ To develop the toolkit or run the `examples/` scripts, set up from a clone inste
    uv run pytest -q
    ```
 
+   CI tests the base package on Python 3.10 and the `cloud` and `api` extras on
+   Python 3.12. To run the cloud-provider and pipeline tests locally:
+
+   ```bash
+   uv sync --locked --group dev --extra cloud --extra api --python 3.12
+   uv run pytest -q
+   ```
+
+   Distribution checks install the base wheel and source archive in fresh
+   environments; Python 3.12+ also checks a fresh `cloud` wheel installation.
+
 3. Fallback setup with `venv + pip`
 
    macOS / Linux:
@@ -249,7 +284,7 @@ commands through `uv run --env-file .env ...`.
 
 | Variable | Required for | Notes |
 |----------|--------------|-------|
-| `GCP_PROJECT_ID` | All Earth Engine-backed sources (AgERA5, ERA5, NEX-GDDP, GEE historical) | Your real Google Cloud **Project ID** — see [Earth Engine setup](#earth-engine-setup). `GOOGLE_CLOUD_PROJECT` / `EE_PROJECT_ID` are accepted as fallbacks. |
+| `GCP_PROJECT_ID` | Earth Engine-backed routes (ERA5-Land via `agera_5`, ERA5, NEX-GDDP, GEE historical) | Your real Google Cloud **Project ID** — see [Earth Engine setup](#earth-engine-setup). `GOOGLE_CLOUD_PROJECT` / `EE_PROJECT_ID` are accepted as fallbacks. |
 | `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD` | Sources still using Earthdata-backed access | Optional; only needed by those sources. |
 
 Earth Engine authentication itself is stored separately (via
@@ -477,7 +512,7 @@ Livestock THI source support:
 | `chirps_v3_daily_rnl` | not supported | precipitation-only source |
 | `imerg` | not supported | precipitation-only source |
 | `tamsat` | not supported | no humidity data |
-| `chirts` | not supported | temperature-only source |
+| `chirts_era5`, deprecated `chirts` | not supported | temperature-only sources; humidity must come from a companion product |
 
 Python users can inspect same support map directly:
 
@@ -626,6 +661,23 @@ such as `total_seconds` and `mean_model_seconds`.
 - `climate-toolkit-hazards`
 - `climate-toolkit-hazards-ensemble`
 
+NEX-GDDP hazards (`--source nex_gddp`, also `evaluate_hazards(..., source="nex_gddp")`)
+accept `--model` / `--scenario`. `--scenario` defaults to `historical` when the
+requested window ends before 2015, so pre-2015 windows work without extra flags
+(a window that crosses 2015 needs an explicit scenario — no single NEX-GDDP
+scenario spans the historical/SSP boundary):
+
+```bash
+env GCP_PROJECT_ID=YOUR_PROJECT_ID climate-toolkit-hazards \
+  maize \
+  --location=-0.776,37.66 \
+  --date-from 1995-01-01 \
+  --date-to 2013-12-31 \
+  --source nex_gddp \
+  --model GFDL-ESM4 \
+  --fixed-season '10-17:01-09'
+```
+
 ### Weather stations
 
 - `climate-toolkit-weather-station-download`
@@ -739,14 +791,15 @@ climate-toolkit-climatology \
 
 Important source notes:
 
-- `agera_5`, `era_5`, `chirps_v2`, `chirps_v3_daily_rnl`, `chirts`, `imerg`,
-  and similar historical gridded sources are Earth Engine-backed in this
-  toolkit. They need Earth Engine auth plus `GCP_PROJECT_ID`.
+- `chirps_v3_daily_rnl` and `chirts_era5` prefer direct public cloud access with
+  Python 3.12+ and the `cloud` extra. Use `--no-gee` to prohibit GEE fallback.
+- `agera_5`, `era_5`, `chirps_v2`, deprecated `chirts`, `imerg` and other
+  GEE-only routes need Earth Engine auth plus `GCP_PROJECT_ID`.
 - `era_5` daily coverage currently ends on `2020-07-09` in this package. Use
   `agera_5` for a full `1991-2020` climatology window, or stop ERA5 at `2019`.
 - `chirps_v2` / `chirps_v3_daily_rnl` are precipitation-only, so climatology
   will omit temperature outputs.
-- `chirts` is temperature-only, so climatology will omit precipitation outputs.
+- `chirts_era5` and deprecated `chirts` are temperature-only, so climatology omits precipitation outputs.
 
 SPEI and xclim helpers are library functions, not standalone console scripts.
 Use them from Python after fetching/preprocessing climate data. VPD helpers use
@@ -1355,7 +1408,7 @@ Comparison intent:
 Current grid-source notes:
 
 - better independence: `agera_5`, `era_5`, `nasa_power`, `imerg`
-- partly station-informed: `chirps_v2`, `chirps_v3_daily_rnl`, `chirts`, `paired`, `terraclimate`, `auto`
+- partly station-informed: `chirps_v2`, `chirps_v3_daily_rnl`, `chirts_era5`, `chirts`, `paired`, `terraclimate`, `auto`
 - comparison output warns when selected grid source is not fully independent from station-based validation
 
 Output layers include:

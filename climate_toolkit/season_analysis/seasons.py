@@ -5,10 +5,10 @@ Applies the Hargreaves ET0 method to identify planting season onset and cessatio
 based on whether precipitation meets or exceeds 50% of reference evapotranspiration.
 
 Data source priority:
-    Historical : CHIRPS v3 Daily RNL + AgERA5 -> AgERA5 -> ERA5 -> CHIRPS v2 + CHIRTS (legacy fallback)
+    Historical : CHIRPS v3 Daily RNL + ERA5-Land -> ERA5-Land -> ERA5 -> CHIRPS v3 + CHIRTS-ERA5
 User guidance:
-    Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus AgERA5 temperature.
-    Prefer AgERA5 for direct single-source historical daily runs. Keep ERA5 as secondary option.
+    Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus ERA5-Land temperature.
+    Prefer ERA5-Land for direct single-source historical daily runs. Keep ERA5 as secondary option.
 Detection strategy:
     Per reference year: fetches a 1.5-year window (Jan-Dec + 6 extra months)
     to capture seasons that cross the year boundary.
@@ -76,7 +76,7 @@ DEFAULT_AUTO_TEMP_SOURCE = 'agera_5'
 LEGACY_FALLBACK_COMBO = ('chirps_v2', 'chirts')
 PAIRED_SOURCE_SENTINEL = 'paired'
 PRECIP_ONLY_SOURCES = {'chirps_v2', 'chirps_v3_daily_rnl', 'imerg', 'tamsat'}
-TEMP_ONLY_SOURCES = {'chirts'}
+TEMP_ONLY_SOURCES = {'chirts', 'chirts_era5'}
 CORE_CLIMATE_VARIABLES = [
     ClimateVariable.precipitation,
     ClimateVariable.max_temperature,
@@ -279,7 +279,7 @@ def get_climate_data(
 ) -> pd.DataFrame:
     """
     Fetch standardised daily climate data (date, tmax, tmin, precip).
-    Source priority: chirps_v3_daily_rnl + agera_5 → agera_5 → era_5 → chirps_v2+chirts.
+    Source priority: chirps_v3_daily_rnl + agera_5 → agera_5 → era_5 → chirps_v3_daily_rnl+chirts_era5.
     Raises RuntimeError when all sources are exhausted.
     """
     date_from = date.fromisoformat(start_date)
@@ -411,6 +411,13 @@ def _fetch_raw(
                                date_from=date_from, date_to=date_to,
                                ee_project_id=ee_project_id,
                                workers=workers)
+    from climate_toolkit.fetch_data.backend_policy import resolve_policy
+    from climate_toolkit.fetch_data.direct_cloud import DataQualityError
+    if not resolve_policy().allow_gee:
+        return _merge_precip_temp(
+            coord, date_from, date_to, DEFAULT_AUTO_PRECIP_SOURCE, "chirts_era5",
+            ee_project_id=ee_project_id, workers=workers,
+        )
     try:
         return _merge_precip_temp(
             coord,
@@ -421,6 +428,8 @@ def _fetch_raw(
             ee_project_id=ee_project_id,
             workers=workers,
         )
+    except DataQualityError:
+        raise
     except Exception:
         pass
     for source in HISTORICAL_SOURCES:
@@ -432,14 +441,13 @@ def _fetch_raw(
                                  workers=workers)
             if not df.empty and 'precipitation' in df.columns:
                 return df
+        except DataQualityError:
+            raise
         except Exception:
             continue
-    return _merge_chirps_chirts(
-        coord,
-        date_from,
-        date_to,
-        ee_project_id=ee_project_id,
-        workers=workers,
+    return _merge_precip_temp(
+        coord, date_from, date_to, DEFAULT_AUTO_PRECIP_SOURCE, "chirts_era5",
+        ee_project_id=ee_project_id, workers=workers,
     )
 
 def _merge_precip_temp(
@@ -474,7 +482,10 @@ def _merge_precip_temp(
         column for column in df_t.columns
         if column == 'date' or column != 'precipitation'
     ]
-    return pd.merge(df_p[['date', 'precipitation']], df_t[temp_keep_columns], on='date', how='inner')
+    merged = pd.merge(df_p[['date', 'precipitation']], df_t[temp_keep_columns], on='date', how='inner')
+    from climate_toolkit.fetch_data.backend_policy import merge_provenance
+    merged.attrs['data_provenance'] = merge_provenance(df_p, df_t)
+    return merged
 
 def _merge_chirps_chirts(
     coord,
@@ -1576,11 +1587,11 @@ def main() -> int:
                         default='auto',
                         help=(
                             "Data source — used in both automatic and fixed-season modes.\n"
-                            "  agera_5       -- AgERA5 / ERA5-Land\n"
+                            "  agera_5       -- ERA5-Land (legacy agera_5 key)\n"
                             "  era_5         -- ERA5 reanalysis\n"
                             "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
                             "  paired        -- explicit precip+temp pairing via --precip-source and --temp-source\n"
-                            "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v2+chirts  [default]\n"
+                            "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5  [default]\n"
                             "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
                             "Cold-cache GEE/Xee historical runs can take noticeably longer than warm-cache reruns.\n"
                             "Recommended direct single-source fallback: agera_5."

@@ -79,7 +79,7 @@ SOURCE_VARIABLES = {
 }
 
 VALID_SOURCES = {
-    "era_5", "agera_5", "chirps", "chirps_v2", "chirps_v3_daily_rnl", "chirts", "cmip_6", "imerg",
+    "era_5", "agera_5", "chirps", "chirps_v2", "chirps_v3_daily_rnl", "chirts", "chirts_era5", "cmip_6", "imerg",
     "nasa_power", "nex_gddp", "soil_grid", "tamsat", "terraclimate", "auto", PAIRED_SOURCE_SENTINEL,
 }
 
@@ -106,7 +106,7 @@ def _fetch_source(source: str, lat: float, lon: float,
                   scenario: str | None = None,
                   precip_source: str | None = None,
                   temp_source: str | None = None,
-                  workers: int = 1) -> pd.DataFrame:
+                  workers: int = 1, ee_project_id: str | None = None) -> pd.DataFrame:
     """
     Dispatch a single source to the preprocessed-data pipeline.
     Returns the analysis-ready DataFrame (with a `date` column) that `preprocess_data` produces. Raises if the source key is unknown.
@@ -123,7 +123,7 @@ def _fetch_source(source: str, lat: float, lon: float,
     date_from = date.fromisoformat(str(start)) if start else None
     date_to   = date.fromisoformat(str(end))   if end   else None
     if source == "auto":
-        return _fetch_auto_dataset(lat, lon, date_from, date_to, workers=workers)
+        return _fetch_auto_dataset(lat, lon, date_from, date_to, workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}))
     if source == PAIRED_SOURCE_SENTINEL:
         return _fetch_paired_dataset_sources(
             lat,
@@ -134,9 +134,12 @@ def _fetch_source(source: str, lat: float, lon: float,
             temp_source,
             model=model,
             scenario=scenario,
-            workers=workers,
+            workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
         )
     variables = SOURCE_VARIABLES.get(source, DEFAULT_CLIMATE_VARIABLES)
+    from ..fetch_data.direct_cloud import CAPABILITIES
+    if source in CAPABILITIES:
+        variables = [ClimateVariable[v] for v in CAPABILITIES[source]]
     kwargs = dict(
         source=source,
         location_coord=(lat, lon),
@@ -144,6 +147,8 @@ def _fetch_source(source: str, lat: float, lon: float,
         date_from=date_from,
         date_to=date_to,
     )
+    if ee_project_id is not None:
+        kwargs["ee_project_id"] = ee_project_id
     if source == "nex_gddp":
         kwargs["model"]    = model
         kwargs["scenario"] = scenario
@@ -270,6 +275,8 @@ def export_data(df, source, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, f"{source}.csv")
     df.to_csv(path, index=False)
+    from ..fetch_data.backend_policy import save_frame_metadata
+    save_frame_metadata(df, path)
     print(f"  ✅  Exported {source} → {path}")
 
 # 1. Per-variable annual series + annual-scale statistics
@@ -538,7 +545,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     nex_models: list[str] | None = None,
                     precip_source: str | None = None,
                     temp_source: str | None = None,
-                    workers: int = 1):
+                    workers: int = 1, ee_project_id: str | None = None):
     """Fetch one or more climate datasets for a location and prepare them for comparison.
 
     For each requested source, this function fetches cleaned, analysis-ready
@@ -643,7 +650,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
 
     Examples
     --------
-    Compare AgERA5 and NASA POWER for Nairobi over 2020, then print the
+    Compare ERA5-Land and NASA POWER for Nairobi over 2020, then print the
     comparison report:
 
     >>> import climate_toolkit as ct
@@ -664,7 +671,9 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
     results = {}
 
     if input_file:
-        df = pd.read_csv(input_file, parse_dates=["date"])
+        from ..fetch_data.backend_policy import load_frame_metadata
+        df = pd.read_csv(input_file, parse_dates=["date"], float_precision="round_trip")
+        load_frame_metadata(df, input_file)
         results["input_file"] = df
         export_data(df, "input_file", output_dir)
         return results
@@ -741,7 +750,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     lon,
                     start,
                     end,
-                    workers=workers,
+                    workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
                 )
                 result_key = "auto"
             elif source == PAIRED_SOURCE_SENTINEL:
@@ -760,7 +769,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     scenario=nex_scenario,
                     precip_source=precip_source,
                     temp_source=temp_source,
-                    workers=workers,
+                    workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
                 )
                 result_key = (
                     f"paired_{precip_source}_plus_{temp_source}"
@@ -774,7 +783,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
                     end,
                     precip_source=precip_source,
                     temp_source=temp_source,
-                    workers=workers,
+                    workers=workers, **({"ee_project_id": ee_project_id} if ee_project_id is not None else {}),
                 )
                 result_key = source
 
@@ -785,6 +794,9 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
             results[result_key] = df
             export_data(df, result_key, output_dir)
         except Exception as exc:
+            from ..fetch_data.direct_cloud import DataQualityError
+            if isinstance(exc, DataQualityError):
+                raise
             print(f"  ❌  Failed to fetch {source}: {exc}")
     if not results:
         raise RuntimeError("No usable datasets fetched.")

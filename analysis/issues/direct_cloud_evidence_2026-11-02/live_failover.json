@@ -1,0 +1,59 @@
+{
+  "rows": 3,
+  "seconds": 6.352091415785253,
+  "attempts": [
+    {
+      "backend": "dynamical",
+      "status": "failed",
+      "reason": "BackendUnavailable: deliberate outage for live fallback verification"
+    },
+    {
+      "backend": "huggingface",
+      "status": "success"
+    }
+  ],
+  "provenance": [
+    {
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "store": "https://huggingface.co/datasets/aaguilar90/chirps-v3-daily-rnl/resolve/e9466d3109c6d087c6cf60c19ca6ae20873d358a/chirps-v3-daily-rnl.zarr",
+      "retrieved_at": "2026-11-02T09:42:58.997577+00:00",
+      "cache_schema_version": 2,
+      "estimated_source_chunk_bytes": 23040000,
+      "coverage": [
+        "1981-01-01T00:00:00",
+        "2026-08-31T00:00:00"
+      ],
+      "source_units": {
+        "precip": "mm"
+      },
+      "output_units": {
+        "precipitation": "mm/day"
+      },
+      "selected_cells": [
+        {
+          "site": "point",
+          "lat": -1.2750000000000057,
+          "lon": 36.82500000000002
+        }
+      ],
+      "conversion": "CF scale/offset and fill decoded by xarray",
+      "window": [
+        "2020-01-01",
+        "2020-01-03"
+      ],
+      "backend_attempts": [
+        {
+          "backend": "dynamical",
+          "status": "failed",
+          "reason": "BackendUnavailable: deliberate outage for live fallback verification"
+        },
+        {
+          "backend": "huggingface",
+          "status": "success"
+        }
+      ]
+    }
+  ]
+}

@@ -37,6 +37,7 @@ def _install_test_stubs():
 
 _install_test_stubs()
 
+from climate_toolkit.fetch_data.backend_policy import backend_policy
 from climate_toolkit.fetch_data.fetch_data import fetch_data
 from climate_toolkit.fetch_data.cache_inventory import save_output as save_cache_inventory_output
 from climate_toolkit.fetch_data.fetch_data import save_output as save_fetch_output
@@ -471,6 +472,7 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual("demo-project", calls[0]["ee_project_id"])
 
+    @backend_policy(backend="gee")
     def test_source_data_passes_explicit_project_id_to_xee_downloader(self):
         calls = []
 
@@ -529,6 +531,7 @@ class FetchPipelineTests(unittest.TestCase):
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
 
+    @backend_policy(backend="gee")
     def test_chirps_v3_daily_rnl_dispatches_to_gee_adapter(self):
         src = SourceData(
             location_coord=(-1.286, 36.817),
@@ -745,6 +748,7 @@ class FetchPipelineTests(unittest.TestCase):
         self.assertIs(result, batch_df)
         self.assertEqual(3, batch_mock.call_args.kwargs["workers"])
 
+    @backend_policy(backend="gee")
     def test_fetch_data_routes_many_site_chirps_v3_daily_rnl_to_xee_batch_api(self):
         batch_df = pd.DataFrame({"site": ["Nairobi"], "date": pd.to_datetime(["2020-01-01"])})
 

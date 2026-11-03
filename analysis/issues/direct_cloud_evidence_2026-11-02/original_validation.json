@@ -1,0 +1,95 @@
+{
+  "sites": [
+    [
+      -1.286,
+      36.817
+    ],
+    [
+      12.37,
+      -1.53
+    ],
+    [
+      -13.52,
+      -71.97
+    ]
+  ],
+  "results": [
+    {
+      "variable": "chirps",
+      "error": "chirps-v3.0.rnl.2020.01.01.tif: TIFFReadDirectory:Failed to read directory at offset 12839846",
+      "seconds": 2.2345112920738757
+    },
+    {
+      "variable": "tmax",
+      "url": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmax/tifs/daily/2020/CHIRTS-ERA5.daily_Tmax.2020.01.01.tif",
+      "block_shapes": [
+        [
+          1,
+          7200
+        ]
+      ],
+      "values": [
+        27.347185134887695,
+        31.473005294799805,
+        18.191349029541016
+      ],
+      "grid_cells": [
+        [
+          36.825003230944276,
+          -1.275001062080264
+        ],
+        [
+          -1.524997340515256,
+          12.374999141320586
+        ],
+        [
+          -71.97499839030206,
+          -13.525001244619489
+        ]
+      ],
+      "seconds": 2.5075840828940272
+    },
+    {
+      "variable": "tmin",
+      "error": "'/vsicurl/https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2020/CHIRTS-ERA5.daily_Tmin.2020.01.01.tif' not recognized as being in a supported file format.",
+      "seconds": 0.6645167083479464
+    }
+  ],
+  "huggingface": {
+    "date": [
+      "2020-01-01 00:00:00",
+      "2020-01-01 00:00:00",
+      "2020-01-01 00:00:00"
+    ],
+    "site": [
+      "Nairobi",
+      "Ouagadougou",
+      "Cusco"
+    ],
+    "lat": [
+      -1.286,
+      12.37,
+      -13.52
+    ],
+    "lon": [
+      36.817,
+      -1.53,
+      -71.97
+    ],
+    "max_temperature": [
+      27.3,
+      31.5,
+      18.2
+    ],
+    "min_temperature": [
+      15.200000000000001,
+      17.1,
+      10.700000000000001
+    ]
+  },
+  "tmax_absolute_differences_c": [
+    0.0471851348876946,
+    0.026994705200195312,
+    0.008650970458983664
+  ]
+}
