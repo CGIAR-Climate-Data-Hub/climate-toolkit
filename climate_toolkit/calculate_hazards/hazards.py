@@ -2100,8 +2100,12 @@ def calculate_hazards(
     fixed_season : str, optional
         Fixed calendar window(s) as ``'MM-DD:MM-DD'``, comma-separated for
         two seasons per year (e.g. ``'03-01:05-31,10-01:12-15'``).
-        Year-crossing windows such as ``'11-01:02-28'`` are supported.
-        Default None.
+        Year-crossing windows such as ``'11-01:02-28'`` are supported: a season
+        belongs to the year it starts in and is included only when its start
+        falls inside ``[date_from, date_to]`` (climate is fetched past
+        ``date_to`` as needed to complete a year-crossing window). Seasons whose
+        start falls outside the window are not dropped silently -- they are
+        listed under ``skipped_seasons`` in the result. Default None.
     source : str, default 'auto'
         Climate dataset: 'auto', 'agera_5', 'era_5', 'chirps_v2+chirts'
         (alias 'chirps+chirts'), 'nasa_power', or 'paired'. ``'auto'`` tries
@@ -2254,6 +2258,13 @@ def calculate_hazards(
             _window_end = None
         if _window_end is not None and _window_end < date(2015, 1, 1):
             scenario = "historical"
+    # A fixed season belongs to the year it starts in and is kept only when its
+    # start falls inside [date_from, date_to]; seasons skipped for that reason
+    # are recorded here so the result reports them instead of dropping silently
+    # (issue #175).
+    req_from = datetime.fromisoformat(date_from).date()
+    req_to = datetime.fromisoformat(date_to).date()
+    fixed_skipped_seasons: List[Dict[str, Any]] = []
     calendar_system = str(calendar_system).lower()
     if calendar_system not in CALENDAR_SYSTEM_CHOICES:
         return {
@@ -2414,12 +2425,24 @@ def calculate_hazards(
         all_results = []
         for year, seasons in sorted(seasons_dict.items()):
             year_fetch_error = (annual_dict.get(year) or {}).get("fetch_error")
-            for season_idx, s in enumerate(seasons):   
+            for season_idx, s in enumerate(seasons):
                 s_start = pd.to_datetime(s['onset']).strftime('%Y-%m-%d')
                 s_end   = (
                     pd.to_datetime(s['cessation']).strftime('%Y-%m-%d')
                     if s.get('cessation') else date_to
                 )
+                onset_d = pd.to_datetime(s_start).date()
+                if onset_d < req_from or onset_d > req_to:
+                    # Keep inclusion stable regardless of how far date_to reaches
+                    # past 31 December: a year-crossing season is in or out based
+                    # on its start, not on whether date_to spans its tail.
+                    note = (f"season starting {s_start} skipped: its start is "
+                            f"outside the requested window {date_from}..{date_to}")
+                    print(f"  [skip] {note}")
+                    fixed_skipped_seasons.append(
+                        {"year": year, "onset": s_start, "cessation": s_end, "reason": note}
+                    )
+                    continue
                 fetch_start = _shift_iso_date(s_start, -spinup_days)
                 season_info = _attach_season_identity({
                     'season_detected':        True,
@@ -2471,7 +2494,13 @@ def calculate_hazards(
                 all_results[-1]["eto_seasons"] = s.get("eto_seasons") or []
                 all_results[-1]["eto_detection_note"] = s.get("eto_detection_note")
         if not all_results:
-            return {'error': 'No seasons produced by fixed-season mode for the given date range.'}
+            msg = 'No seasons produced by fixed-season mode for the given date range.'
+            if fixed_skipped_seasons:
+                starts = ", ".join(s["onset"] for s in fixed_skipped_seasons)
+                msg += (f" {len(fixed_skipped_seasons)} season(s) started outside "
+                        f"{date_from}..{date_to} (starts: {starts}); widen the window "
+                        f"to include a season whose start falls inside it.")
+            return {'error': msg, 'skipped_seasons': fixed_skipped_seasons}
 
     # auto-detect via fetch_and_analyze_years using the requested source policy
     else:
@@ -2707,6 +2736,7 @@ def calculate_hazards(
         out['calendar_preset_requested'] = requested_calendar_preset
         out['calendar_preset_used'] = calendar_preset_used
         out['calendar_preset'] = applied_calendar_preset
+        out['skipped_seasons'] = fixed_skipped_seasons
         return out
     auto_ltm_guard = _auto_ltm_guard_message(assessments)
     if auto_ltm_guard:
@@ -2726,6 +2756,7 @@ def calculate_hazards(
             'calendar_preset_requested': requested_calendar_preset,
             'calendar_preset_used': calendar_preset_used,
             'calendar_preset': applied_calendar_preset,
+            'skipped_seasons': fixed_skipped_seasons,
             'baseline_ltm': None,
             'baseline_ltm_comparisons': [],
         }
