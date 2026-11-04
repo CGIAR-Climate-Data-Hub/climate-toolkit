@@ -56,7 +56,7 @@ install or setup on your machine.
 | `download_station_data` | Fetch daily observations from nearby weather stations |
 | `compare_station_to_grids` | Validate gridded datasets against station observations |
 
-Data comes from CHIRPS, AgERA5, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5,
+Data comes from CHIRPS, ERA5-Land, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5,
 NEX-GDDP, NASA POWER, CMIP6, SoilGrids, plus GHCN-Daily / GSOD stations.
 
 ---
@@ -120,7 +120,7 @@ This is the single most important thing to understand before your first call.
 
 - **`nasa_power`** (and weather stations `ghcn_daily` / `gsod`) use plain HTTPS
   and need **no credentials**. Start here.
-- **Most gridded / projection sources** — `agera_5`, `era_5`, `chirps_*`,
+- **Most gridded / projection sources** — `era5_land`, `era_5`, `chirps_*`,
   `chirts`, `imerg`, `terraclimate`, `cmip_6`, `nex_gddp`, `soil_grid`, `hwsd`
   — route through **Google Earth Engine** and require a one-time auth plus a
   project ID (see §7).
@@ -188,7 +188,7 @@ vars3 = [ClimateVariable.precipitation,
          ClimateVariable.min_temperature]
 
 df = ct.fetch_climate_data(
-    source="agera_5",                       # Earth Engine
+    source="era5_land",                       # Earth Engine
     location_coord=(-1.286, 36.817),
     variables=vars3,
     date_from=date(2020, 1, 1), date_to=date(2020, 12, 31),
@@ -269,7 +269,7 @@ ct.compare_climate_sources(
 )
 ```
 Side-by-side comparison of multiple gridded datasets for one site. `sources` is
-a list, e.g. `["nasa_power", "agera_5"]`.
+a list, e.g. `["nasa_power", "era5_land"]`.
 
 ### `download_station_data` (keyword-only args)
 
@@ -290,7 +290,7 @@ ct.compare_station_to_grids(
     station_source="ghcn_daily",
     station_coord=(-1.286, 36.817),
     date_from=date(2020, 1, 1), date_to=date(2020, 12, 31),
-    grid_sources=["nasa_power", "agera_5"],
+    grid_sources=["nasa_power", "era5_land"],
 )
 ```
 Validates gridded datasets against station observations; returns a dict.
@@ -304,7 +304,7 @@ Validates gridded datasets against station observations; returns a dict.
 | `nasa_power` | Daily point climate, 1984– | No |
 | `tamsat` | African rainfall + soil moisture (fragile; optional) | No (direct download) |
 | `ghcn_daily`, `gsod` | Weather-station observations | No |
-| `agera_5` | ERA5-Land daily aggregates (broad variable set; recommended default) | Yes |
+| `era5_land` | ERA5-Land daily aggregates (broad variable set; recommended default) | Yes |
 | `era_5` | ERA5 daily reanalysis | Yes |
 | `chirps_v2` / `chirps_v3_daily_rnl` | CHIRPS precipitation | Yes |
 | `chirts` | CHIRTS temperature | Yes |
@@ -398,7 +398,7 @@ The long-term climatology defaults to the WMO 1991–2020 baseline
 
 ```python
 ct.compare_climate_sources(
-    sources=["nasa_power", "agera_5"],       # agera_5 needs Earth Engine
+    sources=["nasa_power", "era5_land"],       # era5_land needs Earth Engine
     lat=-1.286, lon=36.817,
     start="2020-01-01", end="2020-12-31",
     output_dir="./outputs",
@@ -422,7 +422,7 @@ ct.compare_climate_periods(
     location=(-1.286, 36.817),
     baseline_start=1991, baseline_end=2020,
     focal_year=2023,
-    source="agera_5",
+    source="era5_land",
 )
 ```
 

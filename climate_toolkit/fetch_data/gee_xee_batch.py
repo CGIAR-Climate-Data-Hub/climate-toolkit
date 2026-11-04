@@ -60,7 +60,7 @@ AGERA5_MEAN_TEMPERATURE_BAND = "temperature_2m"
 AGERA5_DEWPOINT_BAND = "dewpoint_temperature_2m"
 
 SUPPORTED_GEE_XEE_BATCH_SOURCES = {
-    ClimateDataset.agera_5,
+    ClimateDataset.era5_land,
     ClimateDataset.era_5,
     ClimateDataset.terraclimate,
     ClimateDataset.imerg,
@@ -141,14 +141,14 @@ def _variable_name(variable) -> str:
 
 def _uv_wind_requested(source: ClimateDataset, variables) -> bool:
     return (
-        source in {ClimateDataset.era_5, ClimateDataset.agera_5}
+        source in {ClimateDataset.era_5, ClimateDataset.era5_land}
         and any(_variable_name(variable) == "wind_speed" for variable in (variables or default_variables()))
     )
 
 
 def _agera5_humidity_requested(source: ClimateDataset, variables) -> bool:
     return (
-        source == ClimateDataset.agera_5
+        source == ClimateDataset.era5_land
         and any(_variable_name(variable) == "humidity" for variable in (variables or default_variables()))
     )
 
@@ -243,7 +243,7 @@ def _derive_agera5_humidity(
         return frame
     if AGERA5_DEWPOINT_BAND not in frame.columns or AGERA5_MEAN_TEMPERATURE_BAND not in frame.columns:
         logger.warning(
-            "agera_5 humidity requested but dewpoint/temperature bands were not returned."
+            "era5_land humidity requested but dewpoint/temperature bands were not returned."
         )
         return frame
     derived = frame.copy()
@@ -406,7 +406,7 @@ def _cache_paths(
     base = (
         Path(cache_dir or DEFAULT_BATCH_CACHE_DIR)
         / CACHE_SCHEMA_VERSION
-        / source.name
+        / ("agera_5" if source == ClimateDataset.era5_land else source.name)
         / site_fragment
     )
     filename = (

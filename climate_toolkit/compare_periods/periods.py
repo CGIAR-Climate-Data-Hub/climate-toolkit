@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Dict, Any, Tuple, Optional, List
 
 import pandas as pd
+from climate_toolkit.fetch_data.source_data.sources.utils.models import normalize_climate_dataset_name
 
 from climate_toolkit.climate_statistics.statistics import analyze_climate_statistics
 from climate_toolkit.climatology import (
@@ -53,7 +54,7 @@ OVERALL_WATER_BALANCE_EXCLUDED = {
     "runoff_mm",
 }
 PRECIP_ONLY  = {"chirps", "chirps_v2", "chirps_v3_daily_rnl", "imerg", "tamsat"}
-SUPPORTED    = {"era_5", "agera_5", "chirps+chirts", "chirps_v2+chirts", "nasa_power",
+SUPPORTED    = {"era_5", "era5_land", "chirps+chirts", "chirps_v2+chirts", "nasa_power",
                 "chirps", "chirps_v2", "chirps_v3_daily_rnl", "chirts", "terraclimate", "imerg", "tamsat", "auto",
                 "paired"}
 XCLIM_FAMILY_LABELS = {
@@ -1114,7 +1115,7 @@ def compare(
     focal_year : int
         Single year to compare against the baseline climatology.
     source : str
-        Climate data source. One of ``'agera_5'``, ``'era_5'``,
+        Climate data source. One of ``'era5_land'``, ``'era_5'``,
         ``'nasa_power'``, ``'chirps'``, ``'chirps_v2'``,
         ``'chirps_v3_daily_rnl'``, ``'chirts'``, ``'chirps+chirts'``,
         ``'chirps_v2+chirts'``, ``'terraclimate'``, ``'imerg'``,
@@ -1134,7 +1135,7 @@ def compare(
         ``'chirps_v2'``, ``'chirps_v3_daily_rnl'``, ``'imerg'``, or
         ``'tamsat'``. Default None.
     temp_source : str, optional
-        Temperature source when ``source='paired'``, e.g. ``'agera_5'``,
+        Temperature source when ``source='paired'``, e.g. ``'era5_land'``,
         ``'era_5'``, or ``'nasa_power'``. Default None.
     crop_name : str, optional
         Crop name used when requesting external crop-calendar presets
@@ -1235,7 +1236,7 @@ def compare(
     Examples
     --------
     Compare 2023 against a 1991-2020 baseline for Nairobi, Kenya, using
-    AgERA-5 with a GGCMI maize calendar (requires Earth Engine
+    ERA5-Land with a GGCMI maize calendar (requires Earth Engine
     authentication and ``GCP_PROJECT_ID`` set):
 
     >>> import climate_toolkit as ct
@@ -1244,7 +1245,7 @@ def compare(
     ...     baseline_start=1991,
     ...     baseline_end=2020,
     ...     focal_year=2023,
-    ...     source="agera_5",
+    ...     source="era5_land",
     ...     crop_name="maize",
     ...     calendar_source="ggcmi",
     ... )
@@ -1252,6 +1253,9 @@ def compare(
     ...     rain = result["annual_summary"]["annual_rain_mm"]
     ...     print(rain["focal"], rain["baseline_avg"], rain["pct"])
     """
+    source = normalize_climate_dataset_name(source)
+    precip_source = normalize_climate_dataset_name(precip_source)
+    temp_source = normalize_climate_dataset_name(temp_source)
     if source.lower() not in SUPPORTED:
         return {"error": f"Source '{source}' not supported. "
                          f"Use one of: {', '.join(sorted(SUPPORTED))}"}
@@ -1779,12 +1783,12 @@ def main() -> int:
                    help=(
                        f"One of: {', '.join(sorted(SUPPORTED))}. "
                        "Default historical daily path elsewhere in package is "
-                       "chirps_v3_daily_rnl + agera_5 via auto or paired mode."
+                       "chirps_v3_daily_rnl + era5_land via auto or paired mode."
                    ))
     p.add_argument("--precip-source", default=None,
                    help="Required with --source=paired. Example: chirps_v2, chirps_v3_daily_rnl, imerg, or tamsat.")
     p.add_argument("--temp-source", default=None,
-                   help="Required with --source=paired. Example: agera_5, era_5, or nasa_power.")
+                   help="Required with --source=paired. Example: era5_land, era_5, or nasa_power.")
     p.add_argument("--crop", default=None,
                    help="Optional crop used when requesting external calendar presets such as GGCMI.")
     p.add_argument("--livestock-type", choices=list_thi_livestock_profiles(), default=DEFAULT_LIVESTOCK_TYPE,

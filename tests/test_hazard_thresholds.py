@@ -553,7 +553,7 @@ class HazardThresholdTests(unittest.TestCase):
                 fixed_season="03-01:05-31",
                 source="paired",
                 precip_source="tamsat",
-                temp_source="agera_5",
+                temp_source="era5_land",
                 ee_project_id="demo-project",
             )
         finally:
@@ -564,11 +564,11 @@ class HazardThresholdTests(unittest.TestCase):
 
         self.assertEqual("paired", fixed_call_kwargs[0]["source"])
         self.assertEqual("tamsat", fixed_call_kwargs[0]["precip_source"])
-        self.assertEqual("agera_5", fixed_call_kwargs[0]["temp_source"])
+        self.assertEqual("era5_land", fixed_call_kwargs[0]["temp_source"])
         self.assertEqual("demo-project", fixed_call_kwargs[0]["ee_project_id"])
         self.assertEqual("paired", season_fetch_calls[0]["source"])
         self.assertEqual("tamsat", season_fetch_calls[0]["precip_source"])
-        self.assertEqual("agera_5", season_fetch_calls[0]["temp_source"])
+        self.assertEqual("era5_land", season_fetch_calls[0]["temp_source"])
         self.assertEqual("demo-project", season_fetch_calls[0]["ee_project_id"])
         self.assertEqual("paired", result["season_info"]["source"])
 
@@ -607,7 +607,7 @@ class HazardThresholdTests(unittest.TestCase):
                 fixed_season="03-01:05-31",
                 source="paired",
                 precip_source="tamsat",
-                temp_source="agera_5",
+                temp_source="era5_land",
             )
         finally:
             hazards.fetch_and_analyze_years_fixed = orig_fixed
@@ -1059,7 +1059,7 @@ class HazardThresholdTests(unittest.TestCase):
                 location_coord=(-1.286, 36.817),
                 date_from="2020-01-01",
                 date_to="2020-12-31",
-                source="agera_5",
+                source="era5_land",
             )
         finally:
             hazards.fetch_and_analyze_years = orig_detect
@@ -1067,11 +1067,11 @@ class HazardThresholdTests(unittest.TestCase):
             hazards.calculate_season_statistics = orig_calc_stats
             hazards.evaluate_hazard_metrics = orig_eval
 
-        self.assertEqual("agera_5", detect_calls[0]["source"])
+        self.assertEqual("era5_land", detect_calls[0]["source"])
         self.assertIsNone(detect_calls[0]["ee_project_id"])
-        self.assertEqual("agera_5", season_fetch_calls[0]["source"])
+        self.assertEqual("era5_land", season_fetch_calls[0]["source"])
         self.assertIsNone(season_fetch_calls[0]["ee_project_id"])
-        self.assertEqual("agera_5", result["season_info"]["source"])
+        self.assertEqual("era5_land", result["season_info"]["source"])
 
     def test_calculate_hazards_auto_detect_forwards_paired_sources(self):
         import climate_toolkit.calculate_hazards.hazards as hazards
@@ -1140,7 +1140,7 @@ class HazardThresholdTests(unittest.TestCase):
                 date_to="2020-12-31",
                 source="paired",
                 precip_source="tamsat",
-                temp_source="agera_5",
+                temp_source="era5_land",
             )
         finally:
             hazards.fetch_and_analyze_years = orig_detect
@@ -1150,11 +1150,11 @@ class HazardThresholdTests(unittest.TestCase):
 
         self.assertEqual("paired", detect_calls[0]["source"])
         self.assertEqual("tamsat", detect_calls[0]["precip_source"])
-        self.assertEqual("agera_5", detect_calls[0]["temp_source"])
+        self.assertEqual("era5_land", detect_calls[0]["temp_source"])
         self.assertIsNone(detect_calls[0]["ee_project_id"])
         self.assertEqual("paired", season_fetch_calls[0]["source"])
         self.assertEqual("tamsat", season_fetch_calls[0]["precip_source"])
-        self.assertEqual("agera_5", season_fetch_calls[0]["temp_source"])
+        self.assertEqual("era5_land", season_fetch_calls[0]["temp_source"])
         self.assertIsNone(season_fetch_calls[0]["ee_project_id"])
         self.assertEqual("paired", result["season_info"]["source"])
 
@@ -1206,7 +1206,7 @@ class HazardThresholdTests(unittest.TestCase):
 
         self.assertIn("error", result)
         self.assertIn("Requested range for source 'era_5' is outside current coverage", result["error"])
-        self.assertIn("Use 'agera_5' or 'auto' for later periods.", result["error"])
+        self.assertIn("Use 'era5_land' or 'auto' for later periods.", result["error"])
 
     def test_calculate_hazards_rejects_paired_temp_partner_out_of_range(self):
         result = calculate_hazards(

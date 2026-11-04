@@ -37,7 +37,7 @@ class HistoricalWorkersSurfaceTests(unittest.TestCase):
                 "--lon",
                 "36.817",
                 "--source",
-                "agera_5",
+                "era5_land",
                 "--variables",
                 "precipitation",
                 "--from",
@@ -59,10 +59,10 @@ class HistoricalWorkersSurfaceTests(unittest.TestCase):
         with patch.object(transform_module, "SourceData", return_value=client) as source_mock, patch.object(
             transform_module,
             "load_variable_mappings",
-            return_value={"agera_5": {"date": "date"}},
+            return_value={"era5_land": {"date": "date"}},
         ):
             transform_module.transform_data(
-                source="agera_5",
+                source="era5_land",
                 location_coord=(-1.286, 36.817),
                 date_from=pd.Timestamp("2020-01-01").date(),
                 date_to=pd.Timestamp("2020-01-02").date(),
@@ -78,7 +78,7 @@ class HistoricalWorkersSurfaceTests(unittest.TestCase):
             return_value=pd.DataFrame({"date": pd.to_datetime(["2020-01-01"])}),
         ) as transform_mock:
             preprocess_module.preprocess_data(
-                source="agera_5",
+                source="era5_land",
                 location_coord=(-1.286, 36.817),
                 date_from=pd.Timestamp("2020-01-01").date(),
                 date_to=pd.Timestamp("2020-01-02").date(),
@@ -99,7 +99,7 @@ class HistoricalWorkersSurfaceTests(unittest.TestCase):
                 "--end-year",
                 "2020",
                 "--source",
-                "agera_5",
+                "era5_land",
                 "--fixed-season",
                 "03-01:05-31",
                 "--workers",
@@ -132,7 +132,7 @@ class HistoricalWorkersSurfaceTests(unittest.TestCase):
                 "--end-year",
                 "2020",
                 "--source",
-                "agera_5",
+                "era5_land",
                 "--workers",
                 "3",
                 "--no-save",
@@ -161,7 +161,7 @@ class HistoricalWorkersSurfaceTests(unittest.TestCase):
                 "--focal-year",
                 "2020",
                 "--source",
-                "agera_5",
+                "era5_land",
                 "--workers",
                 "3",
             ],
@@ -175,14 +175,14 @@ class HistoricalWorkersSurfaceTests(unittest.TestCase):
         self.assertEqual(3, compare_mock.call_args.kwargs["workers"])
 
     def test_compare_datasets_main_passes_workers(self):
-        results = {"agera_5": pd.DataFrame({"date": pd.to_datetime(["2020-01-01"])})}
+        results = {"era5_land": pd.DataFrame({"date": pd.to_datetime(["2020-01-01"])})}
         with patch.object(
             sys,
             "argv",
             [
                 "compare_datasets.py",
                 "--sources",
-                "agera_5",
+                "era5_land",
                 "--lat",
                 "-1.286",
                 "--lon",
@@ -250,14 +250,14 @@ class HistoricalWorkersSurfaceTests(unittest.TestCase):
                 "--end",
                 "2020-01-10",
                 "--grid-source",
-                "agera_5",
+                "era5_land",
                 "--workers",
                 "3",
             ],
         ), patch.object(
             station_compare,
             "compare_station_to_grids",
-            return_value={"selection_mode": "auto", "station_source": "ghcn_daily", "grid_sources": ["agera_5"]},
+            return_value={"selection_mode": "auto", "station_source": "ghcn_daily", "grid_sources": ["era5_land"]},
         ) as compare_mock, patch.object(station_compare, "render_compare_report", return_value="ok"):
             rc = station_compare.main()
 
@@ -278,7 +278,7 @@ class HistoricalWorkersSurfaceTests(unittest.TestCase):
                     "--end-year",
                     "2020",
                     "--source",
-                    "agera_5",
+                    "era5_land",
                     "--workers",
                     "3",
                 ]

@@ -20,6 +20,7 @@ from importlib.util import find_spec
 from typing import Any, Iterable, Optional, Sequence
 
 import pandas as pd
+from climate_toolkit.fetch_data.source_data.sources.utils.models import normalize_climate_dataset_name
 
 XCLIM_AVAILABLE = bool(find_spec("xarray")) and bool(find_spec("xclim"))
 
@@ -52,7 +53,7 @@ _HUMAN_HEAT_SOURCE_SUPPORT = {
         "supported in default historical composite when chosen companion-temperature "
         "path exposes humidity or dewpoint"
     ),
-    "agera_5": (
+    "era5_land": (
         "supported: humidity available via current dewpoint + air-temperature derivation; "
         "best first-pass historical source"
     ),
@@ -285,9 +286,9 @@ def build_human_heat_source_bundle(
     custom_station_file: str | None = None,
     frame: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
-    normalized_source = str(source or "").strip().lower() or None
-    normalized_precip = str(precip_source or "").strip().lower() or None
-    normalized_temp = str(temp_source or "").strip().lower() or None
+    normalized_source = normalize_climate_dataset_name(source)
+    normalized_precip = normalize_climate_dataset_name(precip_source)
+    normalized_temp = normalize_climate_dataset_name(temp_source)
     station_override = bool(custom_station_file)
     if normalized_source == "auto" and frame is not None:
         products = {p.get("source") for p in frame.attrs.get("data_provenance", [])}

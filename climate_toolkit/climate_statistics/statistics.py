@@ -10,7 +10,7 @@ Detection: delegates to seasons.py building blocks (add_et0, detect_onset_cessat
 parse_fixed_seasons, check_humid) so behaviour is identical to seasons.py:
     Per reference year, a 1.5-year window is sliced from the master DataFrame so seasons crossing the year boundary are captured. After detection,
     seasons are reassigned to onset year, filtered to MAM/OND windows for equatorial climates, and de-duplicated.
-Data sources accepted: agera_5, era_5, nasa_power, nex_gddp, auto, paired, and legacy chirps_v2+chirts / chirps_v2 paths. Legacy alias `chirps` still works. Precipitation-only sources such as chirps_v3_daily_rnl, imerg, and tamsat should be used through paired mode with a temperature partner. NEX-GDDP requires --model and --scenario. Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus ERA5-Land companion variables.
+Data sources accepted: era5_land, era_5, nasa_power, nex_gddp, auto, paired, and legacy chirps_v2+chirts / chirps_v2 paths. Legacy alias `chirps` still works. Precipitation-only sources such as chirps_v3_daily_rnl, imerg, and tamsat should be used through paired mode with a temperature partner. NEX-GDDP requires --model and --scenario. Default historical daily path uses CHIRPS v3 Daily RNL precipitation plus ERA5-Land companion variables.
 
 Dependencies: pandas, numpy, climate_toolkit (preprocess_data, seasons.py)
 """
@@ -114,7 +114,7 @@ PRECIP_ONLY_SOURCES = {'chirps', 'chirps_v2', 'chirps_v3_daily_rnl', 'imerg', 't
 TEMP_ONLY_SOURCES = {'chirts', 'chirts_era5'}
 PAIRED_SOURCE_SENTINEL = 'paired'
 DEFAULT_AUTO_PRECIP_SOURCE = 'chirps_v3_daily_rnl'
-DEFAULT_AUTO_TEMP_SOURCE = 'agera_5'
+DEFAULT_AUTO_TEMP_SOURCE = 'era5_land'
 
 
 def _validate_nex_ltm_period(
@@ -183,7 +183,7 @@ def _validate_source_compatibility(
             "tamsat provides precipitation and soil moisture, but not temperature. "
             "climate_statistics.statistics requires temperature inputs for ET0 and "
             "season analysis, so tamsat must be paired with a temperature source "
-            "such as agera_5 or era_5."
+            "such as era5_land or era_5."
         )
     if source_lc == 'chirps_v3_daily_rnl':
         return (
@@ -195,7 +195,7 @@ def _validate_source_compatibility(
     if source_lc in {'chirps+chirts', 'chirps_v2+chirts'} and end_year > CHIRTS_LAST_YEAR:
         return (
             "chirps_v2+chirts is unavailable for this window because CHIRTS daily "
-            f"coverage ends in {CHIRTS_LAST_YEAR}. Use agera_5, era_5, "
+            f"coverage ends in {CHIRTS_LAST_YEAR}. Use era5_land, era_5, "
             "nasa_power, chirps_v2, or nex_gddp for later periods."
         )
     return None
@@ -444,14 +444,14 @@ def get_climate_data(
     Fetch all variables for [start_date, end_date] from the given source.
     Source handling
     ---------------
-      - 'auto'              : tries chirps_v3_daily_rnl + agera_5, then agera_5, then era_5, then chirps_v3_daily_rnl+chirts_era5 fallback
+      - 'auto'              : tries chirps_v3_daily_rnl + era5_land, then era5_land, then era_5, then chirps_v3_daily_rnl+chirts_era5 fallback
       - 'paired'            : merges explicit precip_source + temp_source
       - 'chirps_v2+chirts'  : merges CHIRPS v2 precip + CHIRTS temperature
-      - any other string    : passed straight to preprocess_data (agera_5, era_5, nasa_power, nex_gddp, chirps_v2, chirts, …)
+      - any other string    : passed straight to preprocess_data (era5_land, era_5, nasa_power, nex_gddp, chirps_v2, chirts, …)
     Recommendation
     --------------
-      - Default historical daily path uses `chirps_v3_daily_rnl` + `agera_5`.
-      - For direct single-source historical daily runs, prefer `agera_5`.
+      - Default historical daily path uses `chirps_v3_daily_rnl` + `era5_land`.
+      - For direct single-source historical daily runs, prefer `era5_land`.
     Renames pipeline columns to canonical names: precip, tmax, tmin (humidity, soil_moisture, solar_radiation, wind_speed pass through when the source provides them).
     """
     date_from = date.fromisoformat(start_date)
@@ -478,7 +478,7 @@ def get_climate_data(
         )
     elif source_lc == 'auto':
         if verbose:
-            print("  [source] auto -> chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5")
+            print("  [source] auto -> chirps_v3_daily_rnl + era5_land -> era5_land -> era_5 -> chirps_v3_daily_rnl+chirts_era5")
         auto_kwargs = {"workers": workers} if workers != 1 else {}
         df = _fetch_auto(lat, lon, date_from, date_to, ee_project_id, **auto_kwargs)
     elif source_lc in {'chirps+chirts', 'chirps_v2+chirts'}:
@@ -1932,7 +1932,7 @@ def analyze_climate_statistics(
     source : str
         Daily climate data source. Common choices:
 
-        - ``'agera_5'`` : ERA5-Land (recommended single-source historical).
+        - ``'era5_land'`` : ERA5-Land (recommended single-source historical).
         - ``'era_5'`` : ERA5.
         - ``'nasa_power'`` : NASA POWER (no credentials required).
         - ``'nex_gddp'`` : NEX-GDDP-CMIP6 projections; use with
@@ -1941,12 +1941,12 @@ def analyze_climate_statistics(
           precipitation (precipitation-only; temperature is filled or
           must come from a paired source).
         - ``'chirps_v2+chirts'`` : merged CHIRPS precip + CHIRTS temp.
-        - ``'auto'`` : tries chirps_v3_daily_rnl + agera_5, then
-          agera_5, then era_5, then chirps_v2+chirts.
+        - ``'auto'`` : tries chirps_v3_daily_rnl + era5_land, then
+          era5_land, then era_5, then chirps_v2+chirts.
         - ``'paired'`` : combine explicit ``precip_source`` +
           ``temp_source``.
 
-        Earth Engine-backed sources (``agera_5``, ``era_5``,
+        Earth Engine-backed sources (``era5_land``, ``era_5``,
         ``chirps_v2``, ``chirps_v3_daily_rnl``, ``nex_gddp``, ...)
         require prior ``earthengine authenticate`` and a
         ``GCP_PROJECT_ID`` environment variable (or ``ee_project_id``);
@@ -1972,7 +1972,7 @@ def analyze_climate_statistics(
         ``'chirps_v3_daily_rnl'``, ``'chirps_v2'``, ``'imerg'``,
         ``'tamsat'``). Must be provided together with ``temp_source``.
     temp_source : str, optional
-        Temperature source for paired mode (e.g. ``'agera_5'``,
+        Temperature source for paired mode (e.g. ``'era5_land'``,
         ``'era_5'``). Must be provided together with ``precip_source``.
     crop_name : str, optional
         Crop name used to look up a crop-calendar season preset (e.g.
@@ -2116,7 +2116,7 @@ def analyze_climate_statistics(
     ...     location_coord=(-1.286, 36.817),
     ...     start_year=2000,
     ...     end_year=2020,
-    ...     source="agera_5",
+    ...     source="era5_land",
     ...     crop_name="maize",
     ...     calendar_source="ggcmi",
     ...     spei_scale_months=3,
@@ -2126,6 +2126,9 @@ def analyze_climate_statistics(
     >>> result["season_statistics"][0]["year"]  # doctest: +SKIP
     2000
     """
+    source = normalize_climate_dataset_name(source)
+    precip_source = normalize_climate_dataset_name(precip_source)
+    temp_source = normalize_climate_dataset_name(temp_source)
     lat, lon = location_coord
     run_started = perf_counter()
     try:
@@ -3160,10 +3163,10 @@ def main() -> int:
     parser.add_argument('--source',     required=True,
                         help=(
                             "Data source. Examples:\n"
-                            "  agera_5, era_5, chirps_v2, chirps_v2+chirts, paired,\n"
+                            "  era5_land, era_5, chirps_v2, chirps_v2+chirts, paired,\n"
                             "  nasa_power, nex_gddp, auto\n"
-                            "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
-                            "Recommended direct single-source fallback: agera_5.\n"
+                            "Default historical daily path: chirps_v3_daily_rnl + era5_land.\n"
+                            "Recommended direct single-source fallback: era5_land.\n"
                             "For GEE/Xee-backed historical paths, cold-cache first runs can "
                             "take noticeably longer than warm-cache reruns.\n"
                             "Incompatible sources are rejected with a clean "
@@ -3172,7 +3175,7 @@ def main() -> int:
     parser.add_argument('--precip-source', default=None,
                         help='Optional paired precipitation source, e.g. chirps_v3_daily_rnl, chirps_v2, imerg, or tamsat')
     parser.add_argument('--temp-source', default=None,
-                        help='Optional paired temperature source, e.g. agera_5 or era_5')
+                        help='Optional paired temperature source, e.g. era5_land or era_5')
     parser.add_argument('--custom-station-file', default=None,
                         help='Optional custom station CSV/JSON used to override historical variables by date.')
     parser.add_argument('--custom-station-vars', default=None,
@@ -3364,7 +3367,7 @@ if __name__ == "__main__":
 # python climate_toolkit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "03-01:05-31" --source era_5 --format pandas
 
 # Fixed two seasons:
-# python climate_toolkit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "03-01:05-31,10-01:12-15" --source agera_5 --format pandas
+# python climate_toolkit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "03-01:05-31,10-01:12-15" --source era5_land --format pandas
 
 # python climate_toolkit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2022 --fixed-season "11-01:02-28" --source chirps_v2+chirts --format pandas
 
@@ -3376,4 +3379,4 @@ if __name__ == "__main__":
 
 # Auto season detection:
 # python climate_toolkit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2018 --end-year 2020 --source era_5 --format pandas
-# python climate_toolkit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2015 --end-year 2020 --source agera_5 --format pandas
+# python climate_toolkit/climate_statistics/statistics.py --location="-1.286,36.817" --start-year 2015 --end-year 2020 --source era5_land --format pandas

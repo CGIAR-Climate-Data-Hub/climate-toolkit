@@ -24,7 +24,7 @@ print(df.head())
 ```
 
 `fetch_climate_data` returns a **pandas DataFrame**. Earth Engine-backed sources
-(`agera_5`, `nex_gddp`, ...) use the same call after a one-time setup — see
+(`era5_land`, `nex_gddp`, ...) use the same call after a one-time setup — see
 [Getting started](../getting_started.md#2-google-earth-engine-credentials). Full
 parameter reference below.
 

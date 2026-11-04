@@ -94,10 +94,10 @@ class CompareDatasetsSourcePolicyTests(unittest.TestCase):
                 start="2020-01-01",
                 end="2020-01-02",
                 precip_source="chirps_v3_daily_rnl",
-                temp_source="agera_5",
+                temp_source="era5_land",
             )
 
-        self.assertIn("paired_chirps_v3_daily_rnl_plus_agera_5", results)
+        self.assertIn("paired_chirps_v3_daily_rnl_plus_era5_land", results)
         fetch_mock.assert_called_once()
 
     def test_main_rejects_mixed_nex_and_other_sources(self):
@@ -123,7 +123,7 @@ class CompareDatasetsSourcePolicyTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 2)
 
     def test_print_report_keeps_tables_when_plot_step_fails(self):
-        results = {"agera_5": self._fake_dataset()}
+        results = {"era5_land": self._fake_dataset()}
 
         with mock.patch(
             "climate_toolkit.compare_datasets.compare_datasets.plot_annual_timeseries",
@@ -140,14 +140,14 @@ class CompareDatasetsSourcePolicyTests(unittest.TestCase):
         self.assertIn("precipitation", report["annual_timeseries"])
         self.assertIsNotNone(report["plot_failures"])
         self.assertEqual(report["plot_failures"][0]["step"], "annual_timeseries")
-        self.assertEqual(report["plot_failures"][0]["source"], "agera_5")
+        self.assertEqual(report["plot_failures"][0]["source"], "era5_land")
 
     def test_main_json_output_survives_plot_failure(self):
-        fake_results = {"agera_5": self._fake_dataset()}
+        fake_results = {"era5_land": self._fake_dataset()}
         argv = [
             "compare_datasets.py",
             "--sources",
-            "agera_5",
+            "era5_land",
             "--lat",
             "-1.286",
             "--lon",
@@ -182,7 +182,7 @@ class CompareDatasetsSourcePolicyTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(payload["plot_failures"][0]["step"], "annual_timeseries")
         self.assertIn("datasets", payload)
-        self.assertIn("agera_5", payload["datasets"])
+        self.assertIn("era5_land", payload["datasets"])
 
     def test_main_rejects_paired_without_both_partner_sources(self):
         argv = [

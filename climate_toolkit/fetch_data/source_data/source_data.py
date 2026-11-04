@@ -12,7 +12,7 @@ from datetime import datetime, date
 from pathlib import Path
 import pandas as pd
 from .sources.gee_xee import DownloadData as DownloadGEEXee
-from .sources.agera_5 import DownloadData as DownloadAgera5
+from .sources.era5_land import DownloadData as DownloadEra5Land
 from .sources.era_5 import DownloadData as DownloadERA5
 from .sources.tamsat import DownloadTAMSAT
 from .sources.nasa_power import DownloadData as DownloadNASA
@@ -33,7 +33,7 @@ from .sources.utils.settings import Settings
 
 XEE_SINGLE_SITE_SOURCES = (
     ClimateDataset.era_5,
-    ClimateDataset.agera_5,
+    ClimateDataset.era5_land,
     ClimateDataset.terraclimate,
     ClimateDataset.imerg,
     ClimateDataset.chirps_v2,
@@ -140,8 +140,8 @@ class SourceData:
                 refresh_cache=refresh_cache,
                 ee_project_id=ee_project_id,
             )
-        elif source == ClimateDataset.agera_5:
-            client = DownloadAgera5(
+        elif source == ClimateDataset.era5_land:
+            client = DownloadEra5Land(
                 variables=variables,
                 location_coord=location_coord,
                 date_from_utc=date_from_utc,

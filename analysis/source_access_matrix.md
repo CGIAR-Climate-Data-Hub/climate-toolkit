@@ -10,7 +10,7 @@ This replaces stale June statements about synthetic NEX and interactive GEE auth
 | `chirts_era5` | Hugging Face Zarr | No with Python 3.12+ cloud extra | One provider; original CHC backup investigation remains open |
 | `chirts` | GEE/Xee CHIRTS-daily | Yes | Deprecated compatibility only; use `chirts_era5` for new temperature workflows |
 | `chirps_v2` / `chirps` | GEE/Xee | Yes | No integrated direct backup; v3 is a different scientific source |
-| `agera_5` | Thin adapter over GEE/Xee `ECMWF/ERA5_LAND/DAILY_AGGR` | Yes | Product is ERA5-Land, despite source key; no integrated direct backup |
+| `era5_land` | Thin adapter over GEE/Xee `ECMWF/ERA5_LAND/DAILY_AGGR` | Yes | Product is ERA5-Land, despite source key; no integrated direct backup |
 | `era_5` | Thin adapter over GEE/Xee `ECMWF/ERA5/DAILY` | Yes | Normal dispatch does not use CDS |
 | `nex_gddp` | Real NEX-GDDP GEE/Xee single/batch paths | Yes | Not synthetic; version/source investigation #1 |
 | `cmip_6` | GEE/Xee | Yes | Keep distinct from the richer NEX workflow; no new backup |
@@ -51,3 +51,8 @@ Priority next investigations:
 - GEE wrappers: `agera_5.py`, `era_5.py`, `gee_xee.py`, `nex_gddp_xee.py`.
 - [Direct access guide](../docs/direct_cloud_access.md).
 - [Implementation/benchmark evidence](issues/issue_176_178_direct_cloud_access.md).
+
+
+Naming migration (2026-11-04): `era5_land` is canonical. Deprecated `agera_5`
+and `agera5` calls still select ERA5-Land and emit a warning; legacy cache paths
+remain reusable. This does not add the distinct AgERA5 product or change CDS status.

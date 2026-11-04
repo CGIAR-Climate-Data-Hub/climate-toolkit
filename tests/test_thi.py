@@ -144,7 +144,7 @@ class LivestockThiTests(unittest.TestCase):
 
     def test_describe_thi_source_support_flags_future_path_gap(self):
         support = describe_thi_source_support()
-        self.assertIn("agera_5", support)
+        self.assertIn("era5_land", support)
         self.assertIn("nex_gddp", support)
         self.assertIn("conditionally supported", support["nex_gddp"])
         self.assertIn("does not define a humidity band", support["era_5"])

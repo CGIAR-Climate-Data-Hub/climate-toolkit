@@ -148,7 +148,7 @@ print(method["profiles"]["pigs"])
 
 Supported now:
 
-- `agera_5`
+- `era5_land`
   - humidity derived from dewpoint + air temperature in current fetch pipeline
 - `nasa_power`
   - humidity available from current POWER fetch path
@@ -249,7 +249,7 @@ climate-toolkit-hazards \
   --date-to 2020-05-31 \
   --source paired \
   --precip-source chirps_v3_daily_rnl \
-  --temp-source agera_5 \
+  --temp-source era5_land \
   --livestock-type cattle_dairy \
   --thresholds-file custom_thresholds.json
 ```

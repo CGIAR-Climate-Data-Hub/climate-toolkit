@@ -33,7 +33,7 @@ uv sync
 
 ## 2. Google Earth Engine credentials
 
-Most gridded sources (`agera_5`, `era_5`, `chirps_v3_daily_rnl`, `nex_gddp`)
+Most gridded sources (`era5_land`, `era_5`, `chirps_v3_daily_rnl`, `nex_gddp`)
 are served through Google Earth Engine. `nasa_power` and the weather-station
 sources (`ghcn_daily`, `gsod`) need no credentials at all.
 

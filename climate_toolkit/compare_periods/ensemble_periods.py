@@ -2656,7 +2656,7 @@ def main() -> int:
     p.add_argument("--focal-precip-source", default=None,
                    help="Required when --focal-source=paired. Example: chirps_v2 or chirps_v3_daily_rnl.")
     p.add_argument("--focal-temp-source", default=None,
-                   help="Required when --focal-source=paired. Example: agera5 or era5.")
+                   help="Required when --focal-source=paired. Example: era5_land or era_5.")
     p.add_argument("--output",         default=None, help="Save JSON result to this path")
     p.add_argument("--model-workers",  type=int, default=8,
                    help=("Parallel NEX-GDDP model workers for ensemble runs. "

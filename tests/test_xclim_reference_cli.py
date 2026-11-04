@@ -66,7 +66,7 @@ class XclimReferenceTyperCliTests(unittest.TestCase):
             xclim_cli.app,
             [
                 "--location=-1.286,36.817",
-                "--source=agera_5",
+                "--source=era5_land",
                 "--start=2020-01-01",
                 "--end=2020-12-31",
                 "--mode=not-a-mode",
@@ -97,7 +97,7 @@ class XclimReferenceTyperCliTests(unittest.TestCase):
                 rc = xclim_cli.main(
                     [
                         "--location=-1.286,36.817",
-                        "--source=agera_5",
+                        "--source=era5_land",
                         "--start=2020-01-01",
                         "--end=2020-12-31",
                         "--mode=annual-readiness",

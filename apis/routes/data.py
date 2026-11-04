@@ -30,9 +30,9 @@ AVAILABLE_SOURCES = [
         variables=["precipitation"],
     ),
     SourceInfo(
-        key="agera_5",
-        name="AgERA5",
-        description="Agriculltural ERA5 - daily weather data for agriculture",
+        key="era5_land",
+        name="ERA5-Land",
+        description="ERA5-Land reanalysis daily aggregates",
         variables=["precipitation", "max_temperature", "min_temperature"],
     ),
     SourceInfo(

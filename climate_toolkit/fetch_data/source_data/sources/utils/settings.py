@@ -5,7 +5,7 @@ from pathlib import Path
 
 from climate_toolkit._resources import load_yaml_resource
 import yaml
-from pydantic import BaseModel, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 CONFIG_PACKAGE = "climate_toolkit.fetch_data.source_data.sources.utils"
 CONFIG_RESOURCE = "config.yaml"
@@ -79,11 +79,14 @@ class SoilVariable(BaseModel):
         """Return the band name for a given soil variable."""
         return getattr(self, var_name, None)
 
-class Agera5Settings(BaseModel):
+class Era5LandSettings(BaseModel):
     gee_image: str
     cadence: str
     variable: ClimateVariable
     resolution: float = 0.25
+
+
+Agera5Settings = Era5LandSettings  # Compatibility for existing settings imports.
 
 
 class Era5Settings(BaseModel):
@@ -182,7 +185,7 @@ class SoilGridSettings(BaseModel):
 class Settings(BaseModel):
     """Loads the application's settings."""
 
-    agera_5: Agera5Settings
+    era5_land: Era5LandSettings = Field(validation_alias=AliasChoices("era5_land", "agera_5"))
     era_5: Era5Settings
     imerg: ImergSettings
     terraclimate: TerraSettings
@@ -195,6 +198,11 @@ class Settings(BaseModel):
     tamsat: TamsatSettings
     soil_grid: SoilGridSettings
     hwsd: SoilGridSettings
+
+    @property
+    def agera_5(self):
+        """Compatibility accessor for custom configurations and callers."""
+        return self.era5_land
 
     @classmethod
     def load(cls, settings_path: str | Path | None = None):

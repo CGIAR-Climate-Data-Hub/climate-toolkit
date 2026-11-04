@@ -46,6 +46,12 @@ jobs:
         run: |
           uv run ruff check .
 
+      - name: Verify release version and lock updates together
+        if: matrix.python-version == '3.12'
+        run: |
+          npm install --prefix .tmp/release-check release-please@17.11.2 --no-audit --no-fund
+          node scripts/verify_release_version.cjs .tmp/release-check
+
       - name: Build Python distribution artifacts
         run: |
           rm -rf .tmp/dist-release

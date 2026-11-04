@@ -73,7 +73,7 @@ def _compare_log(verbose: bool, message: str) -> None:
     if verbose:
         print(message)
 HISTORICAL_GRID_SOURCES = {
-    "agera_5",
+    "era5_land",
     "auto",
     "chirts",
     "chirts_era5",
@@ -95,7 +95,7 @@ GRID_COMPARE_DISALLOWED = {
     "tamsat",
 }
 GRID_SOURCE_METADATA = {
-    "agera_5": {
+    "era5_land": {
         "product_class": "reanalysis",
         "station_informed": False,
         "validation_independence": "largely independent from local station comparison",
@@ -2274,7 +2274,7 @@ def compare_station_to_grids(
 
     Authentication note: the station side (GHCN-Daily / GSOD) downloads
     from public NOAA archives and needs no Google Earth Engine
-    credentials, but most grid sources (``agera_5``, ``era_5``,
+    credentials, but most grid sources (``era5_land``, ``era_5``,
     ``chirps``, ``chirts``, ``imerg``, ``terraclimate``, ...) are fetched
     through Google Earth Engine and require the ``GCP_PROJECT_ID``
     environment variable (or ``GOOGLE_CLOUD_PROJECT`` /
@@ -2298,7 +2298,7 @@ def compare_station_to_grids(
         Last day of the comparison period (inclusive).
     grid_sources : list of str
         Historical gridded products to evaluate. Valid values:
-        ``"agera_5"``, ``"era_5"``, ``"chirps"``, ``"chirps_v2"``,
+        ``"era5_land"``, ``"era_5"``, ``"chirps"``, ``"chirps_v2"``,
         ``"chirts"``, ``"chirps_v2+chirts"``, ``"chirps_v3_daily_rnl"``,
         ``"imerg"``, ``"nasa_power"``, ``"terraclimate"``, ``"auto"``
         (toolkit's composite selector), and ``"paired"`` (combine
@@ -2443,7 +2443,7 @@ def compare_station_to_grids(
     ...     station_coord=(-1.286, 36.817),
     ...     date_from=date(2020, 1, 1),
     ...     date_to=date(2020, 12, 31),
-    ...     grid_sources=["agera_5"],
+    ...     grid_sources=["era5_land"],
     ...     variables=["precipitation", "max_temperature", "min_temperature"],
     ... )
     >>> import pandas as pd

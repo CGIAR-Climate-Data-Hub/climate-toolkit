@@ -823,12 +823,12 @@ def _validate_source_window(source: str, end_year: int) -> None:
         raise ValueError(
             f"{source_lc} is precipitation-only and is not yet supported directly by "
             "calculate_hazards. Use --source auto for the default "
-            "chirps_v3_daily_rnl + agera_5 path, or use agera_5 / era_5 directly for now."
+            "chirps_v3_daily_rnl + era5_land path, or use era5_land / era_5 directly for now."
         )
     if source_lc in {'chirps+chirts', 'chirps_v2+chirts'} and end_year > 2016:
         raise ValueError(
             "chirps_v2+chirts is unavailable for this window because CHIRTS daily "
-            "temperature currently ends in 2016. Use agera_5, era_5, or "
+            "temperature currently ends in 2016. Use era5_land, era_5, or "
             "--source auto (default CHIRPS v3 Daily RNL + ERA5-Land) for newer periods."
         )
 
@@ -2103,16 +2103,16 @@ def calculate_hazards(
         Year-crossing windows such as ``'11-01:02-28'`` are supported.
         Default None.
     source : str, default 'auto'
-        Climate dataset: 'auto', 'agera_5', 'era_5', 'chirps_v2+chirts'
+        Climate dataset: 'auto', 'era5_land', 'era_5', 'chirps_v2+chirts'
         (alias 'chirps+chirts'), 'nasa_power', or 'paired'. ``'auto'`` tries
-        chirps_v3_daily_rnl + agera_5, then agera_5, then era_5, then
+        chirps_v3_daily_rnl + era5_land, then era5_land, then era_5, then
         chirps_v2+chirts. Precipitation-only sources ('chirps_v3_daily_rnl',
         'imerg', 'tamsat') are rejected here -- use them through
         ``source='paired'``. 'chirps_v2+chirts' only covers years up to 2016.
     precip_source, temp_source : str, optional
         Required together when ``source='paired'``: explicit precipitation
         and temperature datasets, e.g. ``precip_source='chirps_v3_daily_rnl'``
-        with ``temp_source='agera_5'``. Default None.
+        with ``temp_source='era5_land'``. Default None.
     model, scenario : str, optional
         GCM and scenario for ``source='nex_gddp'`` (e.g. ``model='GFDL-ESM4'``,
         ``scenario='historical'``). ``model`` defaults to the source default
@@ -2213,7 +2213,7 @@ def calculate_hazards(
 
     Notes
     -----
-    Earth Engine-backed sources ('agera_5', 'era_5', 'chirps_v2+chirts',
+    Earth Engine-backed sources ('era5_land', 'era_5', 'chirps_v2+chirts',
     'chirps_v3_daily_rnl', and the default 'auto' chain) require a one-time
     ``earthengine authenticate`` and a Google Cloud project ID, supplied via
     the ``GCP_PROJECT_ID`` environment variable or the ``ee_project_id``
@@ -2235,11 +2235,14 @@ def calculate_hazards(
     ...     date_to='2020-12-31',
     ...     season_start='2020-03-01',
     ...     season_end='2020-06-30',
-    ...     source='agera_5',
+    ...     source='era5_land',
     ... )  # doctest: +SKIP
     >>> result['hazard_evaluation']['NTx35']['status']  # doctest: +SKIP
     'no_stress'
     """
+    source = normalize_climate_dataset_name(source)
+    precip_source = normalize_climate_dataset_name(precip_source)
+    temp_source = normalize_climate_dataset_name(temp_source)
     lat, lon = location_coord
     # NEX-GDDP splits at 2015: the 'historical' experiment covers through
     # 2014-12-31 and the SSP scenarios start 2015-01-01. When nex_gddp is asked
@@ -2478,7 +2481,7 @@ def calculate_hazards(
         detection_source = source
         print(f"Detecting growing season for {crop_name} at ({lat}, {lon})")
         if detection_source == 'auto':
-            print("Climate data source: auto (chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5)")
+            print("Climate data source: auto (chirps_v3_daily_rnl + era5_land -> era5_land -> era_5 -> chirps_v3_daily_rnl+chirts_era5)")
         else:
             print(f"Climate data source: {detection_source}")
         start_year = datetime.fromisoformat(date_from).year
@@ -3127,11 +3130,11 @@ def main() -> int:
                         help='Explicit season end (YYYY-MM-DD). Pair with --season-start.')
     parser.add_argument(
         '--source',
-        choices=['era_5', 'agera_5', 'chirps+chirts', 'chirps_v2+chirts', 'chirps_v3_daily_rnl', 'imerg', 'tamsat', 'nex_gddp', 'paired', 'auto'],
+        choices=['era_5', 'era5_land', 'agera_5', 'agera5', 'chirps+chirts', 'chirps_v2+chirts', 'chirps_v3_daily_rnl', 'imerg', 'tamsat', 'nex_gddp', 'paired', 'auto'],
         default='auto',
         help=(
             "Climate data source (default: auto).\n"
-            "  agera_5       -- ERA5-Land (legacy agera_5 key)\n"
+            "  era5_land       -- ERA5-Land (agera_5 is a deprecated alias)\n"
             "  era_5         -- ERA5 reanalysis\n"
             "  chirps_v2+chirts -- CHIRPS v2 precipitation + CHIRTS temperature\n"
             "  chirps_v3_daily_rnl -- precipitation-only; use via paired or auto\n"
@@ -3139,9 +3142,9 @@ def main() -> int:
             "  tamsat        -- precipitation-only; use via paired\n"
             "  nex_gddp      -- NEX-GDDP-CMIP6; pair with --model and --scenario\n"
             "  paired        -- explicit precip+temp pairing via --precip-source and --temp-source\n"
-            "  auto          -- tries chirps_v3_daily_rnl + agera_5 -> agera_5 -> era_5 -> chirps_v3_daily_rnl+chirts_era5\n"
-            "Default historical daily path: chirps_v3_daily_rnl + agera_5.\n"
-            "Recommended direct single-source fallback: agera_5.\n"
+            "  auto          -- tries chirps_v3_daily_rnl + era5_land -> era5_land -> era_5 -> chirps_v3_daily_rnl+chirts_era5\n"
+            "Default historical daily path: chirps_v3_daily_rnl + era5_land.\n"
+            "Recommended direct single-source fallback: era5_land.\n"
             "Note: auto-detection (no --season-* flag) now honors this source\n"
             "      setting instead of forcing chirps_v2+chirts."
         ),
@@ -3154,7 +3157,7 @@ def main() -> int:
     parser.add_argument(
         '--temp-source',
         default=None,
-        help='Required with --source paired. Example: agera_5 or era_5.',
+        help='Required with --source paired. Example: era5_land or era_5.',
     )
     parser.add_argument(
         '--model',
@@ -3304,7 +3307,7 @@ if __name__ == "__main__":
 # python -m climate_toolkit.calculate_hazards.hazards maize --location="-1.286,36.817" --date-from 2018-01-01 --date-to 2022-12-31 --fixed-season "03-01:06-30" --source era_5
 
 # Fixed two seasons:
-# python -m climate_toolkit.calculate_hazards.hazards beans --location="-1.286,36.817" --date-from 2018-01-01 --date-to 2022-12-31 --fixed-season "03-01:05-31,10-01:12-15" --source agera_5
+# python -m climate_toolkit.calculate_hazards.hazards beans --location="-1.286,36.817" --date-from 2018-01-01 --date-to 2022-12-31 --fixed-season "03-01:05-31,10-01:12-15" --source era5_land
 
 # Fixed year-crossing season:
 # python -m climate_toolkit.calculate_hazards.hazards sorghum --location="-1.286,36.817" --date-from 2012-01-01 --date-to 2016-12-31 --fixed-season "11-01:02-28" --source chirps_v2+chirts

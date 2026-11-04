@@ -8,7 +8,7 @@ from typing import Optional
 from .source_data.sources.utils.models import normalize_climate_dataset_name
 
 HISTORICAL_GEE_CACHE_SOURCES = {
-    "agera_5",
+    "era5_land",
     "chirps_v2",
     "chirps_v3_daily_rnl",
     "era_5",

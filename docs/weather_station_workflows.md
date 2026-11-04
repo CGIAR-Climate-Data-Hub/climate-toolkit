@@ -491,7 +491,7 @@ climate-toolkit-weather-station-compare \
   --grid-source paired \
   --grid-source nasa_power \
   --precip-source chirps_v3_daily_rnl \
-  --temp-source agera_5 \
+  --temp-source era5_land \
   --variables precipitation,max_temperature,min_temperature \
   --output outputs/weather_station/nairobi_station_vs_grid_2011_2020.json
 ```
@@ -510,7 +510,7 @@ Not current purpose:
 
 Historical comparison path supports historical grid/reanalysis products such as:
 
-- `agera_5`
+- `era5_land`
 - `era_5`
 - `nasa_power`
 - `chirps_v2`
@@ -542,7 +542,7 @@ So good agreement does **not** always mean independent validation.
 
 More independent options for historical compare often include:
 
-- `agera_5`
+- `era5_land`
 - `era_5`
 - `nasa_power`
 - `imerg`
@@ -551,7 +551,7 @@ Toolkit already surfaces warning when comparison source is not fully independent
 
 Practical source choice:
 
-- use `nasa_power`, `agera_5`, `era_5`, `imerg` when independence matters more
+- use `nasa_power`, `era5_land`, `era_5`, `imerg` when independence matters more
 - use `paired` when goal is practical historical workflow benchmarking, not strict independence
 - do not interpret `paired` win as independent proof if paired components are station-informed
 
@@ -619,7 +619,7 @@ climate-toolkit-stats \
   --end-year=2020 \
   --source=paired \
   --precip-source=chirps_v3_daily_rnl \
-  --temp-source=agera_5 \
+  --temp-source=era5_land \
   --custom-station-file path/to/station.csv \
   --custom-station-vars precipitation,max_temperature,min_temperature \
   --custom-station-name "My station" \
@@ -767,7 +767,7 @@ climate-toolkit-weather-station-compare \
   --grid-source nasa_power \
   --grid-source paired \
   --precip-source chirps_v3_daily_rnl \
-  --temp-source agera_5 \
+  --temp-source era5_land \
   --variables precipitation,max_temperature,min_temperature \
   --output outputs/weather_station/nairobi_station_vs_grid.json
 ```
@@ -781,7 +781,7 @@ climate-toolkit-stats \
   --end-year=2020 \
   --source=paired \
   --precip-source=chirps_v3_daily_rnl \
-  --temp-source=agera_5 \
+  --temp-source=era5_land \
   --custom-station-file path/to/station.csv \
   --custom-station-vars precipitation \
   --custom-precip-unit mm

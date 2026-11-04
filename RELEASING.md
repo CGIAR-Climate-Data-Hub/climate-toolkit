@@ -22,8 +22,16 @@ Register the repo as a trusted publisher — this cannot be automated. Do it on
 > - **PyPI Project Name:** `climate-toolkit`
 > - **Owner:** `CGIAR-Climate-Data-Hub`
 > - **Repository name:** `climate-toolkit`
-> - **Workflow name:** `publish.yml`
-> - **Environment name:** `pypi` on PyPI · `testpypi` on TestPyPI
+> - **Workflow name:** `release-please.yml` for automated releases; register
+>   `publish.yml` separately if manual releases are also needed.
+> - **Environment name:** `pypi` on PyPI. The optional TestPyPI registration uses
+>   `publish.yml` with environment `testpypi`.
+
+For the existing project, use **Manage → Publishing → Add a new publisher**.
+The repository owner, repository, workflow filename and environment must match
+the job issuing the OIDC token. A successful manual `publish.yml` upload does
+not prove that `release-please.yml` is authorized. See
+[PyPI trusted-publisher configuration](https://docs.pypi.org/trusted-publishers/adding-a-publisher/).
 
 Optionally protect the `pypi` GitHub Environment (repo → Settings → Environments)
 with required reviewers, so a human approves each production publish.
@@ -50,8 +58,23 @@ drive it.
    *"chore: release x.y.z"* with the bumped `pyproject.toml` and a generated
    `CHANGELOG.md` section. Sanity-check the version and notes.
 
+   The release configuration also updates the project's version in `uv.lock`
+   in the same PR. Dependency versions remain unchanged. CI exercises the actual
+   Release Please TOML updater and checks the resulting candidate with `uv lock
+   --check`. Its JSONPath uses `name.value` because Release Please's TOML parser
+   wraps scalar values with position metadata. Keep the updater smoke test when
+   upgrading Release Please. This replaces the separate post-PR lockfile push.
+
+   If an older release PR has a stale lockfile, regenerate it with the CI uv
+   version, inspect the diff and commit the repair to that release branch before
+   merging. Re-running an old failed workflow does not test a newer commit;
+   check that green CI belongs to the current release PR head.
+
 3. **Merge the release PR.** That creates the GitHub Release + `vX.Y.Z` tag and
    the workflow publishes to PyPI automatically. Nothing else to do.
+
+   Automated publishing checks out that release tag explicitly. Publishing
+   remains a separate action from merging feature/fix PRs.
 
 ### Manual alternative / TestPyPI rehearsal
 

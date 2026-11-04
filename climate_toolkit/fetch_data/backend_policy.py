@@ -16,7 +16,7 @@ _POLICY = ContextVar("climate_toolkit_backend_policy", default=None)
 BACKENDS = ("auto", "huggingface", "dynamical", "gee")
 DIRECT_SOURCES = {"chirps_v3_daily_rnl", "chirts_era5"}
 GEE_SOURCES = {
-    "agera_5",
+    "era5_land",
     "era_5",
     "chirps_v2",
     "chirps_v3_daily_rnl",

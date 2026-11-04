@@ -62,7 +62,7 @@ class NexScenarioDefaultTests(unittest.TestCase):
 
     def test_non_nex_source_is_untouched(self):
         # the historical default only applies to nex_gddp
-        captured = _run_fixed("2005-01-01", "2006-12-31", source="agera_5")
+        captured = _run_fixed("2005-01-01", "2006-12-31", source="era5_land")
         self.assertIsNone(captured.get("scenario"))
 
 

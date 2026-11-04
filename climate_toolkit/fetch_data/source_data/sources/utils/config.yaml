@@ -1,4 +1,4 @@
-agera_5:
+era5_land:
   gee_image: ECMWF/ERA5_LAND/DAILY_AGGR
   cadence: daily
   resolution: 11132

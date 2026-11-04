@@ -61,7 +61,7 @@ existent déjà, avec les étapes d'analyse intégrées.
     ---
 
     Des données climatiques journalières pour n'importe quel point, issues de
-    CHIRPS, AgERA5, NASA POWER, TerraClimate, IMERG, des projections CMIP6 et
+    CHIRPS, ERA5-Land, NASA POWER, TerraClimate, IMERG, des projections CMIP6 et
     des stations météo voisines — restituées en un tableau propre, prêt pour
     l'analyse.
 

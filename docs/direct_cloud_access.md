@@ -98,7 +98,7 @@ fetch accepts them too. Other standalone commands can use
 settings. Python contexts nest and library model-worker processes inherit policy.
 User-created threads/processes should enter their own context.
 
-Normal historical `auto` retains CHIRPS v3 + the existing `agera_5` source
+Normal historical `auto` retains CHIRPS v3 + the existing `era5_land` source
 (**ERA5-Land**, not the distinct AgERA5 product) for companion variables. Its
 final temperature fallback is now CHIRTS-ERA5. With GEE prohibited, historical
 `auto` directly selects CHIRPS v3 + CHIRTS-ERA5. This pair supplies precipitation
