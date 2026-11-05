@@ -116,7 +116,7 @@ class RunPipelineTests(unittest.TestCase):
                 source="nasa_power",
                 run_climatology=False,
                 run_compare_sources=True,
-                compare_sources_list=["nasa_power", "agera_5"],
+                compare_sources_list=["nasa_power", "era5_land"],
                 verbose=False,
             )
         self.assertTrue(m["compare_climate_sources"].called)

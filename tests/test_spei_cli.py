@@ -67,7 +67,7 @@ class SpeiTyperCliTests(unittest.TestCase):
             spei_cli.app,
             [
                 "--location=-1.286,36.817",
-                "--source=agera_5",
+                "--source=era5_land",
                 "--start=2020-01-01",
                 "--end=2020-12-31",
                 "--format=yaml",
@@ -102,7 +102,7 @@ class SpeiTyperCliTests(unittest.TestCase):
                 rc = spei_cli.main(
                     [
                         "--location=-1.286,36.817",
-                        "--source=agera_5",
+                        "--source=era5_land",
                         "--start=2020-01-01",
                         "--end=2020-12-31",
                         "--index=spei",

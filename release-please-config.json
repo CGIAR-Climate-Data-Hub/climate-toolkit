@@ -5,7 +5,14 @@
     ".": {
       "package-name": "climate-toolkit",
       "changelog-path": "CHANGELOG.md",
-      "include-component-in-tag": false
+      "include-component-in-tag": false,
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "uv.lock",
+          "jsonpath": "$.package[?(@.name.value=='climate-toolkit')].version"
+        }
+      ]
     }
   },
   "changelog-sections": [

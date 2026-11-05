@@ -40,7 +40,7 @@ parameter documentation.
 Data sources
 ------------
 ``nasa_power`` works with no setup. Earth Engine-backed sources
-(``agera_5``, ``era_5``, ``nex_gddp``) require
+(``era5_land``, ``era_5``, ``nex_gddp``) require
 ``earthengine authenticate`` and a ``GCP_PROJECT_ID`` environment
 variable (free for noncommercial use). CHIRPS v3 RNL and CHIRTS-ERA5 offer
 credential-free cloud access with Python 3.12+ and climate-toolkit[cloud].

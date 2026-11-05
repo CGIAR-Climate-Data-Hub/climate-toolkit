@@ -249,7 +249,7 @@ def test_gee_not_initialized_when_prohibited(monkeypatch):
     initialize = Mock(side_effect=AssertionError("Must not initialize GEE"))
     monkeypatch.setattr(ee, "Initialize", initialize)
     with pytest.raises(ValueError, match="disabled"):
-        fetch_data("agera_5", location_coord=(0, 0), allow_gee=False)
+        fetch_data("era5_land", location_coord=(0, 0), allow_gee=False)
     initialize.assert_not_called()
 
 

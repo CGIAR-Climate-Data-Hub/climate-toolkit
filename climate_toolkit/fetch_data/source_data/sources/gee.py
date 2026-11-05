@@ -115,13 +115,13 @@ class DownloadData(models.DataDownloadBase):
 
     def _uv_wind_requested(self) -> bool:
         return (
-            self.source in {models.ClimateDataset.era_5, models.ClimateDataset.agera_5}
+            self.source in {models.ClimateDataset.era_5, models.ClimateDataset.era5_land}
             and any(self._variable_name(variable) == "wind_speed" for variable in self.variables)
         )
 
     def _agera5_humidity_requested(self) -> bool:
         return (
-            self.source == models.ClimateDataset.agera_5
+            self.source == models.ClimateDataset.era5_land
             and any(self._variable_name(variable) == "humidity" for variable in self.variables)
         )
 
@@ -196,7 +196,7 @@ class DownloadData(models.DataDownloadBase):
 
         if AGERA5_DEWPOINT_BAND not in frame.columns or AGERA5_MEAN_TEMPERATURE_BAND not in frame.columns:
             logger.warning(
-                "agera_5 humidity requested but dewpoint/temperature bands were not returned."
+                "era5_land humidity requested but dewpoint/temperature bands were not returned."
             )
             return frame
 
@@ -207,7 +207,7 @@ class DownloadData(models.DataDownloadBase):
         actual = np.exp((17.625 * dew_c) / (243.04 + dew_c))
         derived["humidity"] = (100.0 * actual / saturation).clip(lower=0.0, upper=100.0)
         logger.info(
-            "Derived agera_5 relative humidity from %s and %s.",
+            "Derived era5_land relative humidity from %s and %s.",
             AGERA5_DEWPOINT_BAND,
             AGERA5_MEAN_TEMPERATURE_BAND,
         )

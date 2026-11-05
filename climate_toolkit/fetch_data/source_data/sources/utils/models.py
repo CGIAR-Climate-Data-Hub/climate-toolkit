@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import date, datetime
 from enum import Enum, auto
 from typing import NamedTuple
+import warnings
 
 import pandas as pd
 
@@ -48,7 +49,8 @@ class SoilVariable(Enum):
 class ClimateDataset(Enum):
     """The enum to represent climate datasets"""
 
-    agera_5 = auto()
+    era5_land = auto()
+    agera_5 = era5_land  # Compatibility enum alias; string calls warn below.
     era_5 = auto()
     terraclimate = auto()
     imerg = auto()
@@ -137,7 +139,9 @@ class DataDownloadBase(ABC):
 
 LEGACY_SOURCE_ALIASES = {
     "chirps": "chirps_v2",
-    "agera5": "agera_5",
+    "agera5": "era5_land",
+    "agera_5": "era5_land",
+    "era5-land": "era5_land",
     "era5": "era_5",
     "nasapower": "nasa_power",
     "power": "nasa_power",
@@ -154,7 +158,7 @@ SOURCE_DATE_LIMITS = {
         "start": date(1979, 1, 2),
         "end": date(2020, 7, 9),
         "label": "ECMWF/ERA5/DAILY",
-        "fallback_hint": "Use 'agera_5' or 'auto' for later periods.",
+        "fallback_hint": "Use 'era5_land' or 'auto' for later periods.",
     },
 }
 LIVE_SOURCE_DATE_LIMITS_CACHE: dict[tuple[str, str, str | None, str], dict[str, object]] = {}
@@ -165,7 +169,16 @@ def normalize_climate_dataset_name(source: str | ClimateDataset | None) -> str |
         return None
     if isinstance(source, ClimateDataset):
         return source.name
-    return LEGACY_SOURCE_ALIASES.get(str(source).lower(), str(source).lower())
+    token = str(source).lower()
+    if token in {"agera_5", "agera5"}:
+        warnings.warn(
+            f"'{token}' is deprecated: it has always selected ERA5-Land "
+            "(ECMWF/ERA5_LAND/DAILY_AGGR), not AgERA5. Use 'era5_land'. "
+            "The compatibility alias will remain through the 0.2.x series.",
+            FutureWarning,
+            stacklevel=2,
+        )
+    return LEGACY_SOURCE_ALIASES.get(token, token)
 
 
 def accepted_climate_dataset_names() -> list[str]:

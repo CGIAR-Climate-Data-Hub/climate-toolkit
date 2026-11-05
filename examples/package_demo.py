@@ -11,7 +11,7 @@ Covered:
     3. ... with spei_scale_months  — SPEI drought index
     4. download_station_data       — nearest NOAA GHCN station observations
 
-Earth Engine-backed sources (agera_5, era_5, nex_gddp, ...) and comparison /
+Earth Engine-backed sources (era5_land, era_5, nex_gddp, ...) and comparison /
 hazard workflows use the same functions after a one-time
 ``earthengine authenticate`` + ``GCP_PROJECT_ID`` — see the "Use as a package"
 docs page.

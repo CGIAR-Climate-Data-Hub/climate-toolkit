@@ -104,7 +104,7 @@ _MEAN_TEMP_CANDIDATES = (
 )
 
 _THI_SOURCE_SUPPORT = {
-    "agera_5": "supported: humidity derived from dewpoint + air temperature in current fetch pipeline",
+    "era5_land": "supported: humidity derived from dewpoint + air temperature in current fetch pipeline",
     "nasa_power": "supported: humidity available from current NASA POWER fetch path",
     "ghcn_daily": "supported when RHAV humidity field exists for chosen station and window",
     "gsod": "supported when humidity field exists for chosen station and window",

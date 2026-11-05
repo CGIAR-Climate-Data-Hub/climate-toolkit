@@ -216,7 +216,7 @@ PALETTE = {
     'tmin': '#3BB273',
 }
 GEE_CLIMATOLOGY_SOURCES = {
-    "agera_5",
+    "era5_land",
     "era_5",
     "terraclimate",
     "imerg",
@@ -274,7 +274,7 @@ def _source_usage_notes(source: str) -> List[str]:
     if source_name == "era_5":
         notes.append(
             "ERA5 daily coverage in this toolkit currently ends on 2020-07-09. "
-            "Use agera_5 for full 1991-2020 normals or later historical windows."
+            "Use era5_land for full 1991-2020 normals or later historical windows."
         )
     if source_name in PRECIP_ONLY_CLIMATOLOGY_SOURCES:
         notes.append(
@@ -724,6 +724,9 @@ def calculate_climatology(
     Calculate long-term climatology (multi-year normals).
     Works with partial data - accepts datasets with only precipitation, only temperature, or both.
     """
+    source = _normalize_source_name(source)
+    precip_source = _normalize_source_name(precip_source) if precip_source else None
+    temp_source = _normalize_source_name(temp_source) if temp_source else None
     lat, lon = location_coord
     n_years = end_year - start_year + 1
 
@@ -1794,7 +1797,7 @@ if typer is not None:
             ...,
             "--source",
             help=(
-                "Data source (e.g., nasa_power, agera_5, era_5, chirps_v2, chirts). "
+                "Data source (e.g., nasa_power, era5_land, era_5, chirps_v2, chirts). "
                 "'nex_gddp' runs CMIP6 ensemble (averaged across models). "
                 "Most non-NASA historical sources are Earth Engine-backed."
             ),

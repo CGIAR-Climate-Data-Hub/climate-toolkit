@@ -1,7 +1,7 @@
 # Package Architecture Summary
 
 Status: current working summary  
-Updated: 2026-11-03
+Updated: 2026-11-04
 
 This file is intended to be current-state architecture reference for
 developers, reviewers, and coding agents. It should describe actual runtime
@@ -313,8 +313,8 @@ Actual routing and source policy:
   documented end date. This is a distinct scientific product.
 - `chirts`: deprecated CHIRTS-daily compatibility adapter (1983–2016). Explicit
   requests retain their meaning; automatic historical fallback uses CHIRTS-ERA5.
-- Normal historical `auto` first pairs CHIRPS v3 with `agera_5`, which currently
-  means **ERA5-Land**, not the separate AgERA5 product. It retains ERA5-Land/ERA5
+- Normal historical `auto` first pairs CHIRPS v3 with `era5_land`, the canonical
+  key for **ERA5-Land**, not the separate AgERA5 product. It retains ERA5-Land/ERA5
   alternatives before its final CHIRPS v3 + CHIRTS-ERA5 fallback.
 - With GEE prohibited, historical `auto` selects CHIRPS v3 + CHIRTS-ERA5 directly.
   This pair supplies rainfall and Tmax/Tmin only. Humidity/wind/radiation-dependent
@@ -327,7 +327,12 @@ runtime routing. The
 [issue 180 memo](issues/issue_180_era5_land_access.md) records CDS authentication
 failures, candidate coverage and the required daily aggregation contract.
 `scripts/probe_era5_land_access.py` checks metadata access only and registers no
-source/backend. Public descriptions use ERA5-Land; the legacy `agera_5` key remains.
+source/backend. Public APIs, CLI help/defaults, settings and current web-form options use
+`era5_land`. String inputs `agera_5` and `agera5` normalize to it with a visible
+FutureWarning explaining the historical misnaming; they remain aliases through
+0.2.x. The enum member, adapter-module import and custom YAML settings key
+`agera_5` remain compatibility aliases. Normalized report/source identities use
+`era5_land`; this is a naming migration, not a dataset or backend change.
 
 `backend_policy` owns selection controls, independent of scientific source
 selection. `fetch_climate_data(..., backend=..., allow_gee=...)` can override the
@@ -344,6 +349,12 @@ failures abort analysis; transport, schema and incomplete-coverage failures may
 try another eligible mirror. All returned years use one provider revision.
 
 ## Cache and persistence model
+
+ERA5-Land GEE/Xee requests retain the existing `agera_5` directory component
+under the same cache schema. Both spellings resolve to this directory. Existing
+cache manifests are readable without rewriting them; newly produced source
+summaries/manifests identify `era5_land`. No data are relabeled as AgERA5 and no
+separate scientific archive is created.
 
 Main cache root:
 

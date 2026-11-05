@@ -241,7 +241,7 @@ class SeasonsNexGddpTests(unittest.TestCase):
                 36.817,
                 "2020-01-01",
                 "2020-01-02",
-                force_source="agera_5",
+                force_source="era5_land",
             )
         finally:
             seasons.preprocess_data = orig
@@ -308,7 +308,7 @@ class SeasonsNexGddpTests(unittest.TestCase):
                         "precipitation": [3.0, 1.0],
                     }
                 )
-            if kwargs["source"] == "agera_5":
+            if kwargs["source"] == "era5_land":
                 return pd.DataFrame(
                     {
                         "date": pd.to_datetime(["2020-01-01", "2020-01-02"]),
@@ -330,7 +330,7 @@ class SeasonsNexGddpTests(unittest.TestCase):
         finally:
             seasons.preprocess_data = orig
 
-        self.assertEqual(["chirps_v3_daily_rnl", "agera_5"], calls)
+        self.assertEqual(["chirps_v3_daily_rnl", "era5_land"], calls)
         self.assertIn("precip", frame.columns)
         self.assertIn("tmax", frame.columns)
         self.assertIn("tmin", frame.columns)

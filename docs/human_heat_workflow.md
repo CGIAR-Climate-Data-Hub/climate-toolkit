@@ -43,7 +43,7 @@ coherently across intended future workflows.
 ## Source support
 
 Strong first-pass support:
-- `agera_5`
+- `era5_land`
 - `nasa_power`
 - `ghcn_daily` when humidity exists
 - `gsod` when humidity exists

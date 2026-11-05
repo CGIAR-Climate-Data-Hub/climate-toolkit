@@ -209,7 +209,7 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
                     36.817,
                     "2020-01-01",
                     "2020-01-03",
-                    force_source="agera_5",
+                    force_source="era5_land",
                     custom_station_file=str(csv_path),
                     custom_station_variables=["precipitation"],
                 )
@@ -237,7 +237,7 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
                 36.817,
                 "2020-01-01",
                 "2020-01-02",
-                force_source="agera_5",
+                force_source="era5_land",
             )
         finally:
             ensemble.seasons._fetch_raw = original
@@ -262,7 +262,7 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
                 36.817,
                 "2020-03-01",
                 "2020-03-02",
-                force_source="agera_5",
+                force_source="era5_land",
                 custom_station_file=str(Path("tests/fixtures/custom_station_gsod_like.csv")),
                 custom_station_variables=["precipitation"],
                 custom_temp_unit="f",
@@ -287,7 +287,7 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
                         "soil_moisture": [30.0, 29.5],
                     }
                 )
-            if kwargs["source"] == "agera_5":
+            if kwargs["source"] == "era5_land":
                 return pd.DataFrame(
                     {
                         "date": pd.to_datetime(["2020-03-01", "2020-03-02"]),
@@ -307,12 +307,12 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
                 "2020-03-02",
                 force_source="paired",
                 precip_source="tamsat",
-                temp_source="agera_5",
+                temp_source="era5_land",
             )
         finally:
             ensemble.seasons.preprocess_data = original
 
-        self.assertEqual(["tamsat", "agera_5"], calls)
+        self.assertEqual(["tamsat", "era5_land"], calls)
         self.assertEqual([4.0, 0.0], frame["precip"].tolist())
         self.assertEqual([24.0, 25.0], frame["tmax"].tolist())
 
@@ -337,7 +337,7 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
                         "precipitation": [None, None],
                     }
                 )
-            if kwargs["source"] == "agera_5":
+            if kwargs["source"] == "era5_land":
                 return pd.DataFrame(
                     {
                         "date": pd.to_datetime(["2020-03-01", "2020-03-02"]),
@@ -358,7 +358,7 @@ class SeasonAnalysisEnsembleFixedTests(unittest.TestCase):
                     "2020-03-02",
                     force_source="paired",
                     precip_source="tamsat",
-                    temp_source="agera_5",
+                    temp_source="era5_land",
                 )
         finally:
             ensemble.seasons.preprocess_data = original

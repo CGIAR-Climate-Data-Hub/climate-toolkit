@@ -56,7 +56,7 @@ open climate data that already exists, with the analysis steps built in.
 
     ---
 
-    Daily climate data for any point location from CHIRPS, AgERA5, NASA
+    Daily climate data for any point location from CHIRPS, ERA5-Land, NASA
     POWER, TerraClimate, IMERG, CMIP6 projections, and nearby weather
     stations — returned as one tidy, analysis-ready table.
 

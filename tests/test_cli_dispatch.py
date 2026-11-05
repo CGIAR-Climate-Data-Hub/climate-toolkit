@@ -52,14 +52,14 @@ class CliDispatchTests(unittest.TestCase):
         fake_main = mock.Mock(return_value=0)
         with mock.patch("importlib.import_module") as import_module:
             import_module.return_value = mock.Mock(main=fake_main)
-            rc = cli.main(["fetch", "--source", "agera_5", "--lat", "1.0"])
+            rc = cli.main(["fetch", "--source", "era5_land", "--lat", "1.0"])
 
         self.assertEqual(0, rc)
         import_module.assert_called_once_with("climate_toolkit.fetch_data.fetch_data")
         fake_main.assert_called_once_with()
         # Remaining args are forwarded to the tool's own parser via sys.argv.
         self.assertEqual(
-            ["climate-toolkit fetch", "--source", "agera_5", "--lat", "1.0"],
+            ["climate-toolkit fetch", "--source", "era5_land", "--lat", "1.0"],
             sys.argv,
         )
 

@@ -10,10 +10,10 @@ from climate_toolkit.fetch_data.source_data.sources.nex_gddp import (
 )
 
 # (value, label). `value` must be a valid toolkit source key (or 'auto', the
-# recommended module mode that picks CHIRPS v3 + AgERA5 with fallbacks).
+# recommended module mode that picks CHIRPS v3 + ERA5-Land with fallbacks).
 _SRC = {
-    "auto": "Auto (recommended — CHIRPS v3 + AgERA5, with fallbacks)",
-    "agera_5": "AgERA5 (temperature + precipitation)",
+    "auto": "Auto (recommended — CHIRPS v3 + ERA5-Land, with fallbacks)",
+    "era5_land": "ERA5-Land (temperature + precipitation)",
     "era_5": "ERA5 (reanalysis)",
     "nasa_power": "NASA POWER (temperature + precipitation)",
     "chirps_v3_daily_rnl": "CHIRPS v3 daily (precipitation)",
@@ -37,13 +37,13 @@ def _opts(*keys):
 # here because it needs explicit --precip-source/--temp-source, which these
 # forms do not yet collect. TerraClimate (monthly) is excluded from the daily
 # analysis modules.
-ANALYSIS_SOURCES = _opts("auto", "agera_5", "era_5", "nasa_power", "nex_gddp")
+ANALYSIS_SOURCES = _opts("auto", "era5_land", "era_5", "nasa_power", "nex_gddp")
 
 # Per-module source options (order = display order; first is the default).
 SOURCES = {
     # Raw fetch needs an exact source key (no 'auto'/'paired').
     "fetch": _opts(
-        "agera_5", "era_5", "nasa_power", "chirps_v3_daily_rnl", "chirps_v2",
+        "era5_land", "era_5", "nasa_power", "chirps_v3_daily_rnl", "chirps_v2",
         "chirts", "terraclimate", "imerg", "tamsat", "cmip_6", "nex_gddp",
     ),
     "statistics": ANALYSIS_SOURCES,
@@ -53,12 +53,12 @@ SOURCES = {
     # Climatology takes a single source and works with partial data
     # (precip-only / temp-only allowed), so it lists concrete sources.
     "climatology": _opts(
-        "agera_5", "era_5", "nasa_power", "chirps_v3_daily_rnl", "chirps_v2",
+        "era5_land", "era_5", "nasa_power", "chirps_v3_daily_rnl", "chirps_v2",
         "chirts", "terraclimate", "imerg", "nex_gddp",
     ),
     # Dataset comparison compares concrete individual sources.
     "compare_datasets": _opts(
-        "agera_5", "era_5", "nasa_power", "chirps_v3_daily_rnl", "chirps_v2",
+        "era5_land", "era_5", "nasa_power", "chirps_v3_daily_rnl", "chirps_v2",
         "chirts", "terraclimate", "imerg", "nex_gddp",
     ),
 }

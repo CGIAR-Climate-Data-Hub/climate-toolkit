@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
+from climate_toolkit.fetch_data.source_data.sources.utils.models import normalize_climate_dataset_name
 
 # Canonical building blocks (imported here so tests can patch them on this
 # module, and so the chain does not depend on the lazy top-level exports).
@@ -283,6 +284,9 @@ def run_pipeline(
         options.update(backend=None, allow_gee=None)
         with backend_policy(backend=backend, allow_gee=allow_gee):
             return run_pipeline(**options)
+    source = normalize_climate_dataset_name(source)
+    precip_source = normalize_climate_dataset_name(precip_source)
+    temp_source = normalize_climate_dataset_name(temp_source)
     if bool(precip_source) != bool(temp_source):
         raise ValueError("Provide both precip_source and temp_source together.")
     if source == "paired" and not precip_source:

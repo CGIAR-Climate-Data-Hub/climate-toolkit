@@ -568,7 +568,7 @@ def spei_cli(
     source: str = typer.Option(
         ...,
         "--source",
-        help="Input source (e.g., agera_5, paired, nasa_power, nex_gddp).",
+        help="Input source (e.g., era5_land, paired, nasa_power, nex_gddp).",
     ),
     start: str = typer.Option(..., "--start", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option(..., "--end", help="End date (YYYY-MM-DD)"),
@@ -738,8 +738,8 @@ if __name__ == "__main__":
 ##If you want the SPEI CLI command
 
 # Use:
-# python -m climate_toolkit.climatology.spei --location "-1.286,36.817" --source agera_5 --start 2020-01-01 --end 2020-12-31 --index spei --scale-months 12
+# python -m climate_toolkit.climatology.spei --location "-1.286,36.817" --source era5_land --start 2020-01-01 --end 2020-12-31 --index spei --scale-months 12
 
 # Or if installed as a console script:
 # Use:
-#climate-toolkit-spei --location "-1.286,36.817" --source agera_5 --start 2020-01-01 --end 2020-12-31 --index spei --scale-months 12
+#climate-toolkit-spei --location "-1.286,36.817" --source era5_land --start 2020-01-01 --end 2020-12-31 --index spei --scale-months 12

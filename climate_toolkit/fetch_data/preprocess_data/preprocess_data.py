@@ -11,6 +11,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from ..transform_data.transform_data import transform_data
+from ..source_data.sources.utils.models import normalize_climate_dataset_name
 
 
 def _active_group_columns(df: pd.DataFrame, group_columns=None) -> list[str]:
@@ -76,9 +77,9 @@ def apply_unit_conversions(
         return df
 
     converted_df = df.copy()
-    source_lc = (source or "").lower()
+    source_lc = normalize_climate_dataset_name(source) or ""
 
-    if source_lc in ['agera_5', 'era_5', 'nex_gddp']:
+    if source_lc in ['era5_land', 'era_5', 'nex_gddp']:
         temp_columns = [col for col in converted_df.columns if 'temperature' in col.lower()]
         for col in temp_columns:
             if col in converted_df.columns:
@@ -96,7 +97,7 @@ def apply_unit_conversions(
                 converted_df[col] = (converted_df[col] - 32.0) * (5.0 / 9.0)
 
     if 'precipitation' in converted_df.columns:
-        if source_lc in ['agera_5', 'era_5']:
+        if source_lc in ['era5_land', 'era_5']:
             # ERA5 and ERA5-Land precipitation bands are depth in meters.
             converted_df['precipitation'] = converted_df['precipitation'] * 1000.0
         elif source_lc == 'imerg':

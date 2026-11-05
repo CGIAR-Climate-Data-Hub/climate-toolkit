@@ -80,7 +80,7 @@ class HumanHeatStressTests(unittest.TestCase):
     def test_describe_human_heat_source_support_tracks_future_gap(self):
         support = describe_human_heat_source_support()
 
-        self.assertIn("agera_5", support)
+        self.assertIn("era5_land", support)
         self.assertIn("paired", support)
         self.assertIn("nex_gddp", support)
         self.assertIn("conditionally supported", support["nex_gddp"])
@@ -104,12 +104,12 @@ class HumanHeatStressTests(unittest.TestCase):
         bundle = build_human_heat_source_bundle(
             source="paired",
             precip_source="chirps_v3_daily_rnl",
-            temp_source="agera_5",
+            temp_source="era5_land",
         )
 
         self.assertEqual("paired_composite", bundle["workflow"])
-        self.assertEqual("agera_5", bundle["temperature_source"])
-        self.assertEqual("agera_5", bundle["humidity_source"])
+        self.assertEqual("era5_land", bundle["temperature_source"])
+        self.assertEqual("era5_land", bundle["humidity_source"])
         self.assertEqual("chirps_v3_daily_rnl", bundle["precip_context_source"])
 
     def test_humidex_screening_thresholds_and_boundaries(self):

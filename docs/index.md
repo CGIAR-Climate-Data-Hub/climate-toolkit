@@ -34,7 +34,7 @@ df.head()
 ```
 
 `nasa_power` works with zero setup. The Earth Engine-backed sources
-(`agera_5`, `era_5`, `chirps_v3_daily_rnl`, `nex_gddp`) need a free
+(`era5_land`, `era_5`, `chirps_v3_daily_rnl`, `nex_gddp`) need a free
 one-time authentication — see [Getting started](getting_started.md).
 
 ## What's in the box

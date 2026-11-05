@@ -740,7 +740,7 @@ def xclim_reference_cli(
     source: str = typer.Option(
         ...,
         "--source",
-        help="Input source (e.g., agera_5, paired, nasa_power, nex_gddp).",
+        help="Input source (e.g., era5_land, paired, nasa_power, nex_gddp).",
     ),
     start: str = typer.Option(..., "--start", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option(..., "--end", help="End date (YYYY-MM-DD)"),

@@ -95,7 +95,7 @@ class ClimatologyOutputTests(unittest.TestCase):
                 lat=-1.286,
                 lon=36.817,
                 year=2020,
-                source="agera5",
+                source="era5_land",
                 variables=[],
                 verbose=False,
             )
@@ -121,7 +121,7 @@ class ClimatologyOutputTests(unittest.TestCase):
                 lat=-1.286,
                 lon=36.817,
                 year=2019,
-                source="agera5",
+                source="era5_land",
                 variables=[],
                 verbose=False,
             )
@@ -141,7 +141,7 @@ class ClimatologyOutputTests(unittest.TestCase):
                 location_coord=(-1.286, 36.817),
                 start_year=1991,
                 end_year=1992,
-                source="agera_5",
+                source="era5_land",
                 verbose=False,
             )
 

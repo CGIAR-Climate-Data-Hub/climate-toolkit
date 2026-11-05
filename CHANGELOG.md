@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **ERA5-Land source naming:** use `era5_land` in new code. The former
+  `agera_5` and `agera5` string keys remain compatible through 0.2.x and emit
+  a deprecation warning. Defaults, reports, CLI help and web forms now use
+  ERA5-Land. Existing enum, configuration and module aliases are retained.
+  The adapter has always read `ECMWF/ERA5_LAND/DAILY_AGGR`, not the separate
+  Copernicus AgERA5 product. The dataset, units and existing cache contents
+  are unchanged; existing cache paths are reused. Earth Engine access is
+  still required for this source. ([#188](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/pull/188))
+
 ## [0.1.0] - 2026-08-07
 
 ### Changed

@@ -122,3 +122,39 @@ humidity, wind or radiation from this investigation. Issue 180 remains open.
 - Ruff, lock consistency and diff whitespace checks passed.
 - Live access probes verified the reported HTTP failures; no live climate-value
   equivalence or performance claim is made.
+
+
+## Naming follow-up — 2026-11-04
+
+PR #181 review requested a clear ERA5-Land identity. The canonical key is now
+`era5_land`; `agera_5`/`agera5` remain warning-emitting string aliases through
+0.2.x, with existing enum/config/module compatibility and GEE/Xee cache paths
+preserved. Defaults, normalized reports, CLI help and web forms use ERA5-Land.
+This does not implement actual AgERA5 or resume the shelved CDS integration.
+Architecture authority: [package architecture summary](../package_architecture_summary.md).
+
+Validation of the naming/release follow-up (2026-11-04):
+
+- Python 3.12: 747 passed, 2 skipped, 104 subtests, including fresh wheel and
+  source-distribution installs. Python 3.10 base suite: 706 passed, 39 skipped,
+  104 subtests (distribution install tests excluded from this local 3.10 run).
+- Ten migration tests also pass against the installed 0.2.0 candidate outside
+  the checkout: aliases, unit conversions, legacy settings/cache reuse and the
+  no-GEE guard. This verifies compatibility without claiming a new live
+  ERA5-Land provider or performing an authenticated ERA5-Land download.
+- A fresh cloud install fetched Nairobi, 2020-01-01 through 2020-01-03, from
+  CHIRPS v3 via Dynamical and Hugging Face, and CHIRTS-ERA5 via Hugging Face.
+  Each began without cached data; all cache replays matched with provider
+  access blocked. Earth Engine initialization/authentication were blocked.
+- The installed candidate completed fetch, climatology, source comparison,
+  statistics, hazards and period comparison for Nairobi 2020 (366 rows), using
+  a deliberately short 2019–2020 validation baseline. Existing toolkit caches
+  were allowed. All six stages preserved source provenance; a second run with
+  provider access blocked matched the fetched data. This is a functional check,
+  not a scientific normal or a cold-cache performance benchmark.
+- Release Please's actual TOML updater changes project and lock versions
+  together without dependency changes; the resulting locked resolution passes.
+  Release PR #164's repaired head (`3530af9`) passed hosted CI.
+- PyPI trusted-publisher registration remains unverified: its management page
+  requires a signed-in project maintainer. `RELEASING.md` now distinguishes the
+  automated `release-please.yml` publisher from manual `publish.yml`.

@@ -191,7 +191,7 @@ class FetchPipelineTests(unittest.TestCase):
             date_from_utc=date(2020, 1, 1),
             date_to_utc=date(2020, 1, 2),
             settings=settings,
-            source=ClimateDataset.agera_5,
+            source=ClimateDataset.era5_land,
         )
 
         raw_df = pd.DataFrame(
@@ -232,10 +232,10 @@ class FetchPipelineTests(unittest.TestCase):
 
     def test_agera5_batch_requested_bands_include_humidity_wind_and_solar_inputs(self):
         settings = Settings.load()
-        data_settings = settings.agera_5
+        data_settings = settings.era5_land
 
         bands = batch_requested_band_names(
-            ClimateDataset.agera_5,
+            ClimateDataset.era5_land,
             data_settings,
             [ClimateVariable.humidity, ClimateVariable.wind_speed, ClimateVariable.solar_radiation],
         )
@@ -385,7 +385,7 @@ class FetchPipelineTests(unittest.TestCase):
                 "start": date(1979, 1, 2),
                 "end": date(2020, 12, 31),
                 "label": "ECMWF/ERA5/DAILY",
-                "fallback_hint": "Use 'agera_5' or 'auto' for later periods.",
+                "fallback_hint": "Use 'era5_land' or 'auto' for later periods.",
                 "coverage_source": "gee_live",
             },
         ):
@@ -519,7 +519,7 @@ class FetchPipelineTests(unittest.TestCase):
         src = SourceData(
             location_coord=(-1.286, 36.817),
             variables=[ClimateVariable.precipitation],
-            source=ClimateDataset.agera_5,
+            source=ClimateDataset.era5_land,
             date_from_utc=date(2020, 1, 1),
             date_to_utc=date(2020, 1, 2),
             settings=Settings.load(),
@@ -527,7 +527,7 @@ class FetchPipelineTests(unittest.TestCase):
 
         self.assertEqual(
             type(src.client).__module__,
-            "climate_toolkit.fetch_data.source_data.sources.agera_5",
+            "climate_toolkit.fetch_data.source_data.sources.era5_land",
         )
         self.assertEqual(type(src.client).__name__, "DownloadData")
 

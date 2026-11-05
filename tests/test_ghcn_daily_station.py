@@ -850,7 +850,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
                 station_coord=(-1.286, 36.817),
                 date_from=date(2020, 1, 1),
                 date_to=date(2020, 1, 3),
-                grid_sources=["agera_5", "chirps_v2"],
+                grid_sources=["era5_land", "chirps_v2"],
                 variables=[
                     ClimateVariable.precipitation,
                     ClimateVariable.max_temperature,
@@ -866,7 +866,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
 
         self.assertEqual(
             [
-                ("agera_5", -1.3, 36.75, "outputs/cache/test_station_compare", True),
+                ("era5_land", -1.3, 36.75, "outputs/cache/test_station_compare", True),
                 ("chirps_v2", -1.3, 36.75, "outputs/cache/test_station_compare", True),
             ],
             fetch_calls,
@@ -875,7 +875,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
         self.assertEqual(6, len(result["metrics"]))
         precip_rows = [
             row for row in result["metrics"]
-            if row["grid_source"] == "agera_5" and row["variable"] == "precipitation"
+            if row["grid_source"] == "era5_land" and row["variable"] == "precipitation"
         ]
         self.assertEqual(1, len(precip_rows))
         self.assertEqual(15.0, precip_rows[0]["station_total_mm"])
@@ -885,7 +885,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
             row["grid_source"]: row["product_class"]
             for row in result["grid_source_metadata"]
         }
-        self.assertEqual("reanalysis", metadata_by_source["agera_5"])
+        self.assertEqual("reanalysis", metadata_by_source["era5_land"])
         self.assertEqual("gauge_satellite_precipitation", metadata_by_source["chirps_v2"])
         ranking_use_cases = {
             row["use_case"]
@@ -1036,7 +1036,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
             "grid_sources": ["nasa_power"],
             "grid_source_metadata": [],
             "precip_source": "chirps_v3_daily_rnl",
-            "temp_source": "agera_5",
+            "temp_source": "era5_land",
             "wet_day_threshold_mm": 1.0,
             "min_overlap_days": 30,
             "grid_fetch_summary": [],
@@ -1680,7 +1680,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
                     36.817,
                     "2020-01-01",
                     "2020-01-02",
-                    "agera_5",
+                    "era5_land",
                     custom_station_file=str(csv_path),
                     custom_station_variables=["precipitation"],
                     custom_precip_unit="mm",
@@ -1717,7 +1717,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
                     36.817,
                     "2020-01-01",
                     "2020-01-03",
-                    "agera_5",
+                    "era5_land",
                     custom_station_file=str(csv_path),
                     custom_station_variables=["precipitation"],
                 )
@@ -1754,7 +1754,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
                     36.817,
                     "2020-01-01",
                     "2020-01-02",
-                    "agera_5",
+                    "era5_land",
                     custom_station_file=str(csv_path),
                     custom_station_variables=["tmax", "tmin"],
                     custom_temp_unit="c",
@@ -1787,7 +1787,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
                 36.817,
                 "2020-03-01",
                 "2020-03-02",
-                "agera_5",
+                "era5_land",
                 custom_station_file=str(GSOD_LIKE_CUSTOM_STATION_FIXTURE),
                 custom_station_variables=["precipitation"],
                 custom_temp_unit="f",
@@ -1828,7 +1828,7 @@ class PreprocessClimateDataTests(unittest.TestCase):
                     36.817,
                     "2020-01-01",
                     "2020-01-03",
-                    "agera_5",
+                    "era5_land",
                     custom_station_file=str(csv_path),
                     custom_station_variables=["precipitation"],
                 )

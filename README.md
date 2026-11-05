@@ -47,11 +47,18 @@ The Climate Toolkit offers a unified, programmatic interface to:
 - Compare climate trends over historical and seasonal periods
 
 For user-facing historical daily climate work, the default module policy is
-`chirps_v3_daily_rnl + agera_5`: CHIRPS v3 Daily RNL supplies precipitation.
-The `agera_5` key reads ERA5-Land and supplies temperature plus companion variables such as humidity, wind,
+`chirps_v3_daily_rnl + era5_land`: CHIRPS v3 Daily RNL supplies precipitation.
+The `era5_land` key reads ERA5-Land and supplies temperature plus companion variables such as humidity, wind,
 and solar radiation. If a direct single-source historical fallback is needed,
-prefer `agera_5`. Keep `era_5` available for compatibility, diagnostics, and
+prefer `era5_land`. Keep `era_5` available for compatibility, diagnostics, and
 comparison work, but do not treat it as the primary recommended source.
+
+`era5_land` is the canonical key for `ECMWF/ERA5_LAND/DAILY_AGGR`.
+The former `agera_5` and `agera5` spellings still select that same ERA5-Land
+product and now emit a visible deprecation warning. They never selected the
+separate Copernicus AgERA5 product. Compatibility aliases remain through 0.2.x;
+new code, defaults and reports use `era5_land`. Existing `agera_5` cache directories
+are reused without changing their scientific content.
 
 For **no-GEE access**, install the cloud extra on Python 3.12+ (`pip install
 'climate-toolkit[cloud]'` or `uv sync --extra cloud`). CHIRPS v3 RNL can use
@@ -82,7 +89,7 @@ comparison work, but it is currently fragile and should not be treated as a
 default or relied on for production workflows. It is precipitation-only, must
 be paired with a temperature source for most analysis modules, and current
 public access via JASMIN has shown slow performance and intermittent SSL /
-download failures in live testing. Prefer `chirps_v3_daily_rnl + agera_5` for
+download failures in live testing. Prefer `chirps_v3_daily_rnl + era5_land` for
 normal user workflows.
 
 > **Using it as a Python library?** See the
@@ -284,7 +291,7 @@ commands through `uv run --env-file .env ...`.
 
 | Variable | Required for | Notes |
 |----------|--------------|-------|
-| `GCP_PROJECT_ID` | Earth Engine-backed routes (ERA5-Land via `agera_5`, ERA5, NEX-GDDP, GEE historical) | Your real Google Cloud **Project ID** — see [Earth Engine setup](#earth-engine-setup). `GOOGLE_CLOUD_PROJECT` / `EE_PROJECT_ID` are accepted as fallbacks. |
+| `GCP_PROJECT_ID` | Earth Engine-backed routes (ERA5-Land via `era5_land`, ERA5, NEX-GDDP, GEE historical) | Your real Google Cloud **Project ID** — see [Earth Engine setup](#earth-engine-setup). `GOOGLE_CLOUD_PROJECT` / `EE_PROJECT_ID` are accepted as fallbacks. |
 | `EARTHDATA_USERNAME` / `EARTHDATA_PASSWORD` | Sources still using Earthdata-backed access | Optional; only needed by those sources. |
 
 Earth Engine authentication itself is stored separately (via
@@ -419,7 +426,7 @@ Reference note:
 For historical daily climate workflows, start with:
 
 - precipitation: `chirps_v3_daily_rnl`
-- temperature + companion variables: `agera_5`
+- temperature + companion variables: `era5_land`
 
 For most higher-level modules, `--source auto` or `--source paired` will route
 to this historical default behavior.
@@ -470,7 +477,7 @@ Main entry point:
 Key options:
 
 - `--source`: exact source key such as `chirps_v3_daily_rnl`, `chirps_v2`,
-  `agera_5`, `era_5`, `nex_gddp`, `nasa_power`
+  `era5_land`, `era_5`, `nex_gddp`, `nasa_power`
 - `--stage`: `raw`, `transformed`, `preprocessed`
 - `--variables`: comma-separated toolkit variable names
 - `--output`: optional output file
@@ -501,7 +508,7 @@ Livestock THI source support:
 
 | Source | Status | Notes |
 | --- | --- | --- |
-| `agera_5` | supported | humidity derived from dewpoint + air temperature in current fetch pipeline |
+| `era5_land` | supported | humidity derived from dewpoint + air temperature in current fetch pipeline |
 | `nasa_power` | supported | humidity available from current NASA POWER fetch path |
 | `ghcn_daily` | supported when available | uses station humidity when `RHAV` exists for chosen station and window |
 | `gsod` | supported when available | uses station humidity when humidity field exists for chosen station and window |
@@ -552,7 +559,7 @@ from climate_toolkit.climatology import (
 
 print(describe_human_heat_method()["metric"])
 print(describe_human_heat_source_support())
-print(build_human_heat_source_bundle(source="paired", precip_source="chirps_v3_daily_rnl", temp_source="agera_5"))
+print(build_human_heat_source_bundle(source="paired", precip_source="chirps_v3_daily_rnl", temp_source="era5_land"))
 ```
 
 Dedicated method guide:
@@ -588,7 +595,7 @@ climate-toolkit-seasons \
   --end-year=2020 \
   --source=paired \
   --precip-source=chirps_v3_daily_rnl \
-  --temp-source=agera_5 \
+  --temp-source=era5_land \
   --fixed-season="03-01:05-31"
 ```
 
@@ -604,7 +611,7 @@ climate-toolkit-stats \
   --end-year=2020 \
   --source=paired \
   --precip-source=chirps_v3_daily_rnl \
-  --temp-source=agera_5 \
+  --temp-source=era5_land \
   --fixed-season="03-01:05-31"
 ```
 
@@ -713,7 +720,7 @@ climate-toolkit-weather-station-compare \
   --grid-source paired \
   --grid-source nasa_power \
   --precip-source chirps_v3_daily_rnl \
-  --temp-source agera_5 \
+  --temp-source era5_land \
   --variables precipitation,max_temperature,min_temperature \
   --output outputs/weather_station/nairobi_station_vs_grid.json
 ```
@@ -786,17 +793,17 @@ climate-toolkit-climatology \
   --location="-1.286,36.817" \
   --start-year=1991 \
   --end-year=2020 \
-  --source=agera_5
+  --source=era5_land
 ```
 
 Important source notes:
 
 - `chirps_v3_daily_rnl` and `chirts_era5` prefer direct public cloud access with
   Python 3.12+ and the `cloud` extra. Use `--no-gee` to prohibit GEE fallback.
-- `agera_5`, `era_5`, `chirps_v2`, deprecated `chirts`, `imerg` and other
+- `era5_land`, `era_5`, `chirps_v2`, deprecated `chirts`, `imerg` and other
   GEE-only routes need Earth Engine auth plus `GCP_PROJECT_ID`.
 - `era_5` daily coverage currently ends on `2020-07-09` in this package. Use
-  `agera_5` for a full `1991-2020` climatology window, or stop ERA5 at `2019`.
+  `era5_land` for a full `1991-2020` climatology window, or stop ERA5 at `2019`.
 - `chirps_v2` / `chirps_v3_daily_rnl` are precipitation-only, so climatology
   will omit temperature outputs.
 - `chirts_era5` and deprecated `chirts` are temperature-only, so climatology omits precipitation outputs.
@@ -950,7 +957,7 @@ window, and variable set.
 For example, a live three-site, one-year benchmark on June 13, 2026 using:
 
 - `chirps_v3_daily_rnl` cold cache: about 22 seconds
-- `agera_5` with precipitation, temperature, humidity, wind, and solar cold cache: about 78 seconds
+- `era5_land` with precipitation, temperature, humidity, wind, and solar cold cache: about 78 seconds
 - either source from warm cache: about 0.75 seconds
 
 If you want cache reuse across sessions, pass a stable project-local
@@ -964,7 +971,7 @@ Repeat runs using same cache can be near-instant.
 Observed live examples:
 
 - `chirps_v3_daily_rnl`, 3 sites, 1 year, cold cache: about `22s`
-- `agera_5`, 3 sites, 1 year, cold cache with companion variables: about `78s`
+- `era5_land`, 3 sites, 1 year, cold cache with companion variables: about `78s`
 - warm-cache rerun for same requests: about `0.75s`
 
 For project work, prefer stable cache roots under `outputs/cache/...`.
@@ -1000,7 +1007,7 @@ it.
 Use `tamsat` only as optional precipitation partner, not primary recommended
 historical source.
 
-- pair it with temperature source such as `agera_5`
+- pair it with temperature source such as `era5_land`
 - expect slower runs and possible download instability
 - use as comparison / sensitivity source, not dependable default
 
@@ -1394,7 +1401,7 @@ climate-toolkit-weather-station-compare \
   --grid-source paired \
   --grid-source nasa_power \
   --precip-source chirps_v3_daily_rnl \
-  --temp-source agera_5 \
+  --temp-source era5_land \
   --variables precipitation,max_temperature,min_temperature \
   --output outputs/weather_station/nairobi_station_vs_grid_2011_2020.json
 ```
@@ -1407,7 +1414,7 @@ Comparison intent:
 
 Current grid-source notes:
 
-- better independence: `agera_5`, `era_5`, `nasa_power`, `imerg`
+- better independence: `era5_land`, `era_5`, `nasa_power`, `imerg`
 - partly station-informed: `chirps_v2`, `chirps_v3_daily_rnl`, `chirts_era5`, `chirts`, `paired`, `terraclimate`, `auto`
 - comparison output warns when selected grid source is not fully independent from station-based validation
 
@@ -1438,7 +1445,7 @@ climate-toolkit-stats \
   --end-year=2020 \
   --source=paired \
   --precip-source=chirps_v3_daily_rnl \
-  --temp-source=agera_5
+  --temp-source=era5_land
 ```
 
 To overlay your own station observations, add the override flags and replace
@@ -1452,7 +1459,7 @@ climate-toolkit-stats \
   --end-year=2020 \
   --source=paired \
   --precip-source=chirps_v3_daily_rnl \
-  --temp-source=agera_5 \
+  --temp-source=era5_land \
   --custom-station-file <REPLACE_WITH_YOUR_STATION.csv> \
   --custom-station-vars precipitation,max_temperature,min_temperature \
   --custom-station-name "My station"

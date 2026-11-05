@@ -61,7 +61,7 @@ con los pasos de análisis incorporados.
     ---
 
     Datos climáticos diarios para cualquier punto, provenientes de CHIRPS,
-    AgERA5, NASA POWER, TerraClimate, IMERG, proyecciones CMIP6 y estaciones
+    ERA5-Land, NASA POWER, TerraClimate, IMERG, proyecciones CMIP6 y estaciones
     meteorológicas cercanas — entregados en una tabla ordenada y lista para
     el análisis.
 

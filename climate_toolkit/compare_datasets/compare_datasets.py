@@ -26,6 +26,7 @@ import sys
 from datetime import date
 import numpy as np
 import pandas as pd
+from climate_toolkit.fetch_data.source_data.sources.utils.models import normalize_climate_dataset_name
 try:
     import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
@@ -79,7 +80,7 @@ SOURCE_VARIABLES = {
 }
 
 VALID_SOURCES = {
-    "era_5", "agera_5", "chirps", "chirps_v2", "chirps_v3_daily_rnl", "chirts", "chirts_era5", "cmip_6", "imerg",
+    "era_5", "era5_land", "chirps", "chirps_v2", "chirps_v3_daily_rnl", "chirts", "chirts_era5", "cmip_6", "imerg",
     "nasa_power", "nex_gddp", "soil_grid", "tamsat", "terraclimate", "auto", PAIRED_SOURCE_SENTINEL,
 }
 
@@ -572,7 +573,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
     Parameters
     ----------
     sources : list of str
-        Dataset keys to fetch and compare. Valid keys: ``'agera_5'``,
+        Dataset keys to fetch and compare. Valid keys: ``'era5_land'``,
         ``'chirps'``, ``'chirps_v2'``, ``'chirps_v3_daily_rnl'``,
         ``'chirts'``, ``'cmip_6'``, ``'era_5'``, ``'imerg'``,
         ``'nasa_power'``, ``'nex_gddp'``, ``'soil_grid'``, ``'tamsat'``,
@@ -620,7 +621,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
         ``'chirps_v3_daily_rnl'``, ``'chirps_v2'``, ``'imerg'`` (default
         ``None``).
     temp_source : str, optional
-        Temperature partner for the ``'paired'`` source, e.g. ``'agera_5'``,
+        Temperature partner for the ``'paired'`` source, e.g. ``'era5_land'``,
         ``'era_5'``, ``'chirts'`` (default ``None``).
     workers : int, optional
         Number of parallel workers for chunked Google Earth Engine fetches
@@ -655,7 +656,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
 
     >>> import climate_toolkit as ct
     >>> results = ct.compare_climate_sources(
-    ...     sources=["agera_5", "nasa_power"],
+    ...     sources=["era5_land", "nasa_power"],
     ...     lat=-1.286,
     ...     lon=36.817,
     ...     start="2020-01-01",
@@ -663,7 +664,7 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
     ...     output_dir="./outputs",
     ... )
     >>> sorted(results)
-    ['agera_5', 'nasa_power']
+    ['era5_land', 'nasa_power']
     >>> from climate_toolkit.compare_datasets.compare_datasets import print_report
     >>> stats = print_report(results, output_dir="./outputs")
     """
@@ -678,6 +679,9 @@ def compare_sources(sources, lat=None, lon=None, start=None, end=None,
         export_data(df, "input_file", output_dir)
         return results
 
+    sources = list(dict.fromkeys(normalize_climate_dataset_name(s) for s in sources))
+    precip_source = normalize_climate_dataset_name(precip_source)
+    temp_source = normalize_climate_dataset_name(temp_source)
     _validate_source_selection(sources)
     pair_error = _validate_paired_sources(
         precip_source,
@@ -967,7 +971,7 @@ def main() -> int:
         "--temp-source", default=None,
         help=(
             "Temperature partner for --sources paired, e.g. "
-            "agera_5, era_5, chirts, nex_gddp"
+            "era5_land, era_5, chirts, nex_gddp"
         ),
     )
     parser.add_argument(
@@ -1073,7 +1077,7 @@ if __name__ == "__main__":
     sys.exit(main())
 
 # Example — historical-source comparison only:
-# python -m climate_toolkit.compare_datasets.compare_datasets --sources era_5 chirps_v2 nasa_power imerg agera_5 chirts soil_grid terraclimate --lat -1.286 --lon 36.817 --start 1990-01-01 --end 2016-12-31 --format report
+# python -m climate_toolkit.compare_datasets.compare_datasets --sources era_5 chirps_v2 nasa_power imerg era5_land chirts soil_grid terraclimate --lat -1.286 --lon 36.817 --start 1990-01-01 --end 2016-12-31 --format report
 
 # Example — NEX-GDDP ensemble over a custom set of models (one 'nex_gddp_ensemble_<scenario>' series):
 # python -m climate_toolkit.compare_datasets.compare_datasets --sources nex_gddp --lat -1.286 --lon 36.817 --start 2015-01-01 --end 2016-12-31 --models ACCESS-CM2 MPI-ESM1-2-LR MRI-ESM2-0 GFDL-ESM4 EC-Earth3 --scenario ssp245 --format report

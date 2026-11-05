@@ -179,8 +179,8 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             df,
             human_heat_bundle={
                 "workflow": "paired_composite",
-                "temperature_source": "agera_5",
-                "humidity_source": "agera_5",
+                "temperature_source": "era5_land",
+                "humidity_source": "era5_land",
             },
         )
 
@@ -333,7 +333,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             df,
             season,
             season_df=df,
-            human_heat_bundle={"workflow": "single_source", "temperature_source": "agera_5"},
+            human_heat_bundle={"workflow": "single_source", "temperature_source": "era5_land"},
         )
 
         self.assertIn("human_heat_stress", result)
@@ -648,7 +648,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                         "soil_moisture": [22.0, 21.0],
                     }
                 )
-            if source == "agera_5":
+            if source == "era5_land":
                 return pd.DataFrame(
                     {
                         "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
@@ -668,12 +668,12 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                 "2018-01-02",
                 "paired",
                 precip_source="tamsat",
-                temp_source="agera_5",
+                temp_source="era5_land",
             )
         finally:
             stats._call_preprocess = orig_call
 
-        self.assertEqual([("tamsat", None), ("agera_5", None)], calls)
+        self.assertEqual([("tamsat", None), ("era5_land", None)], calls)
         self.assertEqual([3.0, 1.0], frame["precip"].tolist())
         self.assertEqual([25.0, 26.0], frame["tmax"].tolist())
 
@@ -682,7 +682,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
 
         def fake_call_preprocess(source, lat, lon, date_from, date_to, model, scenario, ee_project_id=None):
             calls.append((source, ee_project_id))
-            if source == "agera_5":
+            if source == "era5_land":
                 return pd.DataFrame(
                     {
                         "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
@@ -701,13 +701,13 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                 36.817,
                 "2018-01-01",
                 "2018-01-02",
-                "agera_5",
+                "era5_land",
                 ee_project_id="demo-project",
             )
         finally:
             stats._call_preprocess = orig_call
 
-        self.assertEqual([("agera_5", "demo-project")], calls)
+        self.assertEqual([("era5_land", "demo-project")], calls)
         self.assertEqual(["date", "tmax", "tmin", "precip"], list(frame.columns))
 
     def test_analyze_climate_statistics_rejects_tamsat_single_source(self):
@@ -731,7 +731,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                         "precipitation": [None, None],
                     }
                 )
-            if source == "agera_5":
+            if source == "era5_land":
                 return pd.DataFrame(
                     {
                         "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
@@ -752,7 +752,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                     "2018-01-02",
                     "paired",
                     precip_source="tamsat",
-                    temp_source="agera_5",
+                    temp_source="era5_land",
                 )
         finally:
             stats._call_preprocess = orig_call
@@ -783,7 +783,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                         "precipitation": [1.0, 0.0],
                     }
                 )
-            if source == "agera_5":
+            if source == "era5_land":
                 return pd.DataFrame(
                     {
                         "date": pd.to_datetime(["2018-01-01", "2018-01-02"]),
@@ -812,7 +812,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
             stats._call_preprocess = orig_call
             stats._fetch_chirps_chirts = orig_merge
 
-        self.assertEqual(["chirps_v3_daily_rnl", "agera_5"], calls)
+        self.assertEqual(["chirps_v3_daily_rnl", "era5_land"], calls)
         self.assertIn("precip", frame.columns)
         self.assertIn("tmax", frame.columns)
         self.assertIn("tmin", frame.columns)
@@ -964,7 +964,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                 end_year=2021,
                 source="paired",
                 precip_source="chirps_v2",
-                temp_source="agera_5",
+                temp_source="era5_land",
                 crop_name="maize",
                 calendar_source="ggcmi",
                 calendar_system="rf",
@@ -1083,7 +1083,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                 end_year=2021,
                 source="paired",
                 precip_source="chirps_v2",
-                temp_source="agera_5",
+                temp_source="era5_land",
                 crop_name="maize",
                 calendar_source="ggcmi",
                 calendar_system="rf",
@@ -1835,7 +1835,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                     "phase1_scope": "continuous_metric_plus_generic_screening",
                     "source_bundle": {
                         "workflow": "paired_composite",
-                        "temperature_source": "agera_5",
+                        "temperature_source": "era5_land",
                     },
                 },
                 "water_balance": {"total_balance": -10.0, "deficit_days": 30, "surplus_days": 20, "stress_ratio": 0.33},
@@ -1943,7 +1943,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
                     "phase1_scope": "continuous_metric_plus_generic_screening",
                     "source_bundle": {
                         "workflow": "paired_composite",
-                        "temperature_source": "agera_5",
+                        "temperature_source": "era5_land",
                     },
                 },
             }
@@ -1955,7 +1955,7 @@ class StatisticsSourcePolicyTests(unittest.TestCase):
         self.assertEqual("humidex", window["metric"])
         self.assertEqual("relative_humidity", window["method"])
         self.assertEqual("paired_composite", window["source_bundle"]["workflow"])
-        self.assertEqual("agera_5", window["source_bundle"]["temperature_source"])
+        self.assertEqual("era5_land", window["source_bundle"]["temperature_source"])
 
     def test_print_ltm_by_season_uses_livestock_profile_label(self):
         ltm = {

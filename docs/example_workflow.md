@@ -43,7 +43,7 @@ capabilities, from fetching raw climate data to projecting crop hazards.
 
 ```bash
 uv run climate-toolkit-fetch \
-  --source agera_5 \
+  --source era5_land \
   --lat -1.286 --lon 36.817 \
   --start 2020-01-01 --end 2020-12-31 \
   --variables precipitation,max_temperature,min_temperature \
@@ -51,7 +51,7 @@ uv run climate-toolkit-fetch \
 ```
 
 - Downloads source → transforms variable names → preprocesses (units, QC).
-- **Source coverage:** AgERA5 (1979–present, incl. humidity), ERA5
+- **Source coverage:** ERA5-Land (1950–present, incl. derived humidity), ERA5
   (1979–present), CHIRPS v3 `chirps_v3_daily_rnl` (1981–present, precip),
   NASA POWER (1984–present), NEX-GDDP (projections; needs `--scenario` and
   `--model`/`--models`).
@@ -86,7 +86,7 @@ Compare gridded vs. station data:
 
 ```bash
 uv run climate-toolkit-weather-station-compare \
-  --grid-source agera_5 \
+  --grid-source era5_land \
   --station-source gsod \
   --station-id <STATION_ID> \
   --station-lat -1.286 --station-lon 36.817 \
@@ -101,7 +101,7 @@ uv run climate-toolkit-weather-station-compare \
 ```bash
 uv run climate-toolkit-climatology \
   --location "-1.286,36.817" \
-  --source agera_5 \
+  --source era5_land \
   --start-year 1991 --end-year 2020
 ```
 
@@ -115,7 +115,7 @@ models); add `--model-workers` to parallelise.
 ```bash
 uv run climate-toolkit-seasons \
   --location "-1.286,36.817" \
-  --source agera_5 \
+  --source era5_land \
   --start-year 2015 --end-year 2020
 ```
 
@@ -134,7 +134,7 @@ Auto-detected seasons:
 uv run climate-toolkit-stats \
   --location "-1.286,36.817" \
   --start-year 2015 --end-year 2020 \
-  --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
+  --source paired --precip-source chirps_v3_daily_rnl --temp-source era5_land \
   --output outputs/climate_stats_2015_2020.json
 ```
 
@@ -144,7 +144,7 @@ Fixed seasons (e.g. MAM and OND):
 uv run climate-toolkit-stats \
   --location "-1.286,36.817" \
   --start-year 2015 --end-year 2020 \
-  --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
+  --source paired --precip-source chirps_v3_daily_rnl --temp-source era5_land \
   --fixed-season "03-01:05-31,10-01:12-31" \
   --output outputs/climate_stats_fixed.json
 ```
@@ -163,7 +163,7 @@ indicators (NDWS, NDWL0), heat-stress indices, and SPEI when requested.
 uv run climate-toolkit-periods \
   --location "-1.286,36.817" \
   --baseline-start 2001 --baseline-end 2015 --focal-year 2020 \
-  --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
+  --source paired --precip-source chirps_v3_daily_rnl --temp-source era5_land \
   --output outputs/2020_vs_2001_2015.json
 ```
 
@@ -178,7 +178,7 @@ uv run climate-toolkit-periods \
 uv run climate-toolkit-hazards Maize \
   --location "-1.286,36.817" \
   --date-from 2020-01-01 --date-to 2020-12-31 \
-  --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
+  --source paired --precip-source chirps_v3_daily_rnl --temp-source era5_land \
   --output outputs/maize_hazards_2020.json
 ```
 
@@ -210,7 +210,7 @@ uv run climate-toolkit-hazards-ensemble Maize \
 
 ```bash
 # 1. Fetch climate data
-uv run climate-toolkit-fetch --source agera_5 --lat -1.286 --lon 36.817 \
+uv run climate-toolkit-fetch --source era5_land --lat -1.286 --lon 36.817 \
   --start 2015-01-01 --end 2020-12-31 \
   --variables precipitation,max_temperature,min_temperature \
   --format csv -o outputs/nairobi_climate.csv
@@ -223,29 +223,29 @@ uv run climate-toolkit-weather-station-download --station-source auto \
   --report-prefix outputs/nairobi_stations --open-report
 
 # 3. Climatology baseline
-uv run climate-toolkit-climatology --location "-1.286,36.817" --source agera_5 \
+uv run climate-toolkit-climatology --location "-1.286,36.817" --source era5_land \
   --start-year 1991 --end-year 2020
 
 # 4. Detect rainy seasons
-uv run climate-toolkit-seasons --location "-1.286,36.817" --source agera_5 \
+uv run climate-toolkit-seasons --location "-1.286,36.817" --source era5_land \
   --start-year 2015 --end-year 2020
 
 # 5. Climate statistics
 uv run climate-toolkit-stats --location "-1.286,36.817" \
   --start-year 2015 --end-year 2020 \
-  --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
+  --source paired --precip-source chirps_v3_daily_rnl --temp-source era5_land \
   --output outputs/nairobi_stats.json
 
 # 6. Compare 2020 to a baseline
 uv run climate-toolkit-periods --location "-1.286,36.817" \
   --baseline-start 2001 --baseline-end 2015 --focal-year 2020 \
-  --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
+  --source paired --precip-source chirps_v3_daily_rnl --temp-source era5_land \
   --output outputs/nairobi_2020_vs_baseline.json
 
 # 7. Maize hazards in 2020
 uv run climate-toolkit-hazards Maize --location "-1.286,36.817" \
   --date-from 2020-01-01 --date-to 2020-12-31 \
-  --source paired --precip-source chirps_v3_daily_rnl --temp-source agera_5 \
+  --source paired --precip-source chirps_v3_daily_rnl --temp-source era5_land \
   --output outputs/nairobi_maize_2020.json
 
 # 8. Project maize hazards to 2050-2060
@@ -265,7 +265,7 @@ uv run climate-toolkit-hazards-ensemble Maize --location "-1.286,36.817" \
 - **Earth Engine project ID** must be in the environment (`GCP_PROJECT_ID`),
   or pass `uv run --env-file .env`. It is not auto-loaded from `.env`.
 - **"auto"/"paired" source** resolves to `chirps_v3_daily_rnl` (precip) +
-  `agera_5` (temperature) for the historical daily path.
+  `era5_land` (temperature) for the historical daily path.
 - **CHIRPS naming**: v3 is `chirps_v3_daily_rnl` (recommended); the older
   `chirps_v2` remains a separate product. The 2016 end date belongs to legacy
   CHIRTS-daily temperature. Prefer `chirts_era5` for new temperature work.

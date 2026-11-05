@@ -28,7 +28,7 @@ Or, for development, clone the repository first (preferred, uses ``uv``)::
 
 **2. Google Earth Engine credentials (needed for most data sources)**
 
-The GEE-backed sources — ``agera_5``, ``era_5``, ``chirps_v3_daily_rnl``,
+The GEE-backed sources — ``era5_land``, ``era_5``, ``chirps_v3_daily_rnl``,
 ``nex_gddp`` — require a one-time authentication plus a Cloud project id.
 ``nasa_power`` needs neither, which is why this script starts with it.
 
@@ -91,11 +91,11 @@ def demo_fetch() -> None:
     """1. Fetch daily climate data -> pandas DataFrame.
 
     Uses nasa_power, which needs no Earth Engine auth. The GEE-backed
-    sources (agera_5, era_5, chirps_v3_daily_rnl, nex_gddp) require
+    sources (era5_land, era_5, chirps_v3_daily_rnl, nex_gddp) require
     ``earthengine authenticate`` + ``GCP_PROJECT_ID``.
     """
     df = ct.fetch_climate_data(
-        source="nasa_power",  # or: agera_5, era_5, chirps_v3_daily_rnl, nex_gddp
+        source="nasa_power",  # or: era5_land, era_5, chirps_v3_daily_rnl, nex_gddp
         location_coord=(LAT, LON),
         variables=[
             ClimateVariable.precipitation,
@@ -115,7 +115,7 @@ def demo_statistics() -> None:
         location_coord=(LAT, LON),
         start_year=2015,
         end_year=2020,
-        source="agera_5",
+        source="era5_land",
         crop_name="maize",
     )
     print(sorted(stats.keys()))
@@ -140,7 +140,7 @@ def demo_compare_periods() -> None:
         baseline_start=1991,
         baseline_end=2020,
         focal_year=2023,
-        source="agera_5",
+        source="era5_land",
         crop_name="maize",
     )
     print(sorted(diff.keys()))

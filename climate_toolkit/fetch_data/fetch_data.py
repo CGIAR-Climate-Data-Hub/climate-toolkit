@@ -93,15 +93,15 @@ def fetch_data(
     source : str or ClimateDataset
         Climate dataset name. Valid values (``ClimateDataset`` enum names):
 
-        - ``'agera_5'`` : ERA5-Land daily aggregates (GEE asset
-          ``ECMWF/ERA5_LAND/DAILY_AGGR``), 0.1 deg (~11 km), 1979-present.
+        - ``'era5_land'`` : ERA5-Land daily aggregates (GEE asset
+          ``ECMWF/ERA5_LAND/DAILY_AGGR``), 0.1 deg (~11 km), from 1950-01-02.
           Broadest daily variable set: precipitation, max/min/mean
           temperature, humidity, wind_speed, solar_radiation (request
           companions explicitly). Recommended default. Earth Engine.
         - ``'era_5'`` : ERA5 daily reanalysis, 0.25 deg (~28 km), from 1979.
           The static coverage window ends 2020-07-09 (the ECMWF/ERA5/DAILY
           GEE asset); live GEE coverage is checked at runtime and requests
-          are clipped to it, with a hint to use 'agera_5' for later periods.
+          are clipped to it, with a hint to use 'era5_land' for later periods.
           Precipitation, max/min temperature, wind. Earth Engine.
         - ``'terraclimate'`` : TerraClimate monthly climate/water balance,
           ~4 km, 1958-present. Monthly cadence. Earth Engine.
@@ -185,7 +185,7 @@ def fetch_data(
         batch path is used instead of `location_coord`. Each item may be a
         ``Site``, a ``dict`` with ``name``/``lat``/``lon`` keys, or a
         ``(name, lat, lon)`` tuple. Batch fetching is supported for
-        ``nex_gddp`` and the GEE/Xee sources (``agera_5``, ``era_5``,
+        ``nex_gddp`` and the GEE/Xee sources (``era5_land``, ``era_5``,
         ``terraclimate``, ``imerg``, ``chirps_v2``, ``chirps_v3_daily_rnl``,
         ``chirts``, ``cmip_6``).
     sites_csv : str or pathlib.Path, optional
@@ -485,7 +485,7 @@ def main() -> int:
         required=True,
         help=(
             "Exact dataset key, e.g. chirps_v3_daily_rnl, chirps_v2, "
-            "agera_5, era_5, nex_gddp. Use climate_statistics / "
+            "era5_land, era_5, nex_gddp. Use climate_statistics / "
             "season_analysis / calculate_hazards for module-level auto mode."
         ),
     )
@@ -556,7 +556,7 @@ def main() -> int:
         "--variables",
         default=None,
         help=(
-            "Comma-separated list; defaults to a standard set. For agera_5 "
+            "Comma-separated list; defaults to a standard set. For era5_land "
             "companion variables, request humidity, wind_speed, and/or "
             "solar_radiation explicitly. For ghcn_daily and gsod, default is "
             "precipitation,max_temperature,min_temperature."
