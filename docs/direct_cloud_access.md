@@ -206,11 +206,11 @@ ending in September; the EWX catalogue exposed only pentadal/monthly aggregates.
 Historical NetCDF point reads also exceeded the short-query performance target.
 Reproduce bounded range probes with `scripts/probe_chc_backup.py` (requires the
 investigation-only `h5py` dependency). See the
-[backup investigation](../analysis/issues/issue_179_chc_backup_investigation.md).
+[backup investigation](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_179_chc_backup_investigation.md).
 Tracked in [#179](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/179);
 credential-free ERA5-Land companion variables are tracked in
 [#180](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/180).
-The [ERA5-Land access audit](../analysis/issues/issue_180_era5_land_access.md) found
+The [ERA5-Land access audit](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_180_era5_land_access.md) found
 authenticated CDS ARCO stores as a candidate, but live metadata access rejected
 the configured key. CDS work is shelved because credentials are required;
 no ERA5-Land cloud backend is enabled. CDS hourly flow fields

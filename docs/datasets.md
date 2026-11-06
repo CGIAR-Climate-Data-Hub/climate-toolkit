@@ -37,7 +37,7 @@ one-time free [setup](getting_started.md#2-google-earth-engine-credentials).
     This is distinct from Copernicus AgERA5. The listed start date follows the
     [upstream GEE catalogue](https://developers.google.com/earth-engine/datasets/catalog/ECMWF_ERA5_LAND_DAILY_AGGR);
     individual request coverage must still be verified. Official CDS ARCO access
-    requires a CDS key and is [shelved](../analysis/issues/issue_180_era5_land_access.md),
+    requires a CDS key and is [shelved](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_180_era5_land_access.md),
     with no integrated alternative backend yet.
 
 Cloud dependencies, provider controls and CHIRTS migration: [direct cloud access](direct_cloud_access.md).

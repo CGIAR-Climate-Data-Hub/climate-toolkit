@@ -15,7 +15,7 @@ climatiques pour les obtenir.
 
 Financé par la [Fondation McKnight (programme CRFS)](https://www.mcknight.org/programs/global-foods/)
 et le [programme Climate Action du CGIAR](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
-via l'AoW1 — le Climate Data Hub, en partenariat avec [AIMS Rwanda](https://aims.ac.rw/) :
+via l'AoW1 — le Climate Data Hub, en partenariat avec [AIMS Research and Innovation Centre (AIMS RIC)](https://www.aimsric.org/) :
 
 <p style="display:flex; align-items:center; gap:1.5em; flex-wrap:wrap; margin:1em 0;">
   <a href="https://www.mcknight.org/programs/global-foods/">
@@ -24,8 +24,8 @@ via l'AoW1 — le Climate Data Hub, en partenariat avec [AIMS Rwanda](https://ai
   <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar">
     <img src="../../assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" style="height:56px; width:auto; background:#fff; padding:4px;">
   </a>
-  <a href="https://aims.ac.rw/">
-    <img src="../../assets/logos/aims.png" alt="AIMS Rwanda" style="height:52px; width:auto; background:#fff; padding:4px;">
+  <a href="https://www.aimsric.org/">
+    <img src="../../assets/logos/aims.png" alt="AIMS Research and Innovation Centre (AIMS RIC)" style="height:52px; width:auto; background:#fff; padding:4px;">
   </a>
 </p>
 
@@ -199,7 +199,7 @@ Data Integration in Agroecological Research*, financé par la
 [Fondation McKnight](https://www.mcknight.org/) à travers son programme
 [Global Collaboration for Resilient Food Systems (CRFS)](https://www.mcknight.org/programs/global-foods/).
 Les travaux ont été menés par l'[Alliance of Bioversity International and CIAT](https://alliancebioversityciat.org/),
-en partenariat avec [AIMS Rwanda](https://aims.ac.rw/).
+en partenariat avec [AIMS Research and Innovation Centre (AIMS RIC)](https://www.aimsric.org/).
 
 Ces travaux ont été soutenus par le
 [programme Climate Action du CGIAR](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
