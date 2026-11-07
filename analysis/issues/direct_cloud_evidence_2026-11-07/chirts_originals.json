@@ -1,0 +1,241 @@
+{
+  "checked_utc": "2026-11-07T05:59:54.778582+00:00",
+  "toolkit_version": "0.2.0",
+  "sites": [
+    [
+      "Nairobi",
+      -1.286,
+      36.817
+    ],
+    [
+      "Ouagadougou",
+      12.37,
+      -1.53
+    ],
+    [
+      "Cusco",
+      -13.52,
+      -71.97
+    ]
+  ],
+  "tolerance_c": 0.05,
+  "max_abs_difference_c": 0.048806762695312145,
+  "days": [
+    {
+      "date": "2020-01-01",
+      "mirror_revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "originals": [
+        {
+          "variable": "Tmin",
+          "sha256": "d5d683de4f9ab813340118ae6a9654e1cb5b57aa709f4e58d0dda03bf7a9ca39",
+          "url": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2020/CHIRTS-ERA5.daily_Tmin.2020.01.01.tif"
+        },
+        {
+          "variable": "Tmax",
+          "sha256": "0ed485529fc39527e54a3f5cd33724fc81801adb0ce00cf92c2a88184da65037",
+          "url": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmax/tifs/daily/2020/CHIRTS-ERA5.daily_Tmax.2020.01.01.tif"
+        }
+      ],
+      "samples": [
+        {
+          "site": "Nairobi",
+          "variable": "Tmin",
+          "chc_cell_lon_lat": [
+            36.825003230944276,
+            -1.275001062080264
+          ],
+          "mirror_cell_lon_lat": [
+            36.825,
+            -1.275
+          ],
+          "original_c": 15.159074783325195,
+          "toolkit_c": 15.200000000000001,
+          "abs_difference_c": 0.04092521667480575
+        },
+        {
+          "site": "Ouagadougou",
+          "variable": "Tmin",
+          "chc_cell_lon_lat": [
+            -1.524997340515256,
+            12.374999141320586
+          ],
+          "mirror_cell_lon_lat": [
+            -1.525,
+            12.375
+          ],
+          "original_c": 17.13441276550293,
+          "toolkit_c": 17.1,
+          "abs_difference_c": 0.034412765502928266
+        },
+        {
+          "site": "Cusco",
+          "variable": "Tmin",
+          "chc_cell_lon_lat": [
+            -71.97499839030206,
+            -13.525001244619489
+          ],
+          "mirror_cell_lon_lat": [
+            -71.975,
+            -13.525
+          ],
+          "original_c": 10.708744049072266,
+          "toolkit_c": 10.700000000000001,
+          "abs_difference_c": 0.00874404907226456
+        },
+        {
+          "site": "Nairobi",
+          "variable": "Tmax",
+          "chc_cell_lon_lat": [
+            36.825003230944276,
+            -1.275001062080264
+          ],
+          "mirror_cell_lon_lat": [
+            36.825,
+            -1.275
+          ],
+          "original_c": 27.347185134887695,
+          "toolkit_c": 27.3,
+          "abs_difference_c": 0.0471851348876946
+        },
+        {
+          "site": "Ouagadougou",
+          "variable": "Tmax",
+          "chc_cell_lon_lat": [
+            -1.524997340515256,
+            12.374999141320586
+          ],
+          "mirror_cell_lon_lat": [
+            -1.525,
+            12.375
+          ],
+          "original_c": 31.473005294799805,
+          "toolkit_c": 31.5,
+          "abs_difference_c": 0.026994705200195312
+        },
+        {
+          "site": "Cusco",
+          "variable": "Tmax",
+          "chc_cell_lon_lat": [
+            -71.97499839030206,
+            -13.525001244619489
+          ],
+          "mirror_cell_lon_lat": [
+            -71.975,
+            -13.525
+          ],
+          "original_c": 18.191349029541016,
+          "toolkit_c": 18.2,
+          "abs_difference_c": 0.008650970458983664
+        }
+      ]
+    },
+    {
+      "date": "2020-02-29",
+      "mirror_revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "originals": [
+        {
+          "variable": "Tmin",
+          "sha256": "1094fcdcf0cccc57db7529b5219bb03642ef6a195fe2b69fbe67fdb5d6acf552",
+          "url": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2020/CHIRTS-ERA5.daily_Tmin.2020.02.29.tif"
+        },
+        {
+          "variable": "Tmax",
+          "sha256": "96a8a5ac0858904f03924833dceff074e12a261a3e273ad62041dfe9c07f3131",
+          "url": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmax/tifs/daily/2020/CHIRTS-ERA5.daily_Tmax.2020.02.29.tif"
+        }
+      ],
+      "samples": [
+        {
+          "site": "Nairobi",
+          "variable": "Tmin",
+          "chc_cell_lon_lat": [
+            36.825003230944276,
+            -1.275001062080264
+          ],
+          "mirror_cell_lon_lat": [
+            36.825,
+            -1.275
+          ],
+          "original_c": 18.26535415649414,
+          "toolkit_c": 18.3,
+          "abs_difference_c": 0.034645843505860086
+        },
+        {
+          "site": "Ouagadougou",
+          "variable": "Tmin",
+          "chc_cell_lon_lat": [
+            -1.524997340515256,
+            12.374999141320586
+          ],
+          "mirror_cell_lon_lat": [
+            -1.525,
+            12.375
+          ],
+          "original_c": 21.89942169189453,
+          "toolkit_c": 21.900000000000002,
+          "abs_difference_c": 0.0005783081054708816
+        },
+        {
+          "site": "Cusco",
+          "variable": "Tmin",
+          "chc_cell_lon_lat": [
+            -71.97499839030206,
+            -13.525001244619489
+          ],
+          "mirror_cell_lon_lat": [
+            -71.975,
+            -13.525
+          ],
+          "original_c": 10.948806762695312,
+          "toolkit_c": 10.9,
+          "abs_difference_c": 0.048806762695312145
+        },
+        {
+          "site": "Nairobi",
+          "variable": "Tmax",
+          "chc_cell_lon_lat": [
+            36.825003230944276,
+            -1.275001062080264
+          ],
+          "mirror_cell_lon_lat": [
+            36.825,
+            -1.275
+          ],
+          "original_c": 29.124820709228516,
+          "toolkit_c": 29.1,
+          "abs_difference_c": 0.024820709228514204
+        },
+        {
+          "site": "Ouagadougou",
+          "variable": "Tmax",
+          "chc_cell_lon_lat": [
+            -1.524997340515256,
+            12.374999141320586
+          ],
+          "mirror_cell_lon_lat": [
+            -1.525,
+            12.375
+          ],
+          "original_c": 37.677223205566406,
+          "toolkit_c": 37.7,
+          "abs_difference_c": 0.022776794433596592
+        },
+        {
+          "site": "Cusco",
+          "variable": "Tmax",
+          "chc_cell_lon_lat": [
+            -71.97499839030206,
+            -13.525001244619489
+          ],
+          "mirror_cell_lon_lat": [
+            -71.975,
+            -13.525
+          ],
+          "original_c": 20.200180053710938,
+          "toolkit_c": 20.200000000000003,
+          "abs_difference_c": 0.00018005371093465783
+        }
+      ]
+    }
+  ]
+}

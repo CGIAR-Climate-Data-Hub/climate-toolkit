@@ -71,6 +71,12 @@ Its producer publishes ongoing monitoring data at approximately five-day latency
 the mirror can lag. Both old CHIRTS-daily and CHIRTS-ERA5 use ERA5 information,
 with different constructions. Do not interpret this as a simple file-host change.
 
+The [Hugging Face mirror](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily)
+stores Tmax and Tmin in steps of 0.1 °C. Heat-day counts use the decoded
+temperature, including days exactly at 35 °C (NTx35) or 40 °C (NTx40).
+For example, an original Tmax of 34.96 °C rounds to 35.0 °C and counts
+toward NTx35 in the mirror. Seasonal means also use the decoded values.
+
 ## Paired workflows and GEE controls
 
 ```python

@@ -86,8 +86,8 @@ parameters, see the [Python API](api/index.md) reference.
 | Precipitation | Seasonal rainfall |
 | TAVG | Average temperature |
 | NDD | Normalized degree days |
-| NTx35 | Days above 35 °C |
-| NTx40 | Days above 40 °C |
+| NTx35 | Days with Tmax ≥ 35 °C |
+| NTx40 | Days with Tmax ≥ 40 °C |
 | NDWS | Water-stress days |
 | NDWL0 | Waterlogging days |
 | WRSI | Water-requirement satisfaction (%) |

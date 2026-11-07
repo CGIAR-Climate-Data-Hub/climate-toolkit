@@ -1081,9 +1081,9 @@ def _print_block(a: Dict, crop: str, lat: float, lon: float,
         if 'actual_crop_et_mm' in s:
             print(f"  {'Actual Crop ET':<32} {s['actual_crop_et_mm']:>15.2f}  mm")
         if 'NTx35' in s:
-            print(f"  {'NTx35 (days Tmax > 35C)':<32} {s['NTx35']:>15.2f}  days")
+            print(f"  {'NTx35 (days Tmax >= 35C)':<32} {s['NTx35']:>15.2f}  days")
         if 'NTx40' in s:
-            print(f"  {'NTx40 (days Tmax > 40C)':<32} {s['NTx40']:>15.2f}  days")
+            print(f"  {'NTx40 (days Tmax >= 40C)':<32} {s['NTx40']:>15.2f}  days")
         if 'NDD' in s:
             print(f"  {'NDD (dry days, <1mm)':<32} {s['NDD']:>15.2f}  days")
         if 'NDWS' in s:
