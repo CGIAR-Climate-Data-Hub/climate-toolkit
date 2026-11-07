@@ -2060,7 +2060,7 @@ def calculate_hazards(
 
     - Seasonal precipitation total versus crop rainfall requirements
     - Mean season temperature versus crop temperature tolerance
-    - Extreme heat: NTx35 / NTx40 (days with Tmax above 35 / 40 deg C)
+    - Extreme heat: NTx35 / NTx40 (days with Tmax at or above 35 / 40 deg C)
     - Drought: NDD (dry days, < 1 mm), dry-spell statistics (>= 7 consecutive
       dry days), NDWS (water-stress days from the soil water-balance model),
       and WRSI (water requirement satisfaction index)
@@ -2833,9 +2833,9 @@ def _print_ltm_block(ltm: Dict[str, Any]) -> None:
             if 'thi_stress_days' in s:
                 print(f"  {'THI stress days':<32} {s['thi_stress_days']:>15.2f}  days")
             if 'NTx35' in s:
-                print(f"  {'NTx35 (days Tmax > 35C)':<32} {s['NTx35']:>15.2f}  days")
+                print(f"  {'NTx35 (days Tmax >= 35C)':<32} {s['NTx35']:>15.2f}  days")
             if 'NTx40' in s:
-                print(f"  {'NTx40 (days Tmax > 40C)':<32} {s['NTx40']:>15.2f}  days")
+                print(f"  {'NTx40 (days Tmax >= 40C)':<32} {s['NTx40']:>15.2f}  days")
             if 'NDWS' in s:
                 print(f"  {'NDWS (water-stress days)':<32} {s['NDWS']:>15.2f}  days")
             if 'NDWL0' in s:
@@ -3043,9 +3043,9 @@ def print_hazard_results(result: Dict[str, Any]) -> None:
         if 'thi_stress_days' in stats:
             print(f"  {'THI stress days':<32} {stats['thi_stress_days']:>15}  days")
         if 'NTx35' in stats:
-            print(f"  {'NTx35 (days Tmax > 35C)':<32} {stats['NTx35']:>15}  days")
+            print(f"  {'NTx35 (days Tmax >= 35C)':<32} {stats['NTx35']:>15}  days")
         if 'NTx40' in stats:
-            print(f"  {'NTx40 (days Tmax > 40C)':<32} {stats['NTx40']:>15}  days")
+            print(f"  {'NTx40 (days Tmax >= 40C)':<32} {stats['NTx40']:>15}  days")
         if 'NDD' in stats:
             print(f"  {'NDD (dry days, <1mm)':<32} {stats['NDD']:>15}  days")
         if 'NDWS' in stats:

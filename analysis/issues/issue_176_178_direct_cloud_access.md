@@ -1,6 +1,7 @@
 # Issues 176–178: direct access implementation and evidence
 
-Date: 2026-11-02. Status: local implementation; not merged or released.
+Implementation and initial evidence: 2026-11-02. Released in 0.2.0.
+[Published-package sample validation, 2026-11-07](#published-package-sample-validation-2026-11-07).
 Architecture authority: [package architecture summary](../package_architecture_summary.md).
 User guide: [direct cloud access](../../docs/direct_cloud_access.md).
 Issues: [#176](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/176),
@@ -243,3 +244,30 @@ base dependencies. Live workflow reproduction remains
 These are package integration checks, not broader scientific validation. Existing
 independent CHIRTS-provider and long-window efficiency gaps remain open. CDS work
 is shelved because credentials are required; no NASA POWER changes were added.
+
+## Published-package sample validation, 2026-11-07
+
+PyPI `climate-toolkit[cloud]==0.2.0` fetched CHIRTS-ERA5 Tmin and Tmax from
+Hugging Face with GEE disabled, using an empty temporary toolkit cache. Compared
+Nairobi, Ouagadougou and Cusco on 2020-01-01 and 2020-02-29 against four daily
+GeoTIFFs obtained from the [CHC product archive](https://www.chc.ucsb.edu/data/chirts-era5).
+Checked grid centres before comparing values. All 12 pairs fell within the
+[mirror's 0.05 °C packing tolerance](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily).
+Maximum absolute differences were 0.048807 °C for Tmin and 0.047185 °C for Tmax.
+These samples check decoding and spatial alignment. Station agreement,
+long-window performance and independent fallback availability remain open. The
+archive returned HTTP 429 on initial requests before allowing full downloads.
+
+[Sample values, cell coordinates, original URLs and SHA-256 hashes, and mirror revision](direct_cloud_evidence_2026-11-07/chirts_originals.json).
+To reproduce, download the four listed GeoTIFFs into one directory, keeping the
+filenames. From the repository root run:
+
+```sh
+uv run --no-project --python 3.12 --with 'climate-toolkit[cloud]==0.2.0' --with rasterio \
+  python scripts/compare_chirts_originals.py /path/to/tiffs 2020-01-01 2020-02-29 --output result.json
+```
+
+The offline packing regression exercises CF-decoded temperatures through
+preprocessing and seasonal hazard statistics, including inclusive counts at
+exactly 35 and 40 °C and seasonal means. The direct pipeline suite also
+checks that invalid temperatures stop downstream analysis.
