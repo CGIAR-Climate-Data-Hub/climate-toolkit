@@ -33,9 +33,9 @@ df = ct.fetch_climate_data(
 df.head()
 ```
 
-`nasa_power` works with zero setup. The Earth Engine-backed sources
-(`era5_land`, `era_5`, `chirps_v3_daily_rnl`, `nex_gddp`) need a free
-one-time authentication — see [Getting started](getting_started.md).
+`nasa_power` works with zero setup. For CHIRPS v3 rainfall and CHIRTS-ERA5 daily temperatures, use
+[direct cloud access](direct_cloud_access.md) on Python 3.12+ with `climate-toolkit[cloud]`.
+For ERA5-Land, ERA5 and NEX-GDDP, follow [Earth Engine setup](getting_started.md#2-google-earth-engine-credentials).
 
 ## What's in the box
 

@@ -515,6 +515,7 @@ Historical comparison path supports historical grid/reanalysis products such as:
 - `nasa_power`
 - `chirps_v2`
 - `chirps_v3_daily_rnl`
+- `chirts_era5` (Tmax and Tmin)
 - `imerg`
 - `paired`
 - `auto`
@@ -534,7 +535,7 @@ Examples:
 
 - `chirps_v2`
 - `chirps_v3_daily_rnl`
-- `chirts`
+- `chirts_era5` and legacy `chirts`
 - `paired` when partner source is station-informed
 - `terraclimate`
 
