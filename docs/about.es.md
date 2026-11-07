@@ -15,7 +15,7 @@ obtenerla.
 
 Financiado por la [Fundación McKnight (programa CRFS)](https://www.mcknight.org/programs/global-foods/)
 y el [programa Climate Action del CGIAR](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
-a través del AoW1: el Climate Data Hub, en asociación con [AIMS Rwanda](https://aims.ac.rw/):
+a través del AoW1: el Climate Data Hub, en asociación con [AIMS Research and Innovation Centre (AIMS RIC)](https://www.aimsric.org/):
 
 <p style="display:flex; align-items:center; gap:1.5em; flex-wrap:wrap; margin:1em 0;">
   <a href="https://www.mcknight.org/programs/global-foods/">
@@ -24,8 +24,8 @@ a través del AoW1: el Climate Data Hub, en asociación con [AIMS Rwanda](https:
   <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar">
     <img src="../../assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" style="height:56px; width:auto; background:#fff; padding:4px;">
   </a>
-  <a href="https://aims.ac.rw/">
-    <img src="../../assets/logos/aims.png" alt="AIMS Rwanda" style="height:52px; width:auto; background:#fff; padding:4px;">
+  <a href="https://www.aimsric.org/">
+    <img src="../../assets/logos/aims.png" alt="AIMS Research and Innovation Centre (AIMS RIC)" style="height:52px; width:auto; background:#fff; padding:4px;">
   </a>
 </p>
 
@@ -198,7 +198,7 @@ Data Integration in Agroecological Research*, financiado por la
 [Global Collaboration for Resilient Food Systems (CRFS)](https://www.mcknight.org/programs/global-foods/).
 El trabajo fue liderado por la
 [Alianza de Bioversity International y el CIAT](https://alliancebioversityciat.org/),
-en asociación con [AIMS Rwanda](https://aims.ac.rw/).
+en asociación con [AIMS Research and Innovation Centre (AIMS RIC)](https://www.aimsric.org/).
 
 Este trabajo contó con el apoyo del
 [programa Climate Action del CGIAR](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)

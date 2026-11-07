@@ -17,10 +17,10 @@ A unified toolkit for retrieving climate data from various global datasets such 
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar"><img src="docs/assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" height="56"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://aims.ac.rw/"><img src="docs/assets/logos/aims.png" alt="AIMS Rwanda" height="52"></a>
+  <a href="https://www.aimsric.org/"><img src="docs/assets/logos/aims.png" alt="AIMS RIC" height="52"></a>
 </p>
 
-Funded by the [McKnight Foundation CRFS programme](https://www.mcknight.org/programs/global-foods/) and supported by the [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/) through its Area of Work 1 (AoW1) — the Climate Data Hub — see [Funding & Acknowledgements](#funding--acknowledgements).
+Funded by the [McKnight Foundation CRFS programme](https://www.mcknight.org/programs/global-foods/) and supported by the [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/) through its Area of Work 1 (AoW1) — the Climate Data Hub — in partnership with [AIMS RIC](https://www.aimsric.org/) — see [Funding & Acknowledgements](#funding--acknowledgements).
 
 ## API Dataset Badges
 
@@ -1566,7 +1566,7 @@ Integration in Agroecological Research*, funded by the
 [Global Collaboration for Resilient Food Systems (CRFS)](https://www.mcknight.org/programs/global-foods/)
 programme. The work was led by the
 [Alliance of Bioversity International and CIAT](https://alliancebioversityciat.org/),
-in partnership with [AIMS Rwanda](https://aims.ac.rw/).
+in partnership with [AIMS RIC](https://www.aimsric.org/).
 
 This work was supported by the
 [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
@@ -1580,5 +1580,5 @@ We acknowledge the CGIAR Trust Fund and its
   &nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar"><img src="docs/assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" height="56"></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://aims.ac.rw/"><img src="docs/assets/logos/aims.png" alt="AIMS Rwanda" height="52"></a>
+  <a href="https://www.aimsric.org/"><img src="docs/assets/logos/aims.png" alt="AIMS RIC" height="52"></a>
 </p>

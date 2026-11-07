@@ -60,7 +60,7 @@ Integration in Agroecological Research*, funded by the
 [Global Collaboration for Resilient Food Systems (CRFS)](https://www.mcknight.org/programs/global-foods/)
 programme. The work was led by the
 [Alliance of Bioversity International and CIAT](https://alliancebioversityciat.org/),
-in partnership with [AIMS Rwanda](https://aims.ac.rw/).
+in partnership with [AIMS Research and Innovation Centre (AIMS RIC)](https://www.aimsric.org/).
 
 This work was supported by the
 [CGIAR Climate Action Program](https://www.cgiar.org/cgiar-research-portfolio-2025-2030/climate-action/)
@@ -76,7 +76,7 @@ We acknowledge the CGIAR Trust Fund and its
   <a href="https://www.cgiar.org/news-events/news/the-world-has-changed-so-has-climate-action-at-cgiar">
     <img src="assets/logos/cgiar-climate-action.png" alt="CGIAR Climate Action" style="height:56px; width:auto; background:#fff; padding:4px;">
   </a>
-  <a href="https://aims.ac.rw/">
-    <img src="assets/logos/aims.png" alt="AIMS Rwanda" style="height:52px; width:auto; background:#fff; padding:4px;">
+  <a href="https://www.aimsric.org/">
+    <img src="assets/logos/aims.png" alt="AIMS Research and Innovation Centre (AIMS RIC)" style="height:52px; width:auto; background:#fff; padding:4px;">
   </a>
 </p>
