@@ -142,7 +142,53 @@ One-year access is useful across tested workloads. Dynamical supports clustered
 requests need more work. JSON warm cache for 1.1 million rows takes 2.6 seconds and
 peak memory can reach 1.1 GiB. Do not advertise all 30-year workloads as fast.
 
-## Remaining issue acceptance and follow-ups
+## CHIRPS final/RNL reference comparison, 2026-11-08
+
+Published toolkit 0.2.0 sampled both direct providers with Earth Engine disabled.
+A separate authenticated read used the native projection of
+[`UCSB-CHC/CHIRPS/V3/DAILY_RNL`](https://developers.google.com/earth-engine/datasets/catalog/UCSB-CHC_CHIRPS_V3_DAILY_RNL).
+Matched pixel centres, sites and dates before comparing daily rainfall. The sample
+covers Nairobi, Ouagadougou and Cusco in Dec 2019–Feb 2020 (91 days, including
+leap day) and Dec 2025–Feb 2026 (90 days). Reference seasonal rainfall ranged
+from 0.42 to 548.04 mm. All three sources returned all 543 site-days.
+
+| Compared with Earth Engine | Dynamical final/RNL | Hugging Face final/RNL |
+|---|---:|---:|
+| Maximum absolute daily difference (mm) | 0.040260 | 0.049711 |
+| Mean absolute daily difference (mm) | 0.002195 | 0.016156 |
+| Wet-day disagreements at `>1 mm` / `>=1 mm` | 0 / 0 | 3 / 2 |
+| Maximum absolute monthly total difference (mm) | 0.066971 | 0.446225 |
+| Maximum absolute three-month total difference (mm) | 0.077574 | 0.648424 |
+
+All daily comparisons passed the preselected tolerances: half the Hugging Face
+0.1 mm packing step, or `abs(reference_mm)/256` for Dynamical's eight retained
+mantissa bits, each with 0.00001 mm for floating-point conversion. The observed
+maxima describe these cells and dates. Source revisions were
+`VXA0TT74FKZCYRX7TN30` (Dynamical) and
+`e9466d3109c6d087c6cf60c19ca6ae20873d358a` (Hugging Face).
+
+A separate cold read used an empty toolkit cache and a process with credential
+environment variables cleared and access to user credentials blocked. On leap
+day, both mirrors selected the same cells at Mombasa, offshore, on a shared
+cell boundary and at the four geographic limits. Both preserved ocean nodata
+in raw data and rejected it for analysis.
+
+Reproduce with Python 3.12+ and the published cloud extra. Set `GCP_PROJECT_ID`
+for the reference only. From the repository root:
+
+```sh
+python scripts/verify_chirps_reference.py
+python scripts/verify_chirps_reference.py --grid-only
+```
+
+Daily pairs, monthly and seasonal totals, revision/coordinate records and the grid
+report are written to `outputs/validation/issue-177/`. Repeated direct requests
+can reuse that directory's cache. The earlier benchmark matrix estimated one-site,
+one-year decoded chunk work of 10,512,000 bytes for Dynamical and 92,160,000
+bytes for Hugging Face for the same 366 daily values. Network byte and request
+counts remain a separate measurement under #176.
+
+## Remaining issue acceptance and follow-ups at the 2026-11-02 checkpoint
 
 Implementation includes backend/no-GEE controls, strict provider identity/coverage,
 QC, revision-safe cache, provenance, paired integrations and offline regression

@@ -60,6 +60,14 @@ different rounding: comparisons must allow documented packing error, and daily
 threshold counts can differ. One returned request uses a single provider revision;
 there is no per-day stitching across providers.
 
+For CHIRPS v3, a check against Earth Engine's native grid compared 543 daily
+values per mirror at Nairobi, Ouagadougou and Cusco in December–February
+2019/20 and 2025/26. Maximum daily differences were 0.041 mm for Dynamical
+and 0.050 mm for Hugging Face (rounded up). At a strict wet-day cutoff of
+`>1 mm`, classifications differed on zero and three site-days, respectively.
+For threshold-sensitive comparisons, select one backend and keep its revision
+with the results. See the [reference comparison and reproduction instructions](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_176_178_direct_cloud_access.md#chirps-finalrnl-reference-comparison-2026-11-08).
+
 CHIRTS-ERA5 is the successor for new temperature workflows. The old `chirts`
 key (CHIRTS-daily, 1983–2016) is **deprecated** and warns when selected. Its
 existing adapter is retained only for explicit legacy reproduction; automatic
