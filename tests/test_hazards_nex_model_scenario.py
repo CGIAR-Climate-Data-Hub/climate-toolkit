@@ -46,6 +46,16 @@ class NexScenarioDefaultTests(unittest.TestCase):
         captured = _run_fixed("2005-01-01", "2006-12-31", source="nex_gddp")
         self.assertEqual("historical", captured.get("scenario"))
 
+    def test_onset_cutoff_after_2015_can_select_only_historical_seasons(self):
+        with patch.object(hazards, "fetch_and_analyze_years_fixed", side_effect=_FetchCaptured) as fetch:
+            with self.assertRaises(_FetchCaptured):
+                hazards.calculate_hazards(
+                    "maize", (-0.776, 37.66), "2014-01-01", "2015-01-01",
+                    fixed_season="03-01:05-31", source="nex_gddp",
+                    soilcp=101, livestock_elevation_override_m=1100,
+                )
+        self.assertEqual(fetch.call_args.kwargs["scenario"], "historical")
+
     def test_post_2015_window_leaves_scenario_unset(self):
         captured = _run_fixed("2018-01-01", "2020-12-31", source="nex_gddp")
         self.assertIsNone(captured.get("scenario"))

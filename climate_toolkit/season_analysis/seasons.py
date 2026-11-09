@@ -1163,6 +1163,35 @@ def fetch_and_analyze_years(
     return final, final_annual
 
 # Multi-year orchestrator — fixed season
+def fixed_windows_for_year(
+    year: int, definitions: List[Dict], onset_range: Optional[Tuple[date, date]] = None
+) -> List[Tuple[int, date, date]]:
+    """Resolve fixed dates and retain each definition's original one-based slot."""
+    windows = []
+    for slot, definition in enumerate(definitions, 1):
+        start_md, end_md = definition["onset_md"], definition["cessation_md"]
+        try:
+            # Check calendar syntax even for windows outside the requested range.
+            date(2000, *start_md)
+            date(2000, *end_md)
+            if onset_range is not None:
+                first, last = onset_range
+                start_key = (year, *start_md)
+                first_key = (first.year, first.month, first.day)
+                last_key = (last.year, last.month, last.day)
+                if not first_key <= start_key <= last_key:
+                    continue
+            start = date(year, *start_md)
+            end = date(year + (end_md < start_md), *end_md)
+        except ValueError as exc:
+            if onset_range is not None:
+                raise ValueError(f"Invalid fixed season in {year}: {exc}") from exc
+            print(f"  [WARNING] Invalid date: {exc}")
+            continue
+        windows.append((slot, start, end))
+    return windows
+
+
 def fetch_and_analyze_years_fixed(
     lat          : float,
     lon          : float,
@@ -1183,9 +1212,12 @@ def fetch_and_analyze_years_fixed(
     ee_project_id: Optional[str] = None,
     emit_fetch_errors: bool = True,
     workers: int = 1,
+    windows_by_year: Optional[Dict[int, List[Tuple[int, date, date]]]] = None,
 ) -> Tuple[Dict[int, List[Dict]], Dict[int, Dict]]:
     """
-    Apply fixed season windows to every year.
+    Apply fixed season windows to every year. Hazards can supply selected
+    (definition number, onset, cessation) tuples by year to fetch only their
+    required daily windows plus spin-up. Annual summaries apply to year mode.
     Fetches climate data via --source, computes:
       • Per-season rainfall statistics (fixed window)
       • ETO-based onset/cessation analysis WITHIN the fixed window
@@ -1203,29 +1235,24 @@ def fetch_and_analyze_years_fixed(
         print(cache_note)
 
     for year in range(start_year, end_year + 1):
-        print(f"\nFixed-season year {year} | source={source}")
-
         # Resolve all season dates for this year
-        resolved = []
-        for sd in fixed_seasons:
-            (o_m, o_d) = sd["onset_md"]
-            (c_m, c_d) = sd["cessation_md"]
-            cess_year   = year + 1 if (c_m, c_d) < (o_m, o_d) else year
-            try:
-                resolved.append((date(year, o_m, o_d), date(cess_year, c_m, c_d)))
-            except ValueError as exc:
-                print(f"  [WARNING] Invalid date: {exc}")
+        resolved = (fixed_windows_for_year(year, fixed_seasons) if windows_by_year is None
+                    else windows_by_year[year])
         if not resolved:
             annual_dict[year] = {}
             continue
 
-        # Fetch data: full calendar year + any year-crossing tail, in one call
+        print(f"\nFixed-season year {year} | source={source}")
+        # Batch this year's selected windows, including spin-up and cross-year tails.
         earliest_prefetch_start = min(
             onset_date - timedelta(days=max(prefetch_pad_days, 0))
-            for onset_date, _ in resolved
+            for _, onset_date, _ in resolved
         )
         fetch_start = earliest_prefetch_start.strftime("%Y-%m-%d")
-        fetch_end   = max(date(year, 12, 31), max(c for _, c in resolved)).strftime("%Y-%m-%d")
+        last_day = max(cessation for _, _, cessation in resolved)
+        if windows_by_year is None:  # Year-based season reports also use calendar-year statistics.
+            last_day = max(date(year, 12, 31), last_day)
+        fetch_end = last_day.isoformat()
         print(f"  Fetching {fetch_start} to {fetch_end} ...")
 
         fetch_error = None
@@ -1248,6 +1275,18 @@ def fetch_and_analyze_years_fixed(
                 ee_project_id=ee_project_id,
                 workers=workers,
             )
+            if windows_by_year is not None:
+                # A truncated season or spin-up would undercount hazards.
+                dates = pd.DatetimeIndex(df["date"])
+                for _, onset, cessation in resolved:
+                    first_day = onset - timedelta(days=max(prefetch_pad_days, 0))
+                    expected = pd.date_range(first_day, cessation)
+                    observed = dates[(dates >= expected[0]) & (dates <= expected[-1])]
+                    if len(observed) != len(expected) or not expected.isin(observed).all():
+                        raise ValueError(
+                            f"Expected one daily record per day for fixed season "
+                            f"{onset}..{cessation}, including spin-up from {first_day}."
+                        )
             df = add_et0(df, lat)
             print(f"  Retrieved {len(df)} days")
         except Exception as exc:
@@ -1257,7 +1296,7 @@ def fetch_and_analyze_years_fixed(
             df = None
 
         # Annual stats (calendar year only)
-        if df is not None and not df.empty:
+        if windows_by_year is None and df is not None and not df.empty:
             annual_rain, humid_info = compute_annual_stats(df, year)
             annual_dict[year] = {
                 'annual_rain_mm':  annual_rain,
@@ -1271,7 +1310,7 @@ def fetch_and_analyze_years_fixed(
             annual_dict[year] = {'fetch_error': fetch_error}
 
         # Build each fixed season
-        for onset_date, cessation_date in resolved:
+        for slot, onset_date, cessation_date in resolved:
             length_days = (cessation_date - onset_date).days + 1
             cross_note  = " (year-crossing)" if cessation_date.year != year else ""
             window_df = None
@@ -1343,6 +1382,8 @@ def fetch_and_analyze_years_fixed(
                 window_df      = window_df,
                 **stats,
             )
+            if windows_by_year is not None:
+                season_dict["season_number"] = slot
             seasons_dict[year].append(season_dict)
             if df is not None and not df.empty:
                 print(

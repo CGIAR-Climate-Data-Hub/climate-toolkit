@@ -272,9 +272,11 @@ windows), so `source="nex_gddp"` can run a chosen GCM/scenario. `scenario`
 defaults to `historical` when the requested window ends before 2015 so pre-2015
 NEX-GDDP hazard windows work against the historical experiment instead of the
 ssp245 source default; the hazards CLI exposes `--model` / `--scenario` and
-lists `nex_gddp` among its `--source` choices (issue #175, part 1). A
-`fixed_season` window that crosses 31 December is still resolved by the
-season-generation layer (issue #175, part 2 — open).
+lists `nex_gddp` among its `--source` choices. For explicit `fixed_season`
+definitions, hazard date bounds select onsets inclusively. The season layer
+resolves windows by onset year and preserves the definition's slot. Hazards
+validate and fetch through cessation (including cross-year tails) with the
+configured spin-up, and report errors on incomplete daily coverage (#175).
 
 ### `weather_station`
 
