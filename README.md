@@ -668,6 +668,13 @@ such as `total_seconds` and `mean_model_seconds`.
 - `climate-toolkit-hazards`
 - `climate-toolkit-hazards-ensemble`
 
+For `evaluate_hazards` and `climate-toolkit-hazards`, fixed seasons are selected
+by their start date, including both request bounds. For example, asking for
+`10-01:01-31` with dates in calendar year 2010 returns 1 October 2010 through
+31 January 2011. The fetch includes spin-up before onset and all days through
+cessation. For one season, read `result["season_info"]` and
+`result["season_statistics"]`. For multiple seasons, read `result["assessments"]`.
+
 NEX-GDDP hazards (`--source nex_gddp`, also `evaluate_hazards(..., source="nex_gddp")`)
 accept `--model` / `--scenario`. `--scenario` defaults to `historical` when the
 requested window ends before 2015, so pre-2015 windows work without extra flags

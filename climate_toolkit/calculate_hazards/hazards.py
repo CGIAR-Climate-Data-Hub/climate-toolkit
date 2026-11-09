@@ -82,6 +82,7 @@ from climate_toolkit.season_analysis.seasons import (
     detect_onset_cessation,
     fetch_and_analyze_years,
     fetch_and_analyze_years_fixed,
+    fixed_windows_for_year,
     fetch_master_range_with_tail,
     analyze_years_auto_on_prefetched_df,
     analyze_years_fixed_on_prefetched_df,
@@ -893,18 +894,6 @@ def _validate_request_coverage(
     if source_lc in {"auto", "chirps+chirts", "chirps_v2+chirts"}:
         return
     _validate_source_coverage(source_lc, start_date, end_date)
-
-
-def _fixed_window_dates_for_year(
-    year: int,
-    season_def: Dict[str, Any],
-) -> Tuple[str, str]:
-    onset_mm, onset_dd = season_def["onset_md"]
-    cess_mm, cess_dd = season_def["cessation_md"]
-    cessation_year = year + 1 if (cess_mm, cess_dd) < (onset_mm, onset_dd) else year
-    onset_date = date(year, onset_mm, onset_dd).isoformat()
-    cessation_date = date(cessation_year, cess_mm, cess_dd).isoformat()
-    return onset_date, cessation_date
 
 
 def _extract_detection_errors(annual_dict: Dict[int, Dict[str, Any]]) -> List[str]:
@@ -2073,8 +2062,8 @@ def calculate_hazards(
 
     1. Explicit window -- pass ``season_start`` and ``season_end`` together.
     2. Fixed calendar window(s) -- pass ``fixed_season``
-       (e.g. ``'03-01:06-30'``), applied to every year between ``date_from``
-       and ``date_to``.
+       (e.g. ``'03-01:06-30'``), selected by onset between ``date_from``
+       and ``date_to`` (inclusive).
     3. Auto-detection (default) -- rainfall-based onset/cessation detection
        per year; if detection is unreliable and ``calendar_source='ggcmi'``
        was given, falls back to the GGCMI crop-calendar preset window.
@@ -2091,8 +2080,8 @@ def calculate_hazards(
         ``(latitude, longitude)`` in decimal degrees,
         e.g. ``(-1.286, 36.817)`` for Nairobi.
     date_from, date_to : str
-        Analysis window as ISO dates ``'YYYY-MM-DD'``. In fixed-season and
-        auto-detect modes, every calendar year in this range is analysed.
+        Analysis window as ISO dates ``'YYYY-MM-DD'``. Fixed seasons are selected by onset.
+        Auto-detection analyses each calendar year in this range.
     season_start, season_end : str, optional
         Explicit season window (ISO dates ``'YYYY-MM-DD'``). Must be supplied
         together; takes precedence over ``fixed_season`` and auto-detection.
@@ -2100,7 +2089,8 @@ def calculate_hazards(
     fixed_season : str, optional
         Fixed calendar window(s) as ``'MM-DD:MM-DD'``, comma-separated for
         two seasons per year (e.g. ``'03-01:05-31,10-01:12-15'``).
-        Year-crossing windows such as ``'11-01:02-28'`` are supported.
+        A season belongs to its onset year. Climate is fetched through cessation,
+        including any days in the next year, plus spin-up before onset.
         Default None.
     source : str, default 'auto'
         Climate dataset: 'auto', 'era5_land', 'era_5', 'chirps_v2+chirts'
@@ -2244,19 +2234,23 @@ def calculate_hazards(
     precip_source = normalize_climate_dataset_name(precip_source)
     temp_source = normalize_climate_dataset_name(temp_source)
     lat, lon = location_coord
-    # NEX-GDDP splits at 2015: the 'historical' experiment covers through
-    # 2014-12-31 and the SSP scenarios start 2015-01-01. When nex_gddp is asked
-    # for a window that ends before 2015 and no scenario is named, default to
-    # 'historical' so pre-2015 hazard windows work instead of failing against
-    # the ssp245 source default. Windows that cross 2015 still need an explicit
-    # scenario (no single NEX-GDDP scenario spans the boundary).
-    if source == "nex_gddp" and scenario is None:
+    last_season_day = datetime.fromisoformat(date_to).date()
+    if fixed_season and not (season_start and season_end):
         try:
-            _window_end = datetime.fromisoformat(str(date_to)).date()
-        except ValueError:
-            _window_end = None
-        if _window_end is not None and _window_end < date(2015, 1, 1):
-            scenario = "historical"
+            fixed_defs = parse_fixed_seasons(fixed_season)
+            onset_range = (datetime.fromisoformat(date_from).date(), last_season_day)
+            windows_by_year = {
+                year: fixed_windows_for_year(year, fixed_defs, onset_range)
+                for year in range(onset_range[0].year, onset_range[1].year + 1)
+            }
+            selected = [window for windows in windows_by_year.values() for window in windows]
+            if not selected:
+                return {"error": f"No fixed season starts within {date_from}..{date_to}."}
+            last_season_day = max(end for _, _, end in selected)
+        except ValueError as exc:
+            return {"error": f"Invalid fixed season or date range: {exc}"}
+    if source == "nex_gddp" and scenario is None and last_season_day < date(2015, 1, 1):
+        scenario = "historical"
     calendar_system = str(calendar_system).lower()
     if calendar_system not in CALENDAR_SYSTEM_CHOICES:
         return {
@@ -2300,7 +2294,7 @@ def calculate_hazards(
         livestock_elevation_override_m=livestock_elevation_override_m,
     )
     crop_water_balance = resolve_crop_water_balance_params(crop_normalized)
-    requested_end_year = datetime.fromisoformat(date_to).year
+    requested_end_year = last_season_day.year
     try:
         _validate_source_window(source, requested_end_year)
         if normalize_climate_dataset_name(source) == PAIRED_SOURCE_SENTINEL:
@@ -2376,24 +2370,11 @@ def calculate_hazards(
     elif fixed_season:
         print(f"Fixed-season mode: {fixed_season}")
         try:
-            fixed_defs = parse_fixed_seasons(fixed_season)
-        except ValueError as exc:
-            return {'error': f'Invalid --fixed-season argument: {exc}'}
-
-        start_year = datetime.fromisoformat(date_from).year
-        end_year   = datetime.fromisoformat(date_to).year
-        try:
-            for year in range(start_year, end_year + 1):
-                for season_def in fixed_defs:
-                    s_start, s_end = _fixed_window_dates_for_year(year, season_def)
-                    fetch_start = _shift_iso_date(s_start, -spinup_days)
-                    _validate_request_coverage(
-                        source,
-                        fetch_start,
-                        s_end,
-                        precip_source=precip_source,
-                        temp_source=temp_source,
-                    )
+            for _, start, end in selected:
+                _validate_request_coverage(
+                    source, _shift_iso_date(start.isoformat(), -spinup_days), end.isoformat(),
+                    precip_source=precip_source, temp_source=temp_source,
+                )
         except ValueError as exc:
             return {'error': str(exc)}
 
@@ -2401,8 +2382,9 @@ def calculate_hazards(
         seasons_dict, annual_dict = fetch_and_analyze_years_fixed(
             lat, lon,
             fixed_seasons=fixed_defs,
-            start_year=start_year,
-            end_year=end_year,
+            start_year=onset_range[0].year,
+            end_year=onset_range[1].year,
+            windows_by_year=windows_by_year,
             source=source,
             precip_source=precip_source,
             temp_source=temp_source,
@@ -2434,7 +2416,7 @@ def calculate_hazards(
                     'method':                 'fixed_season',
                     'regime':                 s.get('regime', 'fixed'),
                     'year':                   year,
-                    'season_number':          season_idx + 1,           
+                    'season_number':          s.get('season_number', season_idx + 1),
                     'total_seasons_per_year': num_seasons_per_year,     
                     'source':                 source,                   
                 })
@@ -3116,8 +3098,8 @@ def main() -> int:
         type=str, default=None,
         metavar='MM-DD:MM-DD[,MM-DD:MM-DD]',
         help=(
-            "Fixed calendar season window(s) applied to every year in the date range.\n"
-            "Mirrors --fixed-season in seasons.py.\n\n"
+            "Select fixed seasons whose onset falls between --date-from and --date-to (inclusive).\n"
+            "Each season runs through cessation, including dates beyond --date-to.\n\n"
             "Format : one or two 'onset:cessation' tokens as MM-DD:MM-DD,\n"
             "         comma-separated for two seasons per year.\n\n"
             "Examples:\n"

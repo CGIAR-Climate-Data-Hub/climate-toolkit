@@ -42,11 +42,13 @@ plugins:
           build: true
           nav_translations:
             About: À propos
+            Direct cloud access: Accès direct aux données cloud
         - locale: es
           name: Español
           build: true
           nav_translations:
             About: Acerca de
+            Direct cloud access: Acceso directo a datos en la nube
   - mkdocstrings:
       handlers:
         python:
@@ -79,6 +81,7 @@ nav:
   - Getting started: getting_started.md
   - Use as a package: use-as-a-package.md
   - Datasets: datasets.md
+  - Direct cloud access: direct_cloud_access.md
   - Outputs by module: outputs_by_module.md
   - Workflows:
       - End-to-end example: example_workflow.md

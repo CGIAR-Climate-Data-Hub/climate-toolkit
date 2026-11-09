@@ -74,6 +74,12 @@ parameters, see the [Python API](api/index.md) reference.
 
 ## ⚠️ calculate_hazards — crop hazard assessment
 
+With `fixed_season`, the request dates select season starts inclusively. For example,
+`2010-01-01` through `2010-12-31` with `10-01:01-31` includes the entire October
+2010–January 2011 season. One season returns a top-level `season_info` and
+`season_statistics`. Multiple seasons return an `assessments` list with one entry
+per season. Check `error` if no season starts in range or data coverage is incomplete.
+
 **Output format:** JSON, text console, optional CSV
 
 **Tables:**

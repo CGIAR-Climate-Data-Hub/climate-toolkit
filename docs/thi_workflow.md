@@ -173,7 +173,7 @@ Not supported:
 - `chirps_v3_daily_rnl`
 - `imerg`
 - `tamsat`
-- `chirts`
+- `chirts_era5` (Tmax and Tmin only) and legacy `chirts`
 
 Programmatic inspection:
 
