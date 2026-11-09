@@ -46,9 +46,12 @@ provider policy and groups lazy point reads into shared storage chunks.
 | `chirps_v3_daily_rnl` | Complete compatible cache first; Dynamical final, Hugging Face, permitted GEE | Actual time coordinates; full requested range required |
 | `chirts_era5` | Complete cache first; Hugging Face | Actual time coordinates; hosted archive starts 1981 |
 
-Dynamical's smaller chunks reduce read amplification for long/dispersed requests
-and its final archive was more current at validation. Hugging Face can be faster
-for short requests. Select `backend="huggingface"` or `backend="dynamical"`
+Dynamical used less bandwidth in every measured one-year CHIRPS layout. A 2020
+Nairobi request used 3.39 MB across 20 requests on Dynamical and 21.54 MB
+across 26 on Hugging Face. Both cached repeats made zero upstream requests.
+Dynamical's final archive also had more recent coverage at validation. Hugging
+Face can be faster for short requests. See the [CHIRPS transport benchmark](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_176_178_direct_cloud_access.md#chirps-http-benchmark-2026-11-09) for larger workloads and limits.
+Select `backend="huggingface"` or `backend="dynamical"`
 explicitly when needed. An explicit backend does not silently switch providers.
 
 The CHIRPS adapters both read **v3 final/RNL**. Dynamical preliminary is SAT and
@@ -59,6 +62,14 @@ mm/day. Hugging Face CF scaling is decoded once by xarray. The mirrors apply
 different rounding: comparisons must allow documented packing error, and daily
 threshold counts can differ. One returned request uses a single provider revision;
 there is no per-day stitching across providers.
+
+For CHIRPS v3, a check against Earth Engine's native grid compared 543 daily
+values per mirror at Nairobi, Ouagadougou and Cusco in December–February
+2019/20 and 2025/26. Maximum daily differences were 0.041 mm for Dynamical
+and 0.050 mm for Hugging Face (rounded up). At a strict wet-day cutoff of
+`>1 mm`, classifications differed on zero and three site-days, respectively.
+For threshold-sensitive comparisons, select one backend and keep its revision
+with the results. See the [reference comparison and reproduction instructions](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_176_178_direct_cloud_access.md#chirps-finalrnl-reference-comparison-2026-11-08).
 
 CHIRTS-ERA5 is the successor for new temperature workflows. The old `chirts`
 key (CHIRTS-daily, 1983–2016) is **deprecated** and warns when selected. Its
