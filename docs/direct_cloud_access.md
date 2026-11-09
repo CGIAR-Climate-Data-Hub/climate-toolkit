@@ -46,9 +46,12 @@ provider policy and groups lazy point reads into shared storage chunks.
 | `chirps_v3_daily_rnl` | Complete compatible cache first; Dynamical final, Hugging Face, permitted GEE | Actual time coordinates; full requested range required |
 | `chirts_era5` | Complete cache first; Hugging Face | Actual time coordinates; hosted archive starts 1981 |
 
-Dynamical's smaller chunks reduce read amplification for long/dispersed requests
-and its final archive was more current at validation. Hugging Face can be faster
-for short requests. Select `backend="huggingface"` or `backend="dynamical"`
+Dynamical used less bandwidth in every measured one-year CHIRPS layout. A 2020
+Nairobi request used 3.39 MB across 20 requests on Dynamical and 21.54 MB
+across 26 on Hugging Face. Both cached repeats made zero upstream requests.
+Dynamical's final archive also had more recent coverage at validation. Hugging
+Face can be faster for short requests. See the [CHIRPS transport benchmark](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_176_178_direct_cloud_access.md#chirps-http-benchmark-2026-11-09) for larger workloads and limits.
+Select `backend="huggingface"` or `backend="dynamical"`
 explicitly when needed. An explicit backend does not silently switch providers.
 
 The CHIRPS adapters both read **v3 final/RNL**. Dynamical preliminary is SAT and

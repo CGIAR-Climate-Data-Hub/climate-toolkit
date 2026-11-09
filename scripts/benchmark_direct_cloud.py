@@ -11,14 +11,12 @@ from datetime import date
 import json
 import os
 from pathlib import Path
-import resource
 import subprocess
 import sys
 import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
 
 
 def sites_for(count, layout):
@@ -31,7 +29,9 @@ def sites_for(count, layout):
     return sites
 
 
-def worker(case):
+def worker(case, *, before_warm=None):
+    import resource
+
     from climate_toolkit import fetch_climate_data
 
     source, backend, count, layout, years = case
@@ -53,6 +53,8 @@ def worker(case):
         try:
             frame = fetch_climate_data(**kw)
             result["cold_seconds"] = round(time.monotonic() - start, 3)
+            if before_warm is not None:
+                before_warm()
             warm = time.monotonic()
             cached = fetch_climate_data(**kw)
             result.update(
@@ -143,4 +145,5 @@ def main():
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(ROOT))
     main()
