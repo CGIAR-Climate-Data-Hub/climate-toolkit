@@ -5,7 +5,7 @@ library from your own Python code. Every credential-free example here was run
 against the real package and API.
 
 > **Status note.** The package is `climate_toolkit` (import name), distributed
-> as `climate-toolkit` on PyPI. Current version `0.1.0`.
+> as `climate-toolkit` on PyPI. Direct CHIRPS v3 and CHIRTS-ERA5 access requires version 0.2.0 or later.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
 Prefer to try it live? The companion notebook
@@ -21,9 +21,9 @@ install or setup on your machine.
 2. [Requirements](#2-requirements)
 3. [Installation](#3-installation)
 4. [Verify the install](#4-verify-the-install)
-5. [Credentials: NASA POWER vs Earth Engine](#5-credentials-nasa-power-vs-earth-engine)
+5. [Credentials by data source](#5-credentials-by-data-source)
 6. [Quick start (no credentials)](#6-quick-start-no-credentials)
-7. [Earth Engine setup (for gridded / projection sources)](#7-earth-engine-setup)
+7. [Earth Engine setup](#7-earth-engine-setup)
 8. [The public API — all seven functions](#8-the-public-api-all-seven-functions)
 9. [Data sources reference](#9-data-sources-reference)
 10. [Variables reference](#10-variables-reference)
@@ -56,7 +56,7 @@ install or setup on your machine.
 | `download_station_data` | Fetch daily observations from nearby weather stations |
 | `compare_station_to_grids` | Validate gridded datasets against station observations |
 
-Data comes from CHIRPS, ERA5-Land, TerraClimate, IMERG, TAMSAT, CHIRTS, ERA5,
+Data comes from CHIRPS, ERA5-Land, TerraClimate, IMERG, TAMSAT, CHIRTS-ERA5, ERA5,
 NEX-GDDP, NASA POWER, CMIP6, SoilGrids, plus GHCN-Daily / GSOD stations.
 
 ---
@@ -65,7 +65,7 @@ NEX-GDDP, NASA POWER, CMIP6, SoilGrids, plus GHCN-Daily / GSOD stations.
 
 - **Python ≥ 3.10.** A system Python 3.9 will not work — use a 3.10+ virtual
   environment. The easiest way to get one is [`uv`](https://docs.astral.sh/uv/),
-  which can provision Python 3.11 for you automatically.
+  which can provision Python 3.12 for direct cloud access.
 - OS packages: none beyond what the Python wheels provide (no compiler needed).
 - For Earth Engine-backed sources: a Google Cloud project and a one-time Earth
   Engine authentication (see §7). **NASA POWER and weather stations need
@@ -99,7 +99,7 @@ the repo's environment with `uv run python my_script.py`.
 
 ```bash
 uv run python -c "import climate_toolkit as ct; print(ct.__version__)"
-# -> 0.1.0
+# Example: 0.2.0
 ```
 
 Confirm the public surface:
@@ -114,13 +114,16 @@ print([n for n in ct.__all__ if not n.startswith("__")])
 
 ---
 
-## 5. Credentials: NASA POWER vs Earth Engine
+<a id="5-credentials-nasa-power-vs-earth-engine"></a>
 
-This is the single most important thing to understand before your first call.
+## 5. Credentials by data source
 
 - **`nasa_power`** (and weather stations `ghcn_daily` / `gsod`) use plain HTTPS
   and need **no credentials**. Start here.
-- **Most gridded / projection sources** — `era5_land`, `era_5`, `chirps_*`,
+- **`chirps_v3_daily_rnl` and `chirts_era5`** support [direct cloud access](direct_cloud_access.md)
+  without credentials. On Python 3.12+, run `pip install "climate-toolkit[cloud]"`.
+  Pass `allow_gee=False` to exclude Earth Engine fallback.
+- **Earth Engine sources** — `era5_land`, `era_5`, `chirps_v2` (alias `chirps`),
   `chirts`, `imerg`, `terraclimate`, `cmip_6`, `nex_gddp`, `soil_grid`, `hwsd`
   — route through **Google Earth Engine** and require a one-time auth plus a
   project ID (see §7).
@@ -173,7 +176,7 @@ years for a real long-term climatology; short windows just print a warning.)
 
 ## 7. Earth Engine setup
 
-The gridded and projection sources need a one-time Earth Engine setup. The full
+Sources listed under Earth Engine in §5 need a one-time setup. The full
 walkthrough — including the **free** noncommercial registration path — is in
 [Getting started → Google Earth Engine credentials](getting_started.md#2-google-earth-engine-credentials).
 In brief: run `earthengine authenticate`, set `GCP_PROJECT_ID`, then verify with
@@ -306,8 +309,10 @@ Validates gridded datasets against station observations; returns a dict.
 | `ghcn_daily`, `gsod` | Weather-station observations | No |
 | `era5_land` | ERA5-Land daily aggregates (broad variable set; recommended default) | Yes |
 | `era_5` | ERA5 daily reanalysis | Yes |
-| `chirps_v2` / `chirps_v3_daily_rnl` | CHIRPS precipitation | Yes |
-| `chirts` | CHIRTS temperature | Yes |
+| `chirps_v2` (alias `chirps`) | CHIRPS v2 rainfall | Yes |
+| `chirps_v3_daily_rnl` | CHIRPS v3 daily final rainfall | Optional fallback |
+| `chirts_era5` | CHIRTS-ERA5 daily Tmax and Tmin | No (cloud extra) |
+| `chirts` (deprecated) | Legacy CHIRTS-daily temperature, 1983–2016 | Yes |
 | `imerg` | GPM IMERG precipitation | Yes |
 | `terraclimate` | Monthly water balance | Yes |
 | `cmip_6` | GDDP-CMIP6 projections | Yes |

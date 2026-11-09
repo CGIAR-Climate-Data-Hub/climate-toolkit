@@ -14,6 +14,14 @@ From PyPI, no clone needed:
 pip install climate-toolkit
 ```
 
+For CHIRPS v3 final rainfall (`chirps_v3_daily_rnl`) and CHIRTS-ERA5 daily
+minimum and maximum temperatures (`chirts_era5`), install the cloud extra on
+Python 3.12+ for [access without Google credentials](direct_cloud_access.md):
+
+```bash
+pip install "climate-toolkit[cloud]"
+```
+
 From a Jupyter notebook, prefix with `%`:
 
 ```
@@ -33,8 +41,9 @@ uv sync
 
 ## 2. Google Earth Engine credentials
 
-Most gridded sources (`era5_land`, `era_5`, `chirps_v3_daily_rnl`, `nex_gddp`)
-are served through Google Earth Engine. `nasa_power` and the weather-station
+Complete this step for `era5_land`, `era_5`, `nex_gddp`, CHIRPS v2
+(`chirps_v2` or `chirps`), or the optional CHIRPS v3 Earth Engine fallback.
+For direct CHIRPS v3 and CHIRTS-ERA5, skip this step. `nasa_power` and the weather-station
 sources (`ghcn_daily`, `gsod`) need no credentials at all.
 
 !!! tip "This can be completely free"
