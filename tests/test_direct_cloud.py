@@ -190,6 +190,39 @@ def test_temperature_stages_and_units(tmp_path, fake_provider, stage):
     assert frame[name].tolist() == [25, 25, 25]
 
 
+def test_chirts_packing_at_heat_thresholds(tmp_path, monkeypatch):
+    pytest.importorskip("zarr")
+    from climate_toolkit.calculate_hazards.hazards import calculate_season_statistics
+
+    # Original daily maxima would count one day >= 35 and none >= 40.
+    # At mirror precision 34.96 and 39.96 become exact threshold values.
+    coords = {
+        "time": pd.date_range("2020-01-01", periods=3),
+        "latitude": [-1.275, -1.225],
+        "longitude": [36.825, 36.875],
+    }
+    packed = xr.Dataset(coords=coords)
+    for name, tenths in [("Tmax", [349, 350, 400]), ("Tmin", [180, 181, 182])]:
+        packed[name] = xr.DataArray(
+            np.broadcast_to(np.array(tenths, dtype="int16")[:, None, None], (3, 2, 2)),
+            dims=("time", "latitude", "longitude"),
+            attrs={"scale_factor": 0.1, "units": "degC"},
+        )
+
+    @contextmanager
+    def opened(source, backend, workers=1):
+        yield xr.decode_cf(packed), cloud.CAPABILITIES[source], {
+            "revision": "packing-test", "source": source, "backend": backend,
+        }
+
+    monkeypatch.setattr(cloud, "open_provider", opened)
+    frame = run(tmp_path, source="chirts_era5", stage="preprocessed")
+    stats = calculate_season_statistics(frame)
+    assert (stats["NTx35"], stats["NTx40"]) == (2, 1)
+    assert stats["mean_tmax_c"] == pytest.approx((34.9 + 35.0 + 40.0) / 3)
+    assert stats["mean_tmin_c"] == pytest.approx(18.1)
+
+
 def test_impossible_temperatures_available_raw_but_rejected_analysis(tmp_path, fake_provider):
     calls, state = fake_provider
     state["bad"] = True
