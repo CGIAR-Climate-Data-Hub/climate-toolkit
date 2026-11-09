@@ -1,0 +1,892 @@
+{
+  "measured_utc": "2026-11-09T07:43:29.726634+00:00",
+  "python": "3.12.10",
+  "versions": {
+    "climate-toolkit": "0.2.0",
+    "aiohttp": "3.14.5",
+    "icechunk": "2.3.1",
+    "zarr": "3.4.2",
+    "fsspec": "2026.9.0",
+    "xarray": "2026.9.0"
+  },
+  "deadline_seconds": 60,
+  "workers": 2,
+  "decoded_budget_bytes": 4294967296,
+  "results": [
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        1,
+        "clustered",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 1,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 17.235,
+      "warm_seconds": 0.016,
+      "rows": 366,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "VXA0TT74FKZCYRX7TN30",
+      "estimated_source_chunk_bytes": 10512000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 287522816,
+      "sampled_peak_rss_bytes": 287424512,
+      "wall_seconds": 18.501,
+      "http": {
+        "cold": {
+          "requests": 20,
+          "body_bytes": 3391703,
+          "logical_requests": 20,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 14
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        1,
+        "clustered",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 1,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 9.53,
+      "warm_seconds": 0.012,
+      "rows": 366,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 92160000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 527007744,
+      "sampled_peak_rss_bytes": 526778368,
+      "wall_seconds": 10.452,
+      "http": {
+        "cold": {
+          "requests": 26,
+          "body_bytes": 21536970,
+          "logical_requests": 26,
+          "statuses": {
+            "200": 12,
+            "307": 7,
+            "404": 3,
+            "302": 4
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        10,
+        "clustered",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 10,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 10.943,
+      "warm_seconds": 0.02,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "VXA0TT74FKZCYRX7TN30",
+      "estimated_source_chunk_bytes": 10512000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 287440896,
+      "sampled_peak_rss_bytes": 287342592,
+      "wall_seconds": 11.863,
+      "http": {
+        "cold": {
+          "requests": 20,
+          "body_bytes": 3391723,
+          "logical_requests": 20,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 14
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        10,
+        "clustered",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 10,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 8.168,
+      "warm_seconds": 0.019,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 92160000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 529547264,
+      "sampled_peak_rss_bytes": 519536640,
+      "wall_seconds": 9.056,
+      "http": {
+        "cold": {
+          "requests": 26,
+          "body_bytes": 21536804,
+          "logical_requests": 26,
+          "statuses": {
+            "200": 12,
+            "307": 7,
+            "404": 3,
+            "302": 4
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        10,
+        "dispersed",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 10,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 16.52,
+      "warm_seconds": 0.023,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "VXA0TT74FKZCYRX7TN30",
+      "estimated_source_chunk_bytes": 31536000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 325500928,
+      "sampled_peak_rss_bytes": 323944448,
+      "wall_seconds": 17.499,
+      "http": {
+        "cold": {
+          "requests": 28,
+          "body_bytes": 8154312,
+          "logical_requests": 28,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 22
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        10,
+        "dispersed",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 10,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 18.048,
+      "warm_seconds": 0.019,
+      "rows": 3660,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 276480000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 775684096,
+      "sampled_peak_rss_bytes": 775536640,
+      "wall_seconds": 19.086,
+      "http": {
+        "cold": {
+          "requests": 42,
+          "body_bytes": 71414503,
+          "logical_requests": 42,
+          "statuses": {
+            "200": 20,
+            "307": 7,
+            "404": 3,
+            "302": 12
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        100,
+        "clustered",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 100,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 17.474,
+      "warm_seconds": 0.114,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "VXA0TT74FKZCYRX7TN30",
+      "estimated_source_chunk_bytes": 10512000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 302972928,
+      "sampled_peak_rss_bytes": 301924352,
+      "wall_seconds": 18.502,
+      "http": {
+        "cold": {
+          "requests": 20,
+          "body_bytes": 3391723,
+          "logical_requests": 20,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 14
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        100,
+        "clustered",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 100,
+      "layout": "clustered",
+      "years": 1,
+      "cold_seconds": 7.912,
+      "warm_seconds": 0.113,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 92160000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 550469632,
+      "sampled_peak_rss_bytes": 548519936,
+      "wall_seconds": 9.046,
+      "http": {
+        "cold": {
+          "requests": 26,
+          "body_bytes": 21536940,
+          "logical_requests": 26,
+          "statuses": {
+            "200": 12,
+            "307": 7,
+            "404": 3,
+            "302": 4
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        100,
+        "dispersed",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "dynamical",
+      "sites": 100,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 42.303,
+      "warm_seconds": 0.116,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "VXA0TT74FKZCYRX7TN30",
+      "estimated_source_chunk_bytes": 94608000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 379633664,
+      "sampled_peak_rss_bytes": 379617280,
+      "wall_seconds": 43.454,
+      "http": {
+        "cold": {
+          "requests": 52,
+          "body_bytes": 22293506,
+          "logical_requests": 52,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 46
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        100,
+        "dispersed",
+        1
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 100,
+      "layout": "dispersed",
+      "years": 1,
+      "cold_seconds": 26.262,
+      "warm_seconds": 0.108,
+      "rows": 36600,
+      "qc": {
+        "invalid_or_missing": {
+          "precipitation": 0
+        },
+        "tmin_gt_tmax": 0,
+        "flagged_rows": 0
+      },
+      "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+      "estimated_source_chunk_bytes": 552960000,
+      "cache_equal": true,
+      "status": "ok",
+      "peak_rss_bytes": 847790080,
+      "sampled_peak_rss_bytes": 846888960,
+      "wall_seconds": 27.364,
+      "http": {
+        "cold": {
+          "requests": 66,
+          "body_bytes": 108747274,
+          "logical_requests": 66,
+          "statuses": {
+            "200": 32,
+            "307": 7,
+            "404": 3,
+            "302": 24
+          }
+        },
+        "warm": {
+          "requests": 0,
+          "body_bytes": 0,
+          "statuses": {}
+        }
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        1,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "sampled_peak_rss_bytes": 394412032,
+      "wall_seconds": 60.184,
+      "http": {
+        "cold": {
+          "requests": 59,
+          "body_bytes": 32932958,
+          "logical_requests": 59,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 51
+          }
+        },
+        "warm": null
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        1,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "sampled_peak_rss_bytes": 836730880,
+      "wall_seconds": 60.066,
+      "http": {
+        "cold": {
+          "requests": 118,
+          "body_bytes": 217108587,
+          "logical_requests": 118,
+          "statuses": {
+            "200": 58,
+            "404": 3,
+            "307": 7,
+            "302": 50
+          }
+        },
+        "warm": null
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        10,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "sampled_peak_rss_bytes": 468221952,
+      "wall_seconds": 60.185,
+      "http": {
+        "cold": {
+          "requests": 64,
+          "body_bytes": 36833116,
+          "logical_requests": 64,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 58
+          }
+        },
+        "warm": null
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        10,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "sampled_peak_rss_bytes": 918126592,
+      "wall_seconds": 60.056,
+      "http": {
+        "cold": {
+          "requests": 138,
+          "body_bytes": 262081780,
+          "logical_requests": 138,
+          "statuses": {
+            "200": 66,
+            "307": 7,
+            "404": 3,
+            "302": 60
+          }
+        },
+        "warm": null
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        10,
+        "dispersed",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "sampled_peak_rss_bytes": 387694592,
+      "wall_seconds": 60.088,
+      "http": {
+        "cold": {
+          "requests": 59,
+          "body_bytes": 28678262,
+          "logical_requests": 59,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 52
+          }
+        },
+        "warm": null
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        10,
+        "dispersed",
+        30
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 10,
+      "layout": "dispersed",
+      "years": 30,
+      "status": "failed",
+      "error": "BackendUnavailable: All eligible backends failed for chirps_v3_daily_rnl: huggingface: BackendUnavailable: Estimated chunk read work 5.60 GiB exceeds 4.00 GiB budget; use another backend, fewer dispersed sites, or explicitly raise CLIMATE_TOOLKIT_MAX_DECODED_BYTES",
+      "cold_seconds": 3.143,
+      "peak_rss_bytes": 193150976,
+      "sampled_peak_rss_bytes": 193118208,
+      "wall_seconds": 4.221,
+      "http": {
+        "cold": {
+          "requests": 18,
+          "body_bytes": 177824,
+          "logical_requests": 18,
+          "statuses": {
+            "200": 8,
+            "307": 7,
+            "404": 3
+          }
+        },
+        "warm": null
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        100,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "sampled_peak_rss_bytes": 490258432,
+      "wall_seconds": 60.124,
+      "http": {
+        "cold": {
+          "requests": 60,
+          "body_bytes": 35319038,
+          "logical_requests": 60,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 54
+          }
+        },
+        "warm": null
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        100,
+        "clustered",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "sampled_peak_rss_bytes": 984547328,
+      "wall_seconds": 60.103,
+      "http": {
+        "cold": {
+          "requests": 140,
+          "body_bytes": 270341975,
+          "logical_requests": 140,
+          "statuses": {
+            "200": 69,
+            "307": 7,
+            "404": 3,
+            "302": 61
+          }
+        },
+        "warm": null
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "dynamical",
+        100,
+        "dispersed",
+        30
+      ],
+      "status": "deadline_exceeded",
+      "sampled_peak_rss_bytes": 402276352,
+      "wall_seconds": 60.173,
+      "http": {
+        "cold": {
+          "requests": 71,
+          "body_bytes": 34746864,
+          "logical_requests": 71,
+          "statuses": {
+            "200": 4,
+            "404": 2,
+            "206": 65
+          }
+        },
+        "warm": null
+      }
+    },
+    {
+      "case": [
+        "chirps_v3_daily_rnl",
+        "huggingface",
+        100,
+        "dispersed",
+        30
+      ],
+      "source": "chirps_v3_daily_rnl",
+      "backend": "huggingface",
+      "sites": 100,
+      "layout": "dispersed",
+      "years": 30,
+      "status": "failed",
+      "error": "BackendUnavailable: All eligible backends failed for chirps_v3_daily_rnl: huggingface: BackendUnavailable: Estimated chunk read work 11.20 GiB exceeds 4.00 GiB budget; use another backend, fewer dispersed sites, or explicitly raise CLIMATE_TOOLKIT_MAX_DECODED_BYTES",
+      "cold_seconds": 3.056,
+      "peak_rss_bytes": 196149248,
+      "sampled_peak_rss_bytes": 195690496,
+      "wall_seconds": 4.223,
+      "http": {
+        "cold": {
+          "requests": 18,
+          "body_bytes": 177755,
+          "logical_requests": 18,
+          "statuses": {
+            "200": 8,
+            "307": 7,
+            "404": 3
+          }
+        },
+        "warm": null
+      }
+    }
+  ],
+  "one_site_30y_extended": {
+    "measured_utc": "2026-11-09T07:55:52.031332+00:00",
+    "python": "3.12.10",
+    "versions": {
+      "climate-toolkit": "0.2.0",
+      "aiohttp": "3.14.5",
+      "icechunk": "2.3.1",
+      "zarr": "3.4.2",
+      "fsspec": "2026.9.0",
+      "xarray": "2026.9.0"
+    },
+    "deadline_seconds": 240,
+    "workers": 2,
+    "decoded_budget_bytes": 4294967296,
+    "results": [
+      {
+        "case": [
+          "chirps_v3_daily_rnl",
+          "dynamical",
+          1,
+          "clustered",
+          30
+        ],
+        "source": "chirps_v3_daily_rnl",
+        "backend": "dynamical",
+        "sites": 1,
+        "layout": "clustered",
+        "years": 30,
+        "cold_seconds": 101.32,
+        "warm_seconds": 0.072,
+        "rows": 10958,
+        "qc": {
+          "invalid_or_missing": {
+            "precipitation": 0
+          },
+          "tmin_gt_tmax": 0,
+          "flagged_rows": 0
+        },
+        "revision": "VXA0TT74FKZCYRX7TN30",
+        "estimated_source_chunk_bytes": 162936000,
+        "cache_equal": true,
+        "status": "ok",
+        "peak_rss_bytes": 438583296,
+        "sampled_peak_rss_bytes": 438583296,
+        "wall_seconds": 102.517,
+        "http": {
+          "cold": {
+            "requests": 88,
+            "body_bytes": 59284156,
+            "logical_requests": 88,
+            "statuses": {
+              "200": 4,
+              "404": 2,
+              "206": 82
+            }
+          },
+          "warm": {
+            "requests": 0,
+            "body_bytes": 0,
+            "statuses": {}
+          }
+        }
+      },
+      {
+        "case": [
+          "chirps_v3_daily_rnl",
+          "huggingface",
+          1,
+          "clustered",
+          30
+        ],
+        "source": "chirps_v3_daily_rnl",
+        "backend": "huggingface",
+        "sites": 1,
+        "layout": "clustered",
+        "years": 30,
+        "cold_seconds": 87.729,
+        "warm_seconds": 0.105,
+        "rows": 10958,
+        "qc": {
+          "invalid_or_missing": {
+            "precipitation": 0
+          },
+          "tmin_gt_tmax": 0,
+          "flagged_rows": 0
+        },
+        "revision": "e9466d3109c6d087c6cf60c19ca6ae20873d358a",
+        "estimated_source_chunk_bytes": 2004480000,
+        "cache_equal": true,
+        "status": "ok",
+        "peak_rss_bytes": 905052160,
+        "sampled_peak_rss_bytes": 905052160,
+        "wall_seconds": 88.959,
+        "http": {
+          "cold": {
+            "requests": 202,
+            "body_bytes": 416483942,
+            "logical_requests": 202,
+            "statuses": {
+              "200": 100,
+              "307": 7,
+              "404": 3,
+              "302": 92
+            }
+          },
+          "warm": {
+            "requests": 0,
+            "body_bytes": 0,
+            "statuses": {}
+          }
+        }
+      }
+    ]
+  },
+  "gee_one_year_timing_control": {
+    "cold_seconds": 7.450458874925971,
+    "warm_seconds": 7.150984624866396,
+    "rows": 366,
+    "cache_equal": true,
+    "rainfall_sum_mm": 1345.1343994140625
+  }
+}
