@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.1](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/compare/v0.2.0...v0.2.1) (2026-11-09)
+
+
+### Fixed
+
+* label inclusive heat thresholds and verify CHIRTS temperatures ([#193](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/193)) ([338673f](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/commit/338673fd0286184a3834eb0139f73d89daedfb90))
+* select fixed hazard seasons by their onset dates ([#195](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/195)) ([7631915](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/commit/7631915f20861ac0ac91020233a8f1d11ae5a121))
+
+
+### Documentation
+
+* align the Session 4 LTE walkthrough with course release 0.2.0 ([#197](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/197)) ([2222155](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/commit/222215541553a2ccc32e5d140be2f0d742397565))
+* correct AIMS RIC partner branding ([#191](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/191)) ([b55f84d](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/commit/b55f84d46c536c97ae751d87cf99b88d1e4ec432))
+* correct CHIRPS and CHIRTS setup guidance ([#194](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/194)) ([2309a92](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/commit/2309a92572c6d371dd85bbab0d41d784dab84c44))
+
 ## [0.2.0](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/compare/v0.1.0...v0.2.0) (2026-11-05)
 
 
