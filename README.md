@@ -1,5 +1,7 @@
 # Climate Data Toolkit
 
+[Français](README.fr.md) · [Español](README.es.md)
+
 A unified toolkit for retrieving climate data from various global datasets such as CHIRPS, ERA5-Land, TerraClimate, IMERG, TAMSAT, CHIRTS-ERA5, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids.
 
 [![About](https://img.shields.io/badge/about-the%20project-blue)](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/about/) — what the toolkit is, who it's for, and how to get involved (also in [français](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/about/) / [español](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/about/)).

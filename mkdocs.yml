@@ -40,15 +40,61 @@ plugins:
         - locale: fr
           name: Français
           build: true
+          site_description: Analyse du climat, des saisons, des aléas et des projections climatiques pour un site donné.
+          theme:
+            palette:
+              - toggle:
+                  name: Activer le mode sombre
+              - toggle:
+                  name: Activer le mode clair
           nav_translations:
+            Home: Accueil
             About: À propos
+            Getting started: Premiers pas
+            Use as a package: Utiliser le paquet Python
+            Datasets: Jeux de données
             Direct cloud access: Accès direct aux données cloud
+            Outputs by module: Résultats par module
+            Workflows: Guides pratiques
+            End-to-end example: Exemple de bout en bout
+            Weather stations: Stations météorologiques
+            Human heat stress: Stress thermique chez l’être humain
+            Livestock heat (THI): Stress thermique du bétail (THI)
+            Distribution & releases: Distribution et versions
+            Python API: API Python
+            Overview: Vue d’ensemble
+            Fetching data: Téléchargement des données
+            Analysis: Analyse
+            Comparison & validation: Comparaison et validation
         - locale: es
           name: Español
           build: true
+          site_description: Análisis del clima, las temporadas, los riesgos y las proyecciones climáticas para un sitio determinado.
+          theme:
+            palette:
+              - toggle:
+                  name: Activar el modo oscuro
+              - toggle:
+                  name: Activar el modo claro
           nav_translations:
+            Home: Inicio
             About: Acerca de
+            Getting started: Primeros pasos
+            Use as a package: Uso del paquete de Python
+            Datasets: Conjuntos de datos
             Direct cloud access: Acceso directo a datos en la nube
+            Outputs by module: Resultados por módulo
+            Workflows: Guías prácticas
+            End-to-end example: Ejemplo de principio a fin
+            Weather stations: Estaciones meteorológicas
+            Human heat stress: Estrés térmico en personas
+            Livestock heat (THI): Estrés térmico en el ganado (THI)
+            Distribution & releases: Distribución y versiones
+            Python API: API de Python
+            Overview: Descripción general
+            Fetching data: Descarga de datos
+            Analysis: Análisis
+            Comparison & validation: Comparación y validación
   - mkdocstrings:
       handlers:
         python:
