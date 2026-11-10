@@ -221,6 +221,10 @@ failures need further work before they qualify as efficient automatic backups.
 The 2026-11-02 probe found a rejected current-year Tmax NetCDF and a Tmin file
 ending in September; the EWX catalogue exposed only pentadal/monthly aggregates.
 Historical NetCDF point reads also exceeded the short-query performance target.
+The November 10 check also found same-cell daily Tmin differences of 0.20–2.18 °C
+between the October 21 CHC original and the pinned Hugging Face mirror. These
+exceed the mirror's 0.05 °C packing tolerance. Revision equivalence must be
+established before the original can serve as an automatic fallback.
 Reproduce bounded range probes with `scripts/probe_chc_backup.py` (requires the
 investigation-only `h5py` dependency). See the
 [backup investigation](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_179_chc_backup_investigation.md).
