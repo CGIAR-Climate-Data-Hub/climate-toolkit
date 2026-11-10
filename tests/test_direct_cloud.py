@@ -114,6 +114,66 @@ def test_explicit_backend_never_switches(tmp_path, fake_provider):
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize("phase", ["open", "load"])
+@pytest.mark.parametrize(
+    "backend, allow_gee", [("huggingface", True), ("auto", False), ("auto", True)]
+)
+def test_http_response_error_respects_fallback_policy(
+    tmp_path, monkeypatch, phase, backend, allow_gee
+):
+    pytest.importorskip("zarr")
+    aiohttp = pytest.importorskip("aiohttp")
+    dates = pd.date_range("2020-01-01", periods=3)
+    error = aiohttp.ClientResponseError(
+        Mock(real_url="https://example.test/chunk?signature=private"), (), status=503
+    )
+
+    def metadata(url):
+        if url == cloud.STAC_URL:
+            raise cloud.BackendUnavailable("Dynamical offline")
+        return {"sha": "example"}
+
+    ds = xr.Dataset(
+        {"precip": (("time", "lat", "lon"), np.ones((3, 2, 2)))},
+        coords={"time": dates, "lat": [-1.275, -1.225], "lon": [36.825, 36.875]},
+        attrs={"source": "CHIRPS v3.0 daily final RNL"},
+    )
+    monkeypatch.setattr(cloud, "_json_get", metadata)
+    monkeypatch.setattr(
+        xr, "open_zarr", Mock(side_effect=error if phase == "open" else None, return_value=ds)
+    )
+    monkeypatch.setattr(cloud, "_extract", Mock(side_effect=error))
+    gee = Mock(return_value=pd.DataFrame({"date": dates, "precipitation": [1.0] * 3}))
+    kwargs = dict(
+        source="chirps_v3_daily_rnl",
+        backend=backend,
+        allow_gee=allow_gee,
+        gee_fetch=gee,
+        location_coord=(-1.286, 36.817),
+        date_from=dates[0],
+        date_to=dates[-1],
+        cache_dir=tmp_path,
+        verbose=False,
+    )
+    if backend == "auto" and allow_gee:
+        frame = cloud.fetch_direct(**kwargs)
+        attempts = frame.attrs["backend_attempts"]
+        assert [attempt["backend"] for attempt in attempts] == ["dynamical", "huggingface", "gee"]
+        assert attempts[-1]["status"] == "success"
+        reason = attempts[1]["reason"]
+        gee.assert_called_once_with()
+    else:
+        with pytest.raises(
+            cloud.BackendUnavailable, match="All eligible backends failed"
+        ) as caught:
+            cloud.fetch_direct(**kwargs)
+        reason = str(caught.value)
+        assert ("dynamical:" in reason) == (backend == "auto")
+        gee.assert_not_called()
+    assert "ClientResponseError (HTTP 503)" in reason
+    assert "signature" not in reason
+
+
 def test_warm_cache_offline_and_refresh(tmp_path, fake_provider, monkeypatch):
     original = run(tmp_path, backend="huggingface")
     spy = Mock(side_effect=AssertionError("Network forbidden"))

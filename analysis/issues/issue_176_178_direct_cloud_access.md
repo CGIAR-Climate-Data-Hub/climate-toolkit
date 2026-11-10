@@ -15,6 +15,11 @@ cache records, revision isolation and resumability after later-batch outages.
 
 ## Decisions
 
+- A November 2026 long-window CHIRTS run exposed an unhandled
+  `aiohttp.ClientResponseError` during chunk loading. The Hugging Face adapter
+  now reports these exceptions through the shared provider policy. Offline
+  regressions exercise failures during open and load under explicit Hugging Face,
+  automatic no-GEE, and automatic GEE-permitted CHIRPS selection.
 - CHIRPS v3 final/RNL defaults to Dynamical, then Hugging Face, then permitted GEE.
   Complete compatible cached requests are preferred before network access. Provider
   order reflects smaller chunks, lower measured memory and newer final coverage;
