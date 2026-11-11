@@ -42,3 +42,4 @@ Link issues, discussions, or follow-up tickets.
 - [ ] I documented any auth, data, cache, or runtime implications.
 - [ ] I included reviewer test steps or validation notes.
 - [ ] I linked the relevant issue(s).
+- [ ] For English documentation changes, I compared the affected French and Spanish pages with the revised source, updated their wording where needed, and refreshed their `source-sha256` comments. The translated READMEs summarize the English README, so some changes only require refreshing the comments. Run `uv run pytest tests/test_doc_translations.py` for the affected filenames and expected hashes. For an intentionally English-only page, record its path in the test's fallback list. For new or revised translations, identify the language reviewers in Reviewer Guidance.

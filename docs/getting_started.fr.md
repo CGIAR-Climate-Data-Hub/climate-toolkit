@@ -11,7 +11,7 @@ Pour installer la version publiée sur PyPI, exécutez la commande suivante.
 pip install climate-toolkit
 ```
 
-Pour télécharger directement les précipitations quotidiennes CHIRPS v3 (`chirps_v3_daily_rnl`) et les températures minimales et maximales CHIRTS-ERA5 (`chirts_era5`), utilisez Python 3.12 ou une version ultérieure et installez les dépendances `cloud`. Cette méthode fonctionne sans compte Earth Engine. [Accès direct aux données](direct_cloud_access.md)
+Pour télécharger directement les données définitives de précipitations quotidiennes CHIRPS v3 (`chirps_v3_daily_rnl`) et les températures minimales et maximales CHIRTS-ERA5 (`chirts_era5`), utilisez Python 3.12 ou une version ultérieure et installez les dépendances `cloud`. Cette méthode fonctionne sans compte Earth Engine. [Accès direct aux données](direct_cloud_access.md)
 
 ```bash
 pip install "climate-toolkit[cloud]"
@@ -35,7 +35,10 @@ uv sync
 
 Passez directement à la [première analyse](#3-first-analysis) si vous utilisez NASA POWER, les stations `ghcn_daily` ou `gsod`, ou l’accès direct à CHIRPS v3 et CHIRTS-ERA5. Suivez cette étape pour `era5_land`, `era_5`, `nex_gddp`, CHIRPS v2 (`chirps_v2` ou `chirps`) ou l’accès de secours à CHIRPS v3 via Earth Engine.
 
-1. [Enregistrez votre projet Google Cloud](https://code.earthengine.google.com/register). Pour un projet non commercial, remplissez le questionnaire d’admissibilité et choisissez le niveau adapté à vos besoins. [Niveaux d’accès non commercial](https://developers.google.com/earth-engine/guides/noncommercial_tiers)
+!!! tip "Accès non commercial à Earth Engine"
+    Les projets admissibles peuvent bénéficier d’un accès gratuit. Les exigences en matière de compte de facturation dépendent du niveau choisi. [Niveaux d’accès non commercial](https://developers.google.com/earth-engine/guides/noncommercial_tiers)
+
+1. [Enregistrez votre projet Google Cloud](https://code.earthengine.google.com/register). Pour un projet non commercial, remplissez le questionnaire d’admissibilité et choisissez le niveau adapté à vos besoins.
 2. Authentifiez-vous une fois sur votre machine.
 
     ```bash
@@ -117,3 +120,7 @@ help(ct.fetch_climate_data)     # Aide sur une fonction
 ```
 
 Dans Jupyter ou IPython, saisissez `ct.fetch_climate_data?`. Dans VS Code, placez le pointeur sur le nom de la fonction pour consulter sa documentation.
+
+Les noms des fonctions, les paramètres, les clés des résultats et les commandes sont en anglais. Les messages du paquet et l’aide de Python sont également en anglais. [Vue d’ensemble de l’API](api/index.md)
+
+<!-- source-sha256: ccf419e7fc65933e00c2c468a0413771017699ea8a03ec61cc956f6b22bb03c3 -->

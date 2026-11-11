@@ -3,7 +3,7 @@
 À partir de la latitude et de la longitude d’un site, téléchargez des données climatiques quotidiennes, calculez des climatologies saisonnières et des indices de sécheresse, évaluez les risques pour les cultures et le bétail, et comparez les résultats entre périodes, sources et stations météorologiques.
 
 !!! tip "Essayer dans le navigateur"
-    Le [notebook Colab](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) installe le paquet dans un environnement hébergé par Google et exécute les exemples qui ne demandent pas d’identifiants.
+    Le [notebook Colab](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) installe le paquet dans un environnement gratuit hébergé par Google et exécute les exemples qui ne demandent pas d’identifiants.
 
 ## Installation
 
@@ -38,9 +38,9 @@ Pour les précipitations CHIRPS v3 et les températures quotidiennes CHIRTS-ERA5
 | [`compare_climate_periods`](api/analysis.md) | Comparaison d’une année avec la climatologie de référence |
 | [`compare_climate_sources`](api/comparison.md) | Comparaison de jeux de données maillées |
 | [`download_station_data`](api/comparison.md) | Observations quotidiennes des stations voisines |
-| [`compare_station_to_grids`](api/comparison.md) | Comparaison des valeurs des grilles avec les observations en station |
+| [`compare_station_to_grids`](api/comparison.md) | Validation des données maillées à partir des observations en station |
 
-Vous pouvez aussi lancer ces analyses en ligne de commande avec `climate-toolkit <commande>`.
+Ces sept analyses sont aussi disponibles en ligne de commande. La [vue d’ensemble de l’API Python](api/index.md) présente aussi `run_pipeline` pour exécuter toute la chaîne de traitement et `backend_policy` pour choisir le mode d’accès aux données.
 
 ## Financement et remerciements
 
@@ -59,3 +59,5 @@ Le [programme Climate Action du CGIAR](https://www.cgiar.org/cgiar-research-port
     <img src="../assets/logos/aims.png" alt="AIMS Research and Innovation Centre (AIMS RIC)" style="height:52px; width:auto; background:#fff; padding:4px;">
   </a>
 </p>
+
+<!-- source-sha256: e0949b08482b5ad48627e68bad44aad7bb2ca75c6b396a68a17b68bc73a8c4c8 -->

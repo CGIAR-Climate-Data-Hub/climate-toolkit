@@ -3,7 +3,7 @@
 A partir de la latitud y la longitud de un sitio, puede descargar datos climáticos diarios, calcular climatologías estacionales e índices de sequía, evaluar riesgos para los cultivos y el ganado, y comparar resultados entre períodos, fuentes y estaciones meteorológicas.
 
 !!! tip "Probar en el navegador"
-    El [cuaderno de Colab](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) instala el paquete en un entorno alojado por Google y ejecuta los ejemplos que no requieren credenciales.
+    El [cuaderno de Colab](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) instala el paquete en un entorno gratuito alojado por Google y ejecuta los ejemplos que no requieren credenciales.
 
 ## Instalación
 
@@ -38,9 +38,9 @@ Para obtener precipitaciones de CHIRPS v3 y temperaturas diarias de CHIRTS-ERA5,
 | [`compare_climate_periods`](api/analysis.md) | Comparación de un año con la climatología de referencia |
 | [`compare_climate_sources`](api/comparison.md) | Comparación de conjuntos de datos en malla |
 | [`download_station_data`](api/comparison.md) | Observaciones diarias de estaciones meteorológicas cercanas |
-| [`compare_station_to_grids`](api/comparison.md) | Comparación de los valores de la malla con observaciones de estaciones |
+| [`compare_station_to_grids`](api/comparison.md) | Validación de los datos en malla con observaciones de estaciones |
 
-También puede ejecutar estos análisis desde la línea de comandos con `climate-toolkit <comando>`.
+Estos siete análisis también están disponibles en la línea de comandos. La [descripción general de la API de Python](api/index.md) incluye `run_pipeline` para ejecutar todo el flujo de trabajo y `backend_policy` para elegir el método de acceso a los datos.
 
 ## Financiación y agradecimientos
 
@@ -59,3 +59,5 @@ El [programa Climate Action del CGIAR](https://www.cgiar.org/cgiar-research-port
     <img src="../assets/logos/aims.png" alt="AIMS Research and Innovation Centre (AIMS RIC)" style="height:52px; width:auto; background:#fff; padding:4px;">
   </a>
 </p>
+
+<!-- source-sha256: e0949b08482b5ad48627e68bad44aad7bb2ca75c6b396a68a17b68bc73a8c4c8 -->
