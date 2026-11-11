@@ -4,7 +4,7 @@ All datasets accepted by the `source` argument of
 [`fetch_climate_data`](api/fetching.md) and the other API functions.
 
 **Auth**: "EE" sources are served through Google Earth Engine and need a
-one-time free [setup](getting_started.md#2-google-earth-engine-credentials).
+one-time [setup](getting_started.md#2-google-earth-engine-credentials).
 "None" sources work with no credentials.
 
 | `source` | Dataset | Type | Native resolution | Coverage | Variables | Auth |

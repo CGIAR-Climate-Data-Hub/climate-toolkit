@@ -12,4 +12,4 @@ Pour obtenir les précipitations CHIRPS v3 et les températures quotidiennes CHI
 
 [Premiers pas](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/getting_started/) · [Documentation](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/) · [Essayer dans Colab](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
 
-<!-- source-sha256: cf3975e5a3b6ac84c1b6c8d4e270a9a47e2dc59fd1e7e471e8a7906a9d92b996 -->
+<!-- source-sha256: 20866ad2c0093e43e549d0ca540939e91282737ee81fd9a9c43757ebcc2f24d3 -->

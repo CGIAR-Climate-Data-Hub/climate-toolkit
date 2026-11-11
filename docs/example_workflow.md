@@ -52,7 +52,7 @@ uv run climate-toolkit-fetch \
 
 - Downloads source → transforms variable names → preprocesses (units, QC).
 - **Source coverage:** ERA5-Land (1950–present, incl. derived humidity), ERA5
-  (1979–present), CHIRPS v3 `chirps_v3_daily_rnl` (1981–present, precip),
+  (1979 to 2020-07-09 in the static GEE archive), CHIRPS v3 `chirps_v3_daily_rnl` (1981–present, precip),
   NASA POWER (1984–present), NEX-GDDP (projections; needs `--scenario` and
   `--model`/`--models`).
 - **Multiple NEX-GDDP models in one run** — pass a comma-separated list or
@@ -264,8 +264,9 @@ uv run climate-toolkit-hazards-ensemble Maize --location "-1.286,36.817" \
   `python -m climate_toolkit.<module>` form instead.
 - **Earth Engine project ID** must be in the environment (`GCP_PROJECT_ID`),
   or pass `uv run --env-file .env`. It is not auto-loaded from `.env`.
-- **"auto"/"paired" source** resolves to `chirps_v3_daily_rnl` (precip) +
-  `era5_land` (temperature) for the historical daily path.
+- **Historical daily sources:** the standard automatic pair uses
+  `chirps_v3_daily_rnl` (precipitation) and `era5_land` (temperature).
+  Paired mode lets you specify the two sources.
 - **CHIRPS naming**: v3 is `chirps_v3_daily_rnl` (recommended); the older
   `chirps_v2` remains a separate product. The 2016 end date belongs to legacy
   CHIRTS-daily temperature. Prefer `chirts_era5` for new temperature work.

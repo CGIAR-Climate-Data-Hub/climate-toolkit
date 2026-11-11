@@ -1,7 +1,9 @@
 """Translation coverage and freshness for the MkDocs site and landing READMEs."""
 
+import ast
 import hashlib
 import re
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -12,29 +14,11 @@ import climate_toolkit as ct
 
 ROOT = Path(__file__).resolve().parents[1]
 LANGUAGES = ("fr", "es")
-# Existing pages still using MkDocs' English fallback. Remove an entry when
-# both translations land. A new page requires translations or an explicit entry.
-ENGLISH_ONLY = {
-    "docs/api/analysis.md",
-    "docs/api/comparison.md",
-    "docs/api/fetching.md",
-    "docs/datasets.md",
-    "docs/direct_cloud_access.md",
-    "docs/distribution_workflow.md",
-    "docs/example_workflow.md",
-    "docs/human_heat_workflow.md",
-    "docs/outputs_by_module.md",
-    "docs/thi_workflow.md",
-    "docs/use-as-a-package.md",
-    "docs/weather_station_workflows.md",
-}
 PAGES = [ROOT / "README.md", *sorted((ROOT / "docs").rglob("*.md"))]
 
 
 def test_translation_inventory():
     english_pages = {p for p in PAGES if not p.stem.endswith((".fr", ".es"))}
-    for page in ENGLISH_ONLY:
-        assert ROOT / page in english_pages, f"Remove obsolete English fallback: {page}"
 
     for page in PAGES:
         if page.stem.endswith((".fr", ".es")):
@@ -49,8 +33,6 @@ def test_translation_sources(lang):
             continue
         relative = source.relative_to(ROOT).as_posix()
         translation = source.with_suffix(f".{lang}.md")
-        if relative in ENGLISH_ONLY and not translation.exists():
-            continue
         if not translation.is_file():
             errors.append(f"Missing {translation.relative_to(ROOT)} for {relative}")
             continue
@@ -73,10 +55,6 @@ def test_translation_sources(lang):
                 errors.append(
                     f"Check missing or changed advisories in {translation.relative_to(ROOT)}"
                 )
-        if relative in ENGLISH_ONLY:
-            errors.append(
-                f"Finish translations of {relative} and remove its English fallback entry"
-            )
     assert not errors, "\n" + "\n".join(errors)
 
 
@@ -107,3 +85,42 @@ def test_api_overview_lists_public_callables(suffix):
     overview = (ROOT / f"docs/api/index{suffix}.md").read_text(encoding="utf-8")
     names = re.findall(r"^\| `ct\.(\w+)` \|", overview, re.MULTILINE)
     assert sorted(names) == sorted(name for name in ct.__all__ if callable(getattr(ct, name)))
+
+
+@pytest.mark.parametrize("lang", LANGUAGES)
+def test_translated_examples_and_api_references(lang):
+    """Keep commands, Python examples and generated API references aligned."""
+    for page in PAGES:
+        if page.parent == ROOT or page.stem.endswith((".fr", ".es")):
+            continue
+        translation = page.with_suffix(f".{lang}.md")
+        english = page.read_text(encoding="utf-8")
+        localized = translation.read_text(encoding="utf-8")
+        assert re.findall(r"^::: (\S+)", english, re.M) == re.findall(
+            r"^::: (\S+)", localized, re.M
+        ), translation
+        assert example_tokens(english) == example_tokens(localized), translation
+
+
+def example_tokens(markdown):
+    blocks = []
+    for language, code in re.findall(r"^ *```([^\n]*)\n(.*?)^ *``` *$", markdown, re.M | re.S):
+        if language == "python":
+            tree = ast.parse(textwrap.dedent(code))
+            # Onboarding examples print translated labels alongside the same values.
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "print"
+                ):
+                    for arg in node.args:
+                        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                            arg.value = "<display label>"
+            code = ast.dump(tree)
+        elif language in {"bash", "sh", "powershell"}:
+            code = "\n".join(
+                line for line in code.splitlines() if not line.lstrip().startswith("#")
+            )
+        blocks.append((language, code))
+    return blocks

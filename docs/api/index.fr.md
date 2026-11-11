@@ -18,6 +18,6 @@ import climate_toolkit as ct
 | `ct.backend_policy` | [Choisir le mode d’accès aux données](../direct_cloud_access.md) |
 | `ct.run_pipeline` | [Exécuter la chaîne de traitement](../use-as-a-package.md#one-call-for-the-whole-workflow-run_pipeline) |
 
-Les noms des fonctions, les arguments et les clés des résultats sont identiques dans toutes les langues. L’aide de Python, les messages de la ligne de commande et les guides techniques ci-dessus sont en anglais. Pour consulter les paramètres d’une fonction, utilisez par exemple `help(ct.evaluate_hazards)`.
+Les noms des fonctions, les arguments et les clés des résultats sont identiques dans toutes les langues. L’aide de Python, les messages de la ligne de commande et la référence générée à partir des docstrings sont en anglais. Pour consulter les paramètres d’une fonction, utilisez par exemple `help(ct.evaluate_hazards)`.
 
 <!-- source-sha256: d862b8c76470dcad3da01c12450ef9275590f3d60983b2fd44ab440c14ee3272 -->

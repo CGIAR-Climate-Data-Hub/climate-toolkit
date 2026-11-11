@@ -69,6 +69,9 @@ for daily temperature through recent dates. Use `--no-gee` on the unified CLI
 or `with climate_toolkit.backend_policy(allow_gee=False):` around Python
 workflows; historical `auto` then uses this direct pair. Explicit providers,
 cache provenance, QC and limits: [direct cloud access](docs/direct_cloud_access.md).
+If a Hugging Face chunk download fails, automatic CHIRPS requests can continue
+to an eligible, configured Earth Engine backend. Explicit Hugging Face requests
+report the transport failure directly.
 Direct reads share source chunks across up to five missing years per batch and
 save annual progress for retries. CHIRTS-ERA5's independent CHC backup remains
 under [validation](analysis/issues/issue_179_chc_backup_investigation.md).

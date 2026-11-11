@@ -168,7 +168,7 @@ def fetch_data(
         Required only for ``'nex_gddp'``: a GCM name (e.g. ``'GFDL-ESM4'``,
         ``'ACCESS-CM2'``) and an SSP scenario (e.g. ``'ssp245'``,
         ``'ssp585'``).
-    stage : {'raw', 'transformed', 'preprocessed'}
+    stage : {'preprocessed', 'transformed', 'raw'}
         How far through the pipeline to run: ``'raw'`` downloads only,
         ``'transformed'`` also standardises column names/units, and
         ``'preprocessed'`` (default) additionally applies cleaning/QC.
