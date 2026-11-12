@@ -91,7 +91,7 @@ per season. Check `error` if no season starts in range or data coverage is incom
 |--------|---------|
 | Precipitation | Seasonal rainfall |
 | TAVG | Average temperature |
-| NDD | Normalized degree days |
+| NDD | Number of dry days (precipitation < 1 mm) |
 | NTx35 | Days with Tmax ≥ 35 °C |
 | NTx40 | Days with Tmax ≥ 40 °C |
 | NDWS | Water-stress days |

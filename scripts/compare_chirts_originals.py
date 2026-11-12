@@ -9,7 +9,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
-import rasterio
 
 from climate_toolkit import fetch_climate_data
 
@@ -19,6 +18,8 @@ ARCHIVE = "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5"
 
 
 def compare_day(day, directory, cache):
+    import rasterio
+
     frame = fetch_climate_data(
         sites=SITES,
         source="chirts_era5",
