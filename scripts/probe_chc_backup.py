@@ -24,7 +24,7 @@ import requests
 class RangeReader(io.RawIOBase):
     """Read-only HTTP ranges with identity checks and a small metadata cache."""
 
-    def __init__(self, url, max_bytes, seconds):
+    def __init__(self, url, max_bytes, seconds, min_request_interval=0):
         super().__init__()
         self.url = url
         self.max_bytes = max_bytes
@@ -34,10 +34,22 @@ class RangeReader(io.RawIOBase):
         self.etag = None
         self.bytes = 0
         self.requests = 0
+        self.min_request_interval = min_request_interval
+        self.last_request = None
+        self.last_status = None
+        self.retry_after = None
         self.cache = {}
         self.session = requests.Session()
 
     def fetch(self, start, end):
+        if self.last_status == 429:
+            raise RuntimeError("CHC rate limited this read")
+        if self.last_request is not None and self.min_request_interval:
+            wait = self.last_request + self.min_request_interval - time.monotonic()
+            if wait > 0:
+                if time.monotonic() + wait >= self.deadline:
+                    raise TimeoutError("Probe elapsed-time budget exhausted")
+                time.sleep(wait)
         remaining = self.deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError("Probe elapsed-time budget exhausted")
@@ -47,9 +59,12 @@ class RangeReader(io.RawIOBase):
         if self.etag:
             headers["If-Match"] = self.etag
         self.requests += 1
+        self.last_request = time.monotonic()
         with self.session.get(
             self.url, headers=headers, timeout=min(20, remaining), stream=True
         ) as response:
+            self.last_status = response.status_code
+            self.retry_after = response.headers.get("Retry-After")
             response.raise_for_status()
             # Validate before consuming any body: a server ignoring Range must
             # never trigger an accidental multi-gigabyte download.
