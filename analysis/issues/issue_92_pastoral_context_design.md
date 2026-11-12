@@ -50,6 +50,8 @@ Acceptance for this first implementation: run the report for one fixed grazing w
 
 ## Which forage question can each dataset answer?
 
+The [forage dataset comparison](issue_92_forage_dataset_comparison.md) lists resolution, record length, frequency, quality controls and access by product. It also specifies how to report seasonal anomalies and historical trends.
+
 **Productivity** is growth over an interval. **Standing biomass** is dry matter present on a date, including dry grass that may remain after green-up ends. **Available forage** is the edible portion a particular herd can reach and use after grazing, trampling and other losses. **Quality** concerns the nutrients and digestibility of that forage. These quantities need different observations, even within the same grazing area.
 
 | Decision | Dataset to explore | How to use and validate it |
