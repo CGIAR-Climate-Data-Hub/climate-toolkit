@@ -50,6 +50,8 @@ def fake_provider(monkeypatch):
             else cloud.CAPABILITIES[source]
         )
         for canonical, native in names.items():
+            if native == state.get("missing_variable"):
+                continue
             value = (
                 12
                 if canonical == "min_temperature"
@@ -112,6 +114,66 @@ def test_explicit_backend_never_switches(tmp_path, fake_provider):
     with pytest.raises(cloud.BackendUnavailable, match="All eligible"):
         run(tmp_path, backend="dynamical")
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize("phase", ["open", "load"])
+@pytest.mark.parametrize(
+    "backend, allow_gee", [("huggingface", True), ("auto", False), ("auto", True)]
+)
+def test_http_response_error_respects_fallback_policy(
+    tmp_path, monkeypatch, phase, backend, allow_gee
+):
+    pytest.importorskip("zarr")
+    aiohttp = pytest.importorskip("aiohttp")
+    dates = pd.date_range("2020-01-01", periods=3)
+    error = aiohttp.ClientResponseError(
+        Mock(real_url="https://example.test/chunk?signature=private"), (), status=503
+    )
+
+    def metadata(url):
+        if url == cloud.STAC_URL:
+            raise cloud.BackendUnavailable("Dynamical offline")
+        return {"sha": "example"}
+
+    ds = xr.Dataset(
+        {"precip": (("time", "lat", "lon"), np.ones((3, 2, 2)))},
+        coords={"time": dates, "lat": [-1.275, -1.225], "lon": [36.825, 36.875]},
+        attrs={"source": "CHIRPS v3.0 daily final RNL"},
+    )
+    monkeypatch.setattr(cloud, "_json_get", metadata)
+    monkeypatch.setattr(
+        xr, "open_zarr", Mock(side_effect=error if phase == "open" else None, return_value=ds)
+    )
+    monkeypatch.setattr(cloud, "_extract", Mock(side_effect=error))
+    gee = Mock(return_value=pd.DataFrame({"date": dates, "precipitation": [1.0] * 3}))
+    kwargs = dict(
+        source="chirps_v3_daily_rnl",
+        backend=backend,
+        allow_gee=allow_gee,
+        gee_fetch=gee,
+        location_coord=(-1.286, 36.817),
+        date_from=dates[0],
+        date_to=dates[-1],
+        cache_dir=tmp_path,
+        verbose=False,
+    )
+    if backend == "auto" and allow_gee:
+        frame = cloud.fetch_direct(**kwargs)
+        attempts = frame.attrs["backend_attempts"]
+        assert [attempt["backend"] for attempt in attempts] == ["dynamical", "huggingface", "gee"]
+        assert attempts[-1]["status"] == "success"
+        reason = attempts[1]["reason"]
+        gee.assert_called_once_with()
+    else:
+        with pytest.raises(
+            cloud.BackendUnavailable, match="All eligible backends failed"
+        ) as caught:
+            cloud.fetch_direct(**kwargs)
+        reason = str(caught.value)
+        assert ("dynamical:" in reason) == (backend == "auto")
+        gee.assert_not_called()
+    assert "ClientResponseError (HTTP 503)" in reason
+    assert "signature" not in reason
 
 
 def test_warm_cache_offline_and_refresh(tmp_path, fake_provider, monkeypatch):
@@ -420,6 +482,36 @@ def test_grid_tie_is_independent_of_latitude_order(tmp_path, fake_provider):
     assert ascending.Tmax.tolist() == [20]
     pd.testing.assert_frame_equal(ascending, descending)
     assert ainfo["selected_cells"] == dinfo["selected_cells"]
+
+
+@pytest.mark.parametrize("lat", [-60, 70])
+@pytest.mark.parametrize("lon", [-180, 180])
+def test_chirts_domain_corner_selects_outermost_cell(fake_provider, lat, lon):
+    with cloud.open_provider("chirts_era5", "huggingface") as (ds, names, _):
+        # The nearest centre is half a grid cell inside each outer boundary.
+        latitudes = [lat + d if lat < 0 else lat - d for d in (0.025, 0.075)]
+        longitudes = [lon + d if lon < 0 else lon - d for d in (0.025, 0.075)]
+        ds = ds.assign_coords(latitude=latitudes, longitude=longitudes)
+        kwargs = dict(
+            names=names,
+            source="chirts_era5",
+            sites=[cloud.Site("corner", lat, lon)],
+            variables=["min_temperature", "max_temperature"],
+            start=date(2020, 2, 29),
+            end=date(2020, 2, 29),
+            workers=1,
+        )
+        frame, info = cloud._extract(ds, **kwargs)
+        assert len(frame) == 1
+        cell = info["selected_cells"][0]
+        assert cell["lat"] == pytest.approx(latitudes[0])
+        assert cell["lon"] == pytest.approx(longitudes[0])
+
+
+def test_chirts_rejects_missing_native_temperature(tmp_path, fake_provider):
+    fake_provider[1]["missing_variable"] = "Tmin"
+    with pytest.raises(cloud.BackendUnavailable, match="missing requested variables"):
+        run(tmp_path, source="chirts_era5", backend="huggingface")
 
 
 def test_unconfigured_gee_fallback_preserves_all_attempts(tmp_path, fake_provider):
