@@ -50,6 +50,8 @@ def fake_provider(monkeypatch):
             else cloud.CAPABILITIES[source]
         )
         for canonical, native in names.items():
+            if native == state.get("missing_variable"):
+                continue
             value = (
                 12
                 if canonical == "min_temperature"
@@ -420,6 +422,36 @@ def test_grid_tie_is_independent_of_latitude_order(tmp_path, fake_provider):
     assert ascending.Tmax.tolist() == [20]
     pd.testing.assert_frame_equal(ascending, descending)
     assert ainfo["selected_cells"] == dinfo["selected_cells"]
+
+
+@pytest.mark.parametrize("lat", [-60, 70])
+@pytest.mark.parametrize("lon", [-180, 180])
+def test_chirts_domain_corner_selects_outermost_cell(fake_provider, lat, lon):
+    with cloud.open_provider("chirts_era5", "huggingface") as (ds, names, _):
+        # The nearest centre is half a grid cell inside each outer boundary.
+        latitudes = [lat + d if lat < 0 else lat - d for d in (0.025, 0.075)]
+        longitudes = [lon + d if lon < 0 else lon - d for d in (0.025, 0.075)]
+        ds = ds.assign_coords(latitude=latitudes, longitude=longitudes)
+        kwargs = dict(
+            names=names,
+            source="chirts_era5",
+            sites=[cloud.Site("corner", lat, lon)],
+            variables=["min_temperature", "max_temperature"],
+            start=date(2020, 2, 29),
+            end=date(2020, 2, 29),
+            workers=1,
+        )
+        frame, info = cloud._extract(ds, **kwargs)
+        assert len(frame) == 1
+        cell = info["selected_cells"][0]
+        assert cell["lat"] == pytest.approx(latitudes[0])
+        assert cell["lon"] == pytest.approx(longitudes[0])
+
+
+def test_chirts_rejects_missing_native_temperature(tmp_path, fake_provider):
+    fake_provider[1]["missing_variable"] = "Tmin"
+    with pytest.raises(cloud.BackendUnavailable, match="missing requested variables"):
+        run(tmp_path, source="chirts_era5", backend="huggingface")
 
 
 def test_unconfigured_gee_fallback_preserves_all_attempts(tmp_path, fake_provider):
