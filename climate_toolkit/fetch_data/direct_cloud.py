@@ -82,10 +82,12 @@ def open_provider(source, backend, workers=1):
     except ImportError as exc:
         raise BackendUnavailable("Install climate-toolkit[cloud] for direct cloud access") from exc
     ds = None
+    client_errors = ()
     try:
         if backend == "huggingface":
             import aiohttp
 
+            client_errors = (aiohttp.ClientError,)
             repo = HF_REPOS[source]
             revision = _json_get(f"https://huggingface.co/api/datasets/{repo}")["sha"]
             store = f"https://huggingface.co/datasets/{repo}/resolve/{revision}/{repo.split('/')[-1]}.zarr"
@@ -141,6 +143,12 @@ def open_provider(source, backend, workers=1):
             "cache_schema_version": CACHE_VERSION,
         }
         yield ds, names, provenance
+    except client_errors as exc:
+        # fsspec may propagate aiohttp errors while opening metadata or loading
+        # lazy chunks. Keep signed request URLs out of warnings and provenance.
+        status = getattr(exc, "status", None)
+        reason = f"{type(exc).__name__} (HTTP {status})" if status else type(exc).__name__
+        raise BackendUnavailable(f"Hugging Face transport failed: {reason}") from exc
     finally:
         if ds is not None:
             ds.close()

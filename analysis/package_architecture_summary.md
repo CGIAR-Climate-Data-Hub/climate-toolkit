@@ -349,6 +349,9 @@ support remains Python 3.10+. Providers decode units once and subset before load
 Direct preprocessing skips legacy filling/heuristic conversions. Scientific QC
 failures abort analysis; transport, schema and incomplete-coverage failures may
 try another eligible mirror. All returned years use one provider revision.
+The Hugging Face adapter translates HTTP client errors from store discovery and
+lazy chunk reads into provider failures. Attempt records retain the exception
+type and HTTP status when available.
 
 ## Cache and persistence model
 
