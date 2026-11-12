@@ -1,0 +1,1185 @@
+{
+  "station_validation": {
+    "checked_utc": "2026-11-10T16:35:08.767698+00:00",
+    "toolkit": "0.2.1",
+    "station_index": {
+      "url": "https://www.ncei.noaa.gov/pub/data/ghcn/daily/ghcnd-stations.txt",
+      "sha256": "437ee87f0343bcad408a492cf7a02163fb69255364c541b4006d5d76055d0dc3"
+    },
+    "stations": {
+      "KE000063740": {
+        "station_id": "KE000063740",
+        "lat": -1.317,
+        "lon": 36.917,
+        "elevation_m": 1624.0,
+        "state": null,
+        "station_name": "JOMO KENYATTA INTL",
+        "gsn_flag": "GSN",
+        "hcn_crn_flag": null,
+        "wmo_id": "63740",
+        "url": "https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/KE000063740.dly",
+        "sha256": "edc7e6c6f73ae04e56badbbdd5899feeae685d704df2110efb6ca5300ca693c2"
+      },
+      "UVM00065503": {
+        "station_id": "UVM00065503",
+        "lat": 12.353,
+        "lon": -1.512,
+        "elevation_m": 316.1,
+        "state": null,
+        "station_name": "OUAGADOUGOU",
+        "gsn_flag": null,
+        "hcn_crn_flag": null,
+        "wmo_id": "65503",
+        "url": "https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/UVM00065503.dly",
+        "sha256": "4f2ddf86f67e5cca5eb43c62a29034406ac3756826646e057f6df72e7f1785aa"
+      },
+      "PEM00084686": {
+        "station_id": "PEM00084686",
+        "lat": -13.536,
+        "lon": -71.939,
+        "elevation_m": 3310.1,
+        "state": null,
+        "station_name": "TENIENTE ALEJANDRO VELASCO AS",
+        "gsn_flag": null,
+        "hcn_crn_flag": null,
+        "wmo_id": "84686",
+        "url": "https://www.ncei.noaa.gov/pub/data/ghcn/daily/all/PEM00084686.dly",
+        "sha256": "145e2db214f745cf0ec5985e0e5509f50a7eb3e1bdfe729ebc39c47e37b6e917"
+      }
+    },
+    "windows": [
+      {
+        "start": "1994-01-01",
+        "end": "1995-12-31",
+        "stations": {
+          "KE000063740": {
+            "station_inverted_days": 0,
+            "station_outside_range_values": 0,
+            "variables": {
+              "Tmax": {
+                "days": 730,
+                "paired_days": 616,
+                "missing_station_days": 114,
+                "station_mean": 25.6795,
+                "grid_mean": 27.0519,
+                "bias": 1.3724,
+                "mae": 1.5042,
+                "rmse": 1.7721,
+                "correlation": 0.8799,
+                "days_ge_35c": {
+                  "station": 0,
+                  "grid": 0,
+                  "hits": 0,
+                  "misses": 0,
+                  "false_alarms": 0
+                }
+              },
+              "Tmin": {
+                "days": 730,
+                "paired_days": 558,
+                "missing_station_days": 172,
+                "station_mean": 13.0896,
+                "grid_mean": 17.3708,
+                "bias": 4.2812,
+                "mae": 4.2812,
+                "rmse": 4.5403,
+                "correlation": 0.6954
+              }
+            }
+          },
+          "UVM00065503": {
+            "station_inverted_days": 0,
+            "station_outside_range_values": 0,
+            "variables": {
+              "Tmax": {
+                "days": 730,
+                "paired_days": 593,
+                "missing_station_days": 137,
+                "station_mean": 35.0206,
+                "grid_mean": 34.4194,
+                "bias": -0.6012,
+                "mae": 1.0521,
+                "rmse": 1.2947,
+                "correlation": 0.9409,
+                "days_ge_35c": {
+                  "station": 283,
+                  "grid": 245,
+                  "hits": 235,
+                  "misses": 48,
+                  "false_alarms": 10
+                }
+              },
+              "Tmin": {
+                "days": 730,
+                "paired_days": 562,
+                "missing_station_days": 168,
+                "station_mean": 22.068,
+                "grid_mean": 23.3609,
+                "bias": 1.2929,
+                "mae": 1.4868,
+                "rmse": 1.8618,
+                "correlation": 0.9388
+              }
+            }
+          },
+          "PEM00084686": {
+            "station_inverted_days": 0,
+            "station_outside_range_values": 0,
+            "variables": {
+              "Tmax": {
+                "days": 730,
+                "paired_days": 503,
+                "missing_station_days": 227,
+                "station_mean": 22.2692,
+                "grid_mean": 19.1799,
+                "bias": -3.0893,
+                "mae": 3.1135,
+                "rmse": 3.57,
+                "correlation": 0.4725,
+                "days_ge_35c": {
+                  "station": 0,
+                  "grid": 0,
+                  "hits": 0,
+                  "misses": 0,
+                  "false_alarms": 0
+                }
+              },
+              "Tmin": {
+                "days": 730,
+                "paired_days": 584,
+                "missing_station_days": 146,
+                "station_mean": 5.6185,
+                "grid_mean": 9.3716,
+                "bias": 3.7531,
+                "mae": 3.7805,
+                "rmse": 4.3223,
+                "correlation": 0.6808
+              }
+            }
+          }
+        },
+        "provenance": [
+          {
+            "backend": "huggingface",
+            "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+            "window": [
+              "1994-01-01",
+              "1994-12-31"
+            ],
+            "selected_cells": [
+              {
+                "lat": -1.325,
+                "lon": 36.925,
+                "site": "KE000063740"
+              },
+              {
+                "lat": 12.375,
+                "lon": -1.525,
+                "site": "UVM00065503"
+              },
+              {
+                "lat": -13.525,
+                "lon": -71.925,
+                "site": "PEM00084686"
+              }
+            ],
+            "coverage": [
+              "1981-01-01T00:00:00",
+              "2026-10-21T00:00:00"
+            ]
+          },
+          {
+            "backend": "huggingface",
+            "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+            "window": [
+              "1995-01-01",
+              "1995-12-31"
+            ],
+            "selected_cells": [
+              {
+                "lat": -1.325,
+                "lon": 36.925,
+                "site": "KE000063740"
+              },
+              {
+                "lat": 12.375,
+                "lon": -1.525,
+                "site": "UVM00065503"
+              },
+              {
+                "lat": -13.525,
+                "lon": -71.925,
+                "site": "PEM00084686"
+              }
+            ],
+            "coverage": [
+              "1981-01-01T00:00:00",
+              "2026-10-21T00:00:00"
+            ]
+          }
+        ]
+      },
+      {
+        "start": "2023-01-01",
+        "end": "2024-12-31",
+        "stations": {
+          "KE000063740": {
+            "station_inverted_days": 0,
+            "station_outside_range_values": 0,
+            "variables": {
+              "Tmax": {
+                "days": 731,
+                "paired_days": 242,
+                "missing_station_days": 489,
+                "station_mean": 26.8405,
+                "grid_mean": 28.4521,
+                "bias": 1.6116,
+                "mae": 1.6603,
+                "rmse": 1.8702,
+                "correlation": 0.9088,
+                "days_ge_35c": {
+                  "station": 0,
+                  "grid": 0,
+                  "hits": 0,
+                  "misses": 0,
+                  "false_alarms": 0
+                }
+              },
+              "Tmin": {
+                "days": 731,
+                "paired_days": 287,
+                "missing_station_days": 444,
+                "station_mean": 14.7129,
+                "grid_mean": 17.9272,
+                "bias": 3.2143,
+                "mae": 3.2143,
+                "rmse": 3.415,
+                "correlation": 0.8257
+              }
+            }
+          },
+          "UVM00065503": {
+            "station_inverted_days": 0,
+            "station_outside_range_values": 0,
+            "variables": {
+              "Tmax": {
+                "days": 731,
+                "paired_days": 569,
+                "missing_station_days": 162,
+                "station_mean": 36.2977,
+                "grid_mean": 35.836,
+                "bias": -0.4617,
+                "mae": 0.7622,
+                "rmse": 0.9489,
+                "correlation": 0.972,
+                "days_ge_35c": {
+                  "station": 349,
+                  "grid": 325,
+                  "hits": 319,
+                  "misses": 30,
+                  "false_alarms": 6
+                }
+              },
+              "Tmin": {
+                "days": 731,
+                "paired_days": 342,
+                "missing_station_days": 389,
+                "station_mean": 22.1088,
+                "grid_mean": 23.6649,
+                "bias": 1.5561,
+                "mae": 1.6386,
+                "rmse": 1.977,
+                "correlation": 0.9506
+              }
+            }
+          },
+          "PEM00084686": {
+            "station_inverted_days": 0,
+            "station_outside_range_values": 0,
+            "variables": {
+              "Tmax": {
+                "days": 731,
+                "paired_days": 79,
+                "missing_station_days": 652,
+                "station_mean": 22.2025,
+                "grid_mean": 20.562,
+                "bias": -1.6405,
+                "mae": 1.8101,
+                "rmse": 2.3954,
+                "correlation": 0.5137,
+                "days_ge_35c": {
+                  "station": 0,
+                  "grid": 0,
+                  "hits": 0,
+                  "misses": 0,
+                  "false_alarms": 0
+                }
+              },
+              "Tmin": {
+                "days": 731,
+                "paired_days": 572,
+                "missing_station_days": 159,
+                "station_mean": 5.9058,
+                "grid_mean": 9.2542,
+                "bias": 3.3484,
+                "mae": 3.374,
+                "rmse": 3.8361,
+                "correlation": 0.8457
+              }
+            }
+          }
+        },
+        "provenance": [
+          {
+            "backend": "huggingface",
+            "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+            "window": [
+              "2023-01-01",
+              "2023-12-31"
+            ],
+            "selected_cells": [
+              {
+                "lat": -1.325,
+                "lon": 36.925,
+                "site": "KE000063740"
+              },
+              {
+                "lat": 12.375,
+                "lon": -1.525,
+                "site": "UVM00065503"
+              },
+              {
+                "lat": -13.525,
+                "lon": -71.925,
+                "site": "PEM00084686"
+              }
+            ],
+            "coverage": [
+              "1981-01-01T00:00:00",
+              "2026-10-21T00:00:00"
+            ]
+          },
+          {
+            "backend": "huggingface",
+            "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+            "window": [
+              "2024-01-01",
+              "2024-12-31"
+            ],
+            "selected_cells": [
+              {
+                "lat": -1.325,
+                "lon": 36.925,
+                "site": "KE000063740"
+              },
+              {
+                "lat": 12.375,
+                "lon": -1.525,
+                "site": "UVM00065503"
+              },
+              {
+                "lat": -13.525,
+                "lon": -71.925,
+                "site": "PEM00084686"
+              }
+            ],
+            "coverage": [
+              "1981-01-01T00:00:00",
+              "2026-10-21T00:00:00"
+            ]
+          }
+        ]
+      }
+    ],
+    "daily_csv_sha256": "de50547aaa1dd86856022ee0996dee7b0cdeb989e2d5271f7f26d85eec836620"
+  },
+  "transport_matrix": {
+    "measured_utc": "2026-11-10T13:37:03.519115+00:00",
+    "python": "3.12.10",
+    "versions": {
+      "climate-toolkit": "0.2.1",
+      "aiohttp": "3.14.5",
+      "icechunk": "2.3.1",
+      "zarr": "3.4.2",
+      "fsspec": "2026.9.0",
+      "xarray": "2026.9.0"
+    },
+    "deadline_seconds": 60,
+    "workers": 2,
+    "decoded_budget_bytes": 4294967296,
+    "results": [
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          1,
+          "clustered",
+          1
+        ],
+        "source": "chirts_era5",
+        "backend": "huggingface",
+        "sites": 1,
+        "layout": "clustered",
+        "years": 1,
+        "cold_seconds": 14.428,
+        "warm_seconds": 0.013,
+        "rows": 366,
+        "qc": {
+          "invalid_or_missing": {
+            "Tmax": 0,
+            "Tmin": 0
+          },
+          "tmin_gt_tmax": 0,
+          "flagged_rows": 0
+        },
+        "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+        "estimated_source_chunk_bytes": 184320000,
+        "cache_equal": true,
+        "status": "ok",
+        "peak_rss_bytes": 582893568,
+        "sampled_peak_rss_bytes": 582729728,
+        "wall_seconds": 16.281,
+        "http": {
+          "cold": {
+            "requests": 34,
+            "body_bytes": 64282092,
+            "logical_requests": 34,
+            "statuses": {
+              "200": 16,
+              "404": 3,
+              "307": 7,
+              "302": 8
+            }
+          },
+          "warm": {
+            "requests": 0,
+            "body_bytes": 0,
+            "statuses": {}
+          }
+        }
+      },
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          10,
+          "clustered",
+          1
+        ],
+        "source": "chirts_era5",
+        "backend": "huggingface",
+        "sites": 10,
+        "layout": "clustered",
+        "years": 1,
+        "cold_seconds": 10.606,
+        "warm_seconds": 0.02,
+        "rows": 3660,
+        "qc": {
+          "invalid_or_missing": {
+            "Tmax": 0,
+            "Tmin": 0
+          },
+          "tmin_gt_tmax": 0,
+          "flagged_rows": 0
+        },
+        "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+        "estimated_source_chunk_bytes": 184320000,
+        "cache_equal": true,
+        "status": "ok",
+        "peak_rss_bytes": 576651264,
+        "sampled_peak_rss_bytes": 575340544,
+        "wall_seconds": 11.484,
+        "http": {
+          "cold": {
+            "requests": 34,
+            "body_bytes": 64282247,
+            "logical_requests": 34,
+            "statuses": {
+              "200": 16,
+              "307": 7,
+              "404": 3,
+              "302": 8
+            }
+          },
+          "warm": {
+            "requests": 0,
+            "body_bytes": 0,
+            "statuses": {}
+          }
+        }
+      },
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          10,
+          "dispersed",
+          1
+        ],
+        "source": "chirts_era5",
+        "backend": "huggingface",
+        "sites": 10,
+        "layout": "dispersed",
+        "years": 1,
+        "cold_seconds": 23.856,
+        "warm_seconds": 0.02,
+        "rows": 3660,
+        "qc": {
+          "invalid_or_missing": {
+            "Tmax": 0,
+            "Tmin": 0
+          },
+          "tmin_gt_tmax": 0,
+          "flagged_rows": 0
+        },
+        "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+        "estimated_source_chunk_bytes": 552960000,
+        "cache_equal": true,
+        "status": "ok",
+        "peak_rss_bytes": 647217152,
+        "sampled_peak_rss_bytes": 647151616,
+        "wall_seconds": 25.113,
+        "http": {
+          "cold": {
+            "requests": 66,
+            "body_bytes": 153610080,
+            "logical_requests": 66,
+            "statuses": {
+              "200": 32,
+              "307": 7,
+              "404": 3,
+              "302": 24
+            }
+          },
+          "warm": {
+            "requests": 0,
+            "body_bytes": 0,
+            "statuses": {}
+          }
+        }
+      },
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          100,
+          "clustered",
+          1
+        ],
+        "source": "chirts_era5",
+        "backend": "huggingface",
+        "sites": 100,
+        "layout": "clustered",
+        "years": 1,
+        "cold_seconds": 9.176,
+        "warm_seconds": 0.114,
+        "rows": 36600,
+        "qc": {
+          "invalid_or_missing": {
+            "Tmax": 0,
+            "Tmin": 0
+          },
+          "tmin_gt_tmax": 0,
+          "flagged_rows": 0
+        },
+        "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+        "estimated_source_chunk_bytes": 184320000,
+        "cache_equal": true,
+        "status": "ok",
+        "peak_rss_bytes": 595804160,
+        "sampled_peak_rss_bytes": 595542016,
+        "wall_seconds": 10.251,
+        "http": {
+          "cold": {
+            "requests": 34,
+            "body_bytes": 64282222,
+            "logical_requests": 34,
+            "statuses": {
+              "200": 16,
+              "404": 3,
+              "307": 7,
+              "302": 8
+            }
+          },
+          "warm": {
+            "requests": 0,
+            "body_bytes": 0,
+            "statuses": {}
+          }
+        }
+      },
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          100,
+          "dispersed",
+          1
+        ],
+        "source": "chirts_era5",
+        "backend": "huggingface",
+        "sites": 100,
+        "layout": "dispersed",
+        "years": 1,
+        "cold_seconds": 24.33,
+        "warm_seconds": 0.126,
+        "rows": 36600,
+        "qc": {
+          "invalid_or_missing": {
+            "Tmax": 0,
+            "Tmin": 0
+          },
+          "tmin_gt_tmax": 0,
+          "flagged_rows": 0
+        },
+        "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+        "estimated_source_chunk_bytes": 737280000,
+        "cache_equal": true,
+        "status": "ok",
+        "peak_rss_bytes": 666255360,
+        "sampled_peak_rss_bytes": 665927680,
+        "wall_seconds": 25.338,
+        "http": {
+          "cold": {
+            "requests": 82,
+            "body_bytes": 193152439,
+            "logical_requests": 82,
+            "statuses": {
+              "200": 40,
+              "307": 7,
+              "404": 3,
+              "302": 32
+            }
+          },
+          "warm": {
+            "requests": 0,
+            "body_bytes": 0,
+            "statuses": {}
+          }
+        }
+      },
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          1,
+          "clustered",
+          30
+        ],
+        "status": "deadline_exceeded",
+        "sampled_peak_rss_bytes": 1014513664,
+        "wall_seconds": 60.195,
+        "http": {
+          "cold": {
+            "requests": 134,
+            "body_bytes": 449027694,
+            "logical_requests": 134,
+            "statuses": {
+              "200": 65,
+              "307": 7,
+              "404": 3,
+              "302": 58
+            }
+          },
+          "warm": null
+        }
+      },
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          10,
+          "clustered",
+          30
+        ],
+        "status": "deadline_exceeded",
+        "sampled_peak_rss_bytes": 1008091136,
+        "wall_seconds": 60.096,
+        "http": {
+          "cold": {
+            "requests": 180,
+            "body_bytes": 633401603,
+            "logical_requests": 180,
+            "statuses": {
+              "200": 87,
+              "307": 7,
+              "404": 3,
+              "302": 81
+            }
+          },
+          "warm": null
+        }
+      },
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          10,
+          "dispersed",
+          30
+        ],
+        "source": "chirts_era5",
+        "backend": "huggingface",
+        "sites": 10,
+        "layout": "dispersed",
+        "years": 30,
+        "status": "failed",
+        "error": "BackendUnavailable: All eligible backends failed for chirts_era5: huggingface: BackendUnavailable: Estimated chunk read work 11.20 GiB exceeds 4.00 GiB budget; use another backend, fewer dispersed sites, or explicitly raise CLIMATE_TOOLKIT_MAX_DECODED_BYTES",
+        "cold_seconds": 8.611,
+        "peak_rss_bytes": 202194944,
+        "sampled_peak_rss_bytes": 201818112,
+        "wall_seconds": 9.473,
+        "http": {
+          "cold": {
+            "requests": 18,
+            "body_bytes": 256507,
+            "logical_requests": 18,
+            "statuses": {
+              "200": 8,
+              "404": 3,
+              "307": 7
+            }
+          },
+          "warm": null
+        }
+      },
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          100,
+          "clustered",
+          30
+        ],
+        "status": "deadline_exceeded",
+        "sampled_peak_rss_bytes": 1029636096,
+        "wall_seconds": 60.068,
+        "http": {
+          "cold": {
+            "requests": 202,
+            "body_bytes": 736251682,
+            "logical_requests": 202,
+            "statuses": {
+              "200": 100,
+              "307": 7,
+              "404": 3,
+              "302": 92
+            }
+          },
+          "warm": null
+        }
+      },
+      {
+        "case": [
+          "chirts_era5",
+          "huggingface",
+          100,
+          "dispersed",
+          30
+        ],
+        "source": "chirts_era5",
+        "backend": "huggingface",
+        "sites": 100,
+        "layout": "dispersed",
+        "years": 30,
+        "status": "failed",
+        "error": "BackendUnavailable: All eligible backends failed for chirts_era5: huggingface: BackendUnavailable: Estimated chunk read work 14.93 GiB exceeds 4.00 GiB budget; use another backend, fewer dispersed sites, or explicitly raise CLIMATE_TOOLKIT_MAX_DECODED_BYTES",
+        "cold_seconds": 2.976,
+        "peak_rss_bytes": 201097216,
+        "sampled_peak_rss_bytes": 197165056,
+        "wall_seconds": 3.827,
+        "http": {
+          "cold": {
+            "requests": 18,
+            "body_bytes": 256689,
+            "logical_requests": 18,
+            "statuses": {
+              "200": 8,
+              "307": 7,
+              "404": 3
+            }
+          },
+          "warm": null
+        }
+      }
+    ]
+  },
+  "extended_30_year_runs": [
+    {
+      "measured_utc": "2026-11-10T13:41:45.776221+00:00",
+      "python": "3.12.10",
+      "versions": {
+        "climate-toolkit": "0.2.1",
+        "aiohttp": "3.14.5",
+        "icechunk": "2.3.1",
+        "zarr": "3.4.2",
+        "fsspec": "2026.9.0",
+        "xarray": "2026.9.0"
+      },
+      "deadline_seconds": 240,
+      "workers": 2,
+      "decoded_budget_bytes": 4294967296,
+      "results": [
+        {
+          "case": [
+            "chirts_era5",
+            "huggingface",
+            1,
+            "clustered",
+            30
+          ],
+          "source": "chirts_era5",
+          "backend": "huggingface",
+          "sites": 1,
+          "layout": "clustered",
+          "years": 30,
+          "cold_seconds": 136.825,
+          "warm_seconds": 0.07,
+          "rows": 10958,
+          "qc": {
+            "invalid_or_missing": {
+              "Tmax": 0,
+              "Tmin": 0
+            },
+            "tmin_gt_tmax": 0,
+            "flagged_rows": 0
+          },
+          "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+          "estimated_source_chunk_bytes": 4008960000,
+          "cache_equal": true,
+          "status": "ok",
+          "peak_rss_bytes": 1117765632,
+          "sampled_peak_rss_bytes": 1117732864,
+          "wall_seconds": 137.691,
+          "http": {
+            "cold": {
+              "requests": 386,
+              "body_bytes": 1472949758,
+              "logical_requests": 386,
+              "statuses": {
+                "200": 192,
+                "307": 7,
+                "404": 3,
+                "302": 184
+              }
+            },
+            "warm": {
+              "requests": 0,
+              "body_bytes": 0,
+              "statuses": {}
+            }
+          }
+        }
+      ]
+    },
+    {
+      "measured_utc": "2026-11-10T13:45:34.361252+00:00",
+      "python": "3.12.10",
+      "versions": {
+        "climate-toolkit": "0.2.1",
+        "aiohttp": "3.14.5",
+        "icechunk": "2.3.1",
+        "zarr": "3.4.2",
+        "fsspec": "2026.9.0",
+        "xarray": "2026.9.0"
+      },
+      "deadline_seconds": 240,
+      "workers": 2,
+      "decoded_budget_bytes": 4294967296,
+      "results": [
+        {
+          "case": [
+            "chirts_era5",
+            "huggingface",
+            10,
+            "clustered",
+            30
+          ],
+          "source": "chirts_era5",
+          "backend": "huggingface",
+          "sites": 10,
+          "layout": "clustered",
+          "years": 30,
+          "status": "failed",
+          "error": "ClientResponseError: 500, message='Internal Server Error', url='http://127.0.0.1:59584/https/huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/35669afbbd1c6ab84dcc496f2f95b7cbbf75867f/chirts-era5-daily.zarr/Tmin/c/56/4/14'",
+          "cold_seconds": 60.161,
+          "peak_rss_bytes": 959152128,
+          "sampled_peak_rss_bytes": 959152128,
+          "wall_seconds": 63.158,
+          "http": {
+            "cold": {
+              "requests": 130,
+              "body_bytes": 435811217,
+              "logical_requests": 129,
+              "statuses": {
+                "200": 63,
+                "307": 7,
+                "404": 3,
+                "302": 55
+              }
+            },
+            "warm": null
+          }
+        }
+      ]
+    },
+    {
+      "measured_utc": "2026-11-10T13:56:22.992044+00:00",
+      "python": "3.12.10",
+      "versions": {
+        "climate-toolkit": "0.2.1",
+        "aiohttp": "3.14.5",
+        "icechunk": "2.3.1",
+        "zarr": "3.4.2",
+        "fsspec": "2026.9.0",
+        "xarray": "2026.9.0"
+      },
+      "deadline_seconds": 240,
+      "workers": 2,
+      "decoded_budget_bytes": 4294967296,
+      "results": [
+        {
+          "case": [
+            "chirts_era5",
+            "huggingface",
+            100,
+            "clustered",
+            30
+          ],
+          "source": "chirts_era5",
+          "backend": "huggingface",
+          "sites": 100,
+          "layout": "clustered",
+          "years": 30,
+          "status": "failed",
+          "error": "BackendUnavailable: All eligible backends failed for chirts_era5: huggingface: TimeoutError: ",
+          "cold_seconds": 82.208,
+          "peak_rss_bytes": 229146624,
+          "sampled_peak_rss_bytes": 229113856,
+          "wall_seconds": 83.941,
+          "http": {
+            "cold": {
+              "requests": 22,
+              "body_bytes": 616218,
+              "logical_requests": 22,
+              "statuses": {
+                "200": 10,
+                "307": 7,
+                "404": 3,
+                "302": 2
+              }
+            },
+            "warm": null
+          }
+        }
+      ]
+    },
+    {
+      "measured_utc": "2026-11-10T15:47:55.433188+00:00",
+      "python": "3.12.10",
+      "versions": {
+        "climate-toolkit": "0.2.1",
+        "aiohttp": "3.14.5",
+        "icechunk": "2.3.1",
+        "zarr": "3.4.2",
+        "fsspec": "2026.9.0",
+        "xarray": "2026.9.0"
+      },
+      "deadline_seconds": 240,
+      "workers": 2,
+      "decoded_budget_bytes": 4294967296,
+      "results": [
+        {
+          "case": [
+            "chirts_era5",
+            "huggingface",
+            10,
+            "clustered",
+            30
+          ],
+          "source": "chirts_era5",
+          "backend": "huggingface",
+          "sites": 10,
+          "layout": "clustered",
+          "years": 30,
+          "status": "failed",
+          "error": "BackendUnavailable: All eligible backends failed for chirts_era5: huggingface: TimeoutError: ",
+          "cold_seconds": 57.131,
+          "peak_rss_bytes": 510787584,
+          "sampled_peak_rss_bytes": 510771200,
+          "wall_seconds": 60.501,
+          "http": {
+            "cold": {
+              "requests": 26,
+              "body_bytes": 18384592,
+              "logical_requests": 26,
+              "statuses": {
+                "200": 12,
+                "307": 7,
+                "404": 3,
+                "302": 4
+              }
+            },
+            "warm": null
+          }
+        }
+      ]
+    },
+    {
+      "measured_utc": "2026-11-10T15:59:16.015889+00:00",
+      "python": "3.12.10",
+      "versions": {
+        "climate-toolkit": "0.2.1",
+        "aiohttp": "3.14.5",
+        "icechunk": "2.3.1",
+        "zarr": "3.4.2",
+        "fsspec": "2026.9.0",
+        "xarray": "2026.9.0"
+      },
+      "deadline_seconds": 240,
+      "workers": 2,
+      "decoded_budget_bytes": 4294967296,
+      "results": [
+        {
+          "case": [
+            "chirts_era5",
+            "huggingface",
+            100,
+            "clustered",
+            30
+          ],
+          "source": "chirts_era5",
+          "backend": "huggingface",
+          "sites": 100,
+          "layout": "clustered",
+          "years": 30,
+          "status": "failed",
+          "error": "BackendUnavailable: All eligible backends failed for chirts_era5: huggingface: HTTPError: 500 Server Error: Internal Server Error for url: http://127.0.0.1:64924/https/huggingface.co/api/datasets/aaguilar90/chirts-era5-daily",
+          "cold_seconds": 1.099,
+          "peak_rss_bytes": 164511744,
+          "sampled_peak_rss_bytes": 164200448,
+          "wall_seconds": 2.228,
+          "http": {
+            "cold": {
+              "requests": 0,
+              "body_bytes": 0,
+              "logical_requests": 2,
+              "statuses": {}
+            },
+            "warm": null
+          }
+        }
+      ]
+    },
+    {
+      "measured_utc": "2026-11-10T16:33:20.426777+00:00",
+      "python": "3.12.10",
+      "versions": {
+        "climate-toolkit": "0.2.1",
+        "aiohttp": "3.14.5",
+        "icechunk": "2.3.1",
+        "zarr": "3.4.2",
+        "fsspec": "2026.9.0",
+        "xarray": "2026.9.0"
+      },
+      "deadline_seconds": 240,
+      "workers": 2,
+      "decoded_budget_bytes": 4294967296,
+      "results": [
+        {
+          "case": [
+            "chirts_era5",
+            "huggingface",
+            10,
+            "clustered",
+            30
+          ],
+          "source": "chirts_era5",
+          "backend": "huggingface",
+          "sites": 10,
+          "layout": "clustered",
+          "years": 30,
+          "cold_seconds": 236.336,
+          "warm_seconds": 0.449,
+          "rows": 109580,
+          "qc": {
+            "invalid_or_missing": {
+              "Tmax": 0,
+              "Tmin": 0
+            },
+            "tmin_gt_tmax": 0,
+            "flagged_rows": 0
+          },
+          "revision": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+          "estimated_source_chunk_bytes": 4008960000,
+          "cache_equal": true,
+          "status": "ok",
+          "peak_rss_bytes": 1026129920,
+          "sampled_peak_rss_bytes": 1026129920,
+          "wall_seconds": 238.399,
+          "http": {
+            "cold": {
+              "requests": 386,
+              "body_bytes": 1472949817,
+              "logical_requests": 386,
+              "statuses": {
+                "200": 192,
+                "404": 3,
+                "307": 7,
+                "302": 184
+              }
+            },
+            "warm": {
+              "requests": 0,
+              "body_bytes": 0,
+              "statuses": {}
+            }
+          }
+        }
+      ]
+    },
+    {
+      "measured_utc": "2026-11-10T16:37:19.117666+00:00",
+      "python": "3.12.10",
+      "versions": {
+        "climate-toolkit": "0.2.1",
+        "aiohttp": "3.14.5",
+        "icechunk": "2.3.1",
+        "zarr": "3.4.2",
+        "fsspec": "2026.9.0",
+        "xarray": "2026.9.0"
+      },
+      "deadline_seconds": 240,
+      "workers": 2,
+      "decoded_budget_bytes": 4294967296,
+      "results": [
+        {
+          "case": [
+            "chirts_era5",
+            "huggingface",
+            100,
+            "clustered",
+            30
+          ],
+          "status": "deadline_exceeded",
+          "sampled_peak_rss_bytes": 1120583680,
+          "wall_seconds": 240.161,
+          "http": {
+            "cold": {
+              "requests": 340,
+              "body_bytes": 1273287948,
+              "logical_requests": 340,
+              "statuses": {
+                "200": 169,
+                "307": 7,
+                "404": 3,
+                "302": 161
+              }
+            },
+            "warm": null
+          }
+        }
+      ]
+    }
+  ]
+}

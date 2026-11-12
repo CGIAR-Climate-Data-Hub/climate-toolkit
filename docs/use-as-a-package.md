@@ -24,7 +24,7 @@ install or setup on your machine.
 5. [Credentials by data source](#5-credentials-by-data-source)
 6. [Quick start (no credentials)](#6-quick-start-no-credentials)
 7. [Earth Engine setup](#7-earth-engine-setup)
-8. [The public API — all seven functions](#8-the-public-api-all-seven-functions)
+8. [Seven analysis functions](#8-seven-analysis-functions)
 9. [Data sources reference](#9-data-sources-reference)
 10. [Variables reference](#10-variables-reference)
 11. [Caching and outputs](#11-caching-and-outputs)
@@ -44,7 +44,7 @@ install or setup on your machine.
     troubleshooting.
 
 `climate_toolkit` is a location-based climate analysis library. From a single
-`import climate_toolkit as ct` you get **seven public functions**:
+`import climate_toolkit as ct` you can call these seven analysis functions. The [API overview](api/index.md) also lists `run_pipeline` and `backend_policy`.
 
 | Function | What it does |
 |----------|--------------|
@@ -107,9 +107,7 @@ Confirm the public surface:
 ```python
 import climate_toolkit as ct
 print([n for n in ct.__all__ if not n.startswith("__")])
-# ['analyze_climate_statistics', 'compare_climate_periods',
-#  'compare_climate_sources', 'compare_station_to_grids',
-#  'download_station_data', 'evaluate_hazards', 'fetch_climate_data']
+# Includes the analysis functions, backend_policy and run_pipeline.
 ```
 
 ---
@@ -208,7 +206,9 @@ proj = ct.fetch_climate_data(
 
 ---
 
-## 8. The public API — all seven functions
+<a id="8-the-public-api-all-seven-functions"></a>
+
+## 8. Seven analysis functions
 
 Every function has a full NumPy-style docstring: `help(ct.<function>)`.
 
@@ -370,7 +370,7 @@ Both `outputs/` and `.tmp/` are git-ignored.
 `run_pipeline` chains fetch → long-term climatology → (optional source
 comparison) → seasonal statistics → crop hazards → (optional period comparison)
 for one site or many, returning a headline `summary` table plus every
-intermediate result. One failing site never aborts a batch.
+intermediate result. By default, one failing site does not abort the batch.
 
 ```python
 import climate_toolkit as ct
@@ -447,7 +447,7 @@ ct.compare_station_to_grids(
 
 ## 13. Using it in Jupyter / your own project
 
-Once installed into your environment (Track B), it's a normal import:
+Once installed into your environment (for example, in Jupyter), it's a normal import:
 
 ```python
 import climate_toolkit as ct
@@ -460,7 +460,7 @@ df = ct.fetch_climate_data(
     variables=[ClimateVariable.precipitation],
     date_from=date(2022, 1, 1), date_to=date(2022, 3, 31),
 )
-df.set_index("date")["precipitation"].plot()   # returns a normal DataFrame
+df.set_index("date")["precipitation"].plot()   # plot the daily precipitation series
 ```
 
 The import is lightweight (heavy deps load lazily), so notebooks start fast.

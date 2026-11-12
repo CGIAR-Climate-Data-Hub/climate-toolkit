@@ -88,6 +88,20 @@ temperature, including days exactly at 35 °C (NTx35) or 40 °C (NTx40).
 For example, an original Tmax of 34.96 °C rounds to 35.0 °C and counts
 toward NTx35 in the mirror. Seasonal means also use the decoded values.
 
+Check local station bias before using absolute temperature thresholds.
+Across 1994–95 and 2023–24, CHIRTS-ERA5 daily minima averaged 3.2–4.3 °C
+warmer than the Nairobi station and 3.3–3.8 °C warmer than the Cusco station
+on matched dates. At Ouagadougou in 2023–24, the grid missed 30 of the
+station's 349 days at or above 35 °C and added six. Station coverage varies
+by site and variable.
+
+Budget for bandwidth on long requests. Thirty years of daily Tmax and Tmin
+at Nairobi took 137 seconds and 1.47 GB on a cold read. The cached repeat
+took 0.07 seconds with zero network requests. The same window across 10 or
+100 dispersed sites exceeded the default 4 GiB decoded-work limit. Group
+nearby sites or request shorter windows for dispersed studies. See the
+[station comparisons and transport measurements](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_176_178_direct_cloud_access.md#chirts-era5-station-comparison-and-transport-benchmark-2026-11-10).
+
 ## Paired workflows and GEE controls
 
 ```python
@@ -221,6 +235,10 @@ failures need further work before they qualify as efficient automatic backups.
 The 2026-11-02 probe found a rejected current-year Tmax NetCDF and a Tmin file
 ending in September; the EWX catalogue exposed only pentadal/monthly aggregates.
 Historical NetCDF point reads also exceeded the short-query performance target.
+The November 10 check also found same-cell daily Tmin differences of 0.20–2.18 °C
+between the October 21 CHC original and the pinned Hugging Face mirror. These
+exceed the mirror's 0.05 °C packing tolerance. Revision equivalence must be
+established before the original can serve as an automatic fallback.
 Reproduce bounded range probes with `scripts/probe_chc_backup.py` (requires the
 investigation-only `h5py` dependency). See the
 [backup investigation](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_179_chc_backup_investigation.md).

@@ -85,7 +85,7 @@ con los pasos de análisis incorporados.
     ---
 
     Un año difícil frente a la normal de largo plazo, un conjunto de datos
-    frente a otro, o un producto satelital frente a una estación
+    frente a otro, o un producto de datos en malla frente a una estación
     meteorológica real.
 
 </div>
@@ -205,3 +205,5 @@ Este trabajo contó con el apoyo del
 a través de su **Área de Trabajo 1 (AoW1): el Climate Data Hub (CDH)**.
 Agradecemos al Fondo Fiduciario del CGIAR y a sus
 [contribuyentes](https://www.cgiar.org/funders/).
+
+<!-- source-sha256: 453039a7d34c45a1b23ec16836fdf054c43a7c2cc0884bdffe0aac0ce95531ab -->
