@@ -1,5 +1,7 @@
 # Climate Data Toolkit
 
+[Français](README.fr.md) · [Español](README.es.md)
+
 A unified toolkit for retrieving climate data from various global datasets such as CHIRPS, ERA5-Land, TerraClimate, IMERG, TAMSAT, CHIRTS-ERA5, ERA5, NEX-GDDP, NASA POWER, CMIP6 and SoilGrids.
 
 [![About](https://img.shields.io/badge/about-the%20project-blue)](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/about/) — what the toolkit is, who it's for, and how to get involved (also in [français](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/about/) / [español](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/about/)).
@@ -67,6 +69,9 @@ for daily temperature through recent dates. Use `--no-gee` on the unified CLI
 or `with climate_toolkit.backend_policy(allow_gee=False):` around Python
 workflows; historical `auto` then uses this direct pair. Explicit providers,
 cache provenance, QC and limits: [direct cloud access](docs/direct_cloud_access.md).
+If a Hugging Face chunk download fails, automatic CHIRPS requests can continue
+to an eligible, configured Earth Engine backend. Explicit Hugging Face requests
+report the transport failure directly.
 Direct reads share source chunks across up to five missing years per batch and
 save annual progress for retries. CHIRTS-ERA5's independent CHC backup remains
 under [validation](analysis/issues/issue_179_chc_backup_investigation.md).

@@ -46,46 +46,38 @@ Complete this step for `era5_land`, `era_5`, `nex_gddp`, CHIRPS v2
 For direct CHIRPS v3 and CHIRTS-ERA5, skip this step. `nasa_power` and the weather-station
 sources (`ghcn_daily`, `gsod`) need no credentials at all.
 
-!!! tip "This can be completely free"
-    Earth Engine is free for noncommercial use (research, academia,
-    nonprofit, education). When registering at
-    [code.earthengine.google.com/register](https://code.earthengine.google.com/register)
-    choose:
-
-    - "Register a Noncommercial or Commercial Cloud project"
-    - Usage type: **Unpaid usage** (do NOT pick "Paid usage")
-    - Category: e.g. **Academia & Research** or **Nonprofit**
-
-    No billing account or credit card is required for this path.
+!!! tip "Noncommercial Earth Engine access"
+    Eligible projects can register for unpaid Earth Engine access. Complete the
+    eligibility questionnaire and choose the appropriate tier. Billing-account
+    requirements depend on the tier. See Google's [noncommercial tier guide](https://developers.google.com/earth-engine/guides/noncommercial_tiers).
 
 Setup steps:
 
-1. Sign up at [earthengine.google.com](https://earthengine.google.com) and
-   register a Cloud project (see tip above).
+1. [Register a Google Cloud project for Earth Engine](https://code.earthengine.google.com/register).
 2. Authenticate once on your machine:
 
-   ```bash
-   earthengine authenticate
-   ```
+    ```bash
+    earthengine authenticate
+    ```
 
 3. Tell the toolkit which Cloud project to use. Any one of
-   `GCP_PROJECT_ID`, `GOOGLE_CLOUD_PROJECT`, or `EE_PROJECT_ID` works:
+    `GCP_PROJECT_ID`, `GOOGLE_CLOUD_PROJECT`, or `EE_PROJECT_ID` works:
 
-   ```bash
-   # macOS / Linux
-   export GCP_PROJECT_ID=your-ee-project-id
-   ```
+    ```bash
+    # macOS / Linux
+    export GCP_PROJECT_ID=your-ee-project-id
+    ```
 
-   ```powershell
-   # Windows PowerShell
-   $env:GCP_PROJECT_ID = "your-ee-project-id"
-   ```
+    ```powershell
+    # Windows PowerShell
+    $env:GCP_PROJECT_ID = "your-ee-project-id"
+    ```
 
 4. Verify the setup:
 
-   ```bash
-   climate-toolkit-gee-check
-   ```
+    ```bash
+    climate-toolkit-gee-check
+    ```
 
 ## 3. First analysis
 

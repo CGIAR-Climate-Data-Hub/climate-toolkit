@@ -206,3 +206,5 @@ Ces travaux ont été soutenus par le
 à travers son **Axe de travail 1 (AoW1) — le Climate Data Hub (CDH)**. Nous
 remercions le Fonds fiduciaire du CGIAR et ses
 [contributeurs](https://www.cgiar.org/funders/).
+
+<!-- source-sha256: 453039a7d34c45a1b23ec16836fdf054c43a7c2cc0884bdffe0aac0ce95531ab -->

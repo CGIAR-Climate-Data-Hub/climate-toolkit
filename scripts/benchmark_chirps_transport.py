@@ -1,4 +1,4 @@
-"""Opt-in anonymous CHIRPS transport benchmark. Run with the published cloud extra.
+"""Opt-in anonymous CHIRPS or CHIRTS-ERA5 transport benchmark. Run with the published cloud extra.
 
 Use macOS or Linux. Install psutil alongside the cloud extra for memory sampling.
 A loopback relay counts HTTP response-body bytes and request attempts
@@ -28,7 +28,7 @@ from yarl import URL
 from benchmark_direct_cloud import ROOT, worker
 
 
-OUTPUT = ROOT / "outputs/validation/issue-177/transport"
+VALIDATION = ROOT / "outputs/validation"
 HF = "huggingface.co"
 STAC = "stac.dynamical.org"
 S3 = "dynamical-ucsb-chc-chirps.s3.us-west-2.amazonaws.com"
@@ -52,6 +52,8 @@ def start_url(raw):
         HF: (
             "/api/datasets/aaguilar90/chirps-v3-daily-rnl",
             "/datasets/aaguilar90/chirps-v3-daily-rnl/",
+            "/api/datasets/aaguilar90/chirts-era5-daily",
+            "/datasets/aaguilar90/chirts-era5-daily/",
         ),
         STAC: ("/ucsb-chc-chirps-analysis-final/",),
         S3: ("/ucsb-chc-chirps-analysis-final/",),
@@ -249,13 +251,16 @@ async def measure(case, deadline, cache_root):
 
 
 async def run(args):
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    rainfall = args.source == "chirps_v3_daily_rnl"
+    output = VALIDATION / ("issue-177" if rainfall else "issue-178") / "transport"
+    output.mkdir(parents=True, exist_ok=True)
+    providers = ["dynamical", "huggingface"] if rainfall else ["huggingface"]
     cases = [
-        ["chirps_v3_daily_rnl", provider, n, layout, years]
-        for years in ([args.one_site_years] if args.one_site_years else [1, 30])
-        for n in ([1] if args.one_site_years else [1, 10, 100])
-        for layout in (["clustered"] if n == 1 else ["clustered", "dispersed"])
-        for provider in ["dynamical", "huggingface"]
+        [args.source, provider, n, layout, years]
+        for years in ([args.years] if args.years else [1, 30])
+        for n in ([args.clustered_sites] if args.years else [1, 10, 100])
+        for layout in (["clustered"] if n == 1 or args.years else ["clustered", "dispersed"])
+        for provider in providers
     ]
     report = dict(
         measured_utc=datetime.now(timezone.utc).isoformat(),
@@ -269,13 +274,12 @@ async def run(args):
         decoded_budget_bytes=4 * 1024**3,
         results=[],
     )
-    path = OUTPUT / (
-        f"one-site-{args.one_site_years}y.json" if args.one_site_years else "matrix.json"
-    )
+    prefix = "one-site" if args.clustered_sites == 1 else f"{args.clustered_sites}-clustered-sites"
+    path = output / (f"{prefix}-{args.years}y.json" if args.years else "matrix.json")
     for case in cases:
-        result = await measure(case, args.deadline, OUTPUT)
+        result = await measure(case, args.deadline, output)
         report["results"].append(result)
-        with tempfile.NamedTemporaryFile(mode="w", dir=OUTPUT, delete=False) as out:
+        with tempfile.NamedTemporaryFile(mode="w", dir=output, delete=False) as out:
             json.dump(report, out, indent=2)
             out.write("\n")
         os.replace(out.name, path)
@@ -285,14 +289,21 @@ async def run(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--source", choices=("chirps_v3_daily_rnl", "chirts_era5"), default="chirps_v3_daily_rnl"
+    )
+    parser.add_argument(
+        "--years",
         "--one-site-years",
         type=int,
         choices=(1, 30),
-        help="Run just the two Nairobi cases for this window",
+        help="Run only the Nairobi cluster for this window (default: one site)",
     )
+    parser.add_argument("--clustered-sites", type=int, choices=(1, 10, 100), default=1)
     parser.add_argument("--deadline", type=int, default=60)
     parser.add_argument("--worker", nargs=2, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.clustered_sites != 1 and not args.years:
+        parser.error("--clustered-sites requires --years")
     if args.worker:
         measured_worker(json.loads(args.worker[0]), args.worker[1])
     else:
