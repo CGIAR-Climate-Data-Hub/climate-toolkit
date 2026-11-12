@@ -1,0 +1,2688 @@
+
+<!doctype html>
+<html lang="fr" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Analyse du climat, des saisons, des aléas et des projections climatiques pour un site donné.">
+      
+      
+      
+        <link rel="canonical" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/weather_station_workflows/">
+      
+      
+        <link rel="prev" href="../example_workflow/">
+      
+      
+        <link rel="next" href="../human_heat_workflow/">
+      
+      
+        
+          <link rel="alternate" href="../../weather_station_workflows/" hreflang="en">
+        
+          <link rel="alternate" href="./" hreflang="fr">
+        
+          <link rel="alternate" href="../../es/weather_station_workflows/" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Stations météorologiques - Climate Toolkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#weather-station-workflows" class="md-skip">
+          Aller au contenu
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="En-tête">
+    <a href="../" title="Climate Toolkit" class="md-header__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Climate Toolkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Stations météorologiques
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Activer le mode sombre"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Activer le mode sombre" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Activer le mode clair"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Activer le mode clair" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Sélectionner la langue">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../weather_station_workflows/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../es/weather_station_workflows/" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Rechercher" placeholder="Rechercher" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Recherche">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Effacer" aria-label="Effacer" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initialisation de la recherche
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="Climate Toolkit" class="md-nav__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Climate Toolkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Aller au dépôt" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accueil
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    À propos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Premiers pas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-as-a-package/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utiliser le paquet Python
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jeux de données
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../direct_cloud_access/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accès direct aux données cloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../outputs_by_module/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Résultats par module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides pratiques
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides pratiques
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exemple de bout en bout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stations météorologiques
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stations météorologiques
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-weather-station-support-is-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        À quoi servent les données de stations ?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Principaux points d’entrée
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Avant de commencer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Avant de commencer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#candidate-review-or-noaa-download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examiner les stations candidates ou télécharger les données NOAA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#station-vs-grid-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparer station et grille
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-station-file-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Utiliser un fichier de station personnel
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#station-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sources des observations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sources des observations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ghcn_daily" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ghcn_daily
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gsod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gsod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        auto
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        custom_csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#selection-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modes de sélection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Modes de sélection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#specified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        specified
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        auto
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auto-selection-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nombre de stations sélectionnées automatiquement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compare-selection-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stratégie de sélection pour la comparaison
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stratégie de sélection pour la comparaison">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#all_vars_single_station" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        all_vars_single_station
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#best_per_variable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        best_per_variable
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#default-guardrails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Critères de sélection par défaut
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#guard-relaxation-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assouplissement des critères
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anchor-elevation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Altitude du site de référence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#candidate-review-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examiner les stations candidates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Télécharger les observations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-station-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fichiers de stations de l’utilisateur
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#station-vs-grid-comparison_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparer station et grille
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Comparer station et grille">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#supported-grid-source-family" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Familles de produits maillés acceptées
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#independence-caveat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indépendance de la validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Résultats de la comparaison
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Résultats de la comparaison">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-to-read-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interpréter les résultats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#historical-override-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remplacer les données historiques par des observations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cache-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Organisation du cache
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#practical-workflow-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ordre pratique des opérations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limites actuelles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problèmes fréquents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimal-worked-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exemples pratiques courts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Exemples pratiques courts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-discover-nearby-stations-and-save-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Recenser les stations voisines et enregistrer la carte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-compare-one-selected-station-against-two-grid-products" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Comparer une station sélectionnée à deux produits maillés
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-override-historical-precipitation-with-custom-observed-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Remplacer les précipitations historiques par des observations personnelles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fichiers associés
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../human_heat_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stress thermique chez l’être humain
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../thi_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stress thermique du bétail (THI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distribution_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distribution et versions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Python
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Python
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vue d’ensemble
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/fetching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Téléchargement des données
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparaison et validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table des matières
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-weather-station-support-is-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        À quoi servent les données de stations ?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#main-entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Principaux points d’entrée
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Avant de commencer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Avant de commencer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#candidate-review-or-noaa-download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examiner les stations candidates ou télécharger les données NOAA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#station-vs-grid-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparer station et grille
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-station-file-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Utiliser un fichier de station personnel
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#station-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sources des observations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sources des observations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ghcn_daily" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ghcn_daily
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gsod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gsod
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        auto
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom_csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        custom_csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#selection-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modes de sélection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Modes de sélection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#specified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        specified
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        auto
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auto-selection-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nombre de stations sélectionnées automatiquement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compare-selection-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stratégie de sélection pour la comparaison
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stratégie de sélection pour la comparaison">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#all_vars_single_station" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        all_vars_single_station
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#best_per_variable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        best_per_variable
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#default-guardrails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Critères de sélection par défaut
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#guard-relaxation-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assouplissement des critères
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#anchor-elevation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Altitude du site de référence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#candidate-review-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examiner les stations candidates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Télécharger les observations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#custom-station-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fichiers de stations de l’utilisateur
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#station-vs-grid-comparison_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparer station et grille
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Comparer station et grille">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#supported-grid-source-family" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Familles de produits maillés acceptées
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#independence-caveat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indépendance de la validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Résultats de la comparaison
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Résultats de la comparaison">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-to-read-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interpréter les résultats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#historical-override-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remplacer les données historiques par des observations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cache-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Organisation du cache
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#practical-workflow-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ordre pratique des opérations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limites actuelles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problèmes fréquents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimal-worked-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exemples pratiques courts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Exemples pratiques courts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-discover-nearby-stations-and-save-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Recenser les stations voisines et enregistrer la carte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-compare-one-selected-station-against-two-grid-products" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Comparer une station sélectionnée à deux produits maillés
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-override-historical-precipitation-with-custom-observed-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Remplacer les précipitations historiques par des observations personnelles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fichiers associés
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="weather-station-workflows">Utiliser les données de stations météorologiques<a class="headerlink" href="#weather-station-workflows" title="Permanent link">&para;</a></h1>
+<p>Statut du guide : en vigueur<br>
+Mise à jour : 2026-06-21</p>
+<p>Ce guide explique comment utiliser les observations de stations dans <code>climate_toolkit</code>.</p>
+<h2 id="what-weather-station-support-is-for">À quoi servent les données de stations ?<a class="headerlink" href="#what-weather-station-support-is-for" title="Permanent link">&para;</a></h2>
+<p>Le module des stations répond à deux besoins :</p>
+<ol>
+<li>exploiter directement les observations quotidiennes d’une station</li>
+<li>comparer les observations aux données historiques sur grille</li>
+</ol>
+<p>Ce module <strong>ne valide pas</strong> directement les projections futures de <code>nex_gddp</code>. L’évaluation des modèles de circulation générale (GCM) pour le futur relève d’un travail méthodologique distinct.</p>
+<h2 id="main-entry-points">Principaux points d’entrée<a class="headerlink" href="#main-entry-points" title="Permanent link">&para;</a></h2>
+<p>Ligne de commande :</p>
+<ul>
+<li><code>climate-toolkit-weather-station-download</code></li>
+<li><code>climate-toolkit-weather-station-compare</code></li>
+<li><code>climate-toolkit-stats</code></li>
+<li><code>climate-toolkit-seasons</code></li>
+</ul>
+<p>API Python :</p>
+<ul>
+<li><code>climate_toolkit.download_station_data</code></li>
+<li><code>climate_toolkit.compare_station_to_grids</code></li>
+</ul>
+<h2 id="before-you-run">Avant de commencer<a class="headerlink" href="#before-you-run" title="Permanent link">&para;</a></h2>
+<p>Distinguez deux jeux de coordonnées :</p>
+<ul>
+<li>coordonnées du site étudié : <code>--station-lat</code>, <code>--station-lon</code></li>
+<li>coordonnées de la station d’observation : fournies par la NOAA ou lues dans le fichier de l’utilisateur</li>
+</ul>
+<p>À retenir :</p>
+<ul>
+<li><code>--station-lat</code> et <code>--station-lon</code> désignent le site étudié</li>
+<li>elles <strong>peuvent différer</strong> de celles de la station retenue</li>
+<li>les limites de distance et de dénivelé se mesurent par rapport au site étudié</li>
+</ul>
+<p>Données minimales à fournir selon l’analyse :</p>
+<h3 id="candidate-review-or-noaa-download">Examiner les stations candidates ou télécharger les données NOAA<a class="headerlink" href="#candidate-review-or-noaa-download" title="Permanent link">&para;</a></h3>
+<p>Paramètres obligatoires :</p>
+<ul>
+<li><code>--station-source</code></li>
+<li><code>--station-lat</code></li>
+<li><code>--station-lon</code></li>
+<li><code>--start</code></li>
+<li><code>--end</code></li>
+</ul>
+<p>Paramètres généralement utiles :</p>
+<ul>
+<li><code>--variables</code></li>
+<li><code>--selection-mode</code></li>
+</ul>
+<h3 id="station-vs-grid-comparison">Comparer station et grille<a class="headerlink" href="#station-vs-grid-comparison" title="Permanent link">&para;</a></h3>
+<p>Paramètres obligatoires :</p>
+<ul>
+<li><code>--station-source</code></li>
+<li><code>--station-lat</code></li>
+<li><code>--station-lon</code></li>
+<li><code>--start</code></li>
+<li><code>--end</code></li>
+<li>au moins une option <code>--grid-source</code></li>
+</ul>
+<p>Paramètres généralement utiles :</p>
+<ul>
+<li><code>--variables</code></li>
+<li><code>--selection-mode</code></li>
+<li><code>--selection-strategy</code></li>
+<li><code>--precip-source</code> et <code>--temp-source</code> si la comparaison utilise <code>paired</code> ou <code>auto</code></li>
+</ul>
+<h3 id="custom-station-file-workflows">Utiliser un fichier de station personnel<a class="headerlink" href="#custom-station-file-workflows" title="Permanent link">&para;</a></h3>
+<p>Paramètres obligatoires :</p>
+<ul>
+<li><code>--station-source custom_csv</code></li>
+<li><code>--custom-station-file</code></li>
+<li><code>--start</code></li>
+<li><code>--end</code></li>
+<li>au moins une variable à extraire</li>
+</ul>
+<p>Paramètres généralement utiles :</p>
+<ul>
+<li><code>--custom-temp-unit</code></li>
+<li><code>--custom-precip-unit</code></li>
+<li><code>--custom-station-name</code></li>
+<li>les coordonnées du site <code>--station-lat</code> et <code>--station-lon</code> si une comparaison ou une substitution ultérieure dépend de la localisation</li>
+</ul>
+<h2 id="station-backends">Sources des observations<a class="headerlink" href="#station-backends" title="Permanent link">&para;</a></h2>
+<p><code>--station-source</code> indique d’où proviennent les observations.</p>
+<h3 id="ghcn_daily"><code>ghcn_daily</code><a class="headerlink" href="#ghcn_daily" title="Permanent link">&para;</a></h3>
+<p>Utilise uniquement GHCN-Daily de la NOAA.</p>
+<p>À privilégier pour :</p>
+<ul>
+<li>les précipitations quotidiennes</li>
+<li>les températures minimales et maximales quotidiennes, lorsqu’elles sont disponibles</li>
+</ul>
+<h3 id="gsod"><code>gsod</code><a class="headerlink" href="#gsod" title="Permanent link">&para;</a></h3>
+<p>Utilise uniquement GSOD de la NOAA.</p>
+<p>À privilégier pour :</p>
+<ul>
+<li>une meilleure couverture des températures quotidiennes dans certaines régions</li>
+<li>des séries se recouvrant sur davantage d’années dans certaines stations d’aéroport</li>
+</ul>
+<h3 id="auto"><code>auto</code><a class="headerlink" href="#auto" title="Permanent link">&para;</a></h3>
+<p>Classe les stations des deux archives de la NOAA et renvoie les meilleures candidates selon les critères en vigueur.</p>
+<p>À privilégier pour :</p>
+<ul>
+<li>une première exploration</li>
+<li>les sites peu couverts par l’une des archives de la NOAA</li>
+</ul>
+<h3 id="custom_csv"><code>custom_csv</code><a class="headerlink" href="#custom_csv" title="Permanent link">&para;</a></h3>
+<p>Utilise un fichier CSV ou JSON fourni par l’utilisateur.</p>
+<p>À privilégier pour :</p>
+<ul>
+<li>les mesures de stations locales</li>
+<li>les données de partenaires absentes des archives de la NOAA</li>
+<li>le remplacement des valeurs historiques par des observations</li>
+</ul>
+<h2 id="selection-modes">Modes de sélection<a class="headerlink" href="#selection-modes" title="Permanent link">&para;</a></h2>
+<p><code>--selection-mode</code> détermine le traitement des stations candidates.</p>
+<h3 id="list"><code>list</code><a class="headerlink" href="#list" title="Permanent link">&para;</a></h3>
+<p>Examine uniquement les candidates.</p>
+<p>Ce mode :</p>
+<ul>
+<li>classe les stations</li>
+<li>calcule la complétude pour chaque variable</li>
+<li>enregistre les fichiers d’examen des candidates si <code>--report-prefix</code> est fourni</li>
+<li>s’arrête avant la sélection automatique habituelle</li>
+</ul>
+<p>À utiliser pour :</p>
+<ul>
+<li>examiner d’abord les stations voisines</li>
+<li>obtenir la carte et les fichiers CSV et JSON pour les examiner</li>
+</ul>
+<h3 id="specified"><code>specified</code><a class="headerlink" href="#specified" title="Permanent link">&para;</a></h3>
+<p>Indiquez l’identifiant exact de la station avec <code>--station-id</code>.</p>
+<p>À utiliser pour :</p>
+<ul>
+<li>utiliser une station de la NOAA dont vous connaissez déjà l’identifiant</li>
+</ul>
+<h3 id="auto_1"><code>auto</code><a class="headerlink" href="#auto_1" title="Permanent link">&para;</a></h3>
+<p>Le logiciel sélectionne les meilleures stations admissibles.</p>
+<p>À utiliser pour :</p>
+<ul>
+<li>sélectionner automatiquement la meilleure station selon les règles en vigueur</li>
+<li>appliquer les mêmes critères à chaque exécution</li>
+</ul>
+<h2 id="auto-selection-scope">Nombre de stations sélectionnées automatiquement<a class="headerlink" href="#auto-selection-scope" title="Permanent link">&para;</a></h2>
+<p><code>--auto-select</code> règle le nombre de stations que le logiciel peut retenir.</p>
+<p>Valeurs acceptées :</p>
+<ul>
+<li><code>auto-1</code></li>
+<li><code>auto-2</code></li>
+<li><code>auto-3</code></li>
+<li><code>auto-&lt;n&gt;</code></li>
+<li><code>auto-all</code></li>
+</ul>
+<p>Comportement à connaître :</p>
+<ul>
+<li><code>auto-all</code> respecte aussi la limite <code>--max-auto-stations</code></li>
+<li>la valeur par défaut de <code>--max-auto-stations</code> est <code>10</code></li>
+<li><code>auto-1</code> retient la meilleure station admissible</li>
+<li><code>auto-2</code> et les valeurs supérieures permettent de comparer plusieurs stations</li>
+</ul>
+<h2 id="compare-selection-strategy">Stratégie de sélection pour la comparaison<a class="headerlink" href="#compare-selection-strategy" title="Permanent link">&para;</a></h2>
+<p><code>climate-toolkit-weather-station-compare</code> accepte aussi <code>--selection-strategy</code>.</p>
+<h3 id="all_vars_single_station"><code>all_vars_single_station</code><a class="headerlink" href="#all_vars_single_station" title="Permanent link">&para;</a></h3>
+<p>Une même station doit fournir toutes les variables demandées.</p>
+<p>À privilégier pour :</p>
+<ul>
+<li>une interprétation plus simple</li>
+<li>une comparaison entre une station et une maille</li>
+</ul>
+<p>Limite :</p>
+<ul>
+<li>une station utile pour les précipitations peut être écartée si elle ne mesure pas la température</li>
+</ul>
+<h3 id="best_per_variable"><code>best_per_variable</code><a class="headerlink" href="#best_per_variable" title="Permanent link">&para;</a></h3>
+<p>Le logiciel peut utiliser une station différente pour chaque variable.</p>
+<p>Exemple :</p>
+<ul>
+<li>une station pour les précipitations</li>
+<li>une autre pour les températures minimales et maximales</li>
+</ul>
+<p>À privilégier pour :</p>
+<ul>
+<li>les régions peu couvertes</li>
+<li>les cas où aucune station ne fournit tous les champs</li>
+</ul>
+<p>Limite :</p>
+<ul>
+<li>l’interprétation est plus délicate car les indicateurs proviennent de plusieurs stations physiques</li>
+</ul>
+<h2 id="default-guardrails">Critères de sélection par défaut<a class="headerlink" href="#default-guardrails" title="Permanent link">&para;</a></h2>
+<p>Les règles par défaut sont les suivantes :</p>
+<ul>
+<li>rayon de recherche : <code>50 km</code></li>
+<li>écart maximal d’altitude : <code>500 m</code></li>
+<li>fraction minimale de données disponibles : <code>0.70</code></li>
+<li>nombre maximal de stations sélectionnées automatiquement : <code>10</code></li>
+<li>nombre maximal de candidates retenues : <code>10</code></li>
+<li>nombre maximal de stations évaluées : <code>25</code></li>
+</ul>
+<p>La complétude est évaluée <strong>pour chaque variable</strong>. Une note globale par station ne suffit pas.</p>
+<p>Par exemple, si vous demandez :</p>
+<ul>
+<li><code>precipitation,max_temperature,min_temperature</code></li>
+</ul>
+<p>Le logiciel vérifie que chaque variable demandée atteint le seuil de complétude.</p>
+<h2 id="guard-relaxation-behavior">Assouplissement des critères<a class="headerlink" href="#guard-relaxation-behavior" title="Permanent link">&para;</a></h2>
+<p>Seuil strict de complétude appliqué par défaut :</p>
+<ul>
+<li><code>0.70</code></li>
+</ul>
+<p>Si aucune station ne passe le filtre, le logiciel abaisse progressivement le seuil :</p>
+<ul>
+<li><code>0.50</code></li>
+<li><code>0.30</code></li>
+<li><code>0.10</code></li>
+</ul>
+<p>Si aucune station ne satisfait encore les critères pour toutes les variables, le logiciel peut retenir des candidates qui n’en couvrent qu’une partie, lorsque ce recours est autorisé.</p>
+<p>Conséquences :</p>
+<ul>
+<li>selon l’analyse et les variables demandées, <code>auto</code> peut retenir une station utile qui mesure uniquement les précipitations ou uniquement la température</li>
+<li>le mode <code>list</code> permet souvent de mieux comprendre quelles stations satisfont ou non les critères</li>
+</ul>
+<h2 id="anchor-elevation">Altitude du site de référence<a class="headerlink" href="#anchor-elevation" title="Permanent link">&para;</a></h2>
+<p>Le logiciel peut estimer l’altitude du site étudié à partir d’un modèle numérique de terrain (MNT).</p>
+<p>Objectifs :</p>
+<ul>
+<li>comparer l’altitude de chaque candidate à celle du site étudié</li>
+<li>appliquer la limite <code>--max-elevation-diff-m</code></li>
+</ul>
+<p>Options :</p>
+<ul>
+<li><code>--target-elevation-m</code> : fournir directement une altitude connue</li>
+<li><code>--no-auto-anchor-elevation</code> : désactiver la recherche automatique dans le MNT</li>
+</ul>
+<p>Si la recherche automatique échoue :</p>
+<ul>
+<li>le logiciel poursuit la sélection sans critère d’altitude</li>
+<li>le terminal signale ce changement</li>
+</ul>
+<h2 id="candidate-review-workflow">Examiner les stations candidates<a class="headerlink" href="#candidate-review-workflow" title="Permanent link">&para;</a></h2>
+<p>Première étape recommandée :</p>
+<div class="highlight"><pre><span></span><code>climate-toolkit-weather-station-download<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-source<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--selection-mode<span class="w"> </span>list<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lat<span class="w"> </span>-1.286<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2011</span>-01-01<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--max-distance-km<span class="w"> </span><span class="m">100</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--report-prefix<span class="w"> </span>outputs/weather_station/nairobi_auto_candidates<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--open-report
+</code></pre></div>
+<p>Fichiers produits :</p>
+<ul>
+<li>CSV</li>
+<li>JSON</li>
+<li>Carte HTML</li>
+</ul>
+<p>La carte des candidates indique :</p>
+<ul>
+<li>les coordonnées du site étudié</li>
+<li>les stations candidates à proximité</li>
+<li>les lignes reliant le site aux stations</li>
+<li>le rang</li>
+<li>les stations, avec des symboles proportionnels à la complétude des données</li>
+<li>le nombre de stations par source et le périmètre de la recherche</li>
+</ul>
+<p>Limite du fond de carte :</p>
+<ul>
+<li>le fond de carte utilise des tuiles en ligne et nécessite une connexion Internet</li>
+</ul>
+<p>Cette carte facilite l’examen visuel et ne constitue pas un produit SIG :</p>
+<ul>
+<li>utilisez-la pour un premier examen rapide</li>
+<li>pour la consulter à nouveau, ouvrez le fichier HTML enregistré</li>
+<li>la taille des symboles reflète la complétude des données</li>
+<li>la carte indique le site étudié, le rang et la distance des candidates et leur source</li>
+</ul>
+<h2 id="download-workflow">Télécharger les observations<a class="headerlink" href="#download-workflow" title="Permanent link">&para;</a></h2>
+<p>Exemple :</p>
+<div class="highlight"><pre><span></span><code>climate-toolkit-weather-station-download<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-source<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--selection-mode<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--auto-select<span class="w"> </span>auto-1<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lat<span class="w"> </span>-1.286<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2011</span>-01-01<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--stage<span class="w"> </span>preprocessed
+</code></pre></div>
+<p>Options utiles :</p>
+<ul>
+<li><code>--stage raw</code></li>
+<li><code>--stage transformed</code></li>
+<li><code>--stage preprocessed</code></li>
+<li><code>--station-id ...</code> avec <code>--selection-mode specified</code></li>
+<li><code>--disable-completeness-guard</code></li>
+<li><code>--refresh-cache</code></li>
+</ul>
+<p>Signification des étapes :</p>
+<ul>
+<li><code>raw</code> : valeurs et noms les plus proches des données d’origine</li>
+<li><code>transformed</code> : unités et noms harmonisés</li>
+<li><code>preprocessed</code> : nettoyage et contrôles qualité appliqués</li>
+</ul>
+<p>Résumé des données NOAA téléchargées :</p>
+<ul>
+<li>le terminal indique les stations retenues, leur distance, leur altitude et la disponibilité de chaque variable</li>
+<li>le mode liste affiche les candidates à la place des observations quotidiennes</li>
+<li><code>--output</code> permet d’enregistrer un fichier de résultats</li>
+</ul>
+<h2 id="custom-station-files">Fichiers de stations de l’utilisateur<a class="headerlink" href="#custom-station-files" title="Permanent link">&para;</a></h2>
+<p>Exemple :</p>
+<div class="highlight"><pre><span></span><code>climate-toolkit-weather-station-download<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-source<span class="w"> </span>custom_csv<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-station-file<span class="w"> </span>path/to/station.csv<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-station-name<span class="w"> </span><span class="s2">&quot;My station&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lat<span class="w"> </span>-1.286<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-temp-unit<span class="w"> </span>c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-precip-unit<span class="w"> </span>mm
+</code></pre></div>
+<p>Types de fichiers acceptés :</p>
+<ul>
+<li><code>.csv</code></li>
+<li><code>.json</code></li>
+</ul>
+<p>Données minimales :</p>
+<ul>
+<li><code>date</code></li>
+<li>au moins une variable climatique demandée</li>
+</ul>
+<p>Autres noms de variables acceptés :</p>
+<ul>
+<li>précipitations :</li>
+<li><code>precipitation</code></li>
+<li><code>precip</code></li>
+<li><code>rain</code></li>
+<li><code>rainfall</code></li>
+<li><code>prcp</code></li>
+<li>température maximale :</li>
+<li><code>max_temperature</code></li>
+<li><code>tmax</code></li>
+<li><code>max</code></li>
+<li>température minimale :</li>
+<li><code>min_temperature</code></li>
+<li><code>tmin</code></li>
+<li><code>min</code></li>
+<li>température moyenne :</li>
+<li><code>mean_temperature</code></li>
+<li><code>tmean</code></li>
+<li><code>tavg</code></li>
+<li><code>temp</code></li>
+<li>humidité :</li>
+<li><code>humidity</code></li>
+<li><code>relative_humidity</code></li>
+<li><code>rh</code></li>
+<li>vent :</li>
+<li><code>wind_speed</code></li>
+<li><code>wind</code></li>
+<li><code>wdsp</code></li>
+<li>rayonnement solaire :</li>
+<li><code>solar_radiation</code></li>
+<li><code>solar</code></li>
+<li><code>radiation</code></li>
+</ul>
+<p>Colonnes de métadonnées facultatives :</p>
+<ul>
+<li><code>station_id</code></li>
+<li><code>station_name</code></li>
+<li><code>station_lat</code></li>
+<li><code>station_lon</code></li>
+<li><code>station_elevation_m</code></li>
+</ul>
+<p>Lorsque des métadonnées manquent :</p>
+<ul>
+<li>le logiciel complète les valeurs dans la mesure du possible à partir des paramètres de la ligne de commande et du nom du fichier</li>
+</ul>
+<p>Unités :</p>
+<ul>
+<li><code>--custom-temp-unit c|f|k</code></li>
+<li><code>--custom-precip-unit mm|inch|tenth_mm</code></li>
+</ul>
+<p>Types de fichiers acceptés :</p>
+<ul>
+<li><code>.csv</code></li>
+<li><code>.json</code></li>
+</ul>
+<p>Traitement :</p>
+<ul>
+<li>normalisation des colonnes</li>
+<li>lecture des dates et découpage selon la période demandée</li>
+<li>conversion des unités</li>
+<li>calcul de la température moyenne si elle manque et que Tmin et Tmax sont disponibles</li>
+<li>mise en cache du résultat normalisé pour le réutiliser</li>
+</ul>
+<p>Si les métadonnées du fichier personnel manquent :</p>
+<ul>
+<li><code>station_id</code> prend la valeur de l’identifiant fourni en ligne de commande ou du nom du fichier sans extension</li>
+<li><code>station_name</code> prend le nom indiqué ou le nom du fichier sans extension</li>
+<li>les coordonnées du site fournies en ligne de commande peuvent servir de remplacement</li>
+<li>l’altitude peut rester indéterminée</li>
+</ul>
+<p>Si le fichier ne contient aucune ligne dans la période demandée :</p>
+<ul>
+<li>le téléchargement renvoie une erreur</li>
+<li>les analyses historiques utilisent les valeurs maillées et affichent un avertissement</li>
+</ul>
+<h2 id="station-vs-grid-comparison_1">Comparer station et grille<a class="headerlink" href="#station-vs-grid-comparison_1" title="Permanent link">&para;</a></h2>
+<p>Exemple :</p>
+<div class="highlight"><pre><span></span><code>climate-toolkit-weather-station-compare<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-source<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lat<span class="w"> </span>-1.286<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2011</span>-01-01<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--selection-mode<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--auto-select<span class="w"> </span>auto-1<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--selection-strategy<span class="w"> </span>all_vars_single_station<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--grid-source<span class="w"> </span>paired<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--grid-source<span class="w"> </span>nasa_power<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--temp-source<span class="w"> </span>era5_land<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/weather_station/nairobi_station_vs_grid_2011_2020.json
+</code></pre></div>
+<p>Objectifs actuels de la comparaison :</p>
+<ul>
+<li>comparer les observations en station aux produits climatiques historiques maillés</li>
+<li>déterminer quelle source maillée paraît la plus représentative localement</li>
+</ul>
+<p>Hors du périmètre actuel :</p>
+<ul>
+<li>validation directe des projections futures des modèles de circulation générale</li>
+<li>comparaison directe de <code>nex_gddp</code> aux stations dans cette interface de ligne de commande</li>
+</ul>
+<h3 id="supported-grid-source-family">Familles de produits maillés acceptées<a class="headerlink" href="#supported-grid-source-family" title="Permanent link">&para;</a></h3>
+<p>La comparaison historique accepte notamment les produits maillés et les réanalyses suivants :</p>
+<ul>
+<li><code>era5_land</code></li>
+<li><code>era_5</code></li>
+<li><code>nasa_power</code></li>
+<li><code>chirps_v2</code></li>
+<li><code>chirps_v3_daily_rnl</code></li>
+<li><code>chirts_era5</code> (Tmax et Tmin)</li>
+<li><code>imerg</code></li>
+<li><code>paired</code></li>
+<li><code>auto</code></li>
+<li><code>terraclimate</code></li>
+</ul>
+<p>Sources exclues de la comparaison :</p>
+<ul>
+<li><code>nex_gddp</code></li>
+<li>les archives de stations elles-mêmes</li>
+<li><code>tamsat</code></li>
+</ul>
+<h3 id="independence-caveat">Indépendance de la validation<a class="headerlink" href="#independence-caveat" title="Permanent link">&para;</a></h3>
+<p>Certains produits maillés intègrent des observations de stations.</p>
+<p>Exemples :</p>
+<ul>
+<li><code>chirps_v2</code></li>
+<li><code>chirps_v3_daily_rnl</code></li>
+<li><code>chirts_era5</code> et l’ancien produit <code>chirts</code></li>
+<li><code>paired</code> si une des sources associées utilise des observations de stations</li>
+<li><code>terraclimate</code></li>
+</ul>
+<p>Une bonne concordance <strong>ne garantit pas</strong> l’indépendance de la validation.</p>
+<p>Pour une comparaison historique plus indépendante, on peut souvent utiliser :</p>
+<ul>
+<li><code>era5_land</code></li>
+<li><code>era_5</code></li>
+<li><code>nasa_power</code></li>
+<li><code>imerg</code></li>
+</ul>
+<p>Le logiciel signale les sources dont la validation n’est pas entièrement indépendante.</p>
+<p>Choix pratique des sources :</p>
+<ul>
+<li>privilégiez <code>nasa_power</code>, <code>era5_land</code>, <code>era_5</code> ou <code>imerg</code> si l’indépendance est prioritaire</li>
+<li>utilisez <code>paired</code> pour évaluer une analyse historique en conditions d’usage lorsque l’indépendance stricte n’est pas l’objectif</li>
+<li>si les composantes intègrent des observations, un bon classement de <code>paired</code> ne constitue pas une preuve indépendante</li>
+</ul>
+<h2 id="comparison-outputs">Résultats de la comparaison<a class="headerlink" href="#comparison-outputs" title="Permanent link">&para;</a></h2>
+<p>Les résultats texte ou JSON peuvent inclure :</p>
+<ul>
+<li>résumé des stations</li>
+<li>échecs de téléchargement des produits maillés</li>
+<li>indicateurs quotidiens par station</li>
+<li>indicateurs mensuels agrégés</li>
+<li>indicateurs saisonniers agrégés</li>
+<li>résumé du recouvrement annuel</li>
+<li>indicateurs globaux regroupant les stations lorsqu’il y en a plusieurs</li>
+<li>indices annuels de précipitations de référence de xclim si les dates communes sont assez nombreuses</li>
+<li>règles de classement par cas d’usage pour une première évaluation</li>
+</ul>
+<h3 id="how-to-read-them">Interpréter les résultats<a class="headerlink" href="#how-to-read-them" title="Permanent link">&para;</a></h3>
+<p>Indicateurs quotidiens :</p>
+<ul>
+<li>utiles pour situer les événements dans le temps et repérer les jours de pluie</li>
+<li>la corrélation des précipitations quotidiennes est souvent faible, même si le produit reste utile</li>
+</ul>
+<p>Indicateurs mensuels et saisonniers :</p>
+<ul>
+<li>souvent plus informatifs pour évaluer l’aptitude climatique et planifier</li>
+<li>plus adaptés pour repérer un biais systématique vers des conditions trop humides ou trop sèches</li>
+</ul>
+<p>Résumé annuel :</p>
+<ul>
+<li>utile seulement si la couverture des dates communes est suffisante</li>
+<li>en cas de faible recouvrement, les résultats sont descriptifs et leur portée pour la validation est limitée</li>
+</ul>
+<p>Indices annuels de précipitations de référence de xclim :</p>
+<ul>
+<li>calculés uniquement si la couverture commune permet une estimation annuelle défendable</li>
+<li>omis en cas de lacunes trop importantes dans les observations communes</li>
+</ul>
+<p>Options utiles pour la comparaison :</p>
+<ul>
+<li><code>--wet-day-threshold-mm</code> : modifie le seuil utilisé pour évaluer la détection des jours de pluie</li>
+<li><code>--min-overlap-days</code> : en dessous de ce nombre de jours communs, les indicateurs sont signalés comme peu fiables</li>
+<li><code>--report-prefix</code> : enregistre aussi les fichiers d’examen des candidates lors de la comparaison</li>
+<li><code>--open-report</code> : tente d’ouvrir automatiquement le rapport HTML sur les candidates</li>
+</ul>
+<p>Précaution pour l’interprétation :</p>
+<ul>
+<li>avec <code>best_per_variable</code>, les indicateurs de précipitations et de température peuvent provenir de stations différentes</li>
+<li>consultez le résumé des stations avant de classer les produits</li>
+</ul>
+<h2 id="historical-override-workflow">Remplacer les données historiques par des observations<a class="headerlink" href="#historical-override-workflow" title="Permanent link">&para;</a></h2>
+<p>Un fichier de station peut remplacer les valeurs de certaines variables historiques dans :</p>
+<ul>
+<li><code>climate-toolkit-stats</code></li>
+<li><code>climate-toolkit-seasons</code></li>
+</ul>
+<p>Exemple :</p>
+<div class="highlight"><pre><span></span><code>climate-toolkit-stats<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="o">=</span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="o">=</span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--end-year<span class="o">=</span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="o">=</span>paired<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--precip-source<span class="o">=</span>chirps_v3_daily_rnl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--temp-source<span class="o">=</span>era5_land<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-station-file<span class="w"> </span>path/to/station.csv<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-station-vars<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-station-name<span class="w"> </span><span class="s2">&quot;My station&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-temp-unit<span class="w"> </span>c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-precip-unit<span class="w"> </span>mm
+</code></pre></div>
+<p>Fonctionnement actuel :</p>
+<ul>
+<li>les observations remplacent les valeurs historiques choisies aux dates correspondantes</li>
+<li>les valeurs maillées sont conservées pour les variables absentes du fichier de station</li>
+<li>si le fichier ne contient aucune ligne dans la période demandée, le logiciel utilise les valeurs maillées et affiche un avertissement</li>
+</ul>
+<p>Périmètre actuel de la substitution :</p>
+<ul>
+<li>analyses historiques uniquement</li>
+<li>aucune substitution directe pour les projections futures <code>nex_gddp</code></li>
+<li>particulièrement utile si la station fournit une ou deux variables fiables et que les données maillées peuvent compléter les autres</li>
+</ul>
+<h2 id="cache-layout">Organisation du cache<a class="headerlink" href="#cache-layout" title="Permanent link">&para;</a></h2>
+<p>Répertoires racines du cache local du projet :</p>
+<ul>
+<li><code>outputs/cache/weather_stations/ghcn_daily</code></li>
+<li><code>outputs/cache/weather_stations/gsod</code></li>
+<li><code>outputs/cache/weather_stations/custom</code></li>
+<li><code>outputs/cache/weather_stations/dem_anchor</code></li>
+</ul>
+<p>Contenu habituel :</p>
+<ul>
+<li>métadonnées et inventaires des stations</li>
+<li>fichiers de stations téléchargés depuis la NOAA</li>
+<li>fichiers CSV personnels après normalisation</li>
+<li>manifestes JSON des données personnelles de station</li>
+<li>altitudes des sites obtenues à partir du MNT</li>
+</ul>
+<p>Emplacements détaillés :</p>
+<ul>
+<li>index de métadonnées GHCN dans <code>outputs/cache/weather_stations/ghcn_daily/index</code></li>
+<li>fichiers de stations GHCN dans <code>outputs/cache/weather_stations/ghcn_daily/stations</code></li>
+<li>historique des stations GSOD et fichiers annuels dans <code>outputs/cache/weather_stations/gsod</code></li>
+<li>fichiers personnels normalisés dans des sous-dossiers identifiés par empreinte sous <code>outputs/cache/weather_stations/custom</code></li>
+<li>cache des altitudes de référence du MNT dans des sous-dossiers versionnés sous <code>outputs/cache/weather_stations/dem_anchor</code></li>
+</ul>
+<p>Cache des fichiers personnels :</p>
+<ul>
+<li>le logiciel calcule une empreinte à partir du chemin, de la taille et de la date de modification du fichier source</li>
+<li>chaque fichier personnel dispose de son propre dossier de cache</li>
+<li>les résultats CSV et JSON sont réutilisés pour une même étape et période, sauf si <code>--refresh-cache</code> est activé</li>
+</ul>
+<p>Effet de <code>--refresh-cache</code> :</p>
+<ul>
+<li>force un nouveau téléchargement ou une régénération lorsque l’analyse le permet</li>
+<li>utile après un changement du code, une exécution incomplète ou l’obsolescence des résultats locaux</li>
+<li>inutile pour répéter normalement une analyse avec le cache existant</li>
+</ul>
+<h2 id="practical-workflow-order">Ordre pratique des opérations<a class="headerlink" href="#practical-workflow-order" title="Permanent link">&para;</a></h2>
+<p>Séquence recommandée :</p>
+<ol>
+<li>lancez <code>selection-mode list</code></li>
+<li>examinez la carte, le CSV et la complétude par variable</li>
+<li>déterminez s’il convient d’utiliser une ou plusieurs stations</li>
+<li>lancez <code>weather-station-download</code> ou <code>weather-station-compare</code></li>
+<li>ensuite seulement, utilisez au besoin vos observations pour remplacer les valeurs historiques</li>
+</ol>
+<p>Pour prendre la décision :</p>
+<ol>
+<li>commencez par <code>--selection-mode list</code></li>
+<li>vérifiez la complétude <strong>pour chaque variable</strong></li>
+<li>déterminez si une seule station suffit</li>
+<li>sinon, déterminez si <code>best_per_variable</code> est acceptable</li>
+<li>désactivez le critère de complétude uniquement à des fins exploratoires et conservez-le pour les rapports courants</li>
+</ol>
+<h2 id="current-limitations">Limites actuelles<a class="headerlink" href="#current-limitations" title="Permanent link">&para;</a></h2>
+<ul>
+<li>faible couverture des stations dans certaines régions</li>
+<li>aucune archive ne fournit une couverture quotidienne mondiale complète</li>
+<li>certains sites ont assez de mesures de précipitations et peu de températures, ou inversement</li>
+<li>la comparaison porte sur les produits historiques et exclut les projections futures NEX-GDDP</li>
+<li>le mode automatique se limite aux sources NOAA prises en charge et aux fichiers personnels</li>
+<li>la carte HTML facilite la vérification visuelle ; une analyse SIG complète exige d’autres outils</li>
+<li>choisir une station par variable améliore la couverture mais complique l’interprétation</li>
+</ul>
+<h2 id="common-failure-modes">Problèmes fréquents<a class="headerlink" href="#common-failure-modes" title="Permanent link">&para;</a></h2>
+<p><code>Error: No ... station passed per-variable completeness threshold</code></p>
+<ul>
+<li>commencez par <code>--selection-mode list</code></li>
+<li>augmentez <code>--max-distance-km</code></li>
+<li>demandez moins de variables</li>
+<li>abaissez <code>--min-completeness-ratio</code></li>
+<li>envisagez <code>best_per_variable</code></li>
+</ul>
+<p><code>Anchor elevation unavailable; continuing without elevation guard</code></p>
+<ul>
+<li>Recherche d’altitude par MNT dans Earth Engine indisponible</li>
+<li>renseignez <code>--target-elevation-m</code> si vous connaissez l’altitude du site</li>
+<li>ou authentifiez-vous auprès d’Earth Engine et indiquez un <code>GCP_PROJECT_ID</code> valide</li>
+</ul>
+<p><code>Project 'projects/your-ee-project-id' not found or deleted</code></p>
+<ul>
+<li>L’environnement contient encore un identifiant de projet Earth Engine fictif</li>
+<li>remplacez-le par l’identifiant réel du projet</li>
+</ul>
+<p><code>Custom station file has no rows in requested window</code></p>
+<ul>
+<li>vérifiez l’interprétation des dates</li>
+<li>vérifiez les valeurs demandées pour <code>--start</code> et <code>--end</code></li>
+<li>vérifiez la cohérence des fuseaux horaires et du format des dates du fichier</li>
+</ul>
+<p><code>Skipped xclim annual precipitation reference indices ... overlap is too gappy</code></p>
+<ul>
+<li>les dates communes sont trop peu nombreuses pour établir des indices annuels de référence fiables</li>
+<li>privilégiez les résumés mensuels ou saisonniers pour cette combinaison de station et de produit</li>
+</ul>
+<h2 id="minimal-worked-examples">Exemples pratiques courts<a class="headerlink" href="#minimal-worked-examples" title="Permanent link">&para;</a></h2>
+<h3 id="1-discover-nearby-stations-and-save-map">1. Recenser les stations voisines et enregistrer la carte<a class="headerlink" href="#1-discover-nearby-stations-and-save-map" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>climate-toolkit-weather-station-download<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-source<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--selection-mode<span class="w"> </span>list<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lat<span class="w"> </span>-1.286<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2011</span>-01-01<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--report-prefix<span class="w"> </span>outputs/weather_station/nairobi_candidates<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--open-report
+</code></pre></div>
+<h3 id="2-compare-one-selected-station-against-two-grid-products">2. Comparer une station sélectionnée à deux produits maillés<a class="headerlink" href="#2-compare-one-selected-station-against-two-grid-products" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>climate-toolkit-weather-station-compare<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-source<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--selection-mode<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--auto-select<span class="w"> </span>auto-1<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lat<span class="w"> </span>-1.286<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--station-lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start<span class="w"> </span><span class="m">2011</span>-01-01<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--grid-source<span class="w"> </span>nasa_power<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--grid-source<span class="w"> </span>paired<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--temp-source<span class="w"> </span>era5_land<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--variables<span class="w"> </span>precipitation,max_temperature,min_temperature<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output<span class="w"> </span>outputs/weather_station/nairobi_station_vs_grid.json
+</code></pre></div>
+<h3 id="3-override-historical-precipitation-with-custom-observed-data">3. Remplacer les précipitations historiques par des observations personnelles<a class="headerlink" href="#3-override-historical-precipitation-with-custom-observed-data" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>climate-toolkit-stats<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="o">=</span><span class="s2">&quot;-1.286,36.817&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--start-year<span class="o">=</span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--end-year<span class="o">=</span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source<span class="o">=</span>paired<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--precip-source<span class="o">=</span>chirps_v3_daily_rnl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--temp-source<span class="o">=</span>era5_land<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-station-file<span class="w"> </span>path/to/station.csv<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-station-vars<span class="w"> </span>precipitation<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--custom-precip-unit<span class="w"> </span>mm
+</code></pre></div>
+<h2 id="related-files">Fichiers associés<a class="headerlink" href="#related-files" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>README.md</code></li>
+<li><code>analysis/weather_station_module_design_2026-06-15.md</code></li>
+<li><code>analysis/weather_station_data_access_research_2026-06-15.md</code></li>
+<li><code>analysis/issues/weather_station_compare_window_guidance.md</code></li>
+</ul>
+<!-- source-sha256: 50cb70c6e72ac3421887dd577c98ff7da1605c6f212352b440e3c3175125770b -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Retour en haut de la page
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
