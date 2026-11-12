@@ -595,7 +595,7 @@ xclim annual precipitation reference indices:
 Useful compare controls:
 
 - `--wet-day-threshold-mm`: changes wet-day hit metrics
-- `--min-overlap-days`: minimum shared records before metrics reported
+- `--min-overlap-days`: metrics are flagged as low confidence below this many shared days
 - `--report-prefix`: save candidate review artifacts during compare too
 - `--open-report`: try to open compare candidate review HTML automatically
 

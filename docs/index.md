@@ -49,8 +49,7 @@ For ERA5-Land, ERA5 and NEX-GDDP, follow [Earth Engine setup](getting_started.md
 | [`download_station_data`](api/comparison.md) | Daily observations from nearby weather stations |
 | [`compare_station_to_grids`](api/comparison.md) | Validate gridded data against stations |
 
-Every function is also available as a CLI command (`climate-toolkit <command>`);
-see the workflow guides in the navigation.
+These seven analyses also have CLI commands. The [Python API overview](api/index.md) includes `run_pipeline` for running a whole workflow and `backend_policy` for controlling data access.
 
 ## Funding & acknowledgements
 
