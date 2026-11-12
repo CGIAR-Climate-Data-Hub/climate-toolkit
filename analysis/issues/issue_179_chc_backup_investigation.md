@@ -1,6 +1,6 @@
 # Issue 179: independent CHIRTS-ERA5 backup investigation
 
-Updated 2026-11-10. Independent daily backup remains under investigation.
+Updated 2026-11-12. Independent daily backup remains under investigation.
 Architecture authority: [package architecture summary](../package_architecture_summary.md).
 Issue: [#179](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/179).
 Previous integration evidence: [issues 176–178](issue_176_178_direct_cloud_access.md).
@@ -12,6 +12,32 @@ scientifically relevant, but available routes have unresolved completeness and
 latency problems. Do not replace daily data with pentadal/monthly aggregates,
 legacy CHIRTS, or ERA5-Land. Issue 179 remains open; forced-outage redundancy has
 not been demonstrated.
+
+## Why Tmin differed on 21 October 2026
+
+The Hugging Face mirror took its 21 October Tmin from a 26 October CHC file. CHC subsequently rewrote the GeoTIFF at the same daily URL. The pinned mirror still has the earlier values. The two releases therefore disagree at identical cells by more than the mirror's 0.05 °C packing tolerance. The available provenance identifies the file revisions involved. It does not identify the specific change in CHC's inputs or algorithm.
+
+| Evidence for the same 21 October Tmin | Finding |
+| --- | --- |
+| Mirror revision `35669afb` | Its per-day ingestion manifest records the source URL and signature `27158118:2026-Oct-26 09:04`. The integer is consistent with the directory's rounded 25.9 MiB size. The signature contains no source checksum or recoverable object version. |
+| CHC file sampled 10 November | ETag `"6aecb32f-19bb7fe"`. Independent GDAL and xarray reads reproduced the provider differences documented below. |
+| CHC file sampled 12 November | Same URL, 26,982,398 bytes, HTTP Last-Modified 11 November 23:07:57 GMT, ETag `"6af4f54d-19bb7fe"`. ETag-pinned, bounded strip reads recovered the same three land values as the 10 November file. A changing ETag alone would have been insufficient evidence of changed temperatures. |
+
+| Site | Pinned mirror Tmin °C | CHC Tmin °C on 12 November | Mirror minus CHC °C |
+| --- | ---: | ---: | ---: |
+| Nairobi | 18.5 | 18.3045 | +0.1955 |
+| Ouagadougou | 26.7 | 24.5183 | +2.1817 |
+| Cusco | 12.1 | 11.1390 | +0.9610 |
+
+Comparing three immutable mirror commits gives a separate check on recent-day revisions. We read the same land cells and Pacific nodata cell directly with xarray. From 28 September through 3 October, the 8 and 12 October builds overlapped on six days. Only 2 and 3 October changed at these sites, in both Tmin and Tmax. At Cusco, 3 October Tmin went from 11.3 to 7.6 °C. The 12 and 26 October builds overlapped on ten sampled days. Only 7 October changed, again in both variables. At Cusco, Tmin went from 10.2 to 7.9 °C. September 28–30 stayed identical across all three builds. The 12 October array contains 7 October even though its per-day manifest lacks an entry for that date. Use the actual time coordinates when auditing coverage. [Pinned 8 October build](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/tree/a4be603034d0a32d4a827295bbad8c617626b5ab) · [12 October build](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/tree/c44a0b58772e32f7cbb2b5a740d5e6586ceeb054) · [26 October manifest](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/blob/35669afbbd1c6ab84dcc496f2f95b7cbbf75867f/chirts_daily_era5.zarr.chirts-state.json)
+
+A fresh original-provider control for 3 October gave 7.5642 °C at Cusco. That rounds to 7.6 °C in the later mirror and differs from the earlier mirror by 3.7358 °C. Three ETag-pinned ranges transferred 28,654 bytes for this control. Agreement on this earlier day cannot establish coverage for 21 October.
+
+CHC documents that it derives Tmin from corrected Tmax and the daily ERA5 temperature range. The close-to-publication changes are consistent with revision of recent inputs or processing. CHC's methods description supplies no date-specific processing log, and the mirror manifest supplies no immutable link to its October input. We could not independently replay the exact October TIFF to isolate the mechanism within CHC's pipeline. [CHC production notes](https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/aaa.readme.txt)
+
+**Decision for #179.** The revision-equivalence condition failed. The long-window CHC benchmark and forced Hugging Face outage test remain pending. A dated CHC archive with matching content, or a refreshed mirror and a verified equivalent original for the requested window, would allow those tests to proceed. Intermittent HTTP 429 responses also occurred during the bounded investigation.
+
+[Machine-readable mirror history and original samples](chirts_revision_audit_2026-11-12.json). To reproduce the historical mirror comparison, run `python scripts/audit_chirts_revisions.py` in a toolkit environment with the cloud dependencies. To resample the live original, use the existing strip probe below. Record its ETag because the URL is mutable.
 
 ## Daily GeoTIFF range and revision checks, 2026-11-10
 

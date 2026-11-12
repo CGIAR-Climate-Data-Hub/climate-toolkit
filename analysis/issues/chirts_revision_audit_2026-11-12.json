@@ -1,0 +1,294 @@
+{
+  "checked_utc": "2026-11-12T14:02:27.309528+00:00",
+  "sites": [
+    "Nairobi",
+    "Ouagadougou",
+    "Cusco",
+    "Pacific"
+  ],
+  "cells_lat_lon": [
+    [
+      -1.275,
+      36.825
+    ],
+    [
+      12.375,
+      -1.525
+    ],
+    [
+      -13.525,
+      -71.975
+    ],
+    [
+      0.025,
+      -150.025
+    ]
+  ],
+  "window": [
+    "2026-09-28",
+    "2026-10-21"
+  ],
+  "transitions": [
+    {
+      "earlier": "a4be603034d0a32d4a827295bbad8c617626b5ab",
+      "later": "c44a0b58772e32f7cbb2b5a740d5e6586ceeb054",
+      "compared_date_variable_pairs": 12,
+      "changed": [
+        {
+          "day": "2026-10-02",
+          "variable": "Tmax",
+          "earlier": {
+            "values_c": [
+              26.5,
+              28.2,
+              16.7,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-08T10:06:05",
+              "seeded": true,
+              "signature": "26528972:2026-Oct-08 09:00",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmax/tifs/daily/2026/CHIRTS-ERA5.daily_Tmax.2026.10.02.tif"
+            }
+          },
+          "later": {
+            "values_c": [
+              29.6,
+              31.4,
+              23.2,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-12T14:05:07",
+              "signature": "26528972:2026-Oct-12 09:01",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmax/tifs/daily/2026/CHIRTS-ERA5.daily_Tmax.2026.10.02.tif"
+            }
+          }
+        },
+        {
+          "day": "2026-10-02",
+          "variable": "Tmin",
+          "earlier": {
+            "values_c": [
+              16.7,
+              27.0,
+              10.1,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-08T10:06:05",
+              "seeded": true,
+              "signature": "26843545:2026-Oct-08 09:00",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2026/CHIRTS-ERA5.daily_Tmin.2026.10.02.tif"
+            }
+          },
+          "later": {
+            "values_c": [
+              16.2,
+              25.8,
+              8.0,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-12T14:05:07",
+              "signature": "26843545:2026-Oct-12 09:01",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2026/CHIRTS-ERA5.daily_Tmin.2026.10.02.tif"
+            }
+          }
+        },
+        {
+          "day": "2026-10-03",
+          "variable": "Tmax",
+          "earlier": {
+            "values_c": [
+              27.0,
+              29.5,
+              17.1,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-08T10:26:17",
+              "signature": "26738688:2026-Oct-08 09:00",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmax/tifs/daily/2026/CHIRTS-ERA5.daily_Tmax.2026.10.03.tif"
+            }
+          },
+          "later": {
+            "values_c": [
+              30.4,
+              33.6,
+              24.7,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-12T14:05:07",
+              "signature": "26633830:2026-Oct-12 09:01",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmax/tifs/daily/2026/CHIRTS-ERA5.daily_Tmax.2026.10.03.tif"
+            }
+          }
+        },
+        {
+          "day": "2026-10-03",
+          "variable": "Tmin",
+          "earlier": {
+            "values_c": [
+              17.6,
+              26.7,
+              11.3,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-08T10:26:17",
+              "signature": "26948403:2026-Oct-08 09:00",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2026/CHIRTS-ERA5.daily_Tmin.2026.10.03.tif"
+            }
+          },
+          "later": {
+            "values_c": [
+              17.0,
+              25.2,
+              7.6,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-12T14:05:07",
+              "signature": "26843545:2026-Oct-12 09:01",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2026/CHIRTS-ERA5.daily_Tmin.2026.10.03.tif"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "earlier": "c44a0b58772e32f7cbb2b5a740d5e6586ceeb054",
+      "later": "35669afbbd1c6ab84dcc496f2f95b7cbbf75867f",
+      "compared_date_variable_pairs": 20,
+      "changed": [
+        {
+          "day": "2026-10-07",
+          "variable": "Tmax",
+          "earlier": {
+            "values_c": [
+              25.4,
+              29.5,
+              17.8,
+              null
+            ],
+            "manifest": null
+          },
+          "later": {
+            "values_c": [
+              27.8,
+              35.0,
+              24.7,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-26T09:03:56",
+              "signature": "26633830:2026-Oct-26 09:03",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmax/tifs/daily/2026/CHIRTS-ERA5.daily_Tmax.2026.10.07.tif"
+            }
+          }
+        },
+        {
+          "day": "2026-10-07",
+          "variable": "Tmin",
+          "earlier": {
+            "values_c": [
+              19.7,
+              27.4,
+              10.2,
+              null
+            ],
+            "manifest": null
+          },
+          "later": {
+            "values_c": [
+              19.3,
+              25.5,
+              7.9,
+              null
+            ],
+            "manifest": {
+              "ingested": "2026-10-26T09:03:56",
+              "signature": "26843545:2026-Oct-26 09:03",
+              "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2026/CHIRTS-ERA5.daily_Tmin.2026.10.07.tif"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "endpoints": [
+    "2026-10-03",
+    "2026-10-07",
+    "2026-10-21"
+  ],
+  "target": {
+    "day": "2026-10-21",
+    "variable": "Tmin",
+    "mirror": {
+      "values_c": [
+        18.5,
+        26.7,
+        12.1,
+        null
+      ],
+      "manifest": {
+        "ingested": "2026-10-26T09:03:56",
+        "signature": "27158118:2026-Oct-26 09:04",
+        "source": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2026/CHIRTS-ERA5.daily_Tmin.2026.10.21.tif"
+      }
+    },
+    "original_headers": {
+      "Last-Modified": "Wed, 11 Nov 2026 23:07:57 GMT",
+      "ETag": "\"6af4f54d-19bb7fe\"",
+      "Content-Length": "26982398"
+    }
+  },
+  "latest_original_pixel_check": {
+    "url": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2026/CHIRTS-ERA5.daily_Tmin.2026.10.21.tif",
+    "checked_utc": "2026-11-12T14:00:52.178339+00:00",
+    "etag": "\"6af4f54d-19bb7fe\"",
+    "size": 26982398,
+    "tail_offset": 26949630,
+    "samples": {
+      "Ouagadougou": {
+        "original_c": 24.518272399902344,
+        "row": 1152,
+        "column": 3569,
+        "range_body_bytes": 7658
+      },
+      "Nairobi": {
+        "original_c": 18.30447769165039,
+        "row": 1425,
+        "column": 4336,
+        "range_body_bytes": 8230
+      },
+      "Cusco": {
+        "original_c": 11.139007568359375,
+        "row": 1670,
+        "column": 2160,
+        "range_body_bytes": 7110
+      }
+    },
+    "tiff_datetime": "2026:11:11 15:07:56"
+  },
+  "earlier_day_control": {
+    "day": "2026-10-03",
+    "variable": "tmin",
+    "checked_at": "2026-11-12T14:04:15.327117+00:00",
+    "url": "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmin/tifs/daily/2026/CHIRTS-ERA5.daily_Tmin.2026.10.03.tif",
+    "etag": "\"6af4f50a-199b200\"",
+    "file_bytes": 26849792,
+    "tiff_datetime": "2026:11:11 15:06:49",
+    "response_body_bytes": 28654,
+    "requests": 3,
+    "samples": {
+      "Cusco": {
+        "lon": -71.97499839030206,
+        "lat": -13.525001244619489,
+        "original_c": 7.564174652099609
+      }
+    }
+  }
+}
