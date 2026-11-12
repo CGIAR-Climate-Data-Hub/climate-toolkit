@@ -261,6 +261,108 @@ python scripts/benchmark_chirps_transport.py --one-site-years 30 --deadline 240
 [Full matrix with elapsed times, RSS, revisions, status counts, warm parity and software versions](chirps_transport_2026-11-09.json).
 Local runs write under `outputs/validation/issue-177/transport/`.
 
+## CHIRTS-ERA5 station comparison and transport benchmark, 2026-11-10
+
+We compared the published 0.2.1 cloud extra against NOAA GHCN-Daily at three
+stations in the benchmark regions. We selected 1994–95 for historical overlap
+at all three and 2023–24 for a recent comparison that includes a leap day.
+The grid returned both extremes on every requested day at each station. The
+table uses only same-date pairs with a station observation for that variable.
+Bias is grid minus station. MAE is mean absolute error. Both are in °C.
+
+| Station | Window | Tmax pairs | Tmax bias | Tmax MAE | Tmin pairs | Tmin bias | Tmin MAE |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Nairobi, Jomo Kenyatta Intl | 1994–95 | 616 | +1.37 | 1.50 | 558 | +4.28 | 4.28 |
+| Nairobi, Jomo Kenyatta Intl | 2023–24 | 242 | +1.61 | 1.66 | 287 | +3.21 | 3.21 |
+| Ouagadougou | 1994–95 | 593 | −0.60 | 1.05 | 562 | +1.29 | 1.49 |
+| Ouagadougou | 2023–24 | 569 | −0.46 | 0.76 | 342 | +1.56 | 1.64 |
+| Cusco, Velasco Astete | 1994–95 | 503 | −3.09 | 3.11 | 584 | +3.75 | 3.78 |
+| Cusco, Velasco Astete | 2023–24 | 79 | −1.64 | 1.81 | 572 | +3.35 | 3.37 |
+
+At Ouagadougou in 2023–24, daily Tmax correlated strongly with the station
+(r = 0.972), but a small cool bias changed the heat-day count. On 569 matched
+dates the station reached 35 °C on 349 days and the grid on 325. The grid
+identified 319 events, missed 30 and added six. In 1994–95 it identified 235
+of 283 events, missed 48 and added ten. Nairobi and Cusco had zero observed
+or gridded exceedances on their paired dates. Recent Cusco Tmax coverage was
+only 79 of 731 days. Inferring an annual exceedance rate from these pairs
+would require information about the missing dates.
+
+The script reads the nearest 0.05° cell at each station's published coordinates.
+It joins nominal dates without filling gaps or shifting observation times,
+converts NOAA tenths to °C, excludes missing and quality-flagged observations,
+and screens for impossible or inverted temperatures. No matched station values
+failed the additional screening. The only historical Nairobi source flag was
+`I` (international collection). All other station windows used `S` (daily
+summaries from hourly synoptic reports). Local observation-day boundaries,
+point versus grid elevation and uneven seasonal coverage can affect comparisons.
+The producer uses station information, and we did not establish whether these
+stations contributed to its inputs. These six station-periods support local
+bias checks before applying absolute heat or cold thresholds. They do not
+establish global accuracy or a change in bias through time.
+[NOAA format and flag definitions](https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt)
+and [CHC product methodology](https://www.chc.ucsb.edu/data/chirts-era5).
+
+The station run read published CHIRTS-ERA5 with an empty process environment
+apart from local run paths, an empty home, GEE disabled, and access to normal
+user credentials and the macOS keychain blocked. The offline suite tests all
+four geographic corners on leap day, boundary ties, a missing native variable,
+incomplete dates, QC, provider failures and cache provenance. The base package
+supports Python 3.10+. The cloud extra requires Python 3.12+ and Zarr 3.x.
+
+### Measured HTTP traffic
+
+Same sites, windows, two workers and 4 GiB decoded-work limit as the CHIRPS
+benchmark. Each case started with an empty toolkit cache. Cold seconds below
+measure the fetch. The 60-second gate applies to the whole case. MB counts
+actual response-body bytes including redirects and metadata and excludes headers
+and TLS. The shared network and upstream caches were uncontrolled.
+
+| Sites | Layout | 2020 cold s | 2020 MB / requests | 1991–2020 at 60 s | MB / requests before stop |
+|---:|---|---:|---:|---|---:|
+| 1 | Nairobi | 14.43 | 64.28 / 34 | deadline | 449.03 / 134 |
+| 10 | clustered | 10.61 | 64.28 / 34 | deadline | 633.40 / 180 |
+| 10 | dispersed | 23.86 | 153.61 / 66 | decoded budget | 0.26 / 18 |
+| 100 | clustered | 9.18 | 64.28 / 34 | deadline | 736.25 / 202 |
+| 100 | dispersed | 24.33 | 193.15 / 82 | decoded budget | 0.26 / 18 |
+
+All five one-year cases had exact cache parity and zero warm requests.
+The 30-year dispersed reads estimated 11.20 GiB (10 sites) and 14.93 GiB
+(100 sites) of decoded chunks. Both stopped after metadata, before returning
+a series. Split dispersed workloads into shorter windows or smaller geographic
+groups to keep within the default budget.
+
+With a 240-second allowance, Nairobi returned both extremes on 10,958 dates in
+136.825 seconds, with 1.473 GB across 386 requests. The cached read took 0.070
+seconds, returned an identical frame and made zero requests.
+
+Extended runs at the 10- and 100-site Nairobi cluster initially experienced
+connection resets, timeouts or DNS failure. After connectivity returned:
+
+| Sites | Outcome at 240 s | Cold s | Warm s | Rows | Cold MB / requests |
+|---:|---|---:|---:|---:|---:|
+| 10 | complete | 236.336 | 0.449 | 109,580 | 1,472.95 / 386 |
+| 100 | deadline | — | — | — | 1,273.29 / 340 |
+
+Every completed clustered replay reproduced the cold frame and made zero requests.
+Interrupted attempts have no warm measurement. The evidence file retains all attempts.
+
+Reproduce with the published `climate-toolkit[cloud]==0.2.1` on Python 3.12+
+and install `psutil` for the transport benchmark. Validation writes under
+`outputs/validation/issue-178/`. The station summary includes input URLs and
+SHA-256 hashes, mirror revision, selected cells, RMSE, correlations and heat
+event counts. The daily pairs CSV remains local.
+
+```sh
+python scripts/compare_chirts_stations.py
+python scripts/benchmark_chirps_transport.py --source chirts_era5 --deadline 60
+for n in 1 10 100; do
+  python scripts/benchmark_chirps_transport.py --source chirts_era5 --years 30 --clustered-sites "$n" --deadline 240
+done
+```
+
+[Station and transport results](chirts_validation_2026-11-10.json).
+
 ## Remaining issue acceptance and follow-ups at the 2026-11-02 checkpoint
 
 Implementation includes backend/no-GEE controls, strict provider identity/coverage,
