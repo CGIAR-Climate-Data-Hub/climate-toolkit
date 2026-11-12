@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.2](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/compare/v0.2.1...v0.2.2) (2026-11-12)
+
+
+### Fixed
+
+* route Hugging Face HTTP failures through provider policy ([#199](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/199)) ([101de18](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/commit/101de18d4bb15ae7873664dfbe2fbe0a9baf0b90))
+
 ## [0.2.1](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/compare/v0.2.0...v0.2.1) (2026-11-09)
 
 
