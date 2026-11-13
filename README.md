@@ -1247,7 +1247,7 @@ adoption PR.
 Toolkit supports:
 
 1. NOAA station discovery and download with `ghcn_daily`, `gsod`, or `auto`
-2. station-vs-grid comparison against historical gridded products
+2. station-vs-grid comparison against historical gridded products, with optional monthly and seasonal diagnostics via `--diagnostics-html FILE`
 3. custom station CSV/JSON ingestion
 4. custom station override into historical climate analysis
 

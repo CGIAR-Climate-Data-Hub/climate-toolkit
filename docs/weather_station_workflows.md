@@ -597,7 +597,9 @@ Useful compare controls:
 - `--wet-day-threshold-mm`: changes wet-day hit metrics
 - `--min-overlap-days`: metrics are flagged as low confidence below this many shared days
 - `--report-prefix`: save candidate review artifacts during compare too
-- `--open-report`: try to open compare candidate review HTML automatically
+- `--open-report` — open the diagnostics if requested, otherwise the candidate map
+
+Add `--diagnostics-html outputs/weather_station/diagnostics.html` to a comparison (Python: `diagnostics_html=...`) to plot station and grid values by month and season. The HTML opens offline and includes a downloadable CSV with paired days and full calendar days per period. Precipitation totals and other variable means use only paired days. Hollow markers flag incomplete periods, including partial DJF seasons. The report includes bias (grid minus station), MAE, RMSE, correlation and daily wet-day skill. For multiple stations, it also plots the mean of the available pairs on each date.
 
 Important compare caveat:
 
