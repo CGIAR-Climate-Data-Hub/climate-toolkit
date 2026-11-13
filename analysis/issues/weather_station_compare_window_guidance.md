@@ -6,6 +6,8 @@ This note translates WMO / NOAA climate-normal guidance and station-vs-grid vali
 
 It is not a claim that one official standard applies to every use case. The recommendations below are an implementation-oriented interpretation for this toolkit.
 
+For a specific comparison, `--diagnostics-html FILE` shows monthly and seasonal aggregates and their paired-day coverage. Check the downloadable period table before interpreting an apparent difference in rainfall totals. It flags edge periods through their full calendar-day denominators. See the [station workflow guide](../../docs/weather_station_workflows.md#comparison-outputs) and [package architecture](../package_architecture_summary.md#weather_station).
+
 ## Key source points
 
 ### WMO / NOAA climatology baseline

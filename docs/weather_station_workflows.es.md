@@ -591,7 +591,9 @@ Opciones útiles para la comparación:
 - `--wet-day-threshold-mm`: cambia el umbral utilizado al evaluar los aciertos en la detección de días de lluvia
 - `--min-overlap-days`: con menos días coincidentes, los indicadores se marcan como de baja confianza
 - `--report-prefix`: guarda también los archivos de revisión de candidatas durante la comparación
-- `--open-report`: intenta abrir automáticamente el informe HTML de candidatas
+- `--open-report` — abre los diagnósticos si se solicitaron o, en su defecto, el mapa de estaciones candidatas
+
+Añada `--diagnostics-html outputs/weather_station/diagnostics.html` a una comparación (Python: `diagnostics_html=...`) para representar los valores de estación y de malla por mes y por estación del año. El HTML se abre sin conexión e incluye un CSV descargable con el número de días emparejados y de días naturales de cada período. Los totales de precipitación y las medias de las demás variables solo incluyen días emparejados. Los símbolos huecos indican períodos incompletos, incluidos los trimestres parciales de diciembre a febrero (DJF). El informe muestra el sesgo (malla menos estación), el error absoluto medio, la raíz del error cuadrático medio, la correlación y la capacidad de detectar días de lluvia. Para varias estaciones meteorológicas, también representa la media de los pares disponibles en cada fecha.
 
 Precaución al interpretar:
 
@@ -789,4 +791,4 @@ climate-toolkit-stats \
 - `analysis/weather_station_data_access_research_2026-06-15.md`
 - `analysis/issues/weather_station_compare_window_guidance.md`
 
-<!-- source-sha256: 50cb70c6e72ac3421887dd577c98ff7da1605c6f212352b440e3c3175125770b -->
+<!-- source-sha256: 374c8189a723978a1a7c88aa0c12489d902f733829e4916283448145806a0217 -->
