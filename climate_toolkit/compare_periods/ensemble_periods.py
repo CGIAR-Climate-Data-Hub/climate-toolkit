@@ -2657,6 +2657,8 @@ def main() -> int:
                    help="Required when --focal-source=paired. Example: chirps_v2 or chirps_v3_daily_rnl.")
     p.add_argument("--focal-temp-source", default=None,
                    help="Required when --focal-source=paired. Example: era5_land or era_5.")
+    p.add_argument("--uncertainty-html", metavar="FILE",
+                   help="Write offline model-spread plots and contribution tables for all scenarios.")
     p.add_argument("--output",         default=None, help="Save JSON result to this path")
     p.add_argument("--model-workers",  type=int, default=8,
                    help=("Parallel NEX-GDDP model workers for ensemble runs. "
@@ -2683,6 +2685,9 @@ def main() -> int:
     p.add_argument("--verbose",        action="store_true",
                    help="Show detailed per-year season diagnostics and full per-model report.")
     args = p.parse_args()
+    if (args.output and args.uncertainty_html
+            and os.path.realpath(args.output) == os.path.realpath(args.uncertainty_html)):
+        p.error("--output and --uncertainty-html need separate files.")
 
     try:
         lat, lon = (float(x) for x in args.location.replace(" ", ",").split(","))
@@ -2848,6 +2853,11 @@ def main() -> int:
         if "error" not in result:
             any_ok = True
 
+    if args.uncertainty_html:
+        from climate_toolkit.visualization.ensemble import write_ensemble_uncertainty
+
+        write_ensemble_uncertainty(all_results, args.uncertainty_html)
+        print(f"✓ Saved: {args.uncertainty_html}")
     if not any_ok:
         return 1
 
