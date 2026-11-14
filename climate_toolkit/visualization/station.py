@@ -2,22 +2,17 @@
 
 from __future__ import annotations
 
-import base64
 import io
 import os
-import tempfile
 from html import escape
 from pathlib import Path
 from urllib.parse import quote
 
 import pandas as pd
 
+from .io import data_uri, write_html
 from .labels import label_for
 from .styles import LINES
-
-
-def _data_uri(mime_type, content):
-    return f"data:{mime_type};base64," + base64.b64encode(content).decode("ascii")
 
 
 def _period_figure(periods, variable):
@@ -54,7 +49,7 @@ def _period_figure(periods, variable):
     axes[-1].set_xlabel("Start of calendar period")
     buffer = io.BytesIO()
     fig.savefig(buffer, format="png", dpi=110)
-    return _data_uri("image/png", buffer.getvalue())
+    return data_uri("image/png", buffer.getvalue())
 
 
 def _metrics_table(report, pooled):
@@ -136,7 +131,7 @@ th{background:#edf3f4}h2{margin-top:2rem}</style><h1>Station and grid comparison
         parts.extend(
             [
                 '<p><a download="station-grid-periods.csv" href="'
-                + _data_uri("text/csv", csv)
+                + data_uri("text/csv", csv)
                 + '">Download paired monthly and seasonal values (CSV)</a></p>',
                 "<p>Circles show observations and triangles show grid values. Hollow symbols "
                 "mark periods with missing paired days, including partial periods at the edges. "
@@ -177,8 +172,4 @@ th{background:#edf3f4}h2{margin-top:2rem}</style><h1>Station and grid comparison
     else:
         parts.append("<p>No paired station and grid observations in this window.</p>")
     parts.append("</html>")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=path.parent) as staging:
-        staged = Path(staging) / "report.html"
-        staged.write_text("\n".join(parts), encoding="utf-8")
-        os.replace(staged, path)
+    write_html(path, "\n".join(parts))
