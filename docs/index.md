@@ -5,6 +5,8 @@ compute seasonal climatologies and drought indices, assess crop and livestock
 hazards, and compare periods, data sources, and weather stations — for any
 point location.
 
+[Email Pete to subscribe](mailto:p.steward@cgiar.org?subject=Subscribe%20to%20Climate%20Toolkit%20release%20updates) for a short note with each stable release, including changes that may affect your code or results. Reply “unsubscribe” to leave.
+
 !!! tip "Try it in your browser — no install"
     [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
 

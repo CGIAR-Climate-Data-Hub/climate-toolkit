@@ -2,6 +2,8 @@
 
 A partir de la latitud y la longitud de un sitio, puede descargar datos climáticos diarios, calcular climatologías estacionales e índices de sequía, evaluar riesgos para los cultivos y el ganado, y comparar resultados entre períodos, fuentes y estaciones meteorológicas.
 
+[Escriba a Pete para suscribirse](mailto:p.steward@cgiar.org?subject=Subscribe%20to%20Climate%20Toolkit%20release%20updates) y recibir un correo con cada versión estable sobre los cambios que puedan afectar a su código o sus resultados. Para darse de baja, responda «unsubscribe».
+
 !!! tip "Probar en el navegador"
     El [cuaderno de Colab](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) instala el paquete en un entorno gratuito alojado por Google y ejecuta los ejemplos que no requieren credenciales.
 
@@ -60,4 +62,4 @@ El [programa Climate Action del CGIAR](https://www.cgiar.org/cgiar-research-port
   </a>
 </p>
 
-<!-- source-sha256: e0949b08482b5ad48627e68bad44aad7bb2ca75c6b396a68a17b68bc73a8c4c8 -->
+<!-- source-sha256: a6eec9782ebf28a5da200bdd79ed5f3c9428ea777910ba44623fd94b1d968c1b -->

@@ -2,6 +2,8 @@
 
 À partir de la latitude et de la longitude d’un site, téléchargez des données climatiques quotidiennes, calculez des climatologies saisonnières et des indices de sécheresse, évaluez les risques pour les cultures et le bétail, et comparez les résultats entre périodes, sources et stations météorologiques.
 
+[Écrivez à Pete pour vous abonner](mailto:p.steward@cgiar.org?subject=Subscribe%20to%20Climate%20Toolkit%20release%20updates) et recevoir à chaque version stable un courriel sur les changements susceptibles d’affecter votre code ou vos résultats. Pour vous désabonner, répondez «unsubscribe».
+
 !!! tip "Essayer dans le navigateur"
     Le [notebook Colab](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) installe le paquet dans un environnement gratuit hébergé par Google et exécute les exemples qui ne demandent pas d’identifiants.
 
@@ -60,4 +62,4 @@ Le [programme Climate Action du CGIAR](https://www.cgiar.org/cgiar-research-port
   </a>
 </p>
 
-<!-- source-sha256: e0949b08482b5ad48627e68bad44aad7bb2ca75c6b396a68a17b68bc73a8c4c8 -->
+<!-- source-sha256: a6eec9782ebf28a5da200bdd79ed5f3c9428ea777910ba44623fd94b1d968c1b -->
