@@ -4,6 +4,8 @@
 
 Climate Toolkit permite analizar el clima de un sitio agrícola a partir de sus coordenadas. Puede descargar series diarias, comparar períodos y estaciones meteorológicas y evaluar riesgos para los cultivos y el ganado.
 
+[Escriba a Pete para suscribirse](mailto:p.steward@cgiar.org?subject=Subscribe%20to%20Climate%20Toolkit%20release%20updates) y recibir un correo con cada versión estable sobre los cambios que puedan afectar a su código o sus resultados. Para darse de baja, responda «unsubscribe».
+
 ```bash
 pip install climate-toolkit
 ```
@@ -14,4 +16,4 @@ Para obtener precipitaciones de CHIRPS v3 y temperaturas diarias de CHIRTS-ERA5 
 
 Para visualizar los valores de estación y de malla por mes y por estación del año, añada `--diagnostics-html ARCHIVO` al comando de comparación de estaciones.
 
-<!-- source-sha256: fd62b4c5b8a29dba6217c349918620c3b89a6e8937e988a9e084ac06fca747a8 -->
+<!-- source-sha256: 286af8674047232596371906773e1ca5b9bfb5b4dd8e6fb0c9b3e59ec767ac96 -->
