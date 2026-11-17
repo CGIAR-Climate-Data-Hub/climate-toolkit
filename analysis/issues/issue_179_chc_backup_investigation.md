@@ -1,6 +1,6 @@
 # Issue 179: independent CHIRTS-ERA5 backup investigation
 
-Updated 2026-11-10. Independent daily backup remains under investigation.
+Updated 2026-11-16. Independent daily backup remains under investigation.
 Architecture authority: [package architecture summary](../package_architecture_summary.md).
 Issue: [#179](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/179).
 Previous integration evidence: [issues 176–178](issue_176_178_direct_cloud_access.md).
@@ -10,8 +10,70 @@ Previous integration evidence: [issues 176–178](issue_176_178_direct_cloud_acc
 Keep Hugging Face as the only integrated CHIRTS-ERA5 provider. CHC originals are
 scientifically relevant, but available routes have unresolved completeness and
 latency problems. Do not replace daily data with pentadal/monthly aggregates,
-legacy CHIRTS, or ERA5-Land. Issue 179 remains open; forced-outage redundancy has
-not been demonstrated.
+legacy CHIRTS, or ERA5-Land. Issue 179 remains open because a cold package request still fails during a mirror outage.
+
+## Re-ingestion and outage check, 16 November 2026
+
+The mirror maintainer confirmed that the manual updater checks previously ingested days for changes to source size and modification time. The 14 November update re-ingested the 21 October Tmin GeoTIFF. Its manifest records `26948403:2026-Nov-11 23:07`; the live original had strong ETag `"6af4f54d-19bb7fe"`. The manifest size (26,948,403 bytes) differs from the live HTTP Content-Length (26,982,398 bytes), so these records cannot establish byte-for-byte identity. The result below compares decoded values at identical cells.
+
+| Site | Original °C | Refreshed mirror °C | Absolute difference °C |
+|---|---:|---:|---:|
+| Nairobi | 18.30448 | 18.3 | 0.00448 |
+| Ouagadougou | 24.51827 | 24.5 | 0.01827 |
+| Cusco | 11.13901 | 11.1 | 0.03901 |
+
+All three met the 0.05 °C packing tolerance. With an empty cache, GEE disabled and Hugging Face connections rejected, the public fetch exhausted its two mirror requests. An independent ETag-pinned reader recovered all three values through CHC in five range requests (55,774 response-body bytes). The reader reused previously recorded object size and TIFF directory offset, checking the ETag when reading the header, directory and three scanlines. [Immutable mirror manifest](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/blob/828b1959e623366c776069b881234316698b3471/chirts_daily_era5.zarr.chirts-state.json) · [Outage evidence](chirts_backup_2026-11-16.json)
+
+## Original-provider long-window benchmark, 16 November 2026
+
+Both routes requested daily Tmax and Tmin anonymously. The tested windows were 2020 (366 days) and 1991–2020 (10,958 days). The site coordinates and 60-second cold-case budget follow the [mirror benchmark](issue_176_178_direct_cloud_access.md#chirts-era5-station-comparison-and-transport-benchmark-2026-11-10). Cases ran serially in fresh processes on a shared connection; upstream caches were uncontrolled. The 10- and 100-site clustered 2020 NetCDF runs each transferred 93.2 MB in 89 requests, so their timing difference cannot establish a scaling advantage. NetCDF groups sites by spatial chunk. GeoTIFF reuses scanlines within each day and variable. CHC reads used a single transport worker, a strong ETag per object and no full-grid downloads.
+
+Completed cases show elapsed seconds. Incomplete cases show paired days obtained for **all requested sites** and HTTP request attempts before stopping. NetCDF credits a year only after both annual files finish; zero credited days can include substantial partial transfer. No incomplete case returned a usable series or entered the cache.
+
+| Sites | Layout | 2020 NetCDF | 2020 TIFF | 1991–2020 NetCDF | 1991–2020 TIFF |
+|---:|---|---|---|---|---|
+| 1 | clustered | 0 days · 79 req | 16 days · 113 req | 0 days · 9 req | 13 days · 94 req |
+| 10 | clustered | 35.0 s · complete | 19 days · 132 req | 0 days · 60 req | 20 days · 136 req |
+| 10 | dispersed | 0 days · 78 req | 8 days · 212 req | 0 days · 86 req | 7 days · 192 req |
+| 100 | clustered | 27.9 s · complete | 17 days · 190 req | 365 days · 106 req | 18 days · 198 req |
+| 100 | dispersed | 0 days · 99 req | 0 days · 187 req | 0 days · 118 req | 1 day · 244 req |
+
+The 60-second Nairobi NetCDF trial stopped after nine requests with HTTP 429. The extended Nairobi NetCDF request (240-second budget) recovered 1,096/10,958 paired days in 240.0 s, with 321 requests and 326.0 MB of response bodies. The previously measured mirror completed that window in 136.8 s. The mirror used two workers on a different date, so these are separate observations. For a 30-year TIFF request, both variables require 21,916 distinct daily files even at one site.
+
+The [full record](chirts_backup_2026-11-16.json) includes elapsed times, body bytes, requests, peak process RSS, errors and completed-file counts. Warm timings are exact local NumPy-file replays of complete arrays. They took 7.5 ms (10 sites) and 11.7 ms (100 sites), including array comparison, with no network requests. There is no production CHC response cache. The threshold concerns obtaining a complete cold request during a mirror outage. The measured routes do not meet it reliably. Keep the original reader as a diagnostic and keep #179 open pending a faster daily subset or point-optimized source.
+
+Reproduce with the cloud extra, `h5py`, `tifffile` and `imagecodecs`:
+
+```sh
+python scripts/benchmark_chirts_originals.py
+python scripts/benchmark_chirts_originals.py --worker annual 1 clustered 30 --seconds 240
+```
+
+## Why Tmin differed on 21 October 2026
+
+The Hugging Face mirror took its 21 October Tmin from a 26 October CHC file. CHC subsequently rewrote the GeoTIFF at the same daily URL. The pinned mirror still has the earlier values. The two releases therefore disagree at identical cells by more than the mirror's 0.05 °C packing tolerance. The available provenance identifies the file revisions involved. It does not identify the specific change in CHC's inputs or algorithm.
+
+| Evidence for the same 21 October Tmin | Finding |
+| --- | --- |
+| Mirror revision `35669afb` | Its per-day ingestion manifest records the source URL and signature `27158118:2026-Oct-26 09:04`. The integer is consistent with the directory's rounded 25.9 MiB size. The signature contains no source checksum or recoverable object version. |
+| CHC file sampled 10 November | ETag `"6aecb32f-19bb7fe"`. Independent GDAL and xarray reads reproduced the provider differences documented below. |
+| CHC file sampled 12 November | Same URL, 26,982,398 bytes, HTTP Last-Modified 11 November 23:07:57 GMT, ETag `"6af4f54d-19bb7fe"`. ETag-pinned, bounded strip reads recovered the same three land values as the 10 November file. A changing ETag alone would have been insufficient evidence of changed temperatures. |
+
+| Site | Pinned mirror Tmin °C | CHC Tmin °C on 12 November | Mirror minus CHC °C |
+| --- | ---: | ---: | ---: |
+| Nairobi | 18.5 | 18.3045 | +0.1955 |
+| Ouagadougou | 26.7 | 24.5183 | +2.1817 |
+| Cusco | 12.1 | 11.1390 | +0.9610 |
+
+Comparing three immutable mirror commits gives a separate check on recent-day revisions. We read the same land cells and Pacific nodata cell directly with xarray. From 28 September through 3 October, the 8 and 12 October builds overlapped on six days. Only 2 and 3 October changed at these sites, in both Tmin and Tmax. At Cusco, 3 October Tmin went from 11.3 to 7.6 °C. The 12 and 26 October builds overlapped on ten sampled days. Only 7 October changed, again in both variables. At Cusco, Tmin went from 10.2 to 7.9 °C. September 28–30 stayed identical across all three builds. The 12 October array contains 7 October even though its per-day manifest lacks an entry for that date. Use the actual time coordinates when auditing coverage. [Pinned 8 October build](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/tree/a4be603034d0a32d4a827295bbad8c617626b5ab) · [12 October build](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/tree/c44a0b58772e32f7cbb2b5a740d5e6586ceeb054) · [26 October manifest](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/blob/35669afbbd1c6ab84dcc496f2f95b7cbbf75867f/chirts_daily_era5.zarr.chirts-state.json)
+
+A fresh original-provider control for 3 October gave 7.5642 °C at Cusco. That rounds to 7.6 °C in the later mirror and differs from the earlier mirror by 3.7358 °C. Three ETag-pinned ranges transferred 28,654 bytes for this control. Agreement on this earlier day cannot establish coverage for 21 October.
+
+CHC documents that it derives Tmin from corrected Tmax and the daily ERA5 temperature range. The close-to-publication changes are consistent with revision of recent inputs or processing. CHC's methods description supplies no date-specific processing log, and the mirror manifest supplies no immutable link to its October input. We could not independently replay the exact October TIFF to isolate the mechanism within CHC's pipeline. [CHC production notes](https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/aaa.readme.txt)
+
+**Decision on 12 November.** The revision-equivalence condition failed for the October mirror. The long-window CHC benchmark and forced Hugging Face outage test remain pending. A dated CHC archive with matching content, or a refreshed mirror and a verified equivalent original for the requested window, would allow those tests to proceed. Intermittent HTTP 429 responses also occurred during the bounded investigation.
+
+[Machine-readable mirror history and original samples](chirts_revision_audit_2026-11-12.json). To reproduce the historical mirror comparison, run `python scripts/audit_chirts_revisions.py` in a toolkit environment with the cloud dependencies. To resample the live original, use the existing strip probe below. Record its ETag because the URL is mutable.
 
 ## Daily GeoTIFF range and revision checks, 2026-11-10
 
@@ -117,9 +179,7 @@ python scripts/probe_chirts_strips.py 2026-10-21 --variables Tmin
 
 These shared-network measurements were partly concurrent with other validation;
 they do not establish controlled throughput or comparative provider speed.
-The 1/10/100-site by 1/30-year acceptance matrix and broad scientific comparison
-remain outstanding. Running that expensive matrix is not justified before the
-current-year coverage and single-site latency problems are resolved.
+At this stage the site-by-window benchmark and broad scientific comparison were outstanding. The 16 November follow-up above records the subsequent benchmark.
 
 ## Reproducible bounded probe
 
