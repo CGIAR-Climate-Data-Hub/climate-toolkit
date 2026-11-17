@@ -151,6 +151,17 @@ uv run climate-toolkit-periods \
   --output outputs/2020_vs_2001_2015.json
 ```
 
+Pour comparer des périodes avec NEX-GDDP, ajoutez `--uncertainty-html ensemble.html` à `climate-toolkit periods-ensemble`. Pour chaque scénario, le rapport présente, par an et par saison, les précipitations, les moyennes des températures maximales et minimales quotidiennes, et les précipitations moins l’évapotranspiration de référence. Chaque point représente un modèle. La médiane et les intervalles entre les 25e et 75e et entre les 10e et 90e percentiles résument la dispersion des modèles ayant fourni des valeurs pour les deux périodes. Les changements sont calculés pour chaque modèle. Le tableau des contributions et le CSV indiquent les valeurs manquantes et les modèles en échec. Ces intervalles décrivent la dispersion entre modèles et ne donnent pas de probabilités de prévision. Pour tracer les résultats à partir d’un fichier JSON enregistré sans télécharger de données climatiques :
+
+```python
+import json
+from pathlib import Path
+from climate_toolkit.visualization.ensemble import write_ensemble_uncertainty
+
+result = json.loads(Path("ensemble.json").read_text())
+write_ensemble_uncertainty(result, "ensemble.html")
+```
+
 ---
 
 ## Étape 7 — Évaluer les aléas agricoles {#step-7-crop-hazards}
@@ -246,4 +257,4 @@ uv run climate-toolkit-hazards-ensemble Maize --location "-1.286,36.817" \
 - Le **premier appel à GEE** est lent en raison de la négociation d’authentification. Les exécutions suivantes réutilisent le cache.
 - **Les options dépendent de la commande.** Vérifiez-les avec `--help`. Par exemple, `fetch` utilise `--lat/--lon` ; `stats`, `seasons` et `hazards` utilisent `--location` ; `hazards` reçoit la culture en argument positionnel et les dates via `--date-from` et `--date-to` ; `periods` utilise `--baseline-start` et `--baseline-end`.
 
-<!-- source-sha256: 98f2eb93e906574fda622cddd42eb499ddf27c5828d8c9bdad640786a82547d3 -->
+<!-- source-sha256: 25c651b76dfbc54c9c8458822a7d2eb00fe44cc741e8c6dafe4e1155ed090547 -->

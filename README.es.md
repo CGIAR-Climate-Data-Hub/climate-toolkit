@@ -16,4 +16,6 @@ Para obtener precipitaciones de CHIRPS v3 y temperaturas diarias de CHIRTS-ERA5 
 
 Para visualizar los valores de estación y de malla por mes y por estación del año, añada `--diagnostics-html ARCHIVO` al comando de comparación de estaciones.
 
-<!-- source-sha256: 286af8674047232596371906773e1ca5b9bfb5b4dd8e6fb0c9b3e59ec767ac96 -->
+Añada `--uncertainty-html ensemble.html` a `climate-toolkit periods-ensemble` para visualizar la dispersión anual y estacional, los cambios por modelo y el número de modelos contribuyentes.
+
+<!-- source-sha256: ed0f5eb0297a9a643fb90218831b8a92800b566ee67f3e0e3cc2436ccd6d47ab -->
