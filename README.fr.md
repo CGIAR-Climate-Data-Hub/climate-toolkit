@@ -14,4 +14,6 @@ Pour obtenir les précipitations CHIRPS v3 et les températures quotidiennes CHI
 
 [Premiers pas](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/getting_started/) · [Documentation](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/fr/) · [Essayer dans Colab](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
 
-<!-- source-sha256: 5f7957726e07c7effefb55569227f8072cac60912987635fa011656632282d2c -->
+Pour visualiser les observations et les données sur grille par mois et par saison, ajoutez `--diagnostics-html FICHIER` à la commande de comparaison des stations.
+
+<!-- source-sha256: 286af8674047232596371906773e1ca5b9bfb5b4dd8e6fb0c9b3e59ec767ac96 -->

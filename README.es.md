@@ -14,4 +14,6 @@ Para obtener precipitaciones de CHIRPS v3 y temperaturas diarias de CHIRTS-ERA5 
 
 [Primeros pasos](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/getting_started/) · [Documentación](https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/) · [Probar en Colab](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb)
 
-<!-- source-sha256: 5f7957726e07c7effefb55569227f8072cac60912987635fa011656632282d2c -->
+Para visualizar los valores de estación y de malla por mes y por estación del año, añada `--diagnostics-html ARCHIVO` al comando de comparación de estaciones.
+
+<!-- source-sha256: 286af8674047232596371906773e1ca5b9bfb5b4dd8e6fb0c9b3e59ec767ac96 -->

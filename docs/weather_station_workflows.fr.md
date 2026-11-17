@@ -591,7 +591,9 @@ Options utiles pour la comparaison :
 - `--wet-day-threshold-mm` : modifie le seuil utilisé pour évaluer la détection des jours de pluie
 - `--min-overlap-days` : en dessous de ce nombre de jours communs, les indicateurs sont signalés comme peu fiables
 - `--report-prefix` : enregistre aussi les fichiers d’examen des candidates lors de la comparaison
-- `--open-report` : tente d’ouvrir automatiquement le rapport HTML sur les candidates
+- `--open-report` — ouvre les diagnostics si demandés, sinon la carte des stations candidates
+
+Ajoutez `--diagnostics-html outputs/weather_station/diagnostics.html` à une comparaison (Python : `diagnostics_html=...`) pour tracer les observations et les valeurs sur grille par mois et par saison. Le fichier HTML s’ouvre hors ligne. Un CSV téléchargeable donne le nombre de jours appariés et le nombre de jours calendaires de chaque période. Les cumuls de précipitations et les moyennes des autres variables ne portent que sur les jours appariés. Les symboles creux signalent les périodes incomplètes, y compris les saisons décembre–février (DJF) partielles. Le rapport présente le biais (grille moins station), l’erreur absolue moyenne, la racine de l’erreur quadratique moyenne, la corrélation et la capacité à détecter les jours de pluie. Pour plusieurs stations, il représente aussi la moyenne des paires disponibles à chaque date.
 
 Précaution pour l’interprétation :
 
@@ -789,4 +791,4 @@ climate-toolkit-stats \
 - `analysis/weather_station_data_access_research_2026-06-15.md`
 - `analysis/issues/weather_station_compare_window_guidance.md`
 
-<!-- source-sha256: 50cb70c6e72ac3421887dd577c98ff7da1605c6f212352b440e3c3175125770b -->
+<!-- source-sha256: 374c8189a723978a1a7c88aa0c12489d902f733829e4916283448145806a0217 -->

@@ -672,39 +672,24 @@ def _aggregate_series(
     *,
     variable: str,
     frequency: str,
+    include_coverage: bool = False,
 ) -> pd.DataFrame:
     station_col = f"{variable}_station"
     grid_col = f"{variable}_grid"
     working = overlap[["date", station_col, grid_col]].dropna().copy()
     if working.empty:
         return pd.DataFrame()
-    working["date"] = pd.to_datetime(working["date"])
-    if frequency == "seasonal":
-        month = working["date"].dt.month
-        season = np.select(
-            [
-                month.isin([12, 1, 2]),
-                month.isin([3, 4, 5]),
-                month.isin([6, 7, 8]),
-                month.isin([9, 10, 11]),
-            ],
-            ["DJF", "MAM", "JJA", "SON"],
-            default="UNK",
-        )
-        season_year = working["date"].dt.year + (month == 12).astype(int)
-        working["period"] = season_year.astype(str) + "-" + pd.Series(season, index=working.index)
-    else:
-        working["period"] = working["date"].dt.to_period(frequency).astype(str)
-    if variable == "precipitation":
-        aggregated = (
-            working.groupby("period", as_index=False)[[station_col, grid_col]]
-            .sum()
-        )
-    else:
-        aggregated = (
-            working.groupby("period", as_index=False)[[station_col, grid_col]]
-            .mean()
-        )
+    # Quarters ending in February put December in the following year's DJF.
+    period_freq = "Q-FEB" if frequency == "seasonal" else frequency
+    period = pd.to_datetime(working["date"]).dt.to_period(period_freq)
+    grouped = working.groupby(period)
+    values = grouped[[station_col, grid_col]]
+    aggregated = values.sum() if variable == "precipitation" else values.mean()
+    if include_coverage:
+        aggregated["paired_days"] = grouped["date"].nunique()
+        periods = aggregated.index
+        aggregated["calendar_days"] = (periods.end_time.normalize() - periods.start_time).days + 1
+    aggregated.index.name = "period"
     return aggregated
 
 
@@ -713,12 +698,25 @@ def _compute_aggregated_metrics(
     *,
     variable: str,
     frequency: str,
+    period_tables: list[pd.DataFrame] | None = None,
+    reference: tuple[str, str, str] | None = None,
 ) -> dict[str, Any] | None:
-    aggregated = _aggregate_series(overlap, variable=variable, frequency=frequency)
+    aggregated = _aggregate_series(
+        overlap, variable=variable, frequency=frequency, include_coverage=period_tables is not None
+    )
     if aggregated.empty:
         return None
     station_col = f"{variable}_station"
     grid_col = f"{variable}_grid"
+    if period_tables is not None and reference is not None:
+        kind, station_id, grid_source = reference
+        table = aggregated.rename(columns={station_col: "station", grid_col: "grid"})
+        table = table.assign(
+            reference=kind, station_id=station_id, grid_source=grid_source, variable=variable,
+            timescale="monthly" if frequency == "M" else "seasonal",
+            period_start=table.index.start_time,
+        )
+        period_tables.append(table.reset_index(drop=True))
     station_values = aggregated[station_col].astype(float)
     grid_values = aggregated[grid_col].astype(float)
     delta = grid_values - station_values
@@ -2141,6 +2139,8 @@ def render_compare_report(result: dict[str, Any]) -> str:
                 f"- html: {artifacts.get('html')}",
             ]
         )
+    if result.get("diagnostics_html"):
+        lines.append(f"Station diagnostics: {result['diagnostics_html']}")
     if result["grid_failures"]:
         lines.extend(["", "Grid fetch failures"])
         for failure in result["grid_failures"]:
@@ -2255,6 +2255,7 @@ def compare_station_to_grids(
     custom_temp_unit: str = "c",
     custom_precip_unit: str = "mm",
     candidate_report_prefix: str | None = None,
+    diagnostics_html: str | Path | None = None,
     workers: int = 1,
 ) -> dict[str, Any]:
     """Validate gridded climate products against nearby station observations.
@@ -2385,6 +2386,10 @@ def compare_station_to_grids(
         ``<prefix>.csv``, ``<prefix>.json``, and ``<prefix>.html`` (an
         interactive map plus ranking table); the paths are returned under
         ``"candidate_review_artifacts"``. Default ``None`` (no report).
+    diagnostics_html : str or Path, optional
+        Write a standalone HTML report with monthly and seasonal figures, paired
+        values (downloadable CSV), and skill metrics. Requires comparison mode.
+        Its path is returned under ``"diagnostics_html"``.
     workers : int, optional
         Parallel workers for grid-data fetching. Default ``1``.
 
@@ -2451,6 +2456,14 @@ def compare_station_to_grids(
     ...     ["grid_source", "variable", "overlap_days", "bias", "correlation"]
     ... ]
     """
+    if diagnostics_html is not None and candidate_report_prefix:
+        candidate = Path(candidate_report_prefix)
+        if Path(diagnostics_html).resolve() in {
+            candidate.with_suffix(ext).resolve() for ext in (".html", ".json", ".csv")
+        }:
+            raise ValueError("Choose separate paths for diagnostics and candidate reports.")
+    if diagnostics_html is not None and selection_mode == "list":
+        raise ValueError("Station diagnostics require a comparison. Select auto or specified mode.")
     normalized_grid_sources = _normalize_grid_sources(grid_sources)
     requested_variables = variables or DEFAULT_COMPARE_VARIABLES
     resolved_strategy = _normalize_selection_strategy(selection_strategy)
@@ -2680,6 +2693,7 @@ def compare_station_to_grids(
             f"Candidate review artifacts saved: html={candidate_review_artifacts['html']}",
         )
 
+    period_tables = [] if diagnostics_html is not None else None
     metrics_rows: list[dict[str, Any]] = []
     monthly_metrics_rows: list[dict[str, Any]] = []
     seasonal_metrics_rows: list[dict[str, Any]] = []
@@ -2814,6 +2828,8 @@ def compare_station_to_grids(
                     overlap,
                     variable=variable_name,
                     frequency="M",
+                    period_tables=period_tables,
+                    reference=("station", station_meta["station_id"], grid_source),
                 )
                 if monthly_metric is not None:
                     monthly_metric.update(
@@ -2828,6 +2844,8 @@ def compare_station_to_grids(
                     overlap,
                     variable=variable_name,
                     frequency="seasonal",
+                    period_tables=period_tables,
+                    reference=("station", station_meta["station_id"], grid_source),
                 )
                 if seasonal_metric is not None:
                     seasonal_metric.update(
@@ -2955,6 +2973,8 @@ def compare_station_to_grids(
                     pooled_reference,
                     variable=variable_name,
                     frequency="M",
+                    period_tables=period_tables,
+                    reference=("pooled", "POOLED_REF", grid_source),
                 )
                 if pooled_monthly_metric is not None:
                     pooled_monthly_metric.update(
@@ -2973,6 +2993,8 @@ def compare_station_to_grids(
                     pooled_reference,
                     variable=variable_name,
                     frequency="seasonal",
+                    period_tables=period_tables,
+                    reference=("pooled", "POOLED_REF", grid_source),
                 )
                 if pooled_seasonal_metric is not None:
                     pooled_seasonal_metric.update(
@@ -3055,7 +3077,7 @@ def compare_station_to_grids(
         f"annual={len(annual_metrics_rows)} | failures={len(grid_failures)}",
     )
 
-    return {
+    result = {
         "anchor_location": {
             "lat": float(station_coord[0]),
             "lon": float(station_coord[1]),
@@ -3095,6 +3117,12 @@ def compare_station_to_grids(
         "overall_metrics": overall_metrics,
         "use_case_rankings": use_case_rankings,
     }
+    if period_tables is not None:
+        from climate_toolkit.visualization.station import write_station_diagnostics
+
+        write_station_diagnostics(result, period_tables, Path(diagnostics_html))
+        result["diagnostics_html"] = str(diagnostics_html)
+    return result
 
 
 def _json_default(value):
@@ -3160,6 +3188,8 @@ def main() -> int:
         "--workers", type=int, default=1,
         help="Bounded historical GEE/Xee worker count for gridded comparison fetches.",
     )
+    parser.add_argument("--diagnostics-html", metavar="FILE",
+                        help="Write standalone station vs grid figures, skill metrics and paired-period CSV.")
     parser.add_argument("--report-prefix", default=None)
     parser.add_argument("--candidate-report-prefix", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--open-report", action="store_true")
@@ -3174,6 +3204,8 @@ def main() -> int:
                 "station_source='custom_csv' requires --custom-station-file. "
                 + custom_station_format_help()
             )
+        if args.output and args.diagnostics_html and Path(args.output).resolve() == Path(args.diagnostics_html).resolve():
+            raise ValueError("Choose separate paths for diagnostics HTML and output JSON.")
         report_prefix = args.report_prefix or args.candidate_report_prefix
         if (
             args.report_prefix
@@ -3216,6 +3248,7 @@ def main() -> int:
             custom_temp_unit=args.custom_temp_unit,
             custom_precip_unit=args.custom_precip_unit,
             candidate_report_prefix=report_prefix,
+            diagnostics_html=args.diagnostics_html,
             workers=args.workers,
         )
     except Exception as exc:
@@ -3236,8 +3269,8 @@ def main() -> int:
         print(render_compare_report(result))
         if args.output:
             print(f"\nSaved JSON report: {args.output}")
-    if args.open_report and result.get("candidate_review_artifacts", {}).get("html"):
-        html_path = result["candidate_review_artifacts"]["html"]
+    html_path = result.get("diagnostics_html") or (result.get("candidate_review_artifacts") or {}).get("html")
+    if args.open_report and html_path:
         opened = _open_report_html(html_path)
         if not args.quiet:
             print(f"{'Opened' if opened else 'Could not open'} report HTML: {html_path}")
