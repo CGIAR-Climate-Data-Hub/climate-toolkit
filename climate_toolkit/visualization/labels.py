@@ -8,6 +8,13 @@ from __future__ import annotations
 
 #: Toolkit column name -> display label (units included where relevant).
 VARIABLE_LABELS: dict[str, str] = {
+    "precipitation": "Precipitation (mm)",
+    "min_temperature": "Minimum temperature (°C)",
+    "max_temperature": "Maximum temperature (°C)",
+    "mean_temperature": "Mean temperature (°C)",
+    "humidity": "Humidity (%)",
+    "wind_speed": "Wind speed (m/s)",
+    "solar_radiation": "Solar radiation (W/m²)",
     "tk_rain_total_mm": "Seasonal rainfall (mm)",
     "tk_rainy_days": "Rainy days",
     "tk_dry_days": "Dry days",
