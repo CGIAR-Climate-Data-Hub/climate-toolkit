@@ -167,6 +167,17 @@ uv run climate-toolkit-periods \
   --output outputs/2020_vs_2001_2015.json
 ```
 
+For a NEX-GDDP period comparison, add `--uncertainty-html ensemble.html` to `climate-toolkit periods-ensemble`. Each scenario shows annual and seasonal precipitation, mean daily maximum and minimum temperatures, and precipitation minus reference evapotranspiration. Dots represent individual models. The median, 25th–75th and 10th–90th percentiles summarize the spread across models that supplied both periods. Changes are calculated within each model. Check the contribution table and CSV for missing metrics and failed models. These ranges describe model spread, not forecast probabilities. To plot a saved ensemble JSON without fetching climate data:
+
+```python
+import json
+from pathlib import Path
+from climate_toolkit.visualization.ensemble import write_ensemble_uncertainty
+
+result = json.loads(Path("ensemble.json").read_text())
+write_ensemble_uncertainty(result, "ensemble.html")
+```
+
 ---
 
 ## Step 7 — Crop hazards

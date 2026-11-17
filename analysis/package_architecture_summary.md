@@ -256,6 +256,11 @@ Two main modes:
 - NEX-GDDP baseline-LTM vs future-LTM ensemble comparison in
   `ensemble_periods.py`
 
+The ensemble CLI can pass its scenario results to `visualization/ensemble.py`
+with `--uncertainty-html`. The renderer also accepts saved ensemble JSON.
+It pairs baseline and future metrics within each model and exports spread
+plots and coverage from the existing `per_model_results` contract.
+
 This layer depends heavily on output shape from `climate_statistics`.
 
 ### `calculate_hazards`

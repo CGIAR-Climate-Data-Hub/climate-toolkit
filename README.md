@@ -639,6 +639,8 @@ climate-toolkit-periods-ensemble \
   --livestock-type cattle_dairy
 ```
 
+Add `--uncertainty-html ensemble.html` for annual and seasonal model spread, paired changes, and model contribution counts.
+
 ### Ensemble worker tuning
 
 All NEX-GDDP ensemble CLIs now accept:

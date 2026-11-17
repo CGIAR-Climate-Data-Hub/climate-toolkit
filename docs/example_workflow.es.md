@@ -151,6 +151,17 @@ uv run climate-toolkit-periods \
   --output outputs/2020_vs_2001_2015.json
 ```
 
+Para comparar períodos con NEX-GDDP, añada `--uncertainty-html ensemble.html` a `climate-toolkit periods-ensemble`. Para cada escenario, el informe muestra, por año y por estación, la precipitación, las medias de las temperaturas máximas y mínimas diarias y la precipitación menos la evapotranspiración de referencia. Cada punto representa un modelo. La mediana y los intervalos entre los percentiles 25 y 75 y entre los percentiles 10 y 90 resumen la dispersión de los modelos con datos para ambos períodos. El cambio se calcula dentro de cada modelo. La tabla de contribuciones y el CSV identifican los datos faltantes y los modelos que fallaron. Los intervalos describen la dispersión entre modelos y no representan probabilidades de pronóstico. Para crear las figuras a partir de un archivo JSON guardado sin descargar datos climáticos:
+
+```python
+import json
+from pathlib import Path
+from climate_toolkit.visualization.ensemble import write_ensemble_uncertainty
+
+result = json.loads(Path("ensemble.json").read_text())
+write_ensemble_uncertainty(result, "ensemble.html")
+```
+
 ---
 
 ## Paso 7 — Evaluar riesgos para los cultivos {#step-7-crop-hazards}
@@ -246,4 +257,4 @@ uv run climate-toolkit-hazards-ensemble Maize --location "-1.286,36.817" \
 - La **primera consulta a GEE** es lenta por el intercambio de autenticación. Las siguientes ejecuciones reutilizan la caché.
 - **Las opciones dependen del comando.** Compruébelas con `--help`. Por ejemplo, `fetch` utiliza `--lat/--lon`; `stats`, `seasons` y `hazards` usan `--location`; `hazards` recibe el cultivo como argumento posicional y las fechas mediante `--date-from` y `--date-to`; `periods` usa `--baseline-start` y `--baseline-end`.
 
-<!-- source-sha256: 98f2eb93e906574fda622cddd42eb499ddf27c5828d8c9bdad640786a82547d3 -->
+<!-- source-sha256: 25c651b76dfbc54c9c8458822a7d2eb00fe44cc741e8c6dafe4e1155ed090547 -->

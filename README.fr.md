@@ -14,4 +14,6 @@ Pour obtenir les précipitations CHIRPS v3 et les températures quotidiennes CHI
 
 Pour visualiser les observations et les données sur grille par mois et par saison, ajoutez `--diagnostics-html FICHIER` à la commande de comparaison des stations.
 
-<!-- source-sha256: fd62b4c5b8a29dba6217c349918620c3b89a6e8937e988a9e084ac06fca747a8 -->
+Ajoutez `--uncertainty-html ensemble.html` à `climate-toolkit periods-ensemble` pour visualiser la dispersion annuelle et saisonnière, les changements par modèle et le nombre de modèles contributeurs.
+
+<!-- source-sha256: 8527afca25b4942318b82124a2bc47590df6960b94d3eaac382f37fb209adf57 -->
