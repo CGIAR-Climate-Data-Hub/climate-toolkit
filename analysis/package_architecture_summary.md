@@ -289,6 +289,7 @@ It provides:
 - custom station ingestion
 - candidate-review outputs including map/html/json/csv
 - station-vs-grid comparison against toolkit climate sources
+- opt-in `diagnostics_html` export through `visualization/station.py`. The compare layer supplies the same paired monthly and seasonal reductions used by its metrics, plus calendar coverage. The renderer embeds the figures and period CSV in one offline HTML report.
 
 Weather-station outputs can also override historical variables in some climate
 analysis workflows.

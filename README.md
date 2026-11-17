@@ -10,6 +10,8 @@ A unified toolkit for retrieving climate data from various global datasets such 
 
 [![PyPI](https://img.shields.io/pypi/v/climate-toolkit)](https://pypi.org/project/climate-toolkit/) — published on PyPI: `pip install climate-toolkit`.
 
+[Email Pete to subscribe](mailto:p.steward@cgiar.org?subject=Subscribe%20to%20Climate%20Toolkit%20release%20updates) for a short note with each stable release, including changes that may affect your code or results. Reply “unsubscribe” to leave.
+
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/climate_toolkit_colab.ipynb) — try the toolkit live in your browser, no install needed.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/examples/era_lte_colab.ipynb) — ERA LTE workflow: validate toolkit rainfall against ERA field records and explore yield vs climate, with plots.
@@ -1247,7 +1249,7 @@ adoption PR.
 Toolkit supports:
 
 1. NOAA station discovery and download with `ghcn_daily`, `gsod`, or `auto`
-2. station-vs-grid comparison against historical gridded products
+2. station-vs-grid comparison against historical gridded products, with optional monthly and seasonal diagnostics via `--diagnostics-html FILE`
 3. custom station CSV/JSON ingestion
 4. custom station override into historical climate analysis
 

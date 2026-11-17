@@ -71,7 +71,8 @@ drive it.
    check that green CI belongs to the current release PR head.
 
 3. **Merge the release PR.** That creates the GitHub Release + `vX.Y.Z` tag and
-   the workflow publishes to PyPI automatically. Nothing else to do.
+   the workflow publishes to PyPI automatically. Verify the upload before
+   preparing the user announcement below.
 
    Automated publishing checks out that release tag explicitly. Publishing
    remains a separate action from merging feature/fix PRs.
@@ -95,6 +96,31 @@ pip install -i https://test.pypi.org/simple/ climate-toolkit --pre
   pip install climate-toolkit            # add --pre for an alpha/rc
   python -c "import climate_toolkit as ct; print(ct.__version__)"
   ```
+
+## Email release updates
+
+The **Climate Toolkit release updates** list is for people who use the
+package. Aim for one short notice per stable PyPI version. Skip release PRs,
+pre-releases and TestPyPI rehearsals. GitHub Releases and the versioned
+changelog remain the public record.
+
+Pete manages requests at p.steward@cgiar.org. Keep a private contact list in
+the mailbox. Add each sender who asks to subscribe once. Remove anyone who
+asks to unsubscribe before preparing the next notice.
+
+**For each stable release:**
+
+1. Verify the exact version on PyPI and read its changelog at the release tag.
+   Check linked pull requests when a changelog entry does not explain user impact.
+2. Draft the subject as `Climate Toolkit <version>: <main user impact>`.
+   Open with who is affected. Give a concrete action: what to change, what to
+   rerun, or why no action is needed. Call out changed defaults, units or
+   scientific results where applicable. Include links to the project, tagged
+   changelog and version on PyPI, and invite readers to reply “unsubscribe” to leave the list.
+3. Address the notice to Pete and put current subscribers in Bcc. Show Pete
+   the exact recipients, subject and full draft.
+   Send only after Pete explicitly approves that draft. Check Sent Items for the
+   version before retrying.
 
 ## Notes
 
