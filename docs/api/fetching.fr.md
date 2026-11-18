@@ -19,7 +19,7 @@ df = ct.fetch_climate_data(
     date_to=date(2020, 12, 31),
     verbose=False,
 )
-print("rows:", df.shape[0], "| columns:", df.columns.tolist())
+print("lignes :", df.shape[0], "| colonnes :", df.columns.tolist())
 print(df.head())
 ```
 

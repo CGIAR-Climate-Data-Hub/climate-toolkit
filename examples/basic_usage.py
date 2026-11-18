@@ -7,6 +7,10 @@ Demonstrates the four main entry points exposed at the top level:
     3. evaluate_hazards            — crop hazard assessment for a season
     4. compare_climate_periods     — focal year vs. baseline comparison
 
+Walkthroughs of these calls, including setup and examples:
+    Français: https://cgiar-climate-data-hub.github.io/climate-toolkit/fr/use-as-a-package/
+    Español: https://cgiar-climate-data-hub.github.io/climate-toolkit/es/use-as-a-package/
+
 Prerequisites
 -------------
 
@@ -28,9 +32,11 @@ Or, for development, clone the repository first (preferred, uses ``uv``)::
 
 **2. Google Earth Engine credentials (needed for most data sources)**
 
-The GEE-backed sources — ``era5_land``, ``era_5``, ``chirps_v3_daily_rnl``,
-``nex_gddp`` — require a one-time authentication plus a Cloud project id.
-``nasa_power`` needs neither, which is why this script starts with it.
+Earth Engine sources such as ``era5_land``, ``era_5``, and ``nex_gddp``
+require authentication and a Cloud project ID. This script starts with
+``nasa_power``, which needs no credentials. Daily CHIRPS v3 and CHIRTS-ERA5
+also support credential-free access with Python 3.12+ and the cloud extra
+(``pip install "climate-toolkit[cloud]"``).
 
 a. Sign up at https://earthengine.google.com and create (or reuse) a
    Google Cloud project with the Earth Engine API enabled.
@@ -91,7 +97,7 @@ def demo_fetch() -> None:
     """1. Fetch daily climate data -> pandas DataFrame.
 
     Uses nasa_power, which needs no Earth Engine auth. The GEE-backed
-    sources (era5_land, era_5, chirps_v3_daily_rnl, nex_gddp) require
+    sources (era5_land, era_5, nex_gddp) require
     ``earthengine authenticate`` + ``GCP_PROJECT_ID``.
     """
     df = ct.fetch_climate_data(
