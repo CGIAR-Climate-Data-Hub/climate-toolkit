@@ -69,7 +69,7 @@ __all__ = [
 try:
     __version__ = version("climate-toolkit")
 except PackageNotFoundError:  # pragma: no cover - local source tree before install
-    __version__ = "0.2.2"
+    __version__ = "0.3.0"
 
 
 def __getattr__(name: str):

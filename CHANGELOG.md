@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/compare/v0.2.2...v0.3.0) (2026-11-18)
+
+
+### Added
+
+* plot paired NEX-GDDP ensemble uncertainty ([#207](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/207)) ([#211](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/211)) ([31e1dca](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/commit/31e1dca7d3063b34aaf270b2fa434aadfc72d5ce))
+* report paired station and grid diagnostics ([#206](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/206)) ([d3cab69](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/commit/d3cab696ba0a41249ebf69d4842c0c01ec1d3774))
+
+
+### Documentation
+
+* add email signup for Climate Toolkit release updates ([#208](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/208)) ([7eddd8c](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/commit/7eddd8c4529a5cabb4a246b42dbbc018c92ffa41))
+
 ## [0.2.2](https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/compare/v0.2.1...v0.2.2) (2026-11-12)
 
 
