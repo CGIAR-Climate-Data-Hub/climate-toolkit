@@ -1,0 +1,1271 @@
+
+<!doctype html>
+<html lang="es" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Análisis del clima, las temporadas, los riesgos y las proyecciones climáticas para un sitio determinado.">
+      
+      
+      
+        <link rel="canonical" href="https://CGIAR-Climate-Data-Hub.github.io/climate-toolkit/es/direct_cloud_access/">
+      
+      
+        <link rel="prev" href="../datasets/">
+      
+      
+        <link rel="next" href="../outputs_by_module/">
+      
+      
+        
+          <link rel="alternate" href="../../direct_cloud_access/" hreflang="en">
+        
+          <link rel="alternate" href="../../fr/direct_cloud_access/" hreflang="fr">
+        
+          <link rel="alternate" href="./" hreflang="es">
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Acceso directo a datos en la nube - Climate Toolkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#direct-cloud-access-and-provider-fallback" class="md-skip">
+          Saltar a contenido
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabecera">
+    <a href="../" title="Climate Toolkit" class="md-header__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Climate Toolkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Acceso directo a datos en la nube
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Activar el modo oscuro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Activar el modo oscuro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="green" data-md-color-accent="indigo"  aria-label="Activar el modo claro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Activar el modo claro" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Seleccionar idioma">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../direct_cloud_access/" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../fr/direct_cloud_access/" hreflang="fr" class="md-select__link">
+              Français
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="es" class="md-select__link">
+              Español
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Búsqueda" placeholder="Búsqueda" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Buscar">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpiar" aria-label="Limpiar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando búsqueda
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navegación" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="Climate Toolkit" class="md-nav__button md-logo" aria-label="Climate Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Climate Toolkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit" title="Ir al repositorio" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    CGIAR-Climate-Data-Hub/climate-toolkit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inicio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acerca de
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Primeros pasos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-as-a-package/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Uso del paquete de Python
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conjuntos de datos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acceso directo a datos en la nube
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Acceso directo a datos en la nube
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install-and-fetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Instalar y descargar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#products-and-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Productos y proveedores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paired-workflows-and-gee-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combinar dos fuentes y controlar el acceso a GEE
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#full-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flujo de trabajo completo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-integrity-caches-and-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integridad de los datos, cachés y límites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Referencias
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../outputs_by_module/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resultados por módulo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guías prácticas
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guías prácticas
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../example_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ejemplo de principio a fin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../weather_station_workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estaciones meteorológicas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../human_heat_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estrés térmico en personas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../thi_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estrés térmico en el ganado (THI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distribution_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distribución y versiones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API de Python
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API de Python
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Descripción general
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/fetching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Descarga de datos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Análisis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparación y validación
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Tabla de contenidos">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install-and-fetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Instalar y descargar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#products-and-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Productos y proveedores
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#paired-workflows-and-gee-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combinar dos fuentes y controlar el acceso a GEE
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#full-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flujo de trabajo completo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-integrity-caches-and-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integridad de los datos, cachés y límites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Referencias
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="direct-cloud-access-and-provider-fallback">Acceso directo a los datos y proveedores alternativos<a class="headerlink" href="#direct-cloud-access-and-provider-fallback" title="Permanent link">&para;</a></h1>
+<p>Referencia: <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/package_architecture_summary.md">arquitectura del paquete</a>. El desarrollo se documenta en <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/176">#176</a>, <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/177">#177</a> y <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/178">#178</a>.</p>
+<h2 id="install-and-fetch">Instalar y descargar<a class="headerlink" href="#install-and-fetch" title="Permanent link">&para;</a></h2>
+<p>El acceso directo requiere <strong>Python 3.12 o posterior</strong> y las dependencias opcionales de la nube:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;climate-toolkit[cloud]&#39;</span>
+<span class="c1"># Desde una copia del repositorio:</span>
+uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>cloud
+</code></pre></div>
+<p>El paquete base sigue siendo compatible con Python 3.10 o posterior. En versiones anteriores a 3.12, las solicitudes directas indican este requisito. Las vías de GEE configuradas explícitamente siguen disponibles.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">climate_toolkit</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ct</span>
+
+<span class="n">rain</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">fetch_climate_data</span><span class="p">(</span>
+    <span class="s2">&quot;chirps_v3_daily_rnl&quot;</span><span class="p">,</span>
+    <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+    <span class="n">allow_gee</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">temperature</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">fetch_climate_data</span><span class="p">(</span>
+    <span class="s2">&quot;chirts_era5&quot;</span><span class="p">,</span>
+    <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">date_from</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">date_to</span><span class="o">=</span><span class="n">date</span><span class="p">(</span><span class="mi">2020</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">31</span><span class="p">),</span>
+    <span class="n">allow_gee</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">rain</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;data_provenance&quot;</span><span class="p">])</span>
+</code></pre></div>
+<p>Con <code>sites=[("Nairobi", -1.286, 36.817), ...]</code> o <code>sites_csv=...</code> se aplican las mismas reglas de selección del proveedor. Las lecturas diferidas de puntos se agrupan por bloques de almacenamiento compartidos. <code>workers</code> limita la concurrencia (de 1 a 8 en el acceso directo).</p>
+<h2 id="products-and-providers">Productos y proveedores<a class="headerlink" href="#products-and-providers" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Fuente</th>
+<th>Orden de selección automática</th>
+<th>Comprobación de la cobertura</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chirps_v3_daily_rnl</code></td>
+<td>Caché compatible completa, producto definitivo de Dynamical, Hugging Face y por último GEE si está permitido</td>
+<td>Fechas disponibles: se requiere todo el período solicitado</td>
+</tr>
+<tr>
+<td><code>chirts_era5</code></td>
+<td>Caché completa y después Hugging Face</td>
+<td>Fechas disponibles: el archivo alojado empieza en 1981</td>
+</tr>
+</tbody>
+</table>
+<p>Dynamical consumió menos ancho de banda en todas las configuraciones de CHIRPS de un año evaluadas. Para Nairobi en 2020, Dynamical transfirió 3,39 MB en 20 solicitudes y Hugging Face 21,54 MB en 26 solicitudes. En ambos casos, repetir la consulta desde la caché no generó solicitudes remotas. En la validación, el archivo definitivo de Dynamical también cubría fechas más recientes. Hugging Face puede ser más rápido para períodos cortos. Véanse las <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_176_178_direct_cloud_access.md#chirps-http-benchmark-2026-11-09">mediciones de transferencia de CHIRPS</a> para cargas mayores y límites. Si es necesario, seleccione <code>backend="huggingface"</code> o <code>backend="dynamical"</code>: una elección explícita impide el cambio automático de proveedor.</p>
+<p>Ambos adaptadores CHIRPS leen la <strong>v3 definitiva/RNL</strong>. El producto preliminar de Dynamical es SAT y queda excluido. Ni CHIRPS v2 ni ningún otro producto de precipitación se usa como espejo alternativo.</p>
+<p>Dynamical almacena una tasa media diaria de precipitación que el adaptador convierte en mm/día. Para Hugging Face, xarray aplica una sola vez la escala de decodificación CF. Los espejos redondean de forma distinta: tenga en cuenta el error de cuantificación documentado, especialmente al contar días que alcanzan un umbral. Cada solicitud devuelve datos de una sola revisión de un proveedor, sin combinar días de proveedores distintos.</p>
+<p>Para CHIRPS v3 se compararon 543 valores diarios por espejo con la malla nativa de Earth Engine en Nairobi, Uagadugú y Cusco, de diciembre a febrero de 2019/20 y 2025/26. Las diferencias diarias máximas, redondeadas hacia arriba, fueron de 0,041 mm para Dynamical y 0,050 mm para Hugging Face. Con el umbral estricto de <code>&gt;1 mm</code>, la clasificación de días de lluvia difirió en cero y tres observaciones sitio-día, respectivamente. En comparaciones sensibles al umbral, seleccione un único proveedor y registre su revisión junto con los resultados. Véanse la <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_176_178_direct_cloud_access.md#chirps-finalrnl-reference-comparison-2026-11-08">comparación de referencia y las instrucciones para reproducirla</a>.</p>
+<p>Use CHIRTS-ERA5 para nuevos análisis de temperatura. La clave anterior <code>chirts</code> (CHIRTS-daily, 1983–2016) está <strong>en desuso</strong> y genera una advertencia. Su adaptador sigue disponible mediante selección explícita para reproducir resultados anteriores. La alternativa automática ahora utiliza CHIRTS-ERA5. Las claves y cachés existentes conservan su identidad y no se combinan. El atajo <code>chirps_v2+chirts</code> mantiene su significado histórico.</p>
+<p>CHIRTS-ERA5 amplía la cobertura temporal sin garantizar una mayor exactitud en cada sitio. El productor publica los datos de seguimiento con unos cinco días de retraso y el espejo puede tardar más. Tanto CHIRTS-daily como CHIRTS-ERA5 usan información de ERA5, pero se construyen de forma distinta. La migración implica más que cambiar el alojamiento de los archivos.</p>
+<p>El <a href="https://huggingface.co/datasets/aaguilar90/chirts-era5-daily">espejo de Hugging Face</a> almacena Tmax y Tmin en incrementos de 0,1 °C. El recuento de días calurosos utiliza la temperatura decodificada e incluye los días en que Tmax alcanza exactamente 35 °C (NTx35) o 40 °C (NTx40). Por ejemplo, una Tmax original de 34,96 °C se redondea a 35,0 °C y cuenta para NTx35 en el espejo. Las medias estacionales también usan los valores decodificados.</p>
+<p>Antes de aplicar umbrales absolutos, compruebe el sesgo respecto de una estación local. En las fechas coincidentes de 1994–95 y 2023–24, las mínimas diarias de CHIRTS-ERA5 superaron en promedio las de la estación de Nairobi entre 3,2 y 4,3 °C y las de Cusco entre 3,3 y 3,8 °C. En Uagadugú, en 2023–24, la malla omitió 30 de los 349 días en que la estación alcanzó o superó los 35 °C y añadió seis falsos positivos. La cobertura de las observaciones depende del sitio y de la variable.</p>
+<p>Prevea el ancho de banda necesario para series largas. En Nairobi, la primera lectura de treinta años de Tmax y Tmin diarias tardó 137 segundos y transfirió 1,47 GB. La repetición desde la caché tardó 0,07 segundos sin solicitudes de red. En el mismo período, 10 o 100 sitios dispersos superaron el límite predeterminado de 4 GiB de datos decodificados. Agrupe sitios cercanos o solicite períodos más cortos para sitios dispersos. Véanse las <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_176_178_direct_cloud_access.md#chirts-era5-station-comparison-and-transport-benchmark-2026-11-10">comparaciones con estaciones y las mediciones de transferencia</a>.</p>
+<h2 id="paired-workflows-and-gee-controls">Combinar dos fuentes y controlar el acceso a GEE<a class="headerlink" href="#paired-workflows-and-gee-controls" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">with</span> <span class="n">ct</span><span class="o">.</span><span class="n">backend_policy</span><span class="p">(</span><span class="n">allow_gee</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">analyze_climate_statistics</span><span class="p">(</span>
+        <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span> <span class="n">start_year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span> <span class="n">end_year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
+        <span class="n">source</span><span class="o">=</span><span class="s2">&quot;paired&quot;</span><span class="p">,</span> <span class="n">precip_source</span><span class="o">=</span><span class="s2">&quot;chirps_v3_daily_rnl&quot;</span><span class="p">,</span>
+        <span class="n">temp_source</span><span class="o">=</span><span class="s2">&quot;chirts_era5&quot;</span><span class="p">,</span> <span class="n">fixed_season</span><span class="o">=</span><span class="s2">&quot;03-01:05-31&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>climate-toolkit<span class="w"> </span>fetch<span class="w"> </span>--source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--no-gee<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--lat<span class="w"> </span>-1.286<span class="w"> </span>--lon<span class="w"> </span><span class="m">36</span>.817<span class="w"> </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31
+
+climate-toolkit<span class="w"> </span>stats<span class="w"> </span>--no-gee<span class="w"> </span>--source<span class="w"> </span>paired<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--temp-source<span class="w"> </span>chirts_era5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="o">=</span>-1.286,36.817<span class="w"> </span>--start-year<span class="w"> </span><span class="m">2020</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--fixed-season<span class="w"> </span><span class="m">03</span>-01:05-31
+</code></pre></div>
+<p>La interfaz unificada admite <code>--backend</code> y <code>--no-gee</code> en todos los comandos, al igual que el comando independiente de descarga. Los demás comandos independientes pueden usar las variables de entorno <code>CLIMATE_TOOLKIT_ALLOW_GEE=false</code> y <code>CLIMATE_TOOLKIT_BACKEND=auto</code>. Los contextos de Python se pueden anidar y los procesos de cálculo de modelos iniciados por la biblioteca heredan las reglas de acceso. Cada hilo o proceso creado por el usuario debe entrar en su propio contexto.</p>
+<p>En modo histórico <code>auto</code> se combina CHIRPS v3 con la fuente <code>era5_land</code> (<strong>ERA5-Land</strong>, distinta de AgERA5) para las variables complementarias. CHIRTS-ERA5 es ahora la última alternativa para temperatura. Si se prohíbe GEE, <code>auto</code> selecciona directamente CHIRPS v3 y CHIRTS-ERA5. Esta combinación solo proporciona precipitación y Tmax/Tmin. No proporciona humedad, viento, radiación ni datos del suelo; los análisis que los requieren siguen necesitándolos. Los metadatos de estrés térmico humano marcan como nulas las variables complementarias ausentes, sin atribuirlas a CHIRTS-ERA5.</p>
+<p>La elección explícita del proveedor se aplica a las fuentes con acceso directo en la nube. Las demás conservan sus vías de acceso, sujetas a la prohibición general de GEE. Elegir <code>dynamical</code> para CHIRTS-ERA5 falla porque ese adaptador no existe. Use <code>auto</code> al combinar fuentes distintas. La alternativa automática de GEE requiere configuración previa y nunca abre un proceso de autenticación interactivo.</p>
+<h2 id="full-pipeline">Flujo de trabajo completo<a class="headerlink" href="#full-pipeline" title="Permanent link">&para;</a></h2>
+<p><code>run_pipeline</code> aplica la misma pareja de fuentes y las mismas reglas de acceso a la descarga diaria, la climatología, la comparación de fuentes, las estadísticas estacionales, los riesgos agrícolas y la comparación de períodos. Esta prueba usa una climatología de dos años. Para obtener normales científicas, elija un período de referencia más largo y adecuado, teniendo en cuenta los límites siguientes.</p>
+<div class="highlight"><pre><span></span><code><span class="n">result</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">run_pipeline</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Nairobi&quot;</span><span class="p">,</span> <span class="n">location_coord</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">1.286</span><span class="p">,</span> <span class="mf">36.817</span><span class="p">),</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;paired&quot;</span><span class="p">,</span> <span class="n">precip_source</span><span class="o">=</span><span class="s2">&quot;chirps_v3_daily_rnl&quot;</span><span class="p">,</span> <span class="n">temp_source</span><span class="o">=</span><span class="s2">&quot;chirts_era5&quot;</span><span class="p">,</span>
+    <span class="n">allow_gee</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">start_year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span> <span class="n">end_year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
+    <span class="n">climatology_baseline</span><span class="o">=</span><span class="p">(</span><span class="mi">2019</span><span class="p">,</span> <span class="mi">2020</span><span class="p">),</span>
+    <span class="n">fixed_season</span><span class="o">=</span><span class="s2">&quot;03-01:05-31&quot;</span><span class="p">,</span> <span class="n">crop_name</span><span class="o">=</span><span class="s2">&quot;maize&quot;</span><span class="p">,</span>
+    <span class="n">run_compare_sources</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">compare_sources_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;paired&quot;</span><span class="p">,</span> <span class="s2">&quot;chirps_v3_daily_rnl&quot;</span><span class="p">,</span> <span class="s2">&quot;chirts_era5&quot;</span><span class="p">],</span>
+    <span class="n">run_compare_periods</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">baseline_start</span><span class="o">=</span><span class="mi">2019</span><span class="p">,</span> <span class="n">baseline_end</span><span class="o">=</span><span class="mi">2019</span><span class="p">,</span> <span class="n">focal_year</span><span class="o">=</span><span class="mi">2020</span><span class="p">,</span>
+    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;outputs/nairobi_pipeline&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">)</span>
+<span class="k">assert</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">errors</span>
+</code></pre></div>
+<p><code>source="auto", allow_gee=False</code> también selecciona esta pareja. <code>backend="auto"</code> es apropiado para combinar fuentes de precipitación y temperatura, ya que Dynamical no tiene adaptador de temperatura. Si se indica <code>ee_project_id</code> para una vía de GEE permitida, se transmite a las etapas correspondientes.</p>
+<p>El directorio de cada sitio contiene <code>daily.csv</code>, su archivo de metadatos, los informes JSON por etapa y <code>status.json</code>. En la raíz se encuentran <code>summary.csv</code> y <code>metadata.json</code>. Las exportaciones diarias de la comparación de fuentes se guardan en <code>source_comparison/</code> para cada sitio. Compruebe el estado y <code>completed_steps</code> antes de usar un informe. Un error devuelto o una comparación parcial hace fallar la etapa. Una nueva ejecución fallida elimina los informes JSON obsoletos. Pueden quedar exportaciones parciales para diagnóstico sin que ello acredite que la etapa terminó correctamente.</p>
+<p>La climatología de acceso directo exige todos los años solicitados y rechaza datos que no superan los controles de calidad. No acorta silenciosamente el período de referencia. También se puede calcular una climatología con dos fuentes desde la línea de comandos:</p>
+<div class="highlight"><pre><span></span><code>climate-toolkit<span class="w"> </span>climatology<span class="w"> </span>--no-gee<span class="w"> </span>--source<span class="w"> </span>paired<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--precip-source<span class="w"> </span>chirps_v3_daily_rnl<span class="w"> </span>--temp-source<span class="w"> </span>chirts_era5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--location<span class="o">=</span>-1.286,36.817<span class="w"> </span>--start-year<span class="w"> </span><span class="m">2019</span><span class="w"> </span>--end-year<span class="w"> </span><span class="m">2020</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="w"> </span>json<span class="w"> </span>--output<span class="w"> </span>outputs/climatology.json<span class="w"> </span>--output-dir<span class="w"> </span><span class="s2">&quot;&quot;</span>
+</code></pre></div>
+<h2 id="data-integrity-caches-and-limits">Integridad de los datos, cachés y límites<a class="headerlink" href="#data-integrity-caches-and-limits" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Las tablas sin procesar contienen las columnas decodificadas con los nombres de origen, los resultados del control de calidad y la procedencia. Las tablas transformadas o preprocesadas usan los nombres normalizados. Los datos directos conservan su precisión: se omiten el relleno genérico y las conversiones heurísticas de unidades.</li>
+<li>Un valor ausente o infinito, precipitación negativa, temperaturas fuera del intervalo de −90 a 60 °C o Tmin superior a Tmax impiden el uso de los datos directos en el análisis. Examine <code>stage="raw"</code> para diagnosticar la causa. Estos controles básicos no garantizan la exactitud científica. Un valor físicamente inválido no se trata como una caída del servicio.</li>
+<li>Un fallo de transferencia o del proveedor, una cobertura desactualizada, fechas o variables ausentes o metadatos incompatibles pueden llevar a consultar otro espejo admisible. Nunca se acepta silenciosamente una cobertura parcial. Los puntos en el océano o fuera del dominio no se trasladan a una celda terrestre cercana.</li>
+<li>Los bloques anuales se guardan en <code>outputs/cache/direct_cloud/v2/&lt;source&gt;/&lt;backend&gt;/</code> o en la raíz indicada. Los archivos JSON, con suma de comprobación, conservan la precisión numérica, el orden de columnas, las coordenadas solicitadas, las celdas elegidas, las unidades, la revisión y las fechas. Las escrituras son atómicas. Una respuesta completa en caché evita toda consulta de metadatos o autenticación, incluso para un proveedor alternativo. Una lectura interrumpida puede reutilizar los bloques de la misma revisión; una revisión nueva sustituye los datos sin mezclar revisiones. <code>refresh_cache=True</code> solicita los datos actuales del proveedor. Las cachés de GEE existentes se mantienen separadas. Los años consecutivos ausentes se cargan en lotes de hasta cinco años, compartiendo bloques de origen entre años. Cada lote completado guarda por separado los registros anuales, lo que permite reanudar la misma revisión tras un fallo.</li>
+<li>Las exportaciones CSV/JSON de las descargas y comparaciones de fuentes escriben un archivo complementario <code>.metadata.json</code>. Las estadísticas, comparaciones de períodos, evaluaciones de riesgos y diagnósticos de estaciones incluyen campos adicionales <code>data_provenance</code>. El inventario de caché incluye <code>direct_cloud</code>.</li>
+<li>Las consultas HTTP de metadatos tienen límites de tiempo y de reintentos. Las transferencias también tienen un tiempo máximo por solicitud. El límite estimado predeterminado es de 4 GiB de bloques de origen decodificados por solicitud a un proveedor. Es el tamaño decodificado, <strong>no el tráfico de red medido</strong>. Si se supera el límite, se omite el proveedor. Ajuste <code>CLIMATE_TOOLKIT_MAX_DECODED_BYTES</code> para cambiarlo. Una solicitud larga o geográficamente dispersa puede tardar varios minutos.</li>
+</ul>
+<p>Para reproducir las mediciones en línea, use <code>scripts/benchmark_direct_cloud.py</code>. El límite de 90 segundos por caso es un criterio de la prueba y no limita la duración total de un análisis con la biblioteca. Las pruebas habituales usan datos de prueba sin conexión; las mediciones en línea son opcionales.</p>
+<p>CHIRTS-ERA5 cuenta actualmente con <strong>un único proveedor directo integrado</strong>. Los archivos GeoTIFF/NetCDF del CHC son originales independientes. Los archivos diarios y los fallos observados en lecturas parciales requieren más trabajo antes de usarlos como alternativa automática eficiente. El 2026-11-02 se rechazó el NetCDF de Tmax del año en curso, el de Tmin terminaba en septiembre y el catálogo EWX solo ofrecía agregados de cinco días o mensuales. Las lecturas puntuales del NetCDF histórico también excedieron el tiempo previsto para consultas cortas. El 10 de noviembre se observaron diferencias de 0,20 a 2,18 °C en las Tmin del 21 de octubre para las mismas celdas entre el original del CHC y la revisión fijada del espejo de Hugging Face. Superan la tolerancia de cuantificación del espejo (0,05 °C). Debe comprobarse la equivalencia de las revisiones antes de recurrir automáticamente al original. Reproduzca las pruebas de lectura por rangos de bytes con <code>scripts/probe_chc_backup.py</code> (requiere <code>h5py</code> solo para la investigación). Véanse el <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_179_chc_backup_investigation.md">estudio de la fuente alternativa</a> y <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/179">#179</a>. El acceso sin credenciales a las variables complementarias de ERA5-Land se sigue en <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/issues/180">#180</a>. La <a href="https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit/blob/main/analysis/issues/issue_180_era5_land_access.md">auditoría de acceso a ERA5-Land</a> identificó los archivos autenticados de CDS ARCO, pero la consulta en línea de los metadatos rechazó la clave configurada. La integración del CDS está aplazada porque requiere credenciales. No se ha habilitado el acceso directo a ERA5-Land en la nube. Para reproducir los resultados de GEE también hay que agregar los flujos horarios del CDS delimitando explícitamente cada día.</p>
+<h2 id="references">Referencias<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://www.chc.ucsb.edu/data/chirts-era5">Documentación del productor de CHIRTS-ERA5</a></li>
+<li><a href="https://huggingface.co/datasets/aaguilar90/chirts-era5-daily">CHIRTS-ERA5 en Hugging Face</a></li>
+<li><a href="https://huggingface.co/datasets/aaguilar90/chirps-v3-daily-rnl">CHIRPS v3 RNL en Hugging Face</a></li>
+<li><a href="https://dynamical.org/catalog/ucsb-chc-chirps-analysis-final/">Producto definitivo/RNL de Dynamical</a></li>
+</ul>
+<p>Verificación completa en línea: <code>python scripts/verify_direct_pipeline.py</code>. El programa comprueba las seis etapas, la procedencia exportada y una segunda ejecución desde la caché con la apertura de proveedores y la inicialización de GEE bloqueadas. Utiliza períodos de prueba cortos, inadecuados para obtener normales climáticas científicas.</p>
+<!-- source-sha256: c39cbc8080809be30231fbc7817ac7ac6ee9d3f9e68fef1a64b140458fde5e21 -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Volver al principio
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copiado al portapapeles", "clipboard.copy": "Copiar al portapapeles", "search.result.more.one": "1 m\u00e1s en esta p\u00e1gina", "search.result.more.other": "# m\u00e1s en esta p\u00e1gina", "search.result.none": "No se encontraron documentos", "search.result.one": "1 documento encontrado", "search.result.other": "# documentos encontrados", "search.result.placeholder": "Teclee para comenzar b\u00fasqueda", "search.result.term.missing": "Falta", "select.version": "Seleccionar versi\u00f3n"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
