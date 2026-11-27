@@ -65,6 +65,12 @@ drive it.
    wraps scalar values with position metadata. Keep the updater smoke test when
    upgrading Release Please. This replaces the separate post-PR lockfile push.
 
+   `CITATION.cff` is also updated through the generic version/date annotations.
+   Check that its version matches `pyproject.toml` and its date matches the
+   release date before merging. The generated date reflects when the release
+   PR was prepared or refreshed; correct it if publication happens later.
+   Review creator names and order with contributors before archiving a release.
+
    If an older release PR has a stale lockfile, regenerate it with the CI uv
    version, inspect the diff and commit the repair to that release branch before
    merging. Re-running an old failed workflow does not test a newer commit;
@@ -96,6 +102,31 @@ pip install -i https://test.pypi.org/simple/ climate-toolkit --pre
   pip install climate-toolkit            # add --pre for an alpha/rc
   python -c "import climate_toolkit as ct; print(ct.__version__)"
   ```
+
+## Archive an existing release on Zenodo
+
+Use the exact published tag/commit or a checksum-verified PyPI source
+distribution. Never archive a working tree with uncommitted changes, move a
+published tag, or create a new GitHub/PyPI release only to obtain a DOI.
+Check the destination account for an existing record/version family first.
+
+Review the complete archive, creators/order, licence, funding, related links
+and file checksums before publishing. The software is MIT licensed; the bundled
+GGCMI Phase 3 crop-calendar asset retains CC BY 4.0 and its source attribution
+in `climate_toolkit/data/ggcmi_phase3/crop_calendar_manifest.json`.
+Other third-party data and institutional logos retain their own rights.
+
+The original `v0.3.0` tag contains stale citation metadata (`0.1.0`,
+2026-08-07). Its correct release version/date are `0.3.0`, 2026-11-18.
+Correct the deposit metadata and disclose this discrepancy when archiving
+that unchanged tag. Updating `CITATION.cff` on `main` does not modify old
+archives. If adding `.zenodo.json` later, keep it consistent with the citation:
+[Zenodo gives it precedence](https://help.zenodo.org/docs/github/describe-software/).
+
+After publication, verify the resolving version DOI, record metadata and
+downloaded file checksums. Keep the version DOI separate from the concept DOI
+and from downstream reporting identifiers. A saved draft or reserved DOI is
+not a published record.
 
 ## Email release updates
 

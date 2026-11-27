@@ -10,7 +10,16 @@ authors:
   - family-names: Steward
     given-names: Peter
     affiliation: "The Alliance of Bioversity International and CIAT, CGIAR"
+  - family-names: Rwema
+    given-names: Michel
+  - family-names: Joseph
+    given-names: Sammy
+  - family-names: Sylla
+    given-names: Mouhamadou Bamba
+  - family-names: Wanjiku Githu
+    given-names: Beatrice
+    affiliation: "The Alliance of Bioversity International and CIAT, CGIAR"
 repository-code: "https://github.com/CGIAR-Climate-Data-Hub/climate-toolkit"
 license: MIT
-version: 0.1.0
-date-released: 2026-08-07
+version: 0.3.0 # x-release-please-version
+date-released: 2026-11-18 # x-release-please-date
