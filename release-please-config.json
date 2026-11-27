@@ -8,6 +8,10 @@
       "include-component-in-tag": false,
       "extra-files": [
         {
+          "type": "generic",
+          "path": "CITATION.cff"
+        },
+        {
           "type": "toml",
           "path": "uv.lock",
           "jsonpath": "$.package[?(@.name.value=='climate-toolkit')].version"
